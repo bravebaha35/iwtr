@@ -29,8 +29,15 @@ export class CompaniesController {
   }
 
   @Get("companies")
-  search(@Query("q") q?: string) {
-    return this.companies.search(q);
+  search(@Query("q") q?: string, @Query("category") category?: string, @Query("city") city?: string) {
+    return this.companies.search(q, category, city);
+  }
+
+  // Must be registered before "companies/:slug" — otherwise Nest's route
+  // matching would treat "filters" as a slug value for that route instead.
+  @Get("companies/filters")
+  filters() {
+    return this.companies.listFilters();
   }
 
   @Get("companies/:slug")

@@ -1,49 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Company } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
-import { apiGet } from "@/lib/api-client";
 import { avatarEmoji } from "@/lib/avatars";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { CompanySearch } from "@/components/CompanySearch";
-
-function BrowseCompanies() {
-  const [companies, setCompanies] = useState<Company[] | null>(null);
-
-  useEffect(() => {
-    apiGet<Company[]>("/companies")
-      .then((data) => setCompanies(data.slice(0, 8)))
-      .catch(() => setCompanies([]));
-  }, []);
-
-  if (companies === null || companies.length === 0) return null;
-
-  return (
-    <div className="mt-12 w-full max-w-3xl">
-      <h3 className="mb-3 text-left text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-        Browse companies
-      </h3>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {companies.map((c) => (
-          <Link
-            key={c.id}
-            href={`/companies/${c.slug}`}
-            className="flex flex-col items-center gap-2 rounded-xl border border-zinc-200 bg-white p-4 text-center transition hover:border-brand-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-brand-700"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100 text-lg font-bold text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-              {c.name.charAt(0).toUpperCase()}
-            </span>
-            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{c.name}</span>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">{c.category}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
+import { Logo } from "@/components/Logo";
 
 export default function Home() {
   const { isLoading, accessToken, role, onboardingStatus, logout } = useAuth();
@@ -88,9 +52,7 @@ export default function Home() {
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
-            IWT
-          </span>
+          <Logo size="sm" />
           <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">I Worked There</span>
         </Link>
         <div className="flex items-center gap-4">
@@ -118,21 +80,16 @@ export default function Home() {
           </button>
         </div>
       </header>
-      <main className="flex flex-1 flex-col items-center px-6 py-16 text-center">
+
+      <div className="flex flex-col items-center px-6 pt-10 text-center">
         <p className="text-3xl">{avatarEmoji(onboardingStatus?.avatarKey) ?? "👋"}</p>
-        <h2 className="mt-2 text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-          Know before you go.
-        </h2>
+        <h2 className="mt-2 text-3xl font-bold text-zinc-900 dark:text-zinc-50">Know before you go.</h2>
         <p className="mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
           Real, anonymous reviews from people who actually worked there.
         </p>
+      </div>
 
-        <div className="mt-8 w-full max-w-xl">
-          <CompanySearch size="lg" />
-        </div>
-
-        <BrowseCompanies />
-      </main>
+      <WorkplaceBrowser defaultCity={onboardingStatus.city} />
     </div>
   );
 }

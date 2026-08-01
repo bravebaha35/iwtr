@@ -1,5 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import type { AdminCreateCompanyInput, Company, CompanyDetail } from "@iwtr/shared-types";
+import type {
+  AdminCreateCompanyInput,
+  Company,
+  CompanyDetail,
+  CompanyFilters,
+  CompanyListItem,
+} from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify } from "./slugify.util";
 
@@ -58,13 +64,44 @@ export class CompaniesService {
     return this.toPublicCompany(company);
   }
 
-  async search(query: string | undefined): Promise<Company[]> {
+  async search(query?: string, category?: string, city?: string): Promise<CompanyListItem[]> {
     const companies = await this.prisma.company.findMany({
-      where: query ? { name: { contains: query, mode: "insensitive" } } : undefined,
+      where: {
+        ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
+        ...(category ? { category } : {}),
+        ...(city ? { city } : {}),
+      },
+      include: { aggregate: true },
       orderBy: { name: "asc" },
-      take: 25,
+      take: 50,
     });
-    return companies.map((c) => this.toPublicCompany(c));
+    return companies.map((c) => ({
+      ...this.toPublicCompany(c),
+      overallAvg: c.aggregate?.overallAvg ?? null,
+      reviewCount: c.aggregate?.reviewCount ?? 0,
+    }));
+  }
+
+  // Distinct category/city values currently in use, to drive the browse
+  // sidebar and location picker without hardcoding a fixed option list.
+  async listFilters(): Promise<CompanyFilters> {
+    const [categories, cities] = await Promise.all([
+      this.prisma.company.findMany({
+        distinct: ["category"],
+        select: { category: true },
+        orderBy: { category: "asc" },
+      }),
+      this.prisma.company.findMany({
+        where: { city: { not: null } },
+        distinct: ["city"],
+        select: { city: true },
+        orderBy: { city: "asc" },
+      }),
+    ]);
+    return {
+      categories: categories.map((c) => c.category),
+      cities: cities.map((c) => c.city).filter((c): c is string => c !== null),
+    };
   }
 
   async getBySlug(slug: string): Promise<CompanyDetail> {

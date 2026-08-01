@@ -19,6 +19,23 @@ export const companySchema = z.object({
 });
 export type Company = z.infer<typeof companySchema>;
 
+// The browse/search list view is a superset of Company — it also carries the
+// aggregate score so a results grid can show a rating per card without a
+// separate request per company.
+export const companyListItemSchema = companySchema.extend({
+  overallAvg: z.number().min(0).max(5).nullable(),
+  reviewCount: z.number().int().min(0),
+});
+export type CompanyListItem = z.infer<typeof companyListItemSchema>;
+
+// Distinct category/city values currently in use, to drive filter UI
+// (sidebar category list, city/location picker) without hardcoding options.
+export const companyFiltersSchema = z.object({
+  categories: z.array(z.string()),
+  cities: z.array(z.string()),
+});
+export type CompanyFilters = z.infer<typeof companyFiltersSchema>;
+
 export const adminCreateCompanyInputSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),

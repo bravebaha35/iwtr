@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api-client";
+import { Logo } from "@/components/Logo";
 
 export function AuthModal() {
   const { login, register } = useAuth();
@@ -33,9 +34,7 @@ export function AuthModal() {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-xl dark:bg-zinc-900">
         <div className="mb-1 flex items-center justify-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-            IWT
-          </span>
+          <Logo />
           <h2 className="text-center text-2xl font-bold text-zinc-900 dark:text-zinc-50">
             I Worked There
           </h2>

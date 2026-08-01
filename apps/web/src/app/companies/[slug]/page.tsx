@@ -4,6 +4,7 @@ import { scoreBandLabel, type CompanyDetail } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
 import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
+import { scoreBarColor } from "@/lib/scoreBandColors";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -12,21 +13,6 @@ const CATEGORIES = [
   { key: "workLifeBalanceAvg" as const, label: "Work-Life Balance" },
   { key: "stabilityAvg" as const, label: "Organizational Stability" },
 ];
-
-// Keyed off the label text (not re-derived thresholds) so this stays correct
-// automatically if scoreBands' cutoffs ever change — only needs updating if a
-// band's label text itself changes (see packages/shared-types/schemas/company.ts).
-const SCORE_BAND_COLORS: Record<string, string> = {
-  Unsatisfactory: "bg-red-500",
-  Developing: "bg-orange-500",
-  Effective: "bg-amber-500",
-  Superb: "bg-lime-500",
-  Exemplary: "bg-green-600",
-};
-
-function scoreBarColor(avg: number): string {
-  return SCORE_BAND_COLORS[scoreBandLabel(avg)] ?? "bg-zinc-900 dark:bg-zinc-50";
-}
 
 export default async function CompanyPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
