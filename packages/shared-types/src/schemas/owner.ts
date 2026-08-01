@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ownerTierSchema, planStatusSchema } from "./company";
+import { ownerTierSchema, planStatusSchema, workplaceTypeSchema } from "./company";
 
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export type OwnerClaimStatus = z.infer<typeof ownerClaimStatusSchema>;
@@ -48,11 +48,17 @@ export const updateCompanyFreeTierInputSchema = z
   .object({
     name: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
+    workplaceType: workplaceTypeSchema.optional(),
     mainPhotoUrl: z.string().url().optional(),
   })
-  .refine((v) => v.name !== undefined || v.category !== undefined || v.mainPhotoUrl !== undefined, {
-    message: "Provide at least one field to update",
-  });
+  .refine(
+    (v) =>
+      v.name !== undefined ||
+      v.category !== undefined ||
+      v.workplaceType !== undefined ||
+      v.mainPhotoUrl !== undefined,
+    { message: "Provide at least one field to update" },
+  );
 export type UpdateCompanyFreeTierInput = z.infer<typeof updateCompanyFreeTierInputSchema>;
 
 export const contactAdminInputSchema = z.object({

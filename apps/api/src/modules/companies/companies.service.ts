@@ -5,6 +5,7 @@ import type {
   CompanyDetail,
   CompanyFilters,
   CompanyListItem,
+  WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify } from "./slugify.util";
@@ -46,6 +47,7 @@ export class CompaniesService {
         slug,
         name: input.name,
         category: input.category,
+        workplaceType: input.workplaceType,
         city: input.city,
         mainPhotoUrl: input.mainPhotoUrl,
         createdByAdminId: adminUserId,
@@ -64,12 +66,18 @@ export class CompaniesService {
     return this.toPublicCompany(company);
   }
 
-  async search(query?: string, category?: string, city?: string): Promise<CompanyListItem[]> {
+  async search(
+    query?: string,
+    category?: string,
+    city?: string,
+    workplaceType?: WorkplaceType,
+  ): Promise<CompanyListItem[]> {
     const companies = await this.prisma.company.findMany({
       where: {
         ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
         ...(category ? { category } : {}),
         ...(city ? { city } : {}),
+        ...(workplaceType ? { workplaceType } : {}),
       },
       include: { aggregate: true },
       orderBy: { name: "asc" },
@@ -82,24 +90,17 @@ export class CompaniesService {
     }));
   }
 
-  // Distinct category/city values currently in use, to drive the browse
-  // sidebar and location picker without hardcoding a fixed option list.
+  // Distinct city values currently in use, to drive the location picker
+  // without hardcoding a fixed option list. workplaceType is a small closed
+  // enum, so the client reads it directly from shared-types instead.
   async listFilters(): Promise<CompanyFilters> {
-    const [categories, cities] = await Promise.all([
-      this.prisma.company.findMany({
-        distinct: ["category"],
-        select: { category: true },
-        orderBy: { category: "asc" },
-      }),
-      this.prisma.company.findMany({
-        where: { city: { not: null } },
-        distinct: ["city"],
-        select: { city: true },
-        orderBy: { city: "asc" },
-      }),
-    ]);
+    const cities = await this.prisma.company.findMany({
+      where: { city: { not: null } },
+      distinct: ["city"],
+      select: { city: true },
+      orderBy: { city: "asc" },
+    });
     return {
-      categories: categories.map((c) => c.category),
       cities: cities.map((c) => c.city).filter((c): c is string => c !== null),
     };
   }
@@ -135,6 +136,7 @@ export class CompaniesService {
     slug: string;
     name: string;
     category: string;
+    workplaceType: WorkplaceType;
     mainPhotoUrl: string | null;
     description: string | null;
     website: string | null;
@@ -146,6 +148,7 @@ export class CompaniesService {
       slug: c.slug,
       name: c.name,
       category: c.category,
+      workplaceType: c.workplaceType,
       mainPhotoUrl: c.mainPhotoUrl,
       description: c.description,
       website: c.website,

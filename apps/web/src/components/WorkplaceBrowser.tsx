@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { scoreBandLabel, type CompanyFilters, type CompanyListItem } from "@iwtr/shared-types";
+import { scoreBandLabel, type CompanyFilters, type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
+import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { FilterPillGroup } from "@/components/FilterPillGroup";
 
 function CompanyCard({ company }: { company: CompanyListItem }) {
   return (
@@ -19,7 +21,7 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
         <div className="min-w-0">
           <p className="truncate font-semibold text-zinc-900 dark:text-zinc-50">{company.name}</p>
           <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-            {company.category}
+            {workplaceTypeLabel(company.workplaceType)} · {company.category}
             {company.city ? ` · ${company.city}` : ""}
           </p>
         </div>
@@ -46,7 +48,7 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
 
 export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }) {
   const [filters, setFilters] = useState<CompanyFilters | null>(null);
-  const [category, setCategory] = useState<string | null>(null);
+  const [workplaceType, setWorkplaceType] = useState<WorkplaceType | null>(null);
   const [city, setCity] = useState<string | null>(defaultCity);
   const [query, setQuery] = useState("");
   const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
@@ -54,13 +56,13 @@ export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }
   useEffect(() => {
     apiGet<CompanyFilters>("/companies/filters")
       .then(setFilters)
-      .catch(() => setFilters({ categories: [], cities: [] }));
+      .catch(() => setFilters({ cities: [] }));
   }, []);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
-    if (category) params.set("category", category);
+    if (workplaceType) params.set("workplaceType", workplaceType);
     if (city) params.set("city", city);
 
     let cancelled = false;
@@ -77,59 +79,35 @@ export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [query, category, city]);
+  }, [query, workplaceType, city]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-8">
       {/* Location bar — the top-level filter axis, mirroring how a
-          delivery-style browse page leads with "where", before "what". */}
-      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-zinc-500 dark:text-zinc-400">Showing workplaces in</span>
-        <select
-          value={city ?? ""}
-          onChange={(e) => setCity(e.target.value || null)}
-          className="rounded-full border border-zinc-300 bg-white px-3 py-1 font-medium text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-        >
-          <option value="">All cities</option>
-          {filters?.cities.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          delivery-style browse page leads with "where", before "what".
+          Explicit pill buttons (not a native <select>) so the currently
+          active choice, including "All cities", is always visibly obvious. */}
+      <div className="mb-6">
+        <FilterPillGroup
+          heading="Showing workplaces in"
+          allLabel="All cities"
+          options={(filters?.cities ?? []).map((c) => ({ value: c, label: c }))}
+          selected={city}
+          onSelect={setCity}
+          direction="wrap"
+        />
       </div>
 
       <div className="flex flex-col gap-6 sm:flex-row">
-        {/* Category sidebar */}
         <aside className="shrink-0 sm:w-48">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-            Workplace type
-          </h3>
-          <nav className="flex flex-row flex-wrap gap-1.5 sm:flex-col">
-            <button
-              onClick={() => setCategory(null)}
-              className={`rounded-lg px-3 py-1.5 text-left text-sm font-medium transition ${
-                category === null
-                  ? "bg-brand-600 text-white"
-                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }`}
-            >
-              All types
-            </button>
-            {filters?.categories.map((c) => (
-              <button
-                key={c}
-                onClick={() => setCategory(c)}
-                className={`rounded-lg px-3 py-1.5 text-left text-sm font-medium transition ${
-                  category === c
-                    ? "bg-brand-600 text-white"
-                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </nav>
+          <FilterPillGroup
+            heading="Workplace type"
+            allLabel="All types"
+            options={WORKPLACE_TYPES}
+            selected={workplaceType}
+            onSelect={setWorkplaceType}
+            direction="column"
+          />
         </aside>
 
         {/* Results */}

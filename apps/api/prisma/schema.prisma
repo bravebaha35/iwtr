@@ -87,6 +87,19 @@ enum OwnerClaimStatus {
   @@schema("public")
 }
 
+// A deliberately small, fixed classification of the *nature* of the work
+// (office/remote/service/manual-labour) — distinct from Company.category,
+// which is the specific business type (e.g. "Software", "Restaurant"). This
+// is what drives the browse-page sidebar filter; category does not.
+enum WorkplaceType {
+  OFFICE
+  REMOTE
+  SERVICE
+  MANUAL_LABOUR
+
+  @@schema("public")
+}
+
 model User {
   id            String       @id @default(uuid())
   email         String?      @unique
@@ -142,10 +155,11 @@ model EmploymentHistory {
 }
 
 model Company {
-  id               String   @id @default(uuid())
-  slug             String   @unique
+  id               String        @id @default(uuid())
+  slug             String        @unique
   name             String
   category         String
+  workplaceType    WorkplaceType @default(SERVICE)
   mainPhotoUrl     String?
   description      String?
   website          String?

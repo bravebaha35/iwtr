@@ -68,8 +68,9 @@ export class OwnerService {
 
   async updateMyCompany(userId: string, companyId: string, input: UpdateCompanyFreeTierInput): Promise<void> {
     // The input schema itself is already scoped to the Free-tier field
-    // allowlist (name/category/mainPhotoUrl) — Plus tier (Phase 5) will add
-    // fields to that schema and branch on ownership.tier here, not before.
+    // allowlist (name/category/workplaceType/mainPhotoUrl) — Plus tier
+    // (Phase 5) will add fields to that schema and branch on ownership.tier
+    // here, not before.
     await this.requireApprovedOwnership(userId, companyId);
 
     if (input.name) {
@@ -88,6 +89,7 @@ export class OwnerService {
       data: {
         name: input.name,
         category: input.category,
+        workplaceType: input.workplaceType,
         mainPhotoUrl: input.mainPhotoUrl,
       },
     });

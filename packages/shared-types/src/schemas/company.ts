@@ -6,11 +6,20 @@ export type OwnerTier = z.infer<typeof ownerTierSchema>;
 export const planStatusSchema = z.enum(["NONE", "ACTIVE", "PAST_DUE", "CANCELED"]);
 export type PlanStatus = z.infer<typeof planStatusSchema>;
 
+// A deliberately small, fixed classification of the *nature* of the work —
+// distinct from `category`, which is the specific business type (e.g.
+// "Software", "Restaurant"). This is what drives the browse-page filter
+// sidebar; `category` does not. Display labels live in apps/web (presentation
+// concern), not here — see apps/web/src/lib/workplaceTypes.ts.
+export const workplaceTypeSchema = z.enum(["OFFICE", "REMOTE", "SERVICE", "MANUAL_LABOUR"]);
+export type WorkplaceType = z.infer<typeof workplaceTypeSchema>;
+
 export const companySchema = z.object({
   id: z.string().uuid(),
   slug: z.string(),
   name: z.string(),
   category: z.string(),
+  workplaceType: workplaceTypeSchema,
   mainPhotoUrl: z.string().url().nullable(),
   description: z.string().nullable(),
   website: z.string().url().nullable(),
@@ -28,10 +37,11 @@ export const companyListItemSchema = companySchema.extend({
 });
 export type CompanyListItem = z.infer<typeof companyListItemSchema>;
 
-// Distinct category/city values currently in use, to drive filter UI
-// (sidebar category list, city/location picker) without hardcoding options.
+// Distinct city values currently in use, to drive the location picker without
+// hardcoding a fixed option list. workplaceType is NOT included here — it's a
+// small closed enum, so the client just reads workplaceTypeSchema.options
+// directly rather than round-tripping a list that never changes.
 export const companyFiltersSchema = z.object({
-  categories: z.array(z.string()),
   cities: z.array(z.string()),
 });
 export type CompanyFilters = z.infer<typeof companyFiltersSchema>;
@@ -39,6 +49,7 @@ export type CompanyFilters = z.infer<typeof companyFiltersSchema>;
 export const adminCreateCompanyInputSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),
+  workplaceType: workplaceTypeSchema,
   city: z.string().min(1).optional(),
   mainPhotoUrl: z.string().url().optional(),
 });
