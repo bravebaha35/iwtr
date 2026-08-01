@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
-import { createReviewInputSchema, type CreateReviewInput } from "@iwtr/shared-types";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { castVoteInputSchema, createReviewInputSchema, type CastVoteInput, type CreateReviewInput } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -22,5 +22,19 @@ export class ReviewsController {
     @Body(new ZodValidationPipe(createReviewInputSchema)) body: CreateReviewInput,
   ) {
     return this.reviews.submitReview(user.id, body);
+  }
+
+  @Get("reviews/vote-eligibility")
+  voteEligibility(@CurrentUser() user: AuthenticatedUser) {
+    return this.reviews.getVoteEligibility(user.id);
+  }
+
+  @Post("reviews/:id/vote")
+  castVote(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(castVoteInputSchema.omit({ reviewId: true }))) body: Omit<CastVoteInput, "reviewId">,
+  ) {
+    return this.reviews.castVote(user.id, { reviewId: id, value: body.value });
   }
 }

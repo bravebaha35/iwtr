@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { scoreBandLabel, type CompanyDetail } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "@/lib/api-client";
+import { ReviewsList } from "@/components/ReviewsList";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -87,6 +88,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
           </p>
         )}
       </div>
+
+      <ReviewsList companySlug={slug} />
     </div>
   );
 }

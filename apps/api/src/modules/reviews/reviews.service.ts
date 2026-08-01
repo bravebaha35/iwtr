@@ -1,11 +1,29 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable } from "@nestjs/common";
-import type { CreateReviewInput, MyEmploymentEntry, SubmitReviewResult } from "@iwtr/shared-types";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import type {
+  CastVoteInput,
+  CastVoteResult,
+  CreateReviewInput,
+  MyEmploymentEntry,
+  PublicReview,
+  SubmitReviewResult,
+  VoteEligibility,
+} from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
 const MID_THRESHOLD = 0.5;
+
+// Minimum number of distinct companies a member must have a PUBLISHED review
+// for before their like/dislike votes count, per the plan's contribution gate.
+const REQUIRED_COMPANY_REVIEW_COUNT = 3;
 
 @Injectable()
 export class ReviewsService {
@@ -202,5 +220,113 @@ export class ReviewsService {
         reviewCount: count,
       },
     });
+  }
+
+  async listForCompany(companySlug: string, viewerUserId?: string): Promise<PublicReview[]> {
+    const company = await this.prisma.company.findUnique({ where: { slug: companySlug } });
+    if (!company) {
+      throw new NotFoundException("Company not found");
+    }
+
+    const reviews = await this.prisma.review.findMany({
+      where: { companyId: company.id, status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
+      include: {
+        votes: viewerUserId
+          ? { where: { userId: viewerUserId }, select: { value: true } }
+          : false,
+        _count: { select: { votes: { where: { value: 1 } } } },
+      },
+    });
+
+    // Prisma's _count can only filter one way per relation load, so dislike
+    // counts are fetched with a second grouped query rather than a second include.
+    const dislikeCounts = await this.prisma.reviewVote.groupBy({
+      by: ["reviewId"],
+      where: { reviewId: { in: reviews.map((r) => r.id) }, value: -1 },
+      _count: { _all: true },
+    });
+    const dislikeByReview = new Map(dislikeCounts.map((d) => [d.reviewId, d._count._all]));
+
+    return reviews.map((r) => ({
+      id: r.id,
+      companyId: r.companyId,
+      corporateCultureScore: r.corporateCultureScore,
+      corporateCultureComment: r.corporateCultureComment,
+      leadershipScore: r.leadershipScore,
+      leadershipComment: r.leadershipComment,
+      infrastructureScore: r.infrastructureScore,
+      infrastructureComment: r.infrastructureComment,
+      workLifeBalanceScore: r.workLifeBalanceScore,
+      workLifeBalanceComment: r.workLifeBalanceComment,
+      stabilityScore: r.stabilityScore,
+      stabilityComment: r.stabilityComment,
+      generalThoughts: r.generalThoughts,
+      status: r.status,
+      publishedAt: r.publishedAt?.toISOString() ?? null,
+      likeCount: r._count.votes,
+      dislikeCount: dislikeByReview.get(r.id) ?? 0,
+      myVote: viewerUserId ? ((r.votes?.[0]?.value as 1 | -1 | undefined) ?? null) : null,
+    }));
+  }
+
+  async getVoteEligibility(userId: string): Promise<VoteEligibility> {
+    const distinctCompanies = await this.prisma.review.findMany({
+      where: { userId, status: "PUBLISHED" },
+      distinct: ["companyId"],
+      select: { companyId: true },
+    });
+
+    return {
+      eligible: distinctCompanies.length >= REQUIRED_COMPANY_REVIEW_COUNT,
+      distinctCompanyReviewCount: distinctCompanies.length,
+      requiredCompanyReviewCount: REQUIRED_COMPANY_REVIEW_COUNT,
+    };
+  }
+
+  async castVote(userId: string, input: CastVoteInput): Promise<CastVoteResult> {
+    const eligibility = await this.getVoteEligibility(userId);
+    if (!eligibility.eligible) {
+      throw new ForbiddenException(
+        `You need published reviews for ${eligibility.requiredCompanyReviewCount} different companies before you can vote (you have ${eligibility.distinctCompanyReviewCount}).`,
+      );
+    }
+
+    const review = await this.prisma.review.findUnique({ where: { id: input.reviewId } });
+    if (!review || review.status !== "PUBLISHED") {
+      throw new NotFoundException("Review not found");
+    }
+    if (review.userId === userId) {
+      throw new ForbiddenException("You can't vote on your own review");
+    }
+
+    const existing = await this.prisma.reviewVote.findUnique({
+      where: { reviewId_userId: { reviewId: input.reviewId, userId } },
+    });
+
+    if (existing && existing.value === input.value) {
+      await this.prisma.reviewVote.delete({ where: { id: existing.id } });
+    } else if (existing) {
+      await this.prisma.reviewVote.update({ where: { id: existing.id }, data: { value: input.value } });
+    } else {
+      await this.prisma.reviewVote.create({
+        data: { reviewId: input.reviewId, userId, value: input.value },
+      });
+    }
+
+    const [likeCount, dislikeCount, myVote] = await Promise.all([
+      this.prisma.reviewVote.count({ where: { reviewId: input.reviewId, value: 1 } }),
+      this.prisma.reviewVote.count({ where: { reviewId: input.reviewId, value: -1 } }),
+      this.prisma.reviewVote.findUnique({
+        where: { reviewId_userId: { reviewId: input.reviewId, userId } },
+      }),
+    ]);
+
+    return {
+      reviewId: input.reviewId,
+      likeCount,
+      dislikeCount,
+      myVote: (myVote?.value as 1 | -1 | undefined) ?? null,
+    };
   }
 }

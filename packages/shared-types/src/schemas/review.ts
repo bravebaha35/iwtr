@@ -49,6 +49,8 @@ export const publicReviewSchema = z.object({
   publishedAt: z.string().datetime().nullable(),
   likeCount: z.number().int().min(0),
   dislikeCount: z.number().int().min(0),
+  // Only ever populated for the requesting user; null when logged out or not yet voted.
+  myVote: z.union([z.literal(1), z.literal(-1)]).nullable(),
 });
 export type PublicReview = z.infer<typeof publicReviewSchema>;
 
@@ -60,6 +62,24 @@ export const castVoteInputSchema = z.object({
   value: voteValueSchema,
 });
 export type CastVoteInput = z.infer<typeof castVoteInputSchema>;
+
+export const castVoteResultSchema = z.object({
+  reviewId: z.string().uuid(),
+  likeCount: z.number().int().min(0),
+  dislikeCount: z.number().int().min(0),
+  myVote: z.union([z.literal(1), z.literal(-1)]).nullable(),
+});
+export type CastVoteResult = z.infer<typeof castVoteResultSchema>;
+
+// Voting is contribution-gated: only members with published reviews across
+// several distinct companies can vote, to keep the like/dislike signal from
+// being gamed by brand-new or single-employer accounts.
+export const voteEligibilitySchema = z.object({
+  eligible: z.boolean(),
+  distinctCompanyReviewCount: z.number().int().min(0),
+  requiredCompanyReviewCount: z.number().int().min(0),
+});
+export type VoteEligibility = z.infer<typeof voteEligibilitySchema>;
 
 export const submitReviewResultSchema = z.object({
   reviewId: z.string().uuid(),
