@@ -46,3 +46,16 @@ export async function apiPost<T>(path: string, body: unknown, accessToken?: stri
   });
   return handle<T>(res);
 }
+
+export async function apiPatch<T>(path: string, body: unknown, accessToken?: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PATCH",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  return handle<T>(res);
+}

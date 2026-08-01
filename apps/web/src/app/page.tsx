@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { CompanySearch } from "@/components/CompanySearch";
 
 export default function Home() {
-  const { isLoading, accessToken, onboardingStatus, logout } = useAuth();
+  const { isLoading, accessToken, role, onboardingStatus, logout } = useAuth();
 
   if (isLoading) {
     return (
@@ -49,6 +50,21 @@ export default function Home() {
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">
         <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">I Worked There</h1>
         <div className="flex items-center gap-4">
+          <nav className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400">
+            <Link href="/my/companies" className="hover:text-zinc-900 dark:hover:text-zinc-50">
+              My Companies
+            </Link>
+            {role === "ADMIN" && (
+              <>
+                <Link href="/admin/moderation" className="hover:text-zinc-900 dark:hover:text-zinc-50">
+                  Moderation Queue
+                </Link>
+                <Link href="/admin/owner-claims" className="hover:text-zinc-900 dark:hover:text-zinc-50">
+                  Owner Claims
+                </Link>
+              </>
+            )}
+          </nav>
           <CompanySearch />
           <button
             onClick={logout}
@@ -64,7 +80,8 @@ export default function Home() {
           You&apos;re all set!
         </h2>
         <p className="max-w-md text-sm text-zinc-500 dark:text-zinc-400">
-          Company search and reviews are coming next. Your account is fully onboarded and ready.
+          Search for a workplace above to see its score and reviews, or check &ldquo;My Companies&rdquo; if you
+          manage a company profile.
         </p>
       </main>
     </div>

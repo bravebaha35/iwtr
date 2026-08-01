@@ -6,6 +6,7 @@ import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { CompaniesModule } from "./modules/companies/companies.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { AdminQueueModule } from "./modules/admin-queue/admin-queue.module";
+import { OwnerModule } from "./modules/owner/owner.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AdminQueueModule } from "./modules/admin-queue/admin-queue.module";
     CompaniesModule,
     ReviewsModule,
     AdminQueueModule,
+    OwnerModule,
   ],
 })
 export class AppModule {}

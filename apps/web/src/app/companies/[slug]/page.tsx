@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { scoreBandLabel, type CompanyDetail } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
+import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -90,6 +91,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       </div>
 
       <ReviewsList companySlug={slug} />
+      <OwnerClaimPanel companySlug={slug} />
     </div>
   );
 }

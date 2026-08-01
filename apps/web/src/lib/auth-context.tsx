@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import type { AuthTokensResponse, OnboardingStatus } from "@iwtr/shared-types";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { AuthTokensResponse, OnboardingStatus, UserRole } from "@iwtr/shared-types";
 import { apiGet, apiPost } from "./api-client";
 
 const STORAGE_KEY = "iwtr_tokens";
@@ -16,6 +16,7 @@ interface StoredTokens {
 
 interface AuthContextValue {
   accessToken: string | null;
+  role: UserRole | null;
   isLoading: boolean;
   onboardingStatus: OnboardingStatus | null;
   refreshOnboardingStatus: () => Promise<void>;
@@ -26,16 +27,20 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function decodeExpiryMs(accessToken: string): number | null {
+function decodeClaims(accessToken: string): { exp?: number; role?: UserRole } | null {
   try {
     const payload = accessToken.split(".")[1];
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    const { exp } = JSON.parse(atob(padded)) as { exp?: number };
-    return typeof exp === "number" ? exp * 1000 : null;
+    return JSON.parse(atob(padded)) as { exp?: number; role?: UserRole };
   } catch {
     return null;
   }
+}
+
+function decodeExpiryMs(accessToken: string): number | null {
+  const exp = decodeClaims(accessToken)?.exp;
+  return typeof exp === "number" ? exp * 1000 : null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -189,10 +194,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (tokens) await loadStatus(tokens.accessToken);
   }, [tokens, loadStatus]);
 
+  const role = useMemo(
+    () => (tokens ? (decodeClaims(tokens.accessToken)?.role ?? null) : null),
+    [tokens],
+  );
+
   return (
     <AuthContext.Provider
       value={{
         accessToken: tokens?.accessToken ?? null,
+        role,
         isLoading,
         onboardingStatus,
         refreshOnboardingStatus,

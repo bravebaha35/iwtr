@@ -79,6 +79,14 @@ enum QueueStatus {
   @@schema("public")
 }
 
+enum OwnerClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@schema("public")
+}
+
 model User {
   id            String       @id @default(uuid())
   email         String?      @unique
@@ -100,6 +108,7 @@ model User {
   refreshTokens      RefreshToken[]
   auditLogEntries    AuditLog[]
   companyOwnerships  CompanyOwner[]
+  ownerContactMessages OwnerContactMessage[]
 
   @@schema("public")
 }
@@ -149,21 +158,42 @@ model Company {
   reviews             Review[]
   owners              CompanyOwner[]
   aggregate           CompanyAggregateScore?
+  ownerContactMessages OwnerContactMessage[]
 
   @@schema("public")
 }
 
 model CompanyOwner {
-  id                    String     @id @default(uuid())
+  id                    String           @id @default(uuid())
   userId                String
-  user                  User       @relation(fields: [userId], references: [id])
+  user                  User             @relation(fields: [userId], references: [id])
   companyId             String
-  company               Company    @relation(fields: [companyId], references: [id])
-  tier                  OwnerTier  @default(FREE)
-  planStatus            PlanStatus @default(NONE)
+  company               Company          @relation(fields: [companyId], references: [id])
+  tier                  OwnerTier        @default(FREE)
+  planStatus            PlanStatus       @default(NONE)
   iyzicoSubscriptionRef String?
   planRenewsAt          DateTime?
-  createdAt             DateTime   @default(now())
+  claimStatus           OwnerClaimStatus @default(PENDING)
+  claimMessage          String?
+  createdAt             DateTime         @default(now())
+  resolvedAt            DateTime?
+
+  @@unique([userId, companyId])
+  @@schema("public")
+}
+
+// One-way owner -> admin channel only: an approved owner can flag something
+// to the admin (e.g. "this data is wrong", "I need help"), but there is
+// deliberately no reply/messaging path back to reviewers or the public here.
+model OwnerContactMessage {
+  id         String    @id @default(uuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id])
+  ownerId    String
+  owner      User      @relation(fields: [ownerId], references: [id])
+  message    String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
 
   @@schema("public")
 }
