@@ -32,7 +32,7 @@ export const scoreBands = [
   { min: 0, max: 1.5, label: "Unsatisfactory" },
   { min: 1.5, max: 2.5, label: "Developing" },
   { min: 2.5, max: 3.5, label: "Effective" },
-  { min: 3.5, max: 4.5, label: "Highly Effective" },
+  { min: 3.5, max: 4.5, label: "Superb" },
   { min: 4.5, max: 5.01, label: "Exemplary" },
 ] as const;
 
