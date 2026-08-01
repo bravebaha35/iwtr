@@ -1,0 +1,301 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public", "pii"]
+}
+
+// ===================== public schema =====================
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  APPLE
+
+  @@schema("public")
+}
+
+enum UserRole {
+  MEMBER
+  ADMIN
+  COMPANY_OWNER
+
+  @@schema("public")
+}
+
+enum UserStatus {
+  PENDING_PII
+  PENDING_HISTORY
+  PENDING_AVATAR
+  ACTIVE
+  SUSPENDED
+
+  @@schema("public")
+}
+
+enum EduLevel {
+  ELEMENTARY
+  HIGH_SCHOOL
+  COLLEGE
+
+  @@schema("public")
+}
+
+enum OwnerTier {
+  FREE
+  PLUS
+
+  @@schema("public")
+}
+
+enum PlanStatus {
+  NONE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+
+  @@schema("public")
+}
+
+enum ReviewStatus {
+  PENDING_MODERATION
+  PENDING_ADMIN_REVIEW
+  PUBLISHED
+  REJECTED
+
+  @@schema("public")
+}
+
+enum QueueStatus {
+  OPEN
+  ASKED_FOR_SGK_DOC
+  APPROVED
+  REJECTED
+
+  @@schema("public")
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String?      @unique
+  authProvider  AuthProvider
+  providerSubId String?      @unique
+  passwordHash  String?
+  role          UserRole     @default(MEMBER)
+  status        UserStatus   @default(PENDING_PII)
+  avatarKey     String?
+  city          String?
+  district      String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  educationHistory   EducationHistory[]
+  employmentHistory  EmploymentHistory[]
+  reviews            Review[]
+  reviewVotes        ReviewVote[]
+  refreshTokens      RefreshToken[]
+  auditLogEntries    AuditLog[]
+  companyOwnerships  CompanyOwner[]
+
+  @@schema("public")
+}
+
+model EducationHistory {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  level           EduLevel
+  institutionName String
+  graduationYear  Int?
+  createdAt       DateTime @default(now())
+
+  @@schema("public")
+}
+
+model EmploymentHistory {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  companyId      String?
+  company        Company?  @relation(fields: [companyId], references: [id])
+  rawCompanyName String
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime  @default(now())
+
+  reviews Review[]
+
+  @@schema("public")
+}
+
+model Company {
+  id               String   @id @default(uuid())
+  slug             String   @unique
+  name             String
+  category         String
+  mainPhotoUrl     String?
+  description      String?
+  website          String?
+  city             String?
+  isVerifiedBadge  Boolean  @default(false)
+  createdByAdminId String?
+  createdAt        DateTime @default(now())
+
+  employmentHistories EmploymentHistory[]
+  reviews             Review[]
+  owners              CompanyOwner[]
+  aggregate           CompanyAggregateScore?
+
+  @@schema("public")
+}
+
+model CompanyOwner {
+  id                    String     @id @default(uuid())
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id])
+  companyId             String
+  company               Company    @relation(fields: [companyId], references: [id])
+  tier                  OwnerTier  @default(FREE)
+  planStatus            PlanStatus @default(NONE)
+  iyzicoSubscriptionRef String?
+  planRenewsAt          DateTime?
+  createdAt             DateTime   @default(now())
+
+  @@schema("public")
+}
+
+model Review {
+  id                  String   @id @default(uuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id])
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+  employmentHistoryId String
+  employmentHistory   EmploymentHistory @relation(fields: [employmentHistoryId], references: [id])
+
+  corporateCultureScore   Int
+  corporateCultureComment String?
+  leadershipScore         Int
+  leadershipComment       String?
+  infrastructureScore     Int
+  infrastructureComment   String?
+  workLifeBalanceScore    Int
+  workLifeBalanceComment  String?
+  stabilityScore          Int
+  stabilityComment        String?
+  generalThoughts         String?
+
+  status            ReviewStatus @default(PENDING_MODERATION)
+  aiModerationScore Float?
+  aiTrustScore      Float?
+  moderationDetails Json?
+
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+
+  votes ReviewVote[]
+  moderationQueueItem ModerationQueueItem?
+
+  @@unique([userId, companyId])
+  @@schema("public")
+}
+
+model ReviewVote {
+  id        String   @id @default(uuid())
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  value     Int
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, userId])
+  @@schema("public")
+}
+
+model CompanyAggregateScore {
+  companyId           String   @id
+  company              Company @relation(fields: [companyId], references: [id])
+  overallAvg           Float   @default(0)
+  corporateCultureAvg  Float   @default(0)
+  leadershipAvg        Float   @default(0)
+  infrastructureAvg    Float   @default(0)
+  workLifeBalanceAvg   Float   @default(0)
+  stabilityAvg         Float   @default(0)
+  reviewCount          Int     @default(0)
+  updatedAt            DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model ModerationQueueItem {
+  id              String      @id @default(uuid())
+  reviewId        String      @unique
+  review          Review      @relation(fields: [reviewId], references: [id])
+  reason          String
+  aiSummary       String?
+  status          QueueStatus @default(OPEN)
+  assignedAdminId String?
+  sgkDocUrl       String?
+  createdAt       DateTime    @default(now())
+  resolvedAt      DateTime?
+
+  @@schema("public")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+  action      String
+  targetType  String
+  targetId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@schema("public")
+}
+
+model RefreshToken {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  tokenHash   String
+  deviceLabel String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@schema("public")
+}
+
+// ===================== pii schema =====================
+// Deliberately isolated: only the pii-vault module ever gets a Prisma client
+// pointed at this schema. No Prisma relation is declared to User — userId is
+// matched by value only, so a compromise of the public schema alone cannot
+// join straight through to this table.
+//
+// Retention policy: encTcKimlikNo is nulled out (purged) the moment the user's
+// first Review reaches PUBLISHED status (AI auto-publish or admin approval).
+// tcKimlikNoHash (HMAC, non-reversible) is kept indefinitely, solely to block
+// duplicate accounts on the same national ID.
+model PiiVault {
+  userId         String    @id
+  encFirstName   Bytes
+  encLastName    Bytes
+  encTcKimlikNo  Bytes?
+  tcKimlikNoHash String    @unique
+  encBirthDate   Bytes
+  encPhoneNumber Bytes
+  dekWrapped     Bytes
+  dekVersion     Int       @default(1)
+  tcknPurgedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@schema("pii")
+}
