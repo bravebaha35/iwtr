@@ -4,7 +4,9 @@ export function AnonymityModal({ onContinue }: { onContinue: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
       <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-xl dark:bg-zinc-900">
-        <div className="mb-4 text-4xl">🔒</div>
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 text-2xl dark:bg-brand-900">
+          🔒
+        </div>
         <h2 className="mb-2 text-xl font-bold text-zinc-900 dark:text-zinc-50">
           You are always anonymous
         </h2>
@@ -16,7 +18,7 @@ export function AnonymityModal({ onContinue }: { onContinue: () => void }) {
         </p>
         <button
           onClick={onContinue}
-          className="w-full rounded-lg bg-zinc-900 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900"
+          className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
         >
           I understand, continue
         </button>

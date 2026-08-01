@@ -10,6 +10,17 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Brand accent — a single place to retune the whole site's color later.
+     Chosen for a trustworthy, corporate career-site feel (kariyer.net-style),
+     distinct from the neutral zinc grays used for text/borders/surfaces. */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-900: #1e3a8a;
 }
 
 @media (prefers-color-scheme: dark) {

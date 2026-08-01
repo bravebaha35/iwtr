@@ -13,6 +13,21 @@ const CATEGORIES = [
   { key: "stabilityAvg" as const, label: "Organizational Stability" },
 ];
 
+// Keyed off the label text (not re-derived thresholds) so this stays correct
+// automatically if scoreBands' cutoffs ever change — only needs updating if a
+// band's label text itself changes (see packages/shared-types/schemas/company.ts).
+const SCORE_BAND_COLORS: Record<string, string> = {
+  Unsatisfactory: "bg-red-500",
+  Developing: "bg-orange-500",
+  Effective: "bg-amber-500",
+  Superb: "bg-lime-500",
+  Exemplary: "bg-green-600",
+};
+
+function scoreBarColor(avg: number): string {
+  return SCORE_BAND_COLORS[scoreBandLabel(avg)] ?? "bg-zinc-900 dark:bg-zinc-50";
+}
+
 export default async function CompanyPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
@@ -33,14 +48,14 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       </Link>
 
       <div className="mt-4 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-zinc-100 text-2xl font-bold text-zinc-500 dark:bg-zinc-800">
+        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-brand-100 text-2xl font-bold text-brand-700 dark:bg-brand-900 dark:text-brand-300">
           {company.name.charAt(0).toUpperCase()}
         </div>
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
             {company.name}
             {company.isVerifiedBadge && (
-              <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+              <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
                 Verified Company
               </span>
             )}
@@ -72,7 +87,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                   <span className="w-56 text-sm text-zinc-600 dark:text-zinc-400">{c.label}</span>
                   <div className="h-2 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800">
                     <div
-                      className="h-2 rounded-full bg-zinc-900 dark:bg-zinc-50"
+                      className={`h-2 rounded-full ${scoreBarColor(aggregate[c.key])}`}
                       style={{ width: `${(aggregate[c.key] / 5) * 100}%` }}
                     />
                   </div>

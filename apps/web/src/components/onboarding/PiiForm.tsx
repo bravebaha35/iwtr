@@ -115,7 +115,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 w-full rounded-lg bg-zinc-900 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+          className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           {submitting ? "Saving..." : "Continue"}
         </button>

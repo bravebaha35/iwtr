@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Company } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 
-export function CompanySearch() {
+export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Company[]>([]);
   const [open, setOpen] = useState(false);
@@ -34,8 +34,10 @@ export function CompanySearch() {
     };
   }, [query]);
 
+  const isLarge = size === "lg";
+
   return (
-    <div className="relative w-64">
+    <div className={`relative ${isLarge ? "w-full" : "w-64"}`}>
       <input
         type="search"
         placeholder="Search a workplace..."
@@ -43,10 +45,18 @@ export function CompanySearch() {
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className="w-full rounded-full border border-zinc-300 px-4 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+        className={
+          isLarge
+            ? "w-full rounded-full border border-zinc-300 px-6 py-3.5 text-base shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            : "w-full rounded-full border border-zinc-300 px-4 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+        }
       />
       {open && results.length > 0 && (
-        <div className="absolute right-0 z-10 mt-1 w-72 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
+        <div
+          className={`absolute z-10 mt-1 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900 ${
+            isLarge ? "left-0 right-0" : "right-0 w-72"
+          }`}
+        >
           {results.map((c) => (
             <Link
               key={c.id}

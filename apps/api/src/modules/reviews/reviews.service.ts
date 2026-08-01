@@ -25,6 +25,9 @@ const MID_THRESHOLD = 0.5;
 // Minimum number of distinct companies a member must have a PUBLISHED review
 // for before their like/dislike votes count, per the plan's contribution gate.
 const REQUIRED_COMPANY_REVIEW_COUNT = 3;
+// Same distinct-company-count signal, reused to badge reviews with a
+// trust/contribution indicator — never the author's identity, just a tier.
+const TOP_CONTRIBUTOR_COMPANY_COUNT = 5;
 
 @Injectable()
 export class ReviewsService {
@@ -253,6 +256,26 @@ export class ReviewsService {
       (row.value === 1 ? likeByReview : dislikeByReview).set(row.reviewId, row._count._all);
     }
 
+    // Contributor badge: derived from how many distinct companies each
+    // review's author has PUBLISHED elsewhere — a trust signal for readers,
+    // computed without ever exposing who the author is. One batched query
+    // for every author on this page rather than a query per review.
+    const authorIds = [...new Set(reviews.map((r) => r.userId))];
+    const authorCompanyRows = await this.prisma.review.groupBy({
+      by: ["userId", "companyId"],
+      where: { userId: { in: authorIds }, status: "PUBLISHED" },
+    });
+    const distinctCompanyCountByAuthor = new Map<string, number>();
+    for (const row of authorCompanyRows) {
+      distinctCompanyCountByAuthor.set(row.userId, (distinctCompanyCountByAuthor.get(row.userId) ?? 0) + 1);
+    }
+    const contributorBadge = (userId: string): PublicReview["contributorBadge"] => {
+      const count = distinctCompanyCountByAuthor.get(userId) ?? 0;
+      if (count >= TOP_CONTRIBUTOR_COMPANY_COUNT) return "TOP_CONTRIBUTOR";
+      if (count >= REQUIRED_COMPANY_REVIEW_COUNT) return "CONTRIBUTOR";
+      return null;
+    };
+
     return reviews.map((r) => ({
       id: r.id,
       companyId: r.companyId,
@@ -272,6 +295,7 @@ export class ReviewsService {
       likeCount: likeByReview.get(r.id) ?? 0,
       dislikeCount: dislikeByReview.get(r.id) ?? 0,
       myVote: viewerUserId ? ((r.votes?.[0]?.value as 1 | -1 | undefined) ?? null) : null,
+      contributorBadge: contributorBadge(r.userId),
     }));
   }
 

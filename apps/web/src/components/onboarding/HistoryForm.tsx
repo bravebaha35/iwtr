@@ -118,7 +118,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
           <button
             type="button"
             onClick={addJob}
-            className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-200 dark:bg-brand-900 dark:text-brand-300 dark:hover:bg-brand-900/70"
           >
             + Add workplace
           </button>
@@ -162,7 +162,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 w-full rounded-lg bg-zinc-900 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+          className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           {submitting ? "Saving..." : "Continue"}
         </button>

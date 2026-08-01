@@ -51,6 +51,10 @@ export const publicReviewSchema = z.object({
   dislikeCount: z.number().int().min(0),
   // Only ever populated for the requesting user; null when logged out or not yet voted.
   myVote: z.union([z.literal(1), z.literal(-1)]).nullable(),
+  // A trust signal derived from how many distinct companies this review's
+  // (anonymous) author has published reviews for elsewhere — never reveals
+  // who the author is, just a contribution tier.
+  contributorBadge: z.enum(["CONTRIBUTOR", "TOP_CONTRIBUTOR"]).nullable(),
 });
 export type PublicReview = z.infer<typeof publicReviewSchema>;
 

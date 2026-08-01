@@ -3,20 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiPost, ApiError } from "@/lib/api-client";
-
-// Placeholder preset avatar set for Phase 1. Real illustrated avatars come in
-// the Phase 4 visual-design pass (see plan) — these just need to be distinct,
-// non-identifying options.
-const AVATARS = [
-  { key: "avatar_fox", emoji: "🦊" },
-  { key: "avatar_owl", emoji: "🦉" },
-  { key: "avatar_cat", emoji: "🐱" },
-  { key: "avatar_panda", emoji: "🐼" },
-  { key: "avatar_lion", emoji: "🦁" },
-  { key: "avatar_penguin", emoji: "🐧" },
-  { key: "avatar_koala", emoji: "🐨" },
-  { key: "avatar_bear", emoji: "🐻" },
-];
+import { AVATARS } from "@/lib/avatars";
 
 export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
   const { accessToken } = useAuth();
@@ -54,10 +41,10 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
               key={a.key}
               type="button"
               onClick={() => setSelected(a.key)}
-              className={`flex aspect-square items-center justify-center rounded-full text-3xl transition ${
+              className={`flex aspect-square items-center justify-center rounded-full text-3xl transition ${a.bg} ${
                 selected === a.key
-                  ? "bg-zinc-900 ring-2 ring-zinc-900 dark:bg-zinc-50 dark:ring-zinc-50"
-                  : "bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+                  ? "ring-3 ring-brand-600 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900"
+                  : "hover:brightness-95 dark:hover:brightness-110"
               }`}
             >
               {a.emoji}
@@ -70,7 +57,7 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
         <button
           onClick={handleContinue}
           disabled={!selected || submitting}
-          className="w-full rounded-lg bg-zinc-900 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+          className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           {submitting ? "Saving..." : "Finish"}
         </button>

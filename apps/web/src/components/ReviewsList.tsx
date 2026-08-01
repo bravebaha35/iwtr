@@ -88,6 +88,17 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
           key={review.id}
           className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
         >
+          {review.contributorBadge && (
+            <span
+              className={`mb-3 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                review.contributorBadge === "TOP_CONTRIBUTOR"
+                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                  : "bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300"
+              }`}
+            >
+              {review.contributorBadge === "TOP_CONTRIBUTOR" ? "Top Contributor" : "Contributor"}
+            </span>
+          )}
           <div className="flex flex-col gap-1 text-sm">
             {CATEGORY_FIELDS.map((f) => (
               <div key={f.label} className="text-zinc-600 dark:text-zinc-400">

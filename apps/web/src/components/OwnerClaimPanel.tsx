@@ -57,7 +57,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
           </p>
           <button
             onClick={() => setShowForm(true)}
-            className="mt-3 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="mt-3 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
           >
             Claim this company
           </button>
@@ -78,7 +78,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
             <button
               onClick={submitClaim}
               disabled={submitting}
-              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               Submit claim
             </button>
@@ -101,7 +101,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
       {claim?.claimStatus === "APPROVED" && (
         <p className="mt-1 text-sm text-green-700 dark:text-green-400">
           You&apos;re an approved owner of this company.{" "}
-          <Link href="/my/companies" className="underline">
+          <Link href="/my/companies" className="font-medium text-brand-700 underline dark:text-brand-400">
             Go to your dashboard
           </Link>
           .
@@ -134,7 +134,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
             <button
               onClick={submitClaim}
               disabled={submitting}
-              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               Submit claim
             </button>

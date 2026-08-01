@@ -32,9 +32,14 @@ export function AuthModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-xl dark:bg-zinc-900">
-        <h2 className="mb-1 text-center text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          I Worked There
-        </h2>
+        <div className="mb-1 flex items-center justify-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
+            IWT
+          </span>
+          <h2 className="text-center text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+            I Worked There
+          </h2>
+        </div>
         <p className="mb-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
           Anonymous, honest workplace reviews.
         </p>
@@ -44,7 +49,7 @@ export function AuthModal() {
             type="button"
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
               mode === "register"
-                ? "bg-white shadow dark:bg-zinc-700 dark:text-zinc-50"
+                ? "bg-white text-brand-700 shadow dark:bg-zinc-700 dark:text-brand-400"
                 : "text-zinc-500 dark:text-zinc-400"
             }`}
             onClick={() => setMode("register")}
@@ -55,7 +60,7 @@ export function AuthModal() {
             type="button"
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
               mode === "login"
-                ? "bg-white shadow dark:bg-zinc-700 dark:text-zinc-50"
+                ? "bg-white text-brand-700 shadow dark:bg-zinc-700 dark:text-brand-400"
                 : "text-zinc-500 dark:text-zinc-400"
             }`}
             onClick={() => setMode("login")}
@@ -88,7 +93,7 @@ export function AuthModal() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 rounded-lg bg-zinc-900 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+            className="mt-2 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
             {submitting ? "Please wait..." : mode === "register" ? "Create account" : "Log in"}
           </button>

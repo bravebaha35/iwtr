@@ -66,7 +66,7 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
         <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-zinc-900 hover:underline dark:text-zinc-50">
           {claim.companyName}
         </Link>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
           {claim.tier} tier
         </span>
       </div>
@@ -101,7 +101,7 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
         <button
           onClick={saveCompany}
           disabled={saving}
-          className="mt-1 self-start rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+          className="mt-1 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
           Save changes
         </button>
