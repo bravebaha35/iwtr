@@ -18,6 +18,8 @@ export const myCompanyClaimSchema = z.object({
   companyName: z.string(),
   companySlug: z.string(),
   tier: ownerTierSchema,
+  planStatus: planStatusSchema,
+  isVerifiedBadge: z.boolean(),
   claimStatus: ownerClaimStatusSchema,
   createdAt: z.string().datetime(),
   resolvedAt: z.string().datetime().nullable(),
@@ -40,26 +42,32 @@ export const adminOwnerClaimSchema = z.object({
 });
 export type AdminOwnerClaim = z.infer<typeof adminOwnerClaimSchema>;
 
-// Free tier can only edit name/photo/category (server-enforced allowlist —
-// see companies plan doc). Plus-only fields (description/website/gallery)
-// stay out of this schema entirely until Phase 5 wires up payments; adding
-// them then just means adding fields here, not changing the enforcement.
-export const updateCompanyFreeTierInputSchema = z
+// Every field any owner could ever submit. The shape alone doesn't grant
+// access — description/website are Plus-only and rejected server-side
+// (owner.service.ts) unless the caller's CompanyOwner row is tier=PLUS with
+// planStatus=ACTIVE. Keeping one schema (rather than Free/Plus variants)
+// means the allowlist lives in exactly one place: the service layer.
+export const updateCompanyInputSchema = z
   .object({
     name: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
     workplaceType: workplaceTypeSchema.optional(),
     mainPhotoUrl: z.string().url().optional(),
+    // Plus-tier only:
+    description: z.string().max(2000).optional(),
+    website: z.string().url().optional(),
   })
   .refine(
     (v) =>
       v.name !== undefined ||
       v.category !== undefined ||
       v.workplaceType !== undefined ||
-      v.mainPhotoUrl !== undefined,
+      v.mainPhotoUrl !== undefined ||
+      v.description !== undefined ||
+      v.website !== undefined,
     { message: "Provide at least one field to update" },
   );
-export type UpdateCompanyFreeTierInput = z.infer<typeof updateCompanyFreeTierInputSchema>;
+export type UpdateCompanyInput = z.infer<typeof updateCompanyInputSchema>;
 
 export const contactAdminInputSchema = z.object({
   message: z.string().min(1).max(2000),
@@ -85,5 +93,15 @@ export const ownedCompanySchema = z.object({
   companySlug: z.string(),
   tier: ownerTierSchema,
   planStatus: planStatusSchema,
+  isVerifiedBadge: z.boolean(),
 });
 export type OwnedCompany = z.infer<typeof ownedCompanySchema>;
+
+// Returned by the Plus checkout-initiation endpoint. iyzico's Checkout Form
+// model hands back an embeddable HTML/JS snippet (checkoutFormContent) rather
+// than just a redirect URL — the web app injects it into the page.
+export const plusCheckoutResultSchema = z.object({
+  checkoutFormContent: z.string(),
+  token: z.string(),
+});
+export type PlusCheckoutResult = z.infer<typeof plusCheckoutResultSchema>;

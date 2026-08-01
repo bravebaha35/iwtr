@@ -3,11 +3,11 @@ import {
   claimCompanyInputSchema,
   contactAdminInputSchema,
   ownerClaimStatusSchema,
-  updateCompanyFreeTierInputSchema,
+  updateCompanyInputSchema,
   type ClaimCompanyInput,
   type ContactAdminInput,
   type OwnerClaimStatus,
-  type UpdateCompanyFreeTierInput,
+  type UpdateCompanyInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -45,7 +45,7 @@ export class OwnerController {
   updateMyCompany(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId") companyId: string,
-    @Body(new ZodValidationPipe(updateCompanyFreeTierInputSchema)) body: UpdateCompanyFreeTierInput,
+    @Body(new ZodValidationPipe(updateCompanyInputSchema)) body: UpdateCompanyInput,
   ) {
     return this.owner.updateMyCompany(user.id, companyId, body);
   }

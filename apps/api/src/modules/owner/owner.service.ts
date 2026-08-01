@@ -7,7 +7,7 @@ import type {
   OwnedCompany,
   OwnerClaimStatus,
   OwnerContactMessage,
-  UpdateCompanyFreeTierInput,
+  UpdateCompanyInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 
@@ -63,15 +63,21 @@ export class OwnerService {
       companySlug: r.company.slug,
       tier: r.tier,
       planStatus: r.planStatus,
+      isVerifiedBadge: r.company.isVerifiedBadge,
     }));
   }
 
-  async updateMyCompany(userId: string, companyId: string, input: UpdateCompanyFreeTierInput): Promise<void> {
-    // The input schema itself is already scoped to the Free-tier field
-    // allowlist (name/category/workplaceType/mainPhotoUrl) — Plus tier
-    // (Phase 5) will add fields to that schema and branch on ownership.tier
-    // here, not before.
-    await this.requireApprovedOwnership(userId, companyId);
+  async updateMyCompany(userId: string, companyId: string, input: UpdateCompanyInput): Promise<void> {
+    const ownership = await this.requireApprovedOwnership(userId, companyId);
+
+    // Server-enforced field allowlist: description/website are Plus-only.
+    // The schema accepts them from anyone (so the same endpoint serves both
+    // tiers), but a Free-tier (or lapsed Plus) owner gets a clear rejection
+    // here rather than the fields silently being dropped.
+    const wantsPlusOnlyFields = input.description !== undefined || input.website !== undefined;
+    if (wantsPlusOnlyFields && !(ownership.tier === "PLUS" && ownership.planStatus === "ACTIVE")) {
+      throw new ForbiddenException("Upgrade to the Plus tier to edit description and website.");
+    }
 
     if (input.name) {
       const existingByName = await this.prisma.company.findFirst({
@@ -91,6 +97,8 @@ export class OwnerService {
         category: input.category,
         workplaceType: input.workplaceType,
         mainPhotoUrl: input.mainPhotoUrl,
+        description: input.description,
+        website: input.website,
       },
     });
   }
@@ -188,8 +196,16 @@ export class OwnerService {
   }
 
   private toMyClaim(
-    row: { id: string; companyId: string; tier: "FREE" | "PLUS"; claimStatus: OwnerClaimStatus; createdAt: Date; resolvedAt: Date | null },
-    company: { name: string; slug: string },
+    row: {
+      id: string;
+      companyId: string;
+      tier: "FREE" | "PLUS";
+      planStatus: "NONE" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+      claimStatus: OwnerClaimStatus;
+      createdAt: Date;
+      resolvedAt: Date | null;
+    },
+    company: { name: string; slug: string; isVerifiedBadge: boolean },
   ): MyCompanyClaim {
     return {
       id: row.id,
@@ -197,6 +213,8 @@ export class OwnerService {
       companyName: company.name,
       companySlug: company.slug,
       tier: row.tier,
+      planStatus: row.planStatus,
+      isVerifiedBadge: company.isVerifiedBadge,
       claimStatus: row.claimStatus,
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt?.toISOString() ?? null,

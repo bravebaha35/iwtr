@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import type { MyCompanyClaim } from "@iwtr/shared-types";
+import type { MyCompanyClaim, PlusCheckoutResult } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
+import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -12,15 +13,164 @@ const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   REJECTED: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
 
+const emptyBilling = {
+  buyerName: "",
+  buyerSurname: "",
+  buyerIdentityNumber: "",
+  buyerEmail: "",
+  buyerGsmNumber: "",
+  city: "",
+  address: "",
+};
+
+function UpgradeToPlus({ companyId, accessToken }: { companyId: string; accessToken: string }) {
+  const [showForm, setShowForm] = useState(false);
+  const [billing, setBilling] = useState(emptyBilling);
+  const [checkout, setCheckout] = useState<PlusCheckoutResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function set<K extends keyof typeof emptyBilling>(key: K, value: string) {
+    setBilling((b) => ({ ...b, [key]: value }));
+  }
+
+  async function startCheckout() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await apiPost<PlusCheckoutResult>(
+        `/my-companies/${companyId}/plus/checkout`,
+        {
+          buyerName: billing.buyerName,
+          buyerSurname: billing.buyerSurname,
+          buyerIdentityNumber: billing.buyerIdentityNumber,
+          buyerEmail: billing.buyerEmail,
+          buyerGsmNumber: billing.buyerGsmNumber || undefined,
+          billingAddress: {
+            contactName: `${billing.buyerName} ${billing.buyerSurname}`.trim(),
+            city: billing.city,
+            country: "Turkey",
+            address: billing.address,
+          },
+        },
+        accessToken,
+      );
+      setCheckout(result);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 501) {
+        setError(
+          "Plus subscriptions aren't set up yet — the site owner needs to add iyzico payment credentials first.",
+        );
+      } else {
+        setError(err instanceof ApiError ? err.message : "Couldn't start checkout.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (checkout) {
+    return (
+      <div className="mt-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+        <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">Complete payment below:</p>
+        <IyzicoCheckoutEmbed checkoutFormContent={checkout.checkoutFormContent} />
+      </div>
+    );
+  }
+
+  if (!showForm) {
+    return (
+      <button
+        onClick={() => setShowForm(true)}
+        className="mt-3 rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
+      >
+        Upgrade to Plus
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+      <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+        Billing details for the subscription invoice (not shared with reviewers or the public).
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          placeholder="First name"
+          value={billing.buyerName}
+          onChange={(e) => set("buyerName", e.target.value)}
+          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+        />
+        <input
+          placeholder="Last name"
+          value={billing.buyerSurname}
+          onChange={(e) => set("buyerSurname", e.target.value)}
+          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+        />
+        <input
+          placeholder="T.C. Kimlik No / Tax ID (11 digits)"
+          value={billing.buyerIdentityNumber}
+          onChange={(e) => set("buyerIdentityNumber", e.target.value)}
+          className="col-span-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+        />
+        <input
+          placeholder="Billing email"
+          value={billing.buyerEmail}
+          onChange={(e) => set("buyerEmail", e.target.value)}
+          className="col-span-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+        />
+        <input
+          placeholder="Phone (optional)"
+          value={billing.buyerGsmNumber}
+          onChange={(e) => set("buyerGsmNumber", e.target.value)}
+          className="col-span-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+        />
+        <input
+          placeholder="City"
+          value={billing.city}
+          onChange={(e) => set("city", e.target.value)}
+          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+        />
+        <input
+          placeholder="Billing address"
+          value={billing.address}
+          onChange={(e) => set("address", e.target.value)}
+          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+        />
+      </div>
+      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      <div className="mt-2 flex gap-2">
+        <button
+          onClick={startCheckout}
+          disabled={submitting}
+          className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+        >
+          Continue to payment
+        </button>
+        <button
+          onClick={() => setShowForm(false)}
+          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; accessToken: string }) {
   const [name, setName] = useState(claim.companyName);
   const [category, setCategory] = useState("");
   const [mainPhotoUrl, setMainPhotoUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const [website, setWebsite] = useState("");
   const [contactMessage, setContactMessage] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+
+  const isPlusActive = claim.tier === "PLUS" && claim.planStatus === "ACTIVE";
 
   async function saveCompany() {
     setSaving(true);
@@ -31,6 +181,8 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
       if (name.trim() && name.trim() !== claim.companyName) body.name = name.trim();
       if (category.trim()) body.category = category.trim();
       if (mainPhotoUrl.trim()) body.mainPhotoUrl = mainPhotoUrl.trim();
+      if (isPlusActive && description.trim()) body.description = description.trim();
+      if (isPlusActive && website.trim()) body.website = website.trim();
       if (Object.keys(body).length === 0) {
         setError("Change at least one field before saving.");
         return;
@@ -66,9 +218,16 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
         <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-zinc-900 hover:underline dark:text-zinc-50">
           {claim.companyName}
         </Link>
-        <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-          {claim.tier} tier
-        </span>
+        <div className="flex items-center gap-2">
+          {claim.isVerifiedBadge && (
+            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
+              Verified
+            </span>
+          )}
+          <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
+            {claim.tier} tier
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -98,6 +257,32 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
             className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
           />
         </label>
+
+        {isPlusActive ? (
+          <>
+            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              Description (Plus)
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+              />
+            </label>
+            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              Website (Plus)
+              <input
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://..."
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+              />
+            </label>
+          </>
+        ) : (
+          <UpgradeToPlus companyId={claim.companyId} accessToken={accessToken} />
+        )}
+
         <button
           onClick={saveCompany}
           disabled={saving}
