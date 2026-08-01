@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Post } from "@nestjs/common";
 import {
   loginEmailInputSchema,
   oauthLoginInputSchema,
@@ -29,7 +29,7 @@ export class AuthController {
   @Post("refresh")
   refresh(@Body(new ZodValidationPipe(refreshRequestSchema)) body: RefreshRequest) {
     if (!body.refreshToken) {
-      throw new Error("refreshToken is required");
+      throw new BadRequestException("refreshToken is required");
     }
     return this.auth.refresh(body.refreshToken);
   }

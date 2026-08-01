@@ -1,8 +1,9 @@
 import { Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
-import type { QueueStatus } from "@iwtr/shared-types";
+import { queueStatusSchema, type QueueStatus } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
+import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { AdminQueueService } from "./admin-queue.service";
 
 @Controller("admin/moderation-queue")
@@ -12,7 +13,7 @@ export class AdminQueueController {
   constructor(private readonly queue: AdminQueueService) {}
 
   @Get()
-  list(@Query("status") status?: QueueStatus) {
+  list(@Query("status", new ZodValidationPipe(queueStatusSchema.optional())) status?: QueueStatus) {
     return this.queue.list(status);
   }
 

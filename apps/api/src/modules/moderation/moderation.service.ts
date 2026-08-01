@@ -39,6 +39,18 @@ const JOB_TITLE_WORDS = [
 // Two-or-more consecutive Capitalized Words looks like a person's full name.
 const NAME_LIKE_PATTERN = /\b[A-ZÇĞİÖŞÜ][a-zçğıöşü]+\s+[A-ZÇĞİÖŞÜ][a-zçğıöşü]+\b/;
 
+// Plain `.includes()` on these short word lists false-positives constantly on
+// ordinary text ("pic" inside "picture", "amir" inside Turkish "tamir"
+// [repair], "sef" inside "sefer" [trip]) because it matches mid-word. JS's
+// built-in `\b` doesn't treat Turkish letters (ş, ı, ğ, ü, ö, ç) as word
+// characters, so it can't be trusted here either — this builds a real
+// Unicode-letter-aware boundary check instead.
+function matchesAsWord(haystackLower: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "u");
+  return pattern.test(haystackLower);
+}
+
 @Injectable()
 export class ModerationService {
   checkContent(texts: string[]): ContentCheckResult {
@@ -46,10 +58,10 @@ export class ModerationService {
     const lower = combined.toLowerCase();
     const violationTypes: ContentCheckResult["violationTypes"] = [];
 
-    const hasProfanity = PROFANITY_WORDS.some((w) => lower.includes(w));
+    const hasProfanity = PROFANITY_WORDS.some((w) => matchesAsWord(lower, w));
     if (hasProfanity) violationTypes.push("PROFANITY");
 
-    const hasJobTitle = JOB_TITLE_WORDS.some((w) => lower.includes(w));
+    const hasJobTitle = JOB_TITLE_WORDS.some((w) => matchesAsWord(lower, w));
     if (hasJobTitle) violationTypes.push("JOB_TITLE");
 
     const hasNameLike = NAME_LIKE_PATTERN.test(combined);

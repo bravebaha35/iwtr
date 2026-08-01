@@ -2,13 +2,14 @@ import { randomBytes, createHash } from "crypto";
 import { Injectable } from "@nestjs/common";
 import jwt from "jsonwebtoken";
 import type { AccessTokenClaims } from "./auth.types";
+import { requireSecret } from "../../config/env";
 
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class TokenService {
-  private readonly accessSecret = process.env.JWT_ACCESS_SECRET ?? "dev-only-change-me";
+  private readonly accessSecret = requireSecret("JWT_ACCESS_SECRET", "dev-only-change-me");
 
   signAccessToken(claims: AccessTokenClaims): { token: string; expiresInSeconds: number } {
     const token = jwt.sign(claims, this.accessSecret, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });

@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type {
   CastVoteInput,
   CastVoteResult,
@@ -235,18 +236,22 @@ export class ReviewsService {
         votes: viewerUserId
           ? { where: { userId: viewerUserId }, select: { value: true } }
           : false,
-        _count: { select: { votes: { where: { value: 1 } } } },
       },
     });
 
-    // Prisma's _count can only filter one way per relation load, so dislike
-    // counts are fetched with a second grouped query rather than a second include.
-    const dislikeCounts = await this.prisma.reviewVote.groupBy({
-      by: ["reviewId"],
-      where: { reviewId: { in: reviews.map((r) => r.id) }, value: -1 },
+    // Single grouped query for both like and dislike counts, so the two
+    // numbers always come from the same read rather than two independent
+    // queries that could observe different points in time.
+    const voteCounts = await this.prisma.reviewVote.groupBy({
+      by: ["reviewId", "value"],
+      where: { reviewId: { in: reviews.map((r) => r.id) } },
       _count: { _all: true },
     });
-    const dislikeByReview = new Map(dislikeCounts.map((d) => [d.reviewId, d._count._all]));
+    const likeByReview = new Map<string, number>();
+    const dislikeByReview = new Map<string, number>();
+    for (const row of voteCounts) {
+      (row.value === 1 ? likeByReview : dislikeByReview).set(row.reviewId, row._count._all);
+    }
 
     return reviews.map((r) => ({
       id: r.id,
@@ -264,7 +269,7 @@ export class ReviewsService {
       generalThoughts: r.generalThoughts,
       status: r.status,
       publishedAt: r.publishedAt?.toISOString() ?? null,
-      likeCount: r._count.votes,
+      likeCount: likeByReview.get(r.id) ?? 0,
       dislikeCount: dislikeByReview.get(r.id) ?? 0,
       myVote: viewerUserId ? ((r.votes?.[0]?.value as 1 | -1 | undefined) ?? null) : null,
     }));
@@ -304,14 +309,26 @@ export class ReviewsService {
       where: { reviewId_userId: { reviewId: input.reviewId, userId } },
     });
 
-    if (existing && existing.value === input.value) {
-      await this.prisma.reviewVote.delete({ where: { id: existing.id } });
-    } else if (existing) {
-      await this.prisma.reviewVote.update({ where: { id: existing.id }, data: { value: input.value } });
-    } else {
-      await this.prisma.reviewVote.create({
-        data: { reviewId: input.reviewId, userId, value: input.value },
-      });
+    try {
+      if (existing && existing.value === input.value) {
+        await this.prisma.reviewVote.delete({ where: { id: existing.id } });
+      } else if (existing) {
+        await this.prisma.reviewVote.update({ where: { id: existing.id }, data: { value: input.value } });
+      } else {
+        await this.prisma.reviewVote.create({
+          data: { reviewId: input.reviewId, userId, value: input.value },
+        });
+      }
+    } catch (err) {
+      // A concurrent request from the same user (double-click / duplicate
+      // submit) can lose this exact race — e.g. two "create" calls both read
+      // no existing vote, or two "delete" calls both read the same existing
+      // vote. Either way the vote state is now whatever the winner left it
+      // as, which is what we want, so just fall through to reading it back
+      // rather than surfacing a spurious error for a no-op-in-effect request.
+      const isBenignRace =
+        err instanceof Prisma.PrismaClientKnownRequestError && (err.code === "P2002" || err.code === "P2025");
+      if (!isBenignRace) throw err;
     }
 
     const [likeCount, dislikeCount, myVote] = await Promise.all([

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { AdminCreateCompanyInput, Company, CompanyDetail } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify } from "./slugify.util";
@@ -8,7 +8,26 @@ export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createByAdmin(adminUserId: string, input: AdminCreateCompanyInput): Promise<Company> {
+    // Company names are the only thing the employment-history matching (both
+    // here and in onboarding) keys off of. Two companies sharing a name would
+    // make that matching ambiguous — which one does a free-typed employment
+    // entry actually belong to? — so names must be unique, case-insensitively.
+    const existingByName = await this.prisma.company.findFirst({
+      where: { name: { equals: input.name, mode: "insensitive" } },
+    });
+    if (existingByName) {
+      throw new ConflictException(
+        `A company named "${existingByName.name}" already exists. Use a distinguishing suffix (e.g. city) if this is a different business.`,
+      );
+    }
+
     const baseSlug = slugify(input.name);
+    if (!baseSlug) {
+      throw new BadRequestException(
+        "Company name must contain at least one letter or number that can form a URL slug",
+      );
+    }
+
     let slug = baseSlug;
     let suffix = 1;
     while (await this.prisma.company.findUnique({ where: { slug } })) {

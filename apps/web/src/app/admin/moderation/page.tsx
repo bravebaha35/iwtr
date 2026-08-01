@@ -67,7 +67,7 @@ export default function ModerationQueuePage() {
 
       {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      {items === null && <p className="text-sm text-zinc-500">Loading...</p>}
+      {items === null && !error && <p className="text-sm text-zinc-500">Loading...</p>}
       {items !== null && items.length === 0 && (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">Queue is empty. Nothing waiting for review.</p>
       )}

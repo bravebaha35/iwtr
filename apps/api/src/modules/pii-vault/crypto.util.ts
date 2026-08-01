@@ -1,11 +1,17 @@
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from "crypto";
+import { requireSecret } from "../../config/env";
 
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
+// Fixed application-level salt for the master-key KDF. This does not need to
+// be secret or per-record — it just stops PII_MASTER_KEY from being usable
+// directly as a rainbow-table/precomputed-hash input, and gives the
+// derivation a real (if fixed-cost) work factor instead of a bare fast hash.
+const MASTER_KEY_KDF_SALT = "iwtr-pii-vault-master-key-kdf-v1";
 
 function deriveMasterKey(): Buffer {
-  const secret = process.env.PII_MASTER_KEY ?? "dev-only-change-me";
-  return createHash("sha256").update(secret).digest();
+  const secret = requireSecret("PII_MASTER_KEY", "dev-only-change-me");
+  return scryptSync(secret, MASTER_KEY_KDF_SALT, 32);
 }
 
 // AES-256-GCM encrypt; output layout is [iv][authTag][ciphertext] so decryption
@@ -45,6 +51,6 @@ export function encryptField(plaintext: string, dek: Buffer): Buffer {
 }
 
 export function hashTcKimlikNo(tcKimlikNo: string): string {
-  const pepper = process.env.TCKN_HASH_PEPPER ?? "dev-only-change-me";
+  const pepper = requireSecret("TCKN_HASH_PEPPER", "dev-only-change-me");
   return createHmac("sha256", pepper).update(tcKimlikNo).digest("hex");
 }

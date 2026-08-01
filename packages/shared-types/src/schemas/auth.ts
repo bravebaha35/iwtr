@@ -3,14 +3,22 @@ import { z } from "zod";
 export const authProviderSchema = z.enum(["EMAIL", "GOOGLE", "APPLE"]);
 export type AuthProvider = z.infer<typeof authProviderSchema>;
 
+// Postgres text equality is case-sensitive by default and there's no citext
+// column here, so normalizing at the validation boundary is what actually
+// makes "Foo@Example.com" and "foo@example.com" resolve to the same account.
+const normalizedEmail = z
+  .string()
+  .email()
+  .transform((s) => s.trim().toLowerCase());
+
 export const registerEmailInputSchema = z.object({
-  email: z.string().email(),
+  email: normalizedEmail,
   password: z.string().min(8),
 });
 export type RegisterEmailInput = z.infer<typeof registerEmailInputSchema>;
 
 export const loginEmailInputSchema = z.object({
-  email: z.string().email(),
+  email: normalizedEmail,
   password: z.string().min(1),
 });
 export type LoginEmailInput = z.infer<typeof loginEmailInputSchema>;

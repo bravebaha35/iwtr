@@ -50,14 +50,19 @@ export class AdminQueueService {
       where: { userId: item.review.userId, status: "PUBLISHED" },
     });
 
-    await this.prisma.review.update({
-      where: { id: item.reviewId },
-      data: { status: "PUBLISHED", publishedAt: new Date() },
-    });
-    await this.prisma.moderationQueueItem.update({
-      where: { id },
-      data: { status: "APPROVED", resolvedAt: new Date() },
-    });
+    // Both writes must land together — a crash between them would otherwise
+    // leave a PUBLISHED review whose queue item still reads OPEN, letting a
+    // second admin call approve() again on the same item.
+    await this.prisma.$transaction([
+      this.prisma.review.update({
+        where: { id: item.reviewId },
+        data: { status: "PUBLISHED", publishedAt: new Date() },
+      }),
+      this.prisma.moderationQueueItem.update({
+        where: { id },
+        data: { status: "APPROVED", resolvedAt: new Date() },
+      }),
+    ]);
 
     await this.reviews.recomputeAggregate(item.review.companyId);
     if (priorPublished === 0) {
@@ -67,11 +72,13 @@ export class AdminQueueService {
 
   async reject(id: string): Promise<void> {
     const item = await this.getOpenItemOrThrow(id);
-    await this.prisma.review.update({ where: { id: item.reviewId }, data: { status: "REJECTED" } });
-    await this.prisma.moderationQueueItem.update({
-      where: { id },
-      data: { status: "REJECTED", resolvedAt: new Date() },
-    });
+    await this.prisma.$transaction([
+      this.prisma.review.update({ where: { id: item.reviewId }, data: { status: "REJECTED" } }),
+      this.prisma.moderationQueueItem.update({
+        where: { id },
+        data: { status: "REJECTED", resolvedAt: new Date() },
+      }),
+    ]);
   }
 
   async requestSgkDoc(id: string): Promise<void> {

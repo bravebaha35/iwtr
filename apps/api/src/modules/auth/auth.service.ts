@@ -52,11 +52,27 @@ export class AuthService {
 
   async refresh(refreshToken: string): Promise<AuthTokensResponse> {
     const tokenHash = this.tokens.hashRefreshToken(refreshToken);
-    const stored = await this.prisma.refreshToken.findFirst({
-      where: { tokenHash, revokedAt: null },
-    });
+    // Look up by hash alone (not scoped to revokedAt: null) so a replay of an
+    // already-rotated token is distinguishable from a token that never existed.
+    const stored = await this.prisma.refreshToken.findFirst({ where: { tokenHash } });
 
-    if (!stored || stored.expiresAt < new Date()) {
+    if (!stored) {
+      throw new UnauthorizedException("Refresh token is invalid or expired");
+    }
+
+    if (stored.revokedAt) {
+      // Reuse of a token that was already rotated out means either a stolen
+      // token is being replayed, or a client bug double-fired a refresh.
+      // Either way, the whole rotation chain is no longer trustworthy — kill
+      // every live session for this user rather than silently continuing.
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException("Refresh token is invalid or expired");
+    }
+
+    if (stored.expiresAt < new Date()) {
       throw new UnauthorizedException("Refresh token is invalid or expired");
     }
 

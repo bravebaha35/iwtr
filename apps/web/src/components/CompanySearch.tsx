@@ -15,12 +15,23 @@ export function CompanySearch() {
       setResults([]);
       return;
     }
+    let cancelled = false;
     const handle = setTimeout(() => {
       apiGet<Company[]>(`/companies?q=${encodeURIComponent(query)}`)
-        .then(setResults)
-        .catch(() => setResults([]));
+        .then((data) => {
+          // A faster-typed later query's response can still resolve after
+          // this one if requests arrive out of order — ignore this result if
+          // a newer query has since superseded it.
+          if (!cancelled) setResults(data);
+        })
+        .catch(() => {
+          if (!cancelled) setResults([]);
+        });
     }, 250);
-    return () => clearTimeout(handle);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
   }, [query]);
 
   return (

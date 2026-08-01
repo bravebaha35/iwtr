@@ -24,7 +24,19 @@ export default function Home() {
     );
   }
 
-  if (onboardingStatus && onboardingStatus.status !== "ACTIVE") {
+  // A fresh login/register has a token but hasn't finished the onboarding-status
+  // fetch yet (persistTokens sets the token synchronously, then awaits the
+  // status call) — treat "not loaded yet" as still loading, not as ACTIVE,
+  // so a brand-new PENDING_PII account can't flash into the authenticated shell.
+  if (!onboardingStatus) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading...</p>
+      </div>
+    );
+  }
+
+  if (onboardingStatus.status !== "ACTIVE") {
     return (
       <div className="relative min-h-screen bg-zinc-50 dark:bg-black">
         <OnboardingFlow />
