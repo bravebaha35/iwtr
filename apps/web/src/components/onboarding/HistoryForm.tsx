@@ -78,12 +78,12 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 px-4 py-8">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-lg rounded-xl bg-white p-8 shadow-xl dark:bg-zinc-900"
+        className="w-full max-w-lg rounded-xl bg-surface p-8 shadow-xl"
       >
-        <h2 className="mb-1 text-xl font-bold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-1 text-xl font-bold text-foreground">
           Your education &amp; work history
         </h2>
-        <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mb-6 text-sm text-muted-foreground">
           You&apos;ll only be able to rate workplaces that appear here.
         </p>
 
@@ -96,7 +96,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                 onChange={(e) =>
                   setEdu((prev) => ({ ...prev, [level]: { ...prev[level], institutionName: e.target.value } }))
                 }
-                className="col-span-2 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="col-span-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
               />
               <input
                 placeholder="Grad. year"
@@ -105,14 +105,14 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                 onChange={(e) =>
                   setEdu((prev) => ({ ...prev, [level]: { ...prev[level], graduationYear: e.target.value } }))
                 }
-                className="col-span-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="col-span-1 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
               />
             </div>
           ))}
         </div>
 
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+          <h3 className="text-sm font-semibold text-foreground/80">
             Where have you worked?
           </h3>
           <button
@@ -130,19 +130,19 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                 placeholder="Company name"
                 value={job.rawCompanyName ?? ""}
                 onChange={(e) => updateJob(i, { rawCompanyName: e.target.value })}
-                className="col-span-4 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="col-span-4 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
               />
               <input
                 type="date"
                 value={job.startDate ?? ""}
                 onChange={(e) => updateJob(i, { startDate: e.target.value })}
-                className="col-span-2 rounded-lg border border-zinc-300 px-2 py-2 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="col-span-2 rounded-lg border border-border bg-surface-muted px-2 py-2 text-xs text-foreground"
               />
               <input
                 type="date"
                 value={job.endDate ?? ""}
                 onChange={(e) => updateJob(i, { endDate: e.target.value })}
-                className="col-span-2 rounded-lg border border-zinc-300 px-2 py-2 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+                className="col-span-2 rounded-lg border border-border bg-surface-muted px-2 py-2 text-xs text-foreground"
               />
               {jobs.length > 1 && (
                 <button

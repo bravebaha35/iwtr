@@ -47,13 +47,13 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         className={
           isLarge
-            ? "w-full rounded-full border border-zinc-300 px-6 py-3.5 text-base shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-            : "w-full rounded-full border border-zinc-300 px-4 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            ? "w-full rounded-full border border-border bg-surface px-6 py-3.5 text-base text-foreground shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+            : "w-full rounded-full border border-border bg-surface px-4 py-1.5 text-sm text-foreground"
         }
       />
       {open && results.length > 0 && (
         <div
-          className={`absolute z-10 mt-1 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900 ${
+          className={`absolute z-10 mt-1 rounded-lg border border-border bg-surface py-1 shadow-lg ${
             isLarge ? "left-0 right-0" : "right-0 w-72"
           }`}
         >
@@ -61,10 +61,10 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
             <Link
               key={c.id}
               href={`/companies/${c.slug}`}
-              className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="block px-4 py-2 text-sm text-foreground hover:bg-surface-muted"
             >
               {c.name}
-              <span className="ml-2 text-xs text-zinc-400">{c.category}</span>
+              <span className="ml-2 text-xs text-muted-foreground">{c.category}</span>
             </Link>
           ))}
         </div>

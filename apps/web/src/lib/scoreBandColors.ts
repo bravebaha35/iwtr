@@ -20,9 +20,9 @@ const SCORE_BAND_TEXT_COLORS: Record<string, string> = {
 };
 
 export function scoreBarColor(avg: number): string {
-  return SCORE_BAND_COLORS[scoreBandLabel(avg)] ?? "bg-zinc-900 dark:bg-zinc-50";
+  return SCORE_BAND_COLORS[scoreBandLabel(avg)] ?? "bg-foreground";
 }
 
 export function scoreTextColor(avg: number): string {
-  return SCORE_BAND_TEXT_COLORS[scoreBandLabel(avg)] ?? "text-zinc-600 dark:text-zinc-400";
+  return SCORE_BAND_TEXT_COLORS[scoreBandLabel(avg)] ?? "text-muted-foreground";
 }

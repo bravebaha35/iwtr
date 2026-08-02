@@ -61,37 +61,34 @@ export default function OwnerClaimsPage() {
   if (!accessToken) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-zinc-500">Log in as an admin to view this page.</p>
+        <p className="text-sm text-muted-foreground">Log in as an admin to view this page.</p>
       </div>
     );
   }
 
   return (
     <div className="mx-auto min-h-screen max-w-3xl px-6 py-10">
-      <h1 className="mb-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">Company owner claims</h1>
-      <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
+      <h1 className="mb-1 text-2xl font-bold text-foreground">Company owner claims</h1>
+      <p className="mb-6 text-sm text-muted-foreground">
         People asking to manage a company profile, and messages sent to you by approved owners.
       </p>
 
       {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      <h2 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">Pending claims</h2>
-      {claims === null && !error && <p className="text-sm text-zinc-500">Loading...</p>}
+      <h2 className="mb-2 text-sm font-semibold text-foreground">Pending claims</h2>
+      {claims === null && !error && <p className="text-sm text-muted-foreground">Loading...</p>}
       {claims !== null && claims.length === 0 && (
-        <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">No pending claims.</p>
+        <p className="mb-6 text-sm text-muted-foreground">No pending claims.</p>
       )}
-      <div className="mb-8 flex flex-col gap-4">
+      <div className="mb-8 flex flex-col gap-4 compact:gap-2">
         {claims?.map((claim) => (
-          <div
-            key={claim.id}
-            className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
-          >
+          <div key={claim.id} className="rounded-xl border border-border bg-surface p-5 compact:p-3">
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{claim.companyName}</h3>
-              <span className="text-xs text-zinc-400">{claim.claimantEmail}</span>
+              <h3 className="font-semibold text-foreground">{claim.companyName}</h3>
+              <span className="text-xs text-muted-foreground">{claim.claimantEmail}</span>
             </div>
             {claim.claimMessage && (
-              <p className="mb-3 rounded-md bg-zinc-50 p-2 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+              <p className="mb-3 rounded-md bg-surface-muted p-2 text-sm text-muted-foreground">
                 &ldquo;{claim.claimMessage}&rdquo;
               </p>
             )}
@@ -115,25 +112,22 @@ export default function OwnerClaimsPage() {
         ))}
       </div>
 
-      <h2 className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">Messages from owners</h2>
+      <h2 className="mb-2 text-sm font-semibold text-foreground">Messages from owners</h2>
       {messages !== null && messages.length === 0 && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">No unresolved messages.</p>
+        <p className="text-sm text-muted-foreground">No unresolved messages.</p>
       )}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 compact:gap-2">
         {messages?.map((msg) => (
-          <div
-            key={msg.id}
-            className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
-          >
+          <div key={msg.id} className="rounded-xl border border-border bg-surface p-5 compact:p-3">
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{msg.companyName}</h3>
-              <span className="text-xs text-zinc-400">{msg.ownerEmail}</span>
+              <h3 className="font-semibold text-foreground">{msg.companyName}</h3>
+              <span className="text-xs text-muted-foreground">{msg.ownerEmail}</span>
             </div>
-            <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">{msg.message}</p>
+            <p className="mb-3 text-sm text-muted-foreground">{msg.message}</p>
             <button
               onClick={() => resolveMessage(msg.id)}
               disabled={actioningId === msg.id}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
             >
               Mark resolved
             </button>

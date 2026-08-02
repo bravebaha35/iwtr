@@ -12,15 +12,15 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
   return (
     <Link
       href={`/companies/${company.slug}`}
-      className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-brand-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-brand-700"
+      className="flex flex-col gap-3 compact:gap-1.5 rounded-xl border border-border bg-surface p-4 compact:p-2.5 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
     >
-      <div className="flex items-center gap-3">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-lg font-bold text-brand-700 dark:bg-brand-900 dark:text-brand-300">
+      <div className="flex items-center gap-3 compact:gap-2">
+        <span className="flex h-12 w-12 compact:h-9 compact:w-9 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-lg compact:text-sm font-bold text-brand-700 dark:bg-brand-900 dark:text-brand-300">
           {company.name.charAt(0).toUpperCase()}
         </span>
         <div className="min-w-0">
-          <p className="truncate font-semibold text-zinc-900 dark:text-zinc-50">{company.name}</p>
-          <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="truncate font-semibold text-foreground compact:text-sm">{company.name}</p>
+          <p className="truncate text-xs text-muted-foreground">
             {workplaceTypeLabel(company.workplaceType)} · {company.category}
             {company.city ? ` · ${company.city}` : ""}
           </p>
@@ -29,18 +29,18 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
 
       {company.overallAvg !== null ? (
         <div className="flex items-baseline gap-2">
-          <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+          <span className="text-lg compact:text-base font-bold text-foreground">
             {company.overallAvg.toFixed(1)}
           </span>
           <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
             {scoreBandLabel(company.overallAvg)}
           </span>
-          <span className="text-xs text-zinc-400">
+          <span className="text-xs text-muted-foreground compact:hidden">
             ({company.reviewCount} review{company.reviewCount === 1 ? "" : "s"})
           </span>
         </div>
       ) : (
-        <p className="text-xs text-zinc-400">No reviews yet</p>
+        <p className="text-xs text-muted-foreground">No reviews yet</p>
       )}
     </Link>
   );
@@ -117,16 +117,14 @@ export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }
             placeholder="Search a workplace by name..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="mb-4 w-full rounded-full border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="mb-4 w-full rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
           />
 
-          {companies === null && <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading...</p>}
+          {companies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
           {companies !== null && companies.length === 0 && (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              No workplaces match these filters yet.
-            </p>
+            <p className="text-sm text-muted-foreground">No workplaces match these filters yet.</p>
           )}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 compact:lg:grid-cols-4">
             {companies?.map((c) => (
               <CompanyCard key={c.id} company={c} />
             ))}

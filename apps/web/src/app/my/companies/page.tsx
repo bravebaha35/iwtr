@@ -71,8 +71,8 @@ function UpgradeToPlus({ companyId, accessToken }: { companyId: string; accessTo
 
   if (checkout) {
     return (
-      <div className="mt-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
-        <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">Complete payment below:</p>
+      <div className="mt-3 rounded-lg border border-border p-3">
+        <p className="mb-2 text-xs text-muted-foreground">Complete payment below:</p>
         <IyzicoCheckoutEmbed checkoutFormContent={checkout.checkoutFormContent} />
       </div>
     );
@@ -90,8 +90,8 @@ function UpgradeToPlus({ companyId, accessToken }: { companyId: string; accessTo
   }
 
   return (
-    <div className="mt-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
-      <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+    <div className="mt-3 rounded-lg border border-border p-3">
+      <p className="mb-2 text-xs text-muted-foreground">
         Billing details for the subscription invoice (not shared with reviewers or the public).
       </p>
       <div className="grid grid-cols-2 gap-2">
@@ -99,43 +99,43 @@ function UpgradeToPlus({ companyId, accessToken }: { companyId: string; accessTo
           placeholder="First name"
           value={billing.buyerName}
           onChange={(e) => set("buyerName", e.target.value)}
-          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
         <input
           placeholder="Last name"
           value={billing.buyerSurname}
           onChange={(e) => set("buyerSurname", e.target.value)}
-          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
         <input
           placeholder="T.C. Kimlik No / Tax ID (11 digits)"
           value={billing.buyerIdentityNumber}
           onChange={(e) => set("buyerIdentityNumber", e.target.value)}
-          className="col-span-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+          className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
         <input
           placeholder="Billing email"
           value={billing.buyerEmail}
           onChange={(e) => set("buyerEmail", e.target.value)}
-          className="col-span-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+          className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
         <input
           placeholder="Phone (optional)"
           value={billing.buyerGsmNumber}
           onChange={(e) => set("buyerGsmNumber", e.target.value)}
-          className="col-span-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+          className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
         <input
           placeholder="City"
           value={billing.city}
           onChange={(e) => set("city", e.target.value)}
-          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
         <input
           placeholder="Billing address"
           value={billing.address}
           onChange={(e) => set("address", e.target.value)}
-          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
       </div>
       {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
@@ -149,7 +149,7 @@ function UpgradeToPlus({ companyId, accessToken }: { companyId: string; accessTo
         </button>
         <button
           onClick={() => setShowForm(false)}
-          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
         >
           Cancel
         </button>
@@ -213,9 +213,9 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-xl border border-border bg-surface p-5">
       <div className="mb-3 flex items-center justify-between">
-        <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-zinc-900 hover:underline dark:text-zinc-50">
+        <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-foreground hover:underline">
           {claim.companyName}
         </Link>
         <div className="flex items-center gap-2">
@@ -231,51 +231,51 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+        <label className="text-xs font-medium text-muted-foreground">
           Company name
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
           />
         </label>
-        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+        <label className="text-xs font-medium text-muted-foreground">
           Category
           <input
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             placeholder="e.g. Retail, Cafe, Software"
-            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
           />
         </label>
-        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+        <label className="text-xs font-medium text-muted-foreground">
           Photo URL
           <input
             value={mainPhotoUrl}
             onChange={(e) => setMainPhotoUrl(e.target.value)}
             placeholder="https://..."
-            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
           />
         </label>
 
         {isPlusActive ? (
           <>
-            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <label className="text-xs font-medium text-muted-foreground">
               Description (Plus)
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
               />
             </label>
-            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <label className="text-xs font-medium text-muted-foreground">
               Website (Plus)
               <input
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 placeholder="https://..."
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
               />
             </label>
           </>
@@ -292,21 +292,21 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
         </button>
       </div>
 
-      <div className="mt-5 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+      <div className="mt-5 border-t border-border pt-4">
+        <label className="text-xs font-medium text-muted-foreground">
           Contact the admin (one-way — they can&apos;t reply here, but can reach you by email)
           <textarea
             value={contactMessage}
             onChange={(e) => setContactMessage(e.target.value)}
             rows={2}
             placeholder="e.g. our details are wrong, or we have a question"
-            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
           />
         </label>
         <button
           onClick={sendContactMessage}
           disabled={sending || !contactMessage.trim()}
-          className="mt-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="mt-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
         >
           Send message
         </button>
@@ -342,40 +342,38 @@ export default function MyCompaniesPage() {
   if (!accessToken) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-zinc-500">Log in to see companies you own or have claimed.</p>
+        <p className="text-sm text-muted-foreground">Log in to see companies you own or have claimed.</p>
       </div>
     );
   }
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl px-6 py-10">
-      <Link href="/" className="text-sm text-zinc-500 hover:underline dark:text-zinc-400">
+      <Link href="/" className="text-sm text-muted-foreground hover:underline">
         &larr; Back
       </Link>
-      <h1 className="mt-4 mb-1 text-2xl font-bold text-zinc-900 dark:text-zinc-50">My companies</h1>
-      <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
+      <h1 className="mt-4 mb-1 text-2xl font-bold text-foreground">My companies</h1>
+      <p className="mb-6 text-sm text-muted-foreground">
         Companies you&apos;ve claimed, and their approval status. Search a workplace and use &ldquo;Claim this
         company&rdquo; on its page to add one here.
       </p>
 
       {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
-      {claims === null && <p className="text-sm text-zinc-500">Loading...</p>}
+      {claims === null && <p className="text-sm text-muted-foreground">Loading...</p>}
       {claims !== null && claims.length === 0 && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          You haven&apos;t claimed any companies yet.
-        </p>
+        <p className="text-sm text-muted-foreground">You haven&apos;t claimed any companies yet.</p>
       )}
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 compact:gap-2">
         {claims?.map((claim) =>
           claim.claimStatus === "APPROVED" ? (
             <OwnedCompanyCard key={claim.id} claim={claim} accessToken={accessToken} />
           ) : (
             <div
               key={claim.id}
-              className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+              className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 compact:p-2.5"
             >
-              <Link href={`/companies/${claim.companySlug}`} className="font-medium text-zinc-900 hover:underline dark:text-zinc-50">
+              <Link href={`/companies/${claim.companySlug}`} className="font-medium text-foreground hover:underline">
                 {claim.companyName}
               </Link>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[claim.claimStatus]}`}>

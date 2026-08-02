@@ -32,24 +32,22 @@ export function AuthModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-xl dark:bg-zinc-900">
+      <div className="w-full max-w-sm rounded-xl bg-surface p-8 shadow-xl">
         <div className="mb-1 flex items-center justify-center gap-2">
           <Logo />
-          <h2 className="text-center text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+          <h2 className="text-center text-2xl font-bold text-foreground">
             I Worked There
           </h2>
         </div>
-        <p className="mb-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mb-6 text-center text-sm text-muted-foreground">
           Anonymous, honest workplace reviews.
         </p>
 
-        <div className="mb-6 flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+        <div className="mb-6 flex rounded-lg bg-surface-muted p-1">
           <button
             type="button"
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-              mode === "register"
-                ? "bg-white text-brand-700 shadow dark:bg-zinc-700 dark:text-brand-400"
-                : "text-zinc-500 dark:text-zinc-400"
+              mode === "register" ? "bg-surface text-brand-700 shadow dark:text-brand-400" : "text-muted-foreground"
             }`}
             onClick={() => setMode("register")}
           >
@@ -58,9 +56,7 @@ export function AuthModal() {
           <button
             type="button"
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-              mode === "login"
-                ? "bg-white text-brand-700 shadow dark:bg-zinc-700 dark:text-brand-400"
-                : "text-zinc-500 dark:text-zinc-400"
+              mode === "login" ? "bg-surface text-brand-700 shadow dark:text-brand-400" : "text-muted-foreground"
             }`}
             onClick={() => setMode("login")}
           >
@@ -75,7 +71,7 @@ export function AuthModal() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+            className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
           />
           <input
             type="password"
@@ -84,7 +80,7 @@ export function AuthModal() {
             placeholder="Password (min 8 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50"
+            className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
           />
 
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
@@ -103,7 +99,7 @@ export function AuthModal() {
             type="button"
             disabled
             title="Coming soon"
-            className="cursor-not-allowed rounded-lg border border-zinc-300 py-2 text-sm text-zinc-400 dark:border-zinc-700 dark:text-zinc-600"
+            className="cursor-not-allowed rounded-lg border border-border py-2 text-sm text-muted-foreground"
           >
             Continue with Google (coming soon)
           </button>
@@ -111,7 +107,7 @@ export function AuthModal() {
             type="button"
             disabled
             title="Coming soon"
-            className="cursor-not-allowed rounded-lg border border-zinc-300 py-2 text-sm text-zinc-400 dark:border-zinc-700 dark:text-zinc-600"
+            className="cursor-not-allowed rounded-lg border border-border py-2 text-sm text-muted-foreground"
           >
             Continue with Apple (coming soon)
           </button>

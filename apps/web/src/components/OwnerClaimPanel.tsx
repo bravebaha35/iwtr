@@ -47,12 +47,12 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
   }
 
   return (
-    <div className="mt-8 rounded-xl border border-dashed border-zinc-300 p-5 dark:border-zinc-700">
-      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Is this your company?</h3>
+    <div className="mt-8 rounded-xl border border-dashed border-border p-5">
+      <h3 className="text-sm font-semibold text-foreground">Is this your company?</h3>
 
       {claim === null && !showForm && (
         <>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-muted-foreground">
             Company representatives can claim this profile to edit it (subject to admin approval).
           </p>
           <button
@@ -71,7 +71,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Optional: tell the admin who you are (e.g. your work email or role) so they can verify the claim."
             rows={3}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
           />
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex gap-2">
@@ -84,7 +84,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
             </button>
             <button
               onClick={() => setShowForm(false)}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
             >
               Cancel
             </button>
@@ -113,7 +113,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
           <p className="text-sm text-red-700 dark:text-red-400">Your previous claim wasn&apos;t approved.</p>
           <button
             onClick={() => setShowForm(true)}
-            className="mt-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="mt-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-muted"
           >
             Submit a new claim
           </button>
@@ -127,7 +127,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Add more context to help the admin approve this claim."
             rows={3}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
           />
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex gap-2">
@@ -140,7 +140,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
             </button>
             <button
               onClick={() => setShowForm(false)}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
             >
               Cancel
             </button>

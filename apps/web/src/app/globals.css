@@ -1,37 +1,66 @@
 @import "tailwindcss";
 
+/* Dark mode is switched by a `.dark` class on <html> (set from
+   lib/settings-context.tsx + the inline boot script in layout.tsx), not by
+   OS preference — this is what makes the sandwich-panel toggle actually work.
+   Every existing `dark:` utility across the app keeps working unchanged;
+   only the trigger condition changes. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Gmail-style "Detailed"/"Compact" density. Toggled the same way as dark
+   mode (a root-level attribute set from settings-context.tsx), so any
+   component can opt into tighter spacing with e.g. `compact:p-2` without
+   prop-drilling a density value through the tree. */
+@custom-variant compact (&:where([data-density="compact"], [data-density="compact"] *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f6f8;
+  --foreground: #1b2024;
+  --surface: #ffffff;
+  --surface-muted: #e7ecef;
+  --muted-foreground: #5b6770;
+  --border: #dce3e8;
+}
+
+.dark {
+  --background: #1d2226;
+  --foreground: #eef2f4;
+  --surface: #262d32;
+  --surface-muted: #2e363c;
+  --muted-foreground: #9aa6ae;
+  --border: #38424a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
   /* Brand accent — a single place to retune the whole site's color later.
-     Chosen for a trustworthy, corporate career-site feel (kariyer.net-style),
-     distinct from the neutral zinc grays used for text/borders/surfaces. */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-900: #1e3a8a;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+     A warm copper/amber (not the default SaaS blue), chosen to go with the
+     beaver mark: riverbank clay and cut wood rather than "corporate trust
+     blue". Named brand-* so nothing that references it needs to change if
+     the hue is ever swapped. */
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --color-brand-800: #9a3412;
+  --color-brand-900: #7c2d12;
+  --color-brand-950: #431407;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }

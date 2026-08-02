@@ -3,10 +3,8 @@
 // active/inactive filter pill looks is a one-function change here (pillClass)
 // rather than hunting down each filter's own copy of the class string.
 function pillClass(active: boolean): string {
-  return `rounded-full px-3 py-1.5 text-sm font-medium transition ${
-    active
-      ? "bg-brand-600 text-white"
-      : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+  return `rounded-full px-3 py-1.5 compact:px-2.5 compact:py-1 text-sm compact:text-xs font-medium transition ${
+    active ? "bg-brand-600 text-white" : "border border-border text-muted-foreground hover:bg-surface-muted"
   }`;
 }
 
@@ -27,7 +25,7 @@ export function FilterPillGroup<T extends string>({
 }) {
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">{heading}</h3>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
       <div className={`flex gap-1.5 ${direction === "column" ? "flex-row flex-wrap sm:flex-col" : "flex-wrap"}`}>
         <button type="button" onClick={() => onSelect(null)} className={pillClass(selected === null)}>
           {allLabel}

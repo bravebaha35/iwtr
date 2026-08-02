@@ -64,7 +64,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
   );
 
   if (reviews === null) {
-    return <p className="mt-8 text-sm text-zinc-500 dark:text-zinc-400">Loading reviews...</p>;
+    return <p className="mt-8 text-sm text-muted-foreground">Loading reviews...</p>;
   }
 
   if (reviews.length === 0) {
@@ -78,19 +78,19 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
       : null;
 
   return (
-    <div className="mt-8 flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Reviews</h2>
+    <div className="mt-8 flex flex-col gap-4 compact:gap-2">
+      <h2 className="text-lg font-semibold text-foreground">Reviews</h2>
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-      {voteHint && <p className="text-xs text-zinc-500 dark:text-zinc-400">{voteHint}</p>}
+      {voteHint && <p className="text-xs text-muted-foreground">{voteHint}</p>}
 
       {reviews.map((review) => (
         <div
           key={review.id}
-          className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+          className="rounded-xl border border-border bg-surface p-5 compact:p-3"
         >
           {review.contributorBadge && (
             <span
-              className={`mb-3 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+              className={`mb-3 compact:mb-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                 review.contributorBadge === "TOP_CONTRIBUTOR"
                   ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
                   : "bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300"
@@ -99,23 +99,23 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
               {review.contributorBadge === "TOP_CONTRIBUTOR" ? "Top Contributor" : "Contributor"}
             </span>
           )}
-          <div className="flex flex-col gap-1 text-sm">
+          <div className="flex flex-col gap-1 text-sm compact:text-xs">
             {CATEGORY_FIELDS.map((f) => (
-              <div key={f.label} className="text-zinc-600 dark:text-zinc-400">
-                <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              <div key={f.label} className="text-muted-foreground">
+                <span className="font-medium text-foreground">
                   {f.label}: {String(review[f.score])}/5
                 </span>
                 {review[f.comment] && <span> &mdash; {String(review[f.comment])}</span>}
               </div>
             ))}
             {review.generalThoughts && (
-              <div className="mt-1 italic text-zinc-600 dark:text-zinc-400">
+              <div className="mt-1 italic text-muted-foreground">
                 &ldquo;{review.generalThoughts}&rdquo;
               </div>
             )}
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 compact:mt-2 flex items-center gap-3 compact:gap-2">
             <button
               onClick={() => vote(review.id, 1)}
               disabled={!canVote || votingId === review.id}
@@ -123,7 +123,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
               className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-40 ${
                 review.myVote === 1
                   ? "border-green-600 bg-green-50 text-green-700 dark:border-green-500 dark:bg-green-950 dark:text-green-400"
-                  : "border-zinc-300 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  : "border-border text-muted-foreground hover:bg-surface-muted"
               }`}
             >
               Helpful ({review.likeCount})
@@ -135,7 +135,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
               className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-40 ${
                 review.myVote === -1
                   ? "border-red-600 bg-red-50 text-red-700 dark:border-red-500 dark:bg-red-950 dark:text-red-400"
-                  : "border-zinc-300 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  : "border-border text-muted-foreground hover:bg-surface-muted"
               }`}
             >
               Not helpful ({review.dislikeCount})

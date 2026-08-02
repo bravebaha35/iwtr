@@ -3,6 +3,9 @@
 // stay emoji-based — swap the `emoji` values for real artwork later without
 // touching anything else (avatarKey values are stable storage identifiers).
 export const AVATARS = [
+  // The site's own mascot (see components/Logo.tsx) is also available as a
+  // user avatar, listed first so it's the natural "default-feeling" pick.
+  { key: "avatar_beaver", emoji: "🦫", bg: "bg-brand-100 dark:bg-brand-900/60" },
   { key: "avatar_fox", emoji: "🦊", bg: "bg-orange-100 dark:bg-orange-900/60" },
   { key: "avatar_owl", emoji: "🦉", bg: "bg-amber-100 dark:bg-amber-900/60" },
   { key: "avatar_cat", emoji: "🐱", bg: "bg-rose-100 dark:bg-rose-900/60" },

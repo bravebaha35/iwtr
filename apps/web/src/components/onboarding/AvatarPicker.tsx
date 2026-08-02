@@ -27,11 +27,11 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-xl dark:bg-zinc-900">
-        <h2 className="mb-1 text-xl font-bold text-zinc-900 dark:text-zinc-50">
+      <div className="w-full max-w-md rounded-xl bg-surface p-8 shadow-xl">
+        <h2 className="mb-1 text-xl font-bold text-foreground">
           Pick an anonymous avatar
         </h2>
-        <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mb-6 text-sm text-muted-foreground">
           This is how you&apos;ll appear to other users. Last step!
         </p>
 
@@ -43,7 +43,7 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
               onClick={() => setSelected(a.key)}
               className={`flex aspect-square items-center justify-center rounded-full text-3xl transition ${a.bg} ${
                 selected === a.key
-                  ? "ring-3 ring-brand-600 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900"
+                  ? "ring-3 ring-brand-600 ring-offset-2 ring-offset-surface"
                   : "hover:brightness-95 dark:hover:brightness-110"
               }`}
             >
