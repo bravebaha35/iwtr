@@ -1,28 +1,27 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type { PiiOnboardingInput } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
-import { encryptField, generateDek, hashTcKimlikNo, wrapDek } from "./crypto.util";
+import { decryptField, encryptField, generateDek, unwrapDek, wrapDek } from "./crypto.util";
 
 /**
  * The only module in this codebase allowed to touch the `PiiVault` Prisma
  * model. Every other module must go through this service. Nothing here ever
- * returns decrypted PII to a caller — there is currently no legitimate reason
- * to read it back, so no decrypt path exists (see purge policy below).
+ * returns decrypted PII to a caller except the self-view method below — see
+ * its own doc comment.
  */
 @Injectable()
 export class PiiVaultService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * T.C. Kimlik No is NOT collected here (2026-08-02 decision — deferred to a
+   * dedicated verification flow on the account-settings page, once that's
+   * built). tcKimlikNoHash/encTcKimlikNo are simply left null for now; the
+   * dedup-collision logic that used to live here (see REVIEW.md for why a
+   * live 409 on a hash collision would be a deanonymization oracle) comes
+   * back with that future flow, not before.
+   */
   async submitPii(userId: string, input: PiiOnboardingInput): Promise<void> {
-    const tcKimlikNoHash = hashTcKimlikNo(input.tcKimlikNo);
-
-    const duplicate = await this.prisma.piiVault.findUnique({ where: { tcKimlikNoHash } });
-    if (duplicate && duplicate.userId !== userId) {
-      throw new ConflictException(
-        "An account already exists for this T.C. Kimlik No",
-      );
-    }
-
     const dek = generateDek();
     const dekWrapped = wrapDek(dek);
 
@@ -32,8 +31,6 @@ export class PiiVaultService {
         userId,
         encFirstName: encryptField(input.firstName, dek),
         encLastName: encryptField(input.lastName, dek),
-        encTcKimlikNo: encryptField(input.tcKimlikNo, dek),
-        tcKimlikNoHash,
         encBirthDate: encryptField(input.birthDate, dek),
         encPhoneNumber: encryptField(input.phoneNumber, dek),
         dekWrapped,
@@ -41,8 +38,6 @@ export class PiiVaultService {
       update: {
         encFirstName: encryptField(input.firstName, dek),
         encLastName: encryptField(input.lastName, dek),
-        encTcKimlikNo: encryptField(input.tcKimlikNo, dek),
-        tcKimlikNoHash,
         encBirthDate: encryptField(input.birthDate, dek),
         encPhoneNumber: encryptField(input.phoneNumber, dek),
         dekWrapped,
@@ -65,10 +60,45 @@ export class PiiVaultService {
   }
 
   /**
+   * Self-view only — the account-settings page showing a user their own
+   * previously-submitted name/birth date back to them. Never call this for
+   * anyone other than the authenticated caller's own userId; there is no
+   * "look up another user" variant of this method on purpose. T.C. Kimlik No
+   * is deliberately excluded — it's either already purged, or on its way to
+   * being purged, and is never surfaced here regardless.
+   *
+   * Decrypt failures are swallowed to null rather than thrown: a handful of
+   * rows written before the PII_MASTER_KEY derivation was hardened to scrypt
+   * (see AuditLog history) have DEKs that can never be unwrapped again under
+   * the current derivation, since this method is the first thing that ever
+   * attempted to read them back. That's a lost-data situation for those
+   * specific rows, not a bug to crash the whole profile page over every time
+   * it's viewed — the rest of "/me" should still load normally.
+   */
+  async getMyIdentity(userId: string): Promise<{ firstName: string; lastName: string; birthDate: string } | null> {
+    const row = await this.prisma.piiVault.findUnique({ where: { userId } });
+    if (!row) return null;
+    try {
+      const dek = unwrapDek(row.dekWrapped);
+      return {
+        firstName: decryptField(row.encFirstName, dek),
+        lastName: decryptField(row.encLastName, dek),
+        birthDate: decryptField(row.encBirthDate, dek),
+      };
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[pii-vault] Failed to decrypt identity for userId=${userId}:`, err);
+      return null;
+    }
+  }
+
+  /**
    * Retention policy: once a user's identity is considered verified (their
    * first Review reaches PUBLISHED), the raw T.C. Kimlik No is no longer
    * needed and is purged. tcKimlikNoHash is kept forever (non-reversible) so
-   * we can still block duplicate accounts on the same national ID.
+   * we can still block duplicate accounts on the same national ID. No-op for
+   * now since TCKN isn't collected at registration — becomes live again once
+   * the account-settings verification flow exists.
    */
   async purgeTcKimlikNoIfPresent(userId: string): Promise<void> {
     const row = await this.prisma.piiVault.findUnique({ where: { userId } });

@@ -28,6 +28,7 @@ enum UserRole {
 }
 
 enum UserStatus {
+  PENDING_PHONE
   PENDING_PII
   PENDING_HISTORY
   PENDING_AVATAR
@@ -101,18 +102,43 @@ enum WorkplaceType {
 }
 
 model User {
-  id            String       @id @default(uuid())
-  email         String?      @unique
-  authProvider  AuthProvider
-  providerSubId String?      @unique
-  passwordHash  String?
-  role          UserRole     @default(MEMBER)
-  status        UserStatus   @default(PENDING_PII)
-  avatarKey     String?
-  city          String?
-  district      String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id              String       @id @default(uuid())
+  email           String?      @unique
+  authProvider    AuthProvider
+  providerSubId   String?      @unique
+  passwordHash    String?
+  role            UserRole     @default(MEMBER)
+  status          UserStatus   @default(PENDING_PHONE)
+  avatarKey       String?
+  // Key into the client-side gradient palette (apps/web/src/lib/avatarGradients.ts)
+  // the user picked as their avatar background — loosely validated like
+  // avatarKey (not a Prisma/zod enum) so the palette can grow without a
+  // migration; an unrecognized key just falls back to the first gradient.
+  avatarGradient  String?
+  // Self-chosen pseudonym, editable any time from the account-settings page.
+  // Deliberately NOT part of PiiVault — it's a decorative label the user
+  // picks for their own header, never validated against or linked to real
+  // identity, and never returned in any public/review-facing payload.
+  displayName     String?
+  country         String?
+  city            String?
+  district        String?
+  // HMAC of the E.164 phone number verified via OTP during onboarding — kept
+  // indefinitely (like PiiVault.tcKimlikNoHash) purely to flag duplicate
+  // accounts on the same phone for admin review. A collision NEVER blocks
+  // registration or is surfaced to the submitter (see PhoneVerificationService)
+  // — a live 409 here would be the same deanonymization oracle already fixed
+  // for T.C. Kimlik No (REVIEW.md).
+  phoneNumberHash String?      @unique
+  // AES-256-GCM encrypted E.164 phone number (apps/api/src/modules/phone-verification/crypto.util.ts),
+  // set once OTP verification succeeds — kept (unlike the OTP challenge's
+  // copy, which is transient) so the account-settings page can show a user
+  // their own verified number back to them. Decrypted only for that
+  // self-view case, never for anything else.
+  encPhoneNumber  Bytes?
+  phoneVerifiedAt DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   educationHistory   EducationHistory[]
   employmentHistory  EmploymentHistory[]
@@ -122,6 +148,27 @@ model User {
   auditLogEntries    AuditLog[]
   companyOwnerships  CompanyOwner[]
   ownerContactMessages OwnerContactMessage[]
+  phoneOtpChallenge  PhoneOtpChallenge?
+
+  @@schema("public")
+}
+
+// Short-lived OTP challenge for the phone-verification onboarding step. One
+// row per user (upserted on resend) — never stores the raw code, only its
+// hash, so nothing guessable lingers if the row is abandoned. The phone
+// number itself is kept encrypted (not just hashed) purely so a successful
+// verification can copy it into User.encPhoneNumber; this row is still
+// deleted once verified (or expired/exhausted and re-requested).
+model PhoneOtpChallenge {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id])
+  phoneNumberHash String
+  encPhoneNumber  Bytes
+  codeHash        String
+  attempts        Int      @default(0)
+  expiresAt       DateTime
+  lastSentAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
 
   @@schema("public")
 }
@@ -164,6 +211,7 @@ model Company {
   description      String?
   website          String?
   city             String?
+  district         String?
   isVerifiedBadge  Boolean  @default(false)
   createdByAdminId String?
   createdAt        DateTime @default(now())
@@ -332,7 +380,12 @@ model PiiVault {
   encFirstName   Bytes
   encLastName    Bytes
   encTcKimlikNo  Bytes?
-  tcKimlikNoHash String    @unique
+  // Nullable (2026-08-02) — T.C. Kimlik No is no longer collected at
+  // registration, so most rows won't have one yet. Still unique when present
+  // (Postgres allows multiple NULLs under a unique constraint) so the
+  // duplicate-account check still works once TCKN collection is reintroduced
+  // from the account-settings page.
+  tcKimlikNoHash String?   @unique
   encBirthDate   Bytes
   encPhoneNumber Bytes
   dekWrapped     Bytes

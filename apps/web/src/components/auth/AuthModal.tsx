@@ -65,14 +65,21 @@ export function AuthModal() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
-            type="email"
-            required
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-          />
+          <div>
+            <input
+              type="email"
+              required
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+            />
+            {mode === "register" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Gmail, Hotmail, Outlook, or Windows Live only for now.
+              </p>
+            )}
+          </div>
           <input
             type="password"
             required

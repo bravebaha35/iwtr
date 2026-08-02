@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiPost, ApiError } from "@/lib/api-client";
-import type { EduLevel, EmploymentHistoryInput } from "@iwtr/shared-types";
+import type { CompanyListItem, EduLevel } from "@iwtr/shared-types";
+import { WorkplacePicker } from "@/components/WorkplacePicker";
+import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 
 const EDU_LEVELS: { level: EduLevel; label: string }[] = [
   { level: "ELEMENTARY", label: "Elementary School" },
@@ -18,21 +20,26 @@ const emptyEduRows: Record<EduLevel, EduRow> = {
   COLLEGE: { institutionName: "", graduationYear: "" },
 };
 
-const emptyEmployment: EmploymentHistoryInput = { rawCompanyName: "", startDate: "", endDate: "" };
+type JobRow = {
+  company: Pick<CompanyListItem, "id" | "name" | "slug"> | null;
+  startDate: string | null;
+  endDate: string | null;
+};
+const emptyJob: JobRow = { company: null, startDate: null, endDate: null };
 
 export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
   const { accessToken } = useAuth();
   const [edu, setEdu] = useState(emptyEduRows);
-  const [jobs, setJobs] = useState<EmploymentHistoryInput[]>([{ ...emptyEmployment }]);
+  const [jobs, setJobs] = useState<JobRow[]>([{ ...emptyJob }]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function updateJob(index: number, patch: Partial<EmploymentHistoryInput>) {
+  function updateJob(index: number, patch: Partial<JobRow>) {
     setJobs((prev) => prev.map((j, i) => (i === index ? { ...j, ...patch } : j)));
   }
 
   function addJob() {
-    setJobs((prev) => [...prev, { ...emptyEmployment }]);
+    setJobs((prev) => [...prev, { ...emptyJob }]);
   }
 
   function removeJob(index: number) {
@@ -52,15 +59,16 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         }),
       );
       const employment = jobs
-        .filter((j) => j.rawCompanyName.trim() !== "")
+        .filter((j) => j.company !== null)
         .map((j) => ({
-          rawCompanyName: j.rawCompanyName,
-          startDate: j.startDate || undefined,
-          endDate: j.endDate || undefined,
+          rawCompanyName: j.company!.name,
+          companyId: j.company!.id,
+          startDate: j.startDate ?? undefined,
+          endDate: j.endDate ?? undefined,
         }));
 
       if (education.length === 0 || employment.length === 0) {
-        setError("Please fill in at least one school and one workplace.");
+        setError("Please fill in at least one school and pick at least one workplace.");
         setSubmitting(false);
         return;
       }
@@ -123,32 +131,38 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
             + Add workplace
           </button>
         </div>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {jobs.map((job, i) => (
-            <div key={i} className="grid grid-cols-8 gap-2">
-              <input
-                placeholder="Company name"
-                value={job.rawCompanyName ?? ""}
-                onChange={(e) => updateJob(i, { rawCompanyName: e.target.value })}
-                className="col-span-4 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-              />
-              <input
-                type="date"
-                value={job.startDate ?? ""}
-                onChange={(e) => updateJob(i, { startDate: e.target.value })}
-                className="col-span-2 rounded-lg border border-border bg-surface-muted px-2 py-2 text-xs text-foreground"
-              />
-              <input
-                type="date"
-                value={job.endDate ?? ""}
-                onChange={(e) => updateJob(i, { endDate: e.target.value })}
-                className="col-span-2 rounded-lg border border-border bg-surface-muted px-2 py-2 text-xs text-foreground"
-              />
+            <div key={i} className="flex flex-col gap-2 rounded-lg border border-border p-3">
+              <WorkplacePicker onPick={(company) => updateJob(i, { company })} />
+              {job.company && (
+                <p className="text-xs text-muted-foreground">
+                  Selected: <span className="font-medium text-foreground">{job.company.name}</span>
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">Start date</p>
+                  <DateDropdownPicker
+                    value={job.startDate}
+                    onChange={(v) => updateJob(i, { startDate: v })}
+                    maxYear={new Date().getFullYear()}
+                  />
+                </div>
+                <div>
+                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">End date (if any)</p>
+                  <DateDropdownPicker
+                    value={job.endDate}
+                    onChange={(v) => updateJob(i, { endDate: v })}
+                    maxYear={new Date().getFullYear()}
+                  />
+                </div>
+              </div>
               {jobs.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeJob(i)}
-                  className="col-span-8 -mt-1 text-left text-xs text-red-500 hover:underline"
+                  className="self-start text-xs text-red-500 hover:underline"
                 >
                   Remove
                 </button>

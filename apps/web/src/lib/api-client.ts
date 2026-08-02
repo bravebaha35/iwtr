@@ -59,3 +59,12 @@ export async function apiPatch<T>(path: string, body: unknown, accessToken?: str
   });
   return handle<T>(res);
 }
+
+export async function apiDelete<T>(path: string, accessToken?: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "DELETE",
+    cache: "no-store",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
+  return handle<T>(res);
+}

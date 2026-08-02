@@ -49,6 +49,7 @@ export class CompaniesService {
         category: input.category,
         workplaceType: input.workplaceType,
         city: input.city,
+        district: input.district,
         mainPhotoUrl: input.mainPhotoUrl,
         createdByAdminId: adminUserId,
       },
@@ -141,6 +142,7 @@ export class CompaniesService {
     description: string | null;
     website: string | null;
     city: string | null;
+    district: string | null;
     isVerifiedBadge: boolean;
   }): Company {
     return {
@@ -153,6 +155,7 @@ export class CompaniesService {
       description: c.description,
       website: c.website,
       city: c.city,
+      district: c.district,
       isVerifiedBadge: c.isVerifiedBadge,
     };
   }

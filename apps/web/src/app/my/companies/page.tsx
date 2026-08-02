@@ -6,6 +6,7 @@ import type { MyCompanyClaim, PlusCheckoutResult } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
+import { CompanyLogo } from "@/components/CompanyLogo";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -250,12 +251,15 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
         </label>
         <label className="text-xs font-medium text-muted-foreground">
           Photo URL
-          <input
-            value={mainPhotoUrl}
-            onChange={(e) => setMainPhotoUrl(e.target.value)}
-            placeholder="https://..."
-            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-          />
+          <div className="mt-1 flex items-center gap-2">
+            <CompanyLogo name={claim.companyName} mainPhotoUrl={mainPhotoUrl.trim() || null} size="sm" />
+            <input
+              value={mainPhotoUrl}
+              onChange={(e) => setMainPhotoUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            />
+          </div>
         </label>
 
         {isPlusActive ? (

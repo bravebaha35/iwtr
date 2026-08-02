@@ -8,6 +8,7 @@ import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { AdminQueueModule } from "./modules/admin-queue/admin-queue.module";
 import { OwnerModule } from "./modules/owner/owner.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
+import { ProfileModule } from "./modules/profile/profile.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PaymentsModule } from "./modules/payments/payments.module";
     AdminQueueModule,
     OwnerModule,
     PaymentsModule,
+    ProfileModule,
   ],
 })
 export class AppModule {}

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { avatarEmoji } from "@/lib/avatars";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { CompanySearch } from "@/components/CompanySearch";
 import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
 import { Logo } from "@/components/Logo";
+import { Avatar } from "@/components/Avatar";
+import { avatarLabel } from "@/lib/avatars";
 
 export default function Home() {
   const { isLoading, accessToken, role, onboardingStatus, logout } = useAuth();
@@ -55,7 +56,15 @@ export default function Home() {
       <header className="flex items-center justify-between border-b border-border bg-surface py-4 pl-6 pr-20">
         <Link href="/" className="flex items-center gap-2">
           <Logo size="sm" />
-          <span className="text-lg font-bold text-foreground">I Worked There</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-lg font-bold text-foreground">I Worked There</span>
+            {/* Font is set globally in app/layout.tsx (next/font Geist) — swap
+                it there once a real typeface is picked; italic/font-light here
+                is just the weight/style, independent of which family it uses. */}
+            <span className="hidden font-light italic text-muted-foreground sm:block sm:text-xs">
+              No names. No HR. Just what it&apos;s really like to work there.
+            </span>
+          </div>
         </Link>
         <div className="flex items-center gap-4">
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -74,19 +83,29 @@ export default function Home() {
             )}
           </nav>
           <CompanySearch />
-          <button onClick={logout} className="text-sm text-muted-foreground hover:text-foreground">
-            Log out
+          <Link
+            href="/me"
+            className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted"
+          >
+            <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
+            <span className="text-sm font-medium text-foreground">
+              {onboardingStatus.displayName || avatarLabel(onboardingStatus.avatarKey) || "Anonymous"}
+            </span>
+          </Link>
+          <button
+            onClick={logout}
+            aria-label="Log out"
+            title="Log out"
+            className="text-muted-foreground transition hover:text-foreground"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
           </button>
         </div>
       </header>
-
-      <div className="flex flex-col items-center px-6 pt-10 text-center">
-        <p className="text-3xl">{avatarEmoji(onboardingStatus?.avatarKey) ?? "🦫"}</p>
-        <h2 className="mt-2 text-3xl font-bold text-foreground">Know before you go.</h2>
-        <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          Real, anonymous reviews from people who actually worked there.
-        </p>
-      </div>
 
       <WorkplaceBrowser defaultCity={onboardingStatus.city} />
     </div>

@@ -11,8 +11,18 @@ const normalizedEmail = z
   .email()
   .transform((s) => s.trim().toLowerCase());
 
+// Temporary anti-abuse measure (2026-08-02) — restricts registration to a
+// short allowlist of well-known consumer email providers, since there's no
+// real email-verification flow yet to catch fake/throwaway addresses.
+// Existing accounts on other domains can still log in (loginEmailInputSchema
+// below has no such restriction) — this only gates new signups.
+export const ALLOWED_REGISTRATION_EMAIL_DOMAINS = ["gmail.com", "hotmail.com", "outlook.com", "windowslive.com"];
+
 export const registerEmailInputSchema = z.object({
-  email: normalizedEmail,
+  email: normalizedEmail.refine(
+    (email) => ALLOWED_REGISTRATION_EMAIL_DOMAINS.some((domain) => email.endsWith(`@${domain}`)),
+    { message: `Please use an email address from: ${ALLOWED_REGISTRATION_EMAIL_DOMAINS.join(", ")}` },
+  ),
   password: z.string().min(8),
 });
 export type RegisterEmailInput = z.infer<typeof registerEmailInputSchema>;

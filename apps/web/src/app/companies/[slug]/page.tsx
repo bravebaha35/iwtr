@@ -4,6 +4,8 @@ import { scoreBandLabel, type CompanyDetail } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
 import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
+import { CompanyLogo } from "@/components/CompanyLogo";
+import { RateButton } from "@/components/RateButton";
 import { scoreBarColor } from "@/lib/scoreBandColors";
 
 const CATEGORIES = [
@@ -33,24 +35,25 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
         &larr; Back
       </Link>
 
-      <div className="mt-4 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-brand-100 text-2xl font-bold text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-          {company.name.charAt(0).toUpperCase()}
+      <div className="mt-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              {company.name}
+              {company.isVerifiedBadge && (
+                <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
+                  Verified Company
+                </span>
+              )}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {company.category}
+              {company.city ? ` · ${company.city}` : ""}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {company.name}
-            {company.isVerifiedBadge && (
-              <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-                Verified Company
-              </span>
-            )}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {company.category}
-            {company.city ? ` · ${company.city}` : ""}
-          </p>
-        </div>
+        <RateButton companyId={company.id} companySlug={company.slug} />
       </div>
 
       <div className="mt-8 rounded-xl border border-border bg-surface p-6">

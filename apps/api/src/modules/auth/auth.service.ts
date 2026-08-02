@@ -115,7 +115,7 @@ export class AuthService {
   private async issueTokenPair(
     userId: string,
     role: "MEMBER" | "ADMIN" | "COMPANY_OWNER",
-    status: "PENDING_PII" | "PENDING_HISTORY" | "PENDING_AVATAR" | "ACTIVE" | "SUSPENDED",
+    status: "PENDING_PHONE" | "PENDING_PII" | "PENDING_HISTORY" | "PENDING_AVATAR" | "ACTIVE" | "SUSPENDED",
     deviceLabel?: string,
   ): Promise<AuthTokensResponse> {
     const access = this.tokens.signAccessToken({ sub: userId, role, status });

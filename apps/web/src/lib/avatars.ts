@@ -1,25 +1,81 @@
-// Final Phase 1→4 avatar set: distinct, non-identifying animal icons, each with
-// its own color identity. No custom illustration pipeline exists yet, so these
-// stay emoji-based — swap the `emoji` values for real artwork later without
-// touching anything else (avatarKey values are stable storage identifiers).
-export const AVATARS = [
-  // The site's own mascot (see components/Logo.tsx) is also available as a
-  // user avatar, listed first so it's the natural "default-feeling" pick.
-  { key: "avatar_beaver", emoji: "🦫", bg: "bg-brand-100 dark:bg-brand-900/60" },
-  { key: "avatar_fox", emoji: "🦊", bg: "bg-orange-100 dark:bg-orange-900/60" },
-  { key: "avatar_owl", emoji: "🦉", bg: "bg-amber-100 dark:bg-amber-900/60" },
-  { key: "avatar_cat", emoji: "🐱", bg: "bg-rose-100 dark:bg-rose-900/60" },
-  { key: "avatar_panda", emoji: "🐼", bg: "bg-slate-100 dark:bg-slate-800" },
-  { key: "avatar_lion", emoji: "🦁", bg: "bg-yellow-100 dark:bg-yellow-900/60" },
-  { key: "avatar_penguin", emoji: "🐧", bg: "bg-sky-100 dark:bg-sky-900/60" },
-  { key: "avatar_koala", emoji: "🐨", bg: "bg-stone-100 dark:bg-stone-800" },
-  { key: "avatar_bear", emoji: "🐻", bg: "bg-emerald-100 dark:bg-emerald-900/60" },
-  { key: "avatar_rabbit", emoji: "🐰", bg: "bg-pink-100 dark:bg-pink-900/60" },
-  { key: "avatar_turtle", emoji: "🐢", bg: "bg-teal-100 dark:bg-teal-900/60" },
-  { key: "avatar_dolphin", emoji: "🐬", bg: "bg-indigo-100 dark:bg-indigo-900/60" },
-  { key: "avatar_octopus", emoji: "🐙", bg: "bg-violet-100 dark:bg-violet-900/60" },
-] as const;
+import type { WorkplaceType } from "@iwtr/shared-types";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+
+export interface AvatarVariant {
+  key: string;
+  emoji: string;
+}
+
+export interface WorkTypeAvatars {
+  workType: WorkplaceType;
+  variants: AvatarVariant[];
+}
+
+// Avatar picking is two steps: pick a work type, then pick one of 4 variants
+// within it (real illustrated art — e.g. four different "Beaver" looks per
+// work type — is coming later; these emoji are placeholders). Swap any
+// `emoji` value here for real artwork without touching anything else —
+// `key` is the stable storage identifier (User.avatarKey).
+export const WORK_TYPE_AVATARS: WorkTypeAvatars[] = [
+  {
+    workType: "OFFICE",
+    variants: [
+      { key: "office_1", emoji: "🏢" },
+      { key: "office_2", emoji: "💼" },
+      { key: "office_3", emoji: "🧑‍💻" },
+      { key: "office_4", emoji: "📊" },
+    ],
+  },
+  {
+    workType: "REMOTE",
+    variants: [
+      { key: "remote_1", emoji: "💻" },
+      { key: "remote_2", emoji: "🏠" },
+      { key: "remote_3", emoji: "🛋️" },
+      { key: "remote_4", emoji: "☕" },
+    ],
+  },
+  {
+    workType: "SERVICE",
+    variants: [
+      { key: "service_1", emoji: "🛎️" },
+      { key: "service_2", emoji: "🍽️" },
+      { key: "service_3", emoji: "🧑‍🍳" },
+      { key: "service_4", emoji: "💇" },
+    ],
+  },
+  {
+    workType: "MANUAL_LABOUR",
+    variants: [
+      { key: "manual_1", emoji: "🛠️" },
+      { key: "manual_2", emoji: "👷" },
+      { key: "manual_3", emoji: "🚜" },
+      { key: "manual_4", emoji: "🔧" },
+    ],
+  },
+];
+
+function findVariant(avatarKey: string | null | undefined): { group: WorkTypeAvatars; variant: AvatarVariant } | null {
+  if (!avatarKey) return null;
+  for (const group of WORK_TYPE_AVATARS) {
+    const variant = group.variants.find((v) => v.key === avatarKey);
+    if (variant) return { group, variant };
+  }
+  return null;
+}
 
 export function avatarEmoji(avatarKey: string | null | undefined): string | null {
-  return AVATARS.find((a) => a.key === avatarKey)?.emoji ?? null;
+  return findVariant(avatarKey)?.variant.emoji ?? null;
+}
+
+// The work type an avatarKey belongs to — drives which 4 variants are shown
+// as already-selected when re-opening the picker, and the header's fallback
+// pseudo-name when no display name is set.
+export function avatarWorkType(avatarKey: string | null | undefined): WorkplaceType | null {
+  return findVariant(avatarKey)?.group.workType ?? null;
+}
+
+export function avatarLabel(avatarKey: string | null | undefined): string | null {
+  const workType = avatarWorkType(avatarKey);
+  return workType ? workplaceTypeLabel(workType) : null;
 }

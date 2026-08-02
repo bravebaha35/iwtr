@@ -99,6 +99,30 @@ export const myEmploymentEntrySchema = z.object({
   rawCompanyName: z.string(),
   companyId: z.string().uuid().nullable(),
   companySlug: z.string().nullable(),
+  startDate: z.string().date().nullable(),
+  endDate: z.string().date().nullable(),
   hasReview: z.boolean(),
 });
 export type MyEmploymentEntry = z.infer<typeof myEmploymentEntrySchema>;
+
+// Adding a post-onboarding employment entry from the account-settings page —
+// unlike onboarding's free-text rawCompanyName, this always references a real
+// Company row the user picked from a list (no free-text matching needed).
+export const addEmploymentHistoryInputSchema = z.object({
+  companyId: z.string().uuid(),
+  startDate: z.string().date().nullable().optional(),
+  endDate: z.string().date().nullable().optional(),
+});
+export type AddEmploymentHistoryInput = z.infer<typeof addEmploymentHistoryInputSchema>;
+
+// Editing dates on an existing entry — blocked server-side once a review
+// exists for it (see ReviewsService.updateEmploymentHistory), same as delete.
+export const updateEmploymentHistoryInputSchema = z
+  .object({
+    startDate: z.string().date().nullable().optional(),
+    endDate: z.string().date().nullable().optional(),
+  })
+  .refine((v) => v.startDate !== undefined || v.endDate !== undefined, {
+    message: "Provide at least one field to update",
+  });
+export type UpdateEmploymentHistoryInput = z.infer<typeof updateEmploymentHistoryInputSchema>;

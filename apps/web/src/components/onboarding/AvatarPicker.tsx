@@ -3,20 +3,27 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiPost, ApiError } from "@/lib/api-client";
-import { AVATARS } from "@/lib/avatars";
+import { AVATAR_GRADIENTS } from "@/lib/avatarGradients";
+import { Avatar } from "@/components/Avatar";
+import { AvatarEditor } from "@/components/AvatarEditor";
 
 export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
   const { accessToken } = useAuth();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
+  const [selectedGradient, setSelectedGradient] = useState<string>(AVATAR_GRADIENTS[0].key);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleContinue() {
-    if (!selected) return;
+    if (!selectedAvatar) return;
     setError(null);
     setSubmitting(true);
     try {
-      await apiPost("/onboarding/avatar", { avatarKey: selected }, accessToken ?? undefined);
+      await apiPost(
+        "/onboarding/avatar",
+        { avatarKey: selectedAvatar, avatarGradient: selectedGradient },
+        accessToken ?? undefined,
+      );
       onSubmitted();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
@@ -26,38 +33,30 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 px-4 py-8">
       <div className="w-full max-w-md rounded-xl bg-surface p-8 shadow-xl">
-        <h2 className="mb-1 text-xl font-bold text-foreground">
-          Pick an anonymous avatar
-        </h2>
-        <p className="mb-6 text-sm text-muted-foreground">
+        <div className="mb-6 flex justify-center">
+          <Avatar avatarKey={selectedAvatar} avatarGradient={selectedGradient} size="md" />
+        </div>
+
+        <h2 className="mb-1 text-xl font-bold text-foreground">Pick an anonymous avatar</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
           This is how you&apos;ll appear to other users. Last step!
         </p>
 
-        <div className="mb-6 grid grid-cols-4 gap-3">
-          {AVATARS.map((a) => (
-            <button
-              key={a.key}
-              type="button"
-              onClick={() => setSelected(a.key)}
-              className={`flex aspect-square items-center justify-center rounded-full text-3xl transition ${a.bg} ${
-                selected === a.key
-                  ? "ring-3 ring-brand-600 ring-offset-2 ring-offset-surface"
-                  : "hover:brightness-95 dark:hover:brightness-110"
-              }`}
-            >
-              {a.emoji}
-            </button>
-          ))}
-        </div>
+        <AvatarEditor
+          avatarKey={selectedAvatar}
+          avatarGradient={selectedGradient}
+          onChangeAvatarKey={setSelectedAvatar}
+          onChangeGradient={setSelectedGradient}
+        />
 
-        {error && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mb-3 mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
         <button
           onClick={handleContinue}
-          disabled={!selected || submitting}
-          className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+          disabled={!selectedAvatar || submitting}
+          className="mt-2 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           {submitting ? "Saving..." : "Finish"}
         </button>

@@ -13,6 +13,19 @@
    prop-drilling a density value through the tree. */
 @custom-variant compact (&:where([data-density="compact"], [data-density="compact"] *));
 
+/* Hides the scrollbar's visual track/thumb/arrow-buttons on a scrollable
+   element without disabling scrolling — wheel/trackpad/touch scroll still
+   work fine, there's just no chunky (and, on Windows/Chrome, theme-blind —
+   always light gray regardless of dark mode) native scrollbar drawn. Used on
+   the compact picker lists (city/district, workplace search results). */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* old Edge/IE */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/new Edge */
+}
+
 :root {
   --background: #f3f6f8;
   --foreground: #1b2024;

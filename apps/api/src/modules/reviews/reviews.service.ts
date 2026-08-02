@@ -7,12 +7,14 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type {
+  AddEmploymentHistoryInput,
   CastVoteInput,
   CastVoteResult,
   CreateReviewInput,
   MyEmploymentEntry,
   PublicReview,
   SubmitReviewResult,
+  UpdateEmploymentHistoryInput,
   VoteEligibility,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -21,6 +23,10 @@ import { PiiVaultService } from "../pii-vault/pii-vault.service";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
 const MID_THRESHOLD = 0.5;
+
+function toDateOnly(d: Date | null): string | null {
+  return d ? d.toISOString().slice(0, 10) : null;
+}
 
 // Minimum number of distinct companies a member must have a PUBLISHED review
 // for before their like/dislike votes count, per the plan's contribution gate.
@@ -49,8 +55,106 @@ export class ReviewsService {
       rawCompanyName: e.rawCompanyName,
       companyId: e.companyId,
       companySlug: e.company?.slug ?? null,
+      startDate: toDateOnly(e.startDate),
+      endDate: toDateOnly(e.endDate),
       hasReview: e.reviews.length > 0,
     }));
+  }
+
+  /**
+   * Post-onboarding addition from the account-settings page. Unlike
+   * onboarding's free-text submitHistory, the caller always picked a real
+   * Company row (from a city/district-filtered list), so there's no
+   * name-matching to do — just record the link directly.
+   */
+  async addEmploymentHistory(userId: string, input: AddEmploymentHistoryInput): Promise<MyEmploymentEntry> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.status !== "ACTIVE") {
+      throw new ForbiddenException("Complete onboarding before editing your employment history");
+    }
+
+    const company = await this.prisma.company.findUnique({ where: { id: input.companyId } });
+    if (!company) {
+      throw new NotFoundException("Company not found");
+    }
+
+    const created = await this.prisma.employmentHistory.create({
+      data: {
+        userId,
+        rawCompanyName: company.name,
+        companyId: company.id,
+        startDate: input.startDate ? new Date(input.startDate) : null,
+        endDate: input.endDate ? new Date(input.endDate) : null,
+      },
+    });
+
+    return {
+      id: created.id,
+      rawCompanyName: created.rawCompanyName,
+      companyId: created.companyId,
+      companySlug: company.slug,
+      startDate: toDateOnly(created.startDate),
+      endDate: toDateOnly(created.endDate),
+      hasReview: false,
+    };
+  }
+
+  private async loadOwnedEmploymentEntry(userId: string, entryId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.status !== "ACTIVE") {
+      throw new ForbiddenException("Complete onboarding before editing your employment history");
+    }
+    const entry = await this.prisma.employmentHistory.findUnique({
+      where: { id: entryId },
+      include: { company: true, reviews: { select: { id: true } } },
+    });
+    if (!entry || entry.userId !== userId) {
+      throw new NotFoundException("Employment history entry not found");
+    }
+    return entry;
+  }
+
+  /**
+   * Dates only — changing which company an entry points to isn't supported
+   * here (that's a delete + re-add, since it's really a different entry).
+   * Blocked once a review exists for the same reason delete is: the review's
+   * dates were part of what got moderated/trust-scored at submission time.
+   */
+  async updateEmploymentHistory(
+    userId: string,
+    entryId: string,
+    input: UpdateEmploymentHistoryInput,
+  ): Promise<MyEmploymentEntry> {
+    const entry = await this.loadOwnedEmploymentEntry(userId, entryId);
+    if (entry.reviews.length > 0) {
+      throw new ConflictException("Can't edit this — you've already submitted a review for it.");
+    }
+
+    const updated = await this.prisma.employmentHistory.update({
+      where: { id: entryId },
+      data: {
+        ...(input.startDate !== undefined ? { startDate: input.startDate ? new Date(input.startDate) : null } : {}),
+        ...(input.endDate !== undefined ? { endDate: input.endDate ? new Date(input.endDate) : null } : {}),
+      },
+    });
+
+    return {
+      id: updated.id,
+      rawCompanyName: updated.rawCompanyName,
+      companyId: updated.companyId,
+      companySlug: entry.company?.slug ?? null,
+      startDate: toDateOnly(updated.startDate),
+      endDate: toDateOnly(updated.endDate),
+      hasReview: false,
+    };
+  }
+
+  async deleteEmploymentHistory(userId: string, entryId: string): Promise<void> {
+    const entry = await this.loadOwnedEmploymentEntry(userId, entryId);
+    if (entry.reviews.length > 0) {
+      throw new ConflictException("Can't remove this — you've already submitted a review for it.");
+    }
+    await this.prisma.employmentHistory.delete({ where: { id: entryId } });
   }
 
   async submitReview(userId: string, input: CreateReviewInput): Promise<SubmitReviewResult> {

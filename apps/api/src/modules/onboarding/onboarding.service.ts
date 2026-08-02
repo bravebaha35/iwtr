@@ -4,25 +4,56 @@ import type {
   HistorySubmission,
   OnboardingStatus,
   PiiOnboardingInput,
+  RequestPhoneOtpInput,
+  VerifyPhoneOtpInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
+import { PhoneVerificationService } from "../phone-verification/phone-verification.service";
 
 @Injectable()
 export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly piiVault: PiiVaultService,
+    private readonly phoneVerification: PhoneVerificationService,
   ) {}
 
   async getStatus(userId: string): Promise<OnboardingStatus> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     return {
       status: user.status,
+      country: user.country,
       city: user.city,
       district: user.district,
       avatarKey: user.avatarKey,
+      avatarGradient: user.avatarGradient,
+      displayName: user.displayName,
     };
+  }
+
+  async requestPhoneOtp(userId: string, input: RequestPhoneOtpInput): Promise<{ devCode?: string }> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.status !== "PENDING_PHONE") {
+      throw new BadRequestException("Phone number has already been verified for this account");
+    }
+    return this.phoneVerification.requestOtp(userId, input.phoneNumber);
+  }
+
+  async verifyPhoneOtp(userId: string, input: VerifyPhoneOtpInput): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.status !== "PENDING_PHONE") {
+      throw new BadRequestException("Phone number has already been verified for this account");
+    }
+
+    await this.phoneVerification.verifyOtp(userId, input.code);
+
+    // Conditional write, same pattern as every other onboarding step: only one
+    // of two concurrent requests actually advances the status.
+    await this.prisma.user.updateMany({
+      where: { id: userId, status: "PENDING_PHONE" },
+      data: { status: "PENDING_PII" },
+    });
   }
 
   async submitPii(userId: string, input: PiiOnboardingInput): Promise<void> {
@@ -40,7 +71,12 @@ export class OnboardingService {
     // matches zero rows and is a harmless no-op rather than a double-advance.
     await this.prisma.user.updateMany({
       where: { id: userId, status: "PENDING_PII" },
-      data: { status: "PENDING_HISTORY", city: input.city, district: input.district },
+      data: {
+        status: "PENDING_HISTORY",
+        country: input.country,
+        city: input.city,
+        district: input.district ?? null,
+      },
     });
   }
 
@@ -97,7 +133,7 @@ export class OnboardingService {
   async submitAvatar(userId: string, input: AvatarSelection): Promise<void> {
     const claimed = await this.prisma.user.updateMany({
       where: { id: userId, status: "PENDING_AVATAR" },
-      data: { avatarKey: input.avatarKey, status: "ACTIVE" },
+      data: { avatarKey: input.avatarKey, avatarGradient: input.avatarGradient, status: "ACTIVE" },
     });
     if (claimed.count === 0) {
       throw new BadRequestException("Avatar has already been set for this account");

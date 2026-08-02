@@ -24,6 +24,10 @@ export const companySchema = z.object({
   description: z.string().nullable(),
   website: z.string().url().nullable(),
   city: z.string().nullable(),
+  // Not owner-editable (like city) — set once at admin creation time, kept
+  // consistent with how city is handled. Optional/nullable since it's new:
+  // most existing companies won't have one set until an admin backfills it.
+  district: z.string().nullable(),
   isVerifiedBadge: z.boolean(),
 });
 export type Company = z.infer<typeof companySchema>;
@@ -51,17 +55,22 @@ export const adminCreateCompanyInputSchema = z.object({
   category: z.string().min(1),
   workplaceType: workplaceTypeSchema,
   city: z.string().min(1).optional(),
+  district: z.string().min(1).optional(),
   mainPhotoUrl: z.string().url().optional(),
 });
 export type AdminCreateCompanyInput = z.infer<typeof adminCreateCompanyInputSchema>;
 
 // 1.0-5.0 average maps to a fixed label band shown on every company page.
+// Exemplary is reserved for a literal perfect 5.0 average (2026-08-02
+// correction — it previously started at 4.5, which meant a mediocre-leaning
+// 4.6 average could read as "Exemplary"); Superb covers the rest of the top
+// point of the scale, 4.0 up to (not including) a perfect 5.0.
 export const scoreBands = [
-  { min: 0, max: 1.5, label: "Unsatisfactory" },
-  { min: 1.5, max: 2.5, label: "Developing" },
-  { min: 2.5, max: 3.5, label: "Effective" },
-  { min: 3.5, max: 4.5, label: "Superb" },
-  { min: 4.5, max: 5.01, label: "Exemplary" },
+  { min: 0, max: 2.0, label: "Unsatisfactory" },
+  { min: 2.0, max: 3.0, label: "Developing" },
+  { min: 3.0, max: 4.0, label: "Effective" },
+  { min: 4.0, max: 5.0, label: "Superb" },
+  { min: 5.0, max: 5.01, label: "Exemplary" },
 ] as const;
 
 export function scoreBandLabel(avg: number): string {

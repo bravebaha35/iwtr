@@ -50,6 +50,20 @@ export function encryptField(plaintext: string, dek: Buffer): Buffer {
   return encrypt(plaintext, dek);
 }
 
+export function unwrapDek(wrapped: Buffer): Buffer {
+  return Buffer.from(decrypt(wrapped, deriveMasterKey()), "base64");
+}
+
+// Only ever call this to show a user their OWN previously-submitted name/
+// birth date back to themselves (see PiiVaultService.getMyIdentity) — never
+// for any cross-user or public-facing lookup. T.C. Kimlik No has no decrypt
+// path at all; encTcKimlikNo is nulled out the moment it's no longer needed
+// (see purgeTcKimlikNoIfPresent) specifically so it can never be read back,
+// by this function or anything else.
+export function decryptField(payload: Buffer, dek: Buffer): string {
+  return decrypt(payload, dek);
+}
+
 export function hashTcKimlikNo(tcKimlikNo: string): string {
   const pepper = requireSecret("TCKN_HASH_PEPPER", "dev-only-change-me");
   return createHmac("sha256", pepper).update(tcKimlikNo).digest("hex");

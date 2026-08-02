@@ -19,6 +19,8 @@ const PROFANITY_WORDS = [
   "aptal",
 ];
 
+const SEXUAL_CONTENT_WORDS = ["porn", "sex", "nude", "xxx", "seks", "porno", "çıplak", "yarrak"];
+
 const JOB_TITLE_WORDS = [
   "manager",
   "müdür",
@@ -51,8 +53,24 @@ function matchesAsWord(haystackLower: string, word: string): boolean {
   return pattern.test(haystackLower);
 }
 
+// Substring (not word-boundary) matching on purpose for display names: a
+// short single-token nickname is exactly where someone concatenates a slur
+// into a compound word ("fuckface") with no space to give matchesAsWord's
+// boundary check anything to key off. "pic" is excluded here (unlike the
+// review-content list) since it's short enough to false-positive constantly
+// as a substring (Picasso, topic, picnic...).
+const DISPLAY_NAME_BLOCKED_SUBSTRINGS = [...PROFANITY_WORDS.filter((w) => w !== "pic"), ...SEXUAL_CONTENT_WORDS];
+
 @Injectable()
 export class ModerationService {
+  // For short free-text fields (currently: the self-chosen display name) where
+  // only an unambiguous block matters — no name-pattern/job-title/shouting
+  // heuristics, those are noisy on short strings and irrelevant to a nickname.
+  checkDisplayName(name: string): boolean {
+    const lower = name.toLowerCase();
+    return DISPLAY_NAME_BLOCKED_SUBSTRINGS.some((w) => lower.includes(w));
+  }
+
   checkContent(texts: string[]): ContentCheckResult {
     const combined = texts.filter(Boolean).join(" \n ");
     const lower = combined.toLowerCase();

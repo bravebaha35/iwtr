@@ -3,9 +3,13 @@ import {
   avatarSelectionSchema,
   historySubmissionSchema,
   piiOnboardingInputSchema,
+  requestPhoneOtpSchema,
+  verifyPhoneOtpSchema,
   type AvatarSelection,
   type HistorySubmission,
   type PiiOnboardingInput,
+  type RequestPhoneOtpInput,
+  type VerifyPhoneOtpInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -21,6 +25,24 @@ export class OnboardingController {
   @Get("status")
   getStatus(@CurrentUser() user: AuthenticatedUser) {
     return this.onboarding.getStatus(user.id);
+  }
+
+  @Post("phone/request-otp")
+  async requestPhoneOtp(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(requestPhoneOtpSchema)) body: RequestPhoneOtpInput,
+  ) {
+    const { devCode } = await this.onboarding.requestPhoneOtp(user.id, body);
+    return { success: true, ...(devCode ? { devCode } : {}) };
+  }
+
+  @Post("phone/verify-otp")
+  async verifyPhoneOtp(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(verifyPhoneOtpSchema)) body: VerifyPhoneOtpInput,
+  ) {
+    await this.onboarding.verifyPhoneOtp(user.id, body);
+    return { success: true };
   }
 
   @Post("pii")
