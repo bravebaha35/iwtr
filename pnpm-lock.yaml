@@ -53,6 +53,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      turkish-deasciifier:
+        specifier: ^1.0.0
+        version: 1.0.0
       twilio:
         specifier: ^5.3.0
         version: 5.13.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
@@ -3327,6 +3330,9 @@ packages:
   turbo@2.10.8:
     resolution: {integrity: sha512-9+8YX5QOkGXzZxcIykTHgaooRHGMWO+jfdyRK0o+rN0U7hBIig2MrJ8r/aNzIPDPhdA73SGb0O+tIztaModTMg==}
     hasBin: true
+
+  turkish-deasciifier@1.0.0:
+    resolution: {integrity: sha512-K59LG/e0k8GgDyXErZTKIOJsD0ZyX6ktVhPnKcCcih0/ZrT5CWy8tDQjrM4fBaA7Idv1d45O0Vz3K4SzbJhvPQ==}
 
   tweetnacl@0.14.5:
     resolution: {integrity: sha512-KXXFFdAbFXY4geFIwoyNK+f5Z1b7swfXABfL7HXCmoIWMKU3dmS26672A4EeQtDzLKy7SXmfBu51JolvEKwtGA==}
@@ -7057,6 +7063,8 @@ snapshots:
       '@turbo/linux-arm64': 2.10.8
       '@turbo/windows-64': 2.10.8
       '@turbo/windows-arm64': 2.10.8
+
+  turkish-deasciifier@1.0.0: {}
 
   tweetnacl@0.14.5: {}
 

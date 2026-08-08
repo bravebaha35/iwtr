@@ -82,7 +82,16 @@ export class CompaniesService {
       },
       include: { aggregate: true },
       orderBy: { name: "asc" },
-      take: 50,
+      // WorkplaceBrowser fetches the full filtered set and paginates
+      // client-side (see apps/web/src/components/WorkplaceBrowser.tsx) since
+      // its category/rating/city-district filters run in the browser, not in
+      // this query — a hard 50-row cap here was silently hiding everything
+      // past the first page's worth of results once the directory grew past
+      // 50 companies. 5000 is a safety ceiling, not the expected size; once
+      // the directory is large enough that fetching "everything matching
+      // `query`" stops being cheap, filtering/sorting/pagination all need to
+      // move server-side together, not just this ceiling raised further.
+      take: 5000,
     });
     return companies.map((c) => ({
       ...this.toPublicCompany(c),
