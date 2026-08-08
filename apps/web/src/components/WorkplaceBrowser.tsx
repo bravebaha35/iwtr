@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
@@ -13,6 +13,90 @@ import { AdSlot } from "@/components/AdSlot";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 
 type Geo = { lat: number; lng: number } | "denied" | null;
+
+// Placeholder emojis for the 0/3/5 rating-slider ticks — swap for real icons
+// once they're picked.
+const RATING_TICKS: { value: number; emoji: string }[] = [
+  { value: 0, emoji: "😠" },
+  { value: 3, emoji: "😐" },
+  { value: 5, emoji: "😄" },
+];
+
+type SortOption = "default" | "alphabetical" | "rating" | "workplace";
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "alphabetical", label: "Alphabetically" },
+  { value: "rating", label: "Rating" },
+  { value: "workplace", label: "Workplace" },
+];
+
+const RESULTS_PAGE_SIZE = 24;
+
+// Google-style page list: always show the first and last page, a small
+// window around the current page, and "…" for whatever's skipped in between.
+function pageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) {
+    pages.push(p);
+  }
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
+}
+
+function PaginationBar({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <nav className="mt-10 flex items-center justify-center gap-1 text-sm" aria-label="Pagination">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(1, page - 1))}
+        disabled={page === 1}
+        aria-label="Previous page"
+        className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
+      >
+        ‹
+      </button>
+      {pageNumbers(page, totalPages).map((p, i) =>
+        p === "..." ? (
+          <span key={`ellipsis-${i}`} className="px-2 py-1.5 text-muted-foreground">
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            aria-current={p === page ? "page" : undefined}
+            className={`min-w-9 rounded-lg px-2.5 py-1.5 font-medium transition ${
+              p === page ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
+            }`}
+          >
+            {p}
+          </button>
+        ),
+      )}
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(totalPages, page + 1))}
+        disabled={page === totalPages}
+        aria-label="Next page"
+        className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
+      >
+        ›
+      </button>
+    </nav>
+  );
+}
 
 function CompanyCard({ company }: { company: CompanyListItem }) {
   return (
@@ -65,38 +149,92 @@ function matchesCityDistrict(company: CompanyListItem, cities: string[], distric
   return false;
 }
 
-export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }) {
+export function WorkplaceBrowser() {
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [minRating, setMinRating] = useState(0);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
+  // null = never asked (the resting/default state — "All" stays "All" until
+  // the visitor deliberately clicks "Near Me"). Geolocation is NEVER
+  // requested automatically and NEVER falls back to the visitor's own
+  // profile city — both used to happen silently on page load, which quietly
+  // narrowed "All" down to their onboarding city with no action from them.
   const [geo, setGeo] = useState<Geo>(null);
+  const [geoRequesting, setGeoRequesting] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const sliderTrackRef = useRef<HTMLDivElement>(null);
+  const resultsTopRef = useRef<HTMLDivElement>(null);
 
-  // Try to sort by proximity first. If denied/unavailable, fall back to the
-  // visitor's own onboarding city (if set) rather than leaving everything
-  // unfiltered — see CityDistrictPicker below for manually narrowing further.
+  function stepRating(delta: number) {
+    setMinRating((prev) => Math.min(5, Math.max(0, Math.round((prev + delta) * 10) / 10)));
+  }
+
+  // React registers the root `wheel` listener as passive, so `preventDefault`
+  // inside a React onWheel prop is silently ignored and the page scrolls
+  // underneath instead of the rating changing. Attaching the listener
+  // natively with passive:false is the only way to actually block the scroll.
   useEffect(() => {
+    const el = sliderTrackRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      stepRating(e.deltaY < 0 ? 0.1 : -0.1);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // Press-and-hold scrub: mouse position across the track maps directly to a
+  // 0-5 value, so a single click sets a point and holding + dragging sweeps
+  // through every 0.1 step in between. Uses Pointer Capture rather than
+  // window-level mousemove/mouseup listeners: capturing the pointer on the
+  // track guarantees onPointerMove/Up keep firing on this element even if the
+  // cursor leaves it (or the button is released outside the browser window
+  // entirely). A window-listener version can't detect a release outside the
+  // window, leaking a permanent mousemove listener that fires setMinRating on
+  // every future mouse move anywhere on the page — which starves re-renders
+  // and makes unrelated clicks (e.g. Cities & Districts) look "disabled".
+  function applyRatingFromClientX(el: HTMLDivElement, clientX: number) {
+    const rect = el.getBoundingClientRect();
+    const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    setMinRating(Math.round(fraction * 5 * 10) / 10);
+  }
+
+  function handleSliderPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    applyRatingFromClientX(e.currentTarget, e.clientX);
+  }
+
+  function handleSliderPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.buttons !== 1) return;
+    applyRatingFromClientX(e.currentTarget, e.clientX);
+  }
+
+  // "Near Me" button only: geolocation is never requested until the visitor
+  // clicks it, and success only ever reorders results by proximity — it
+  // never touches selectedCities/selectedDistrictKeys, so "All" stays "All".
+  function requestNearMe() {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
       setGeo("denied");
       return;
     }
+    setGeoRequesting(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setGeo("denied"),
+      (pos) => {
+        setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoRequesting(false);
+      },
+      () => {
+        setGeo("denied");
+        setGeoRequesting(false);
+      },
       { timeout: 8000 },
     );
-  }, []);
-
-  useEffect(() => {
-    if (geo !== "denied" || !defaultCity) return;
-    const province = findProvinceByCityName(defaultCity);
-    if (province) setSelectedCities((prev) => (prev.length === 0 ? [province.name] : prev));
-    // Only meant to seed the initial filter once geolocation resolves to
-    // denied — deliberately not re-running if the visitor later clears it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geo]);
+  }
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -122,18 +260,39 @@ export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }
     if (!companies) return null;
     let list = companies.filter((c) => {
       if (workplaceTypes.length > 0 && !workplaceTypes.includes(c.workplaceType)) return false;
-      if (minRating > 0 && (c.overallAvg === null || c.overallAvg < minRating)) return false;
+      if (minRating > 0 && (c.overallAvg === null || c.overallAvg > minRating)) return false;
       if (selectedCities.length > 0 || selectedDistrictKeys.length > 0) {
         if (!matchesCityDistrict(c, selectedCities, selectedDistrictKeys)) return false;
       }
       return true;
     });
 
-    if (geo && geo !== "denied") {
+    if (sortBy === "alphabetical") {
+      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === "rating") {
+      list = [...list].sort((a, b) => (b.overallAvg ?? -1) - (a.overallAvg ?? -1));
+    } else if (sortBy === "workplace") {
+      const order = WORKPLACE_TYPES.map((t) => t.value);
+      list = [...list].sort((a, b) => order.indexOf(a.workplaceType) - order.indexOf(b.workplaceType));
+    } else if (geo && geo !== "denied") {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
     return list;
-  }, [companies, workplaceTypes, minRating, selectedCities, selectedDistrictKeys, geo]);
+  }, [companies, workplaceTypes, minRating, selectedCities, selectedDistrictKeys, geo, sortBy]);
+
+  // Any change to what's being shown should land back on page 1 — otherwise
+  // narrowing a filter can strand you on a now-nonexistent page 12 of 2.
+  useEffect(() => {
+    setPage(1);
+  }, [workplaceTypes, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
+
+  const totalPages = visibleCompanies ? Math.max(1, Math.ceil(visibleCompanies.length / RESULTS_PAGE_SIZE)) : 1;
+  const pageCompanies = visibleCompanies?.slice((page - 1) * RESULTS_PAGE_SIZE, page * RESULTS_PAGE_SIZE) ?? null;
+
+  function goToPage(next: number) {
+    setPage(next);
+    resultsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   function toggleWorkplaceType(value: WorkplaceType) {
     setWorkplaceTypes((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
@@ -160,7 +319,6 @@ export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }
               selected={workplaceTypes}
               onToggle={toggleWorkplaceType}
               onClearAll={() => setWorkplaceTypes([])}
-              direction="column"
             />
 
             <div>
@@ -176,38 +334,51 @@ export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }
                   All
                 </button>
               </div>
-              {/* No slider track/thumb — click a star to jump straight to
-                  that rating, or scroll anywhere in the box to fine-tune in
-                  0.1 steps. Avoids native <input type="range"> entirely,
-                  which never fully themes across browsers (the unfilled
-                  track stays a hardcoded light gray even in dark mode). */}
-              <div
-                onWheel={(e) => {
-                  e.preventDefault();
-                  setMinRating((prev) => {
-                    const next = prev + (e.deltaY < 0 ? 0.1 : -0.1);
-                    return Math.min(5, Math.max(0, Math.round(next * 10) / 10));
-                  });
-                }}
-                className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 select-none"
-                title="Click a star, or scroll to fine-tune"
-              >
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setMinRating(n)}
-                      className={`text-3xl leading-none transition ${
-                        n <= Math.round(minRating) ? "text-amber-500" : "text-muted-foreground/30 hover:text-amber-500/50"
+              {/* Red-to-green slider, no stars. Shows companies at or BELOW
+                  the chosen value (not "X and up"), so dragging left tightens
+                  toward the worst-rated end. Emojis at 1/3/5 are placeholders
+                  — swap for real artwork later. Click-and-drag on the track
+                  (or scroll) sets the value; avoids a native
+                  <input type="range">, which never fully themes across
+                  browsers and can't take a gradient track everywhere. */}
+              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-3 py-3 select-none">
+                <div className="relative pt-8">
+                  {RATING_TICKS.map((tick) => (
+                    <span
+                      key={tick.value}
+                      className={`absolute top-0 text-2xl leading-none ${
+                        tick.value === 5 ? "-translate-x-1/4" : "-translate-x-1/2"
                       }`}
+                      style={{ left: `${(tick.value / 5) * 100}%` }}
                     >
-                      ★
-                    </button>
+                      {tick.emoji}
+                    </span>
                   ))}
+
+                  <div
+                    ref={sliderTrackRef}
+                    onPointerDown={handleSliderPointerDown}
+                    onPointerMove={handleSliderPointerMove}
+                    className="relative h-2 w-full cursor-pointer touch-none rounded-full"
+                    style={{ background: "linear-gradient(to right, #ef4444, #22c55e)" }}
+                    title="Click and drag along the slider, or scroll, to fine-tune"
+                  >
+                    {RATING_TICKS.map((tick) => (
+                      <span
+                        key={tick.value}
+                        className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-white/70"
+                        style={{ left: `${(tick.value / 5) * 100}%` }}
+                      />
+                    ))}
+                    <span
+                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow"
+                      style={{ left: `${(minRating / 5) * 100}%` }}
+                    />
+                  </div>
                 </div>
-                <span className="text-sm font-semibold text-muted-foreground">
-                  {minRating === 0 ? "Any" : `${minRating.toFixed(1)}+`}
+
+                <span className="text-center text-sm font-semibold text-muted-foreground">
+                  {minRating === 0 ? "Any" : `${minRating.toFixed(1)} and Below`}
                 </span>
               </div>
             </div>
@@ -221,33 +392,89 @@ export function WorkplaceBrowser({ defaultCity }: { defaultCity: string | null }
                 setSelectedCities([]);
                 setSelectedDistrictKeys([]);
               }}
+              onNearMe={requestNearMe}
+              nearMeLoading={geoRequesting}
+              nearMeActive={geo !== null && geo !== "denied"}
             />
           </aside>
 
           {/* Results */}
-          <div className="flex-1">
-            <input
-              type="search"
-              placeholder="Search a workplace by name..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="mb-4 w-full rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
-            />
+          <div ref={resultsTopRef} className="flex-1">
+            <div className="mb-4 flex items-center gap-2">
+              <input
+                type="search"
+                placeholder="Search a workplace by name..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
+              />
+              <div className="relative ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setSortMenuOpen((o) => !o)}
+                  aria-label="Sort"
+                  title="Sort"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18M6 12h12M10 18h4" />
+                  </svg>
+                </button>
+                {sortMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-[65]" onClick={() => setSortMenuOpen(false)} />
+                    <div className="absolute right-full top-0 z-[70] mr-2 w-40 rounded-lg border border-border bg-surface py-1 shadow-lg">
+                      {SORT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setSortBy(opt.value);
+                            setSortMenuOpen(false);
+                          }}
+                          className={`block w-full px-3 py-2 text-left text-sm ${
+                            sortBy === opt.value
+                              ? "font-semibold text-brand-600 dark:text-brand-400"
+                              : "text-foreground hover:bg-surface-muted"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
 
-            {geo === null && <p className="mb-3 text-xs text-muted-foreground">Finding workplaces near you...</p>}
             {geo && geo !== "denied" && (
               <p className="mb-3 text-xs text-muted-foreground">Showing workplaces nearest to you first.</p>
             )}
+            {geo === "denied" && (
+              <p className="mb-3 text-xs text-muted-foreground">
+                Couldn&apos;t get your location — showing all workplaces.
+              </p>
+            )}
 
-            {visibleCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
-            {visibleCompanies !== null && visibleCompanies.length === 0 && (
+            {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
+            {pageCompanies !== null && pageCompanies.length === 0 && (
               <p className="text-sm text-muted-foreground">No workplaces match these filters yet.</p>
             )}
             <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 compact:lg:grid-cols-4">
-              {visibleCompanies?.map((c) => (
+              {pageCompanies?.map((c) => (
                 <CompanyCard key={c.id} company={c} />
               ))}
             </div>
+
+            {visibleCompanies !== null && visibleCompanies.length > 0 && (
+              <>
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  Page {page} of {totalPages} — {visibleCompanies.length} workplace
+                  {visibleCompanies.length === 1 ? "" : "s"}
+                </p>
+                <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
+              </>
+            )}
           </div>
         </div>
       </div>

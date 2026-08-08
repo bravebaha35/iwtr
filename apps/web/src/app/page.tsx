@@ -53,36 +53,23 @@ export default function Home() {
     <div className="flex min-h-screen flex-col">
       {/* pr-20 (not the usual pr-6) leaves room for the fixed top-right
           SettingsPanel button so it doesn't sit on top of "Log out". */}
-      <header className="flex items-center justify-between border-b border-border bg-surface py-4 pl-6 pr-20">
-        <Link href="/" className="flex items-center gap-2">
+      <header className="flex items-center gap-4 border-b border-border bg-surface py-4 pl-6 pr-20">
+        <Link href="/" className="flex shrink-0 items-center gap-2">
           <Logo size="sm" />
-          <div className="flex flex-col leading-tight">
-            <span className="text-lg font-bold text-foreground">I Worked There</span>
-            {/* Font is set globally in app/layout.tsx (next/font Geist) — swap
-                it there once a real typeface is picked; italic/font-light here
-                is just the weight/style, independent of which family it uses. */}
-            <span className="hidden font-light italic text-muted-foreground sm:block sm:text-xs">
-              No names. No HR. Just what it&apos;s really like to work there.
-            </span>
-          </div>
+          <span className="text-lg font-bold text-foreground">I Worked There</span>
         </Link>
-        <div className="flex items-center gap-4">
-          <nav className="flex items-center gap-4 text-sm text-muted-foreground">
-            <Link href="/my/companies" className="hover:text-brand-600 dark:hover:text-brand-400">
-              My Companies
-            </Link>
-            {role === "ADMIN" && (
-              <>
-                <Link href="/admin/moderation" className="hover:text-brand-600 dark:hover:text-brand-400">
-                  Moderation Queue
-                </Link>
-                <Link href="/admin/owner-claims" className="hover:text-brand-600 dark:hover:text-brand-400">
-                  Owner Claims
-                </Link>
-              </>
-            )}
-          </nav>
-          <CompanySearch />
+        <CompanySearch />
+        <div className="ml-auto flex items-center gap-4">
+          {role === "ADMIN" && (
+            <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+              <Link href="/admin/moderation" className="hover:text-brand-600 dark:hover:text-brand-400">
+                Moderation Queue
+              </Link>
+              <Link href="/admin/owner-claims" className="hover:text-brand-600 dark:hover:text-brand-400">
+                Owner Claims
+              </Link>
+            </nav>
+          )}
           <Link
             href="/me"
             className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted"
@@ -107,7 +94,7 @@ export default function Home() {
         </div>
       </header>
 
-      <WorkplaceBrowser defaultCity={onboardingStatus.city} />
+      <WorkplaceBrowser />
     </div>
   );
 }

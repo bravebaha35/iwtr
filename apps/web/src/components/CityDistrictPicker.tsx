@@ -25,12 +25,21 @@ export function CityDistrictPicker({
   onToggleCity,
   onToggleDistrict,
   onClearAll,
+  onNearMe,
+  nearMeLoading,
+  nearMeActive,
 }: {
   selectedCities: string[];
   selectedDistrictKeys: string[];
   onToggleCity: (province: string) => void;
   onToggleDistrict: (key: string) => void;
   onClearAll: () => void;
+  // "Near Me" only ever reorders results by proximity (see WorkplaceBrowser)
+  // — it deliberately never touches selectedCities/selectedDistrictKeys, so
+  // "All" here always means every city, never a silently-narrowed one.
+  onNearMe: () => void;
+  nearMeLoading: boolean;
+  nearMeActive: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -60,15 +69,28 @@ export function CityDistrictPicker({
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cities &amp; districts</h3>
-        <button
-          type="button"
-          onClick={onClearAll}
-          className={`text-xs font-medium ${
-            nothingSelected ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
-          }`}
-        >
-          All
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onNearMe}
+            disabled={nearMeLoading}
+            title="Sort results by distance from you — doesn't change which cities are selected"
+            className={`text-xs font-medium disabled:opacity-50 ${
+              nearMeActive ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
+            }`}
+          >
+            {nearMeLoading ? "Locating…" : "Near Me"}
+          </button>
+          <button
+            type="button"
+            onClick={onClearAll}
+            className={`text-xs font-medium ${
+              nothingSelected ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
+            }`}
+          >
+            All
+          </button>
+        </div>
       </div>
       <input
         type="search"
