@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 export interface DropdownOption {
   value: string;
   label: string;
+  // Optional leading icon (e.g. a flag) rendered before the label, both in
+  // the closed box and in the option list.
+  icon?: ReactNode;
 }
 
 /**
@@ -30,7 +33,7 @@ export function SingleSelectDropdown({
   maxHeightClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const selectedLabel = options.find((o) => o.value === value)?.label ?? placeholder;
+  const selectedOption = options.find((o) => o.value === value);
 
   return (
     <div className="relative">
@@ -39,7 +42,10 @@ export function SingleSelectDropdown({
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted"
       >
-        <span className={`truncate ${value ? "text-foreground" : "text-muted-foreground"}`}>{selectedLabel}</span>
+        <span className={`flex min-w-0 items-center gap-1.5 truncate ${value ? "text-foreground" : "text-muted-foreground"}`}>
+          {selectedOption?.icon}
+          <span className="truncate">{selectedOption?.label ?? placeholder}</span>
+        </span>
         <span className={`shrink-0 text-[10px] text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}>
           ▾
         </span>
@@ -70,13 +76,14 @@ export function SingleSelectDropdown({
                   onChange(o.value);
                   setOpen(false);
                 }}
-                className={`block w-full truncate px-3 py-1.5 text-left text-xs ${
+                className={`flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-xs ${
                   o.value === value
                     ? "font-semibold text-brand-600 dark:text-brand-400"
                     : "text-foreground hover:bg-surface-muted"
                 }`}
               >
-                {o.label}
+                {o.icon}
+                <span className="truncate">{o.label}</span>
               </button>
             ))}
           </div>

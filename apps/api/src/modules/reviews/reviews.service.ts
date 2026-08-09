@@ -21,7 +21,6 @@ import type {
   SurveyResponse,
   UpdateEmploymentHistoryInput,
   UpdateReviewInput,
-  VoteEligibility,
   WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -36,11 +35,12 @@ function toDateOnly(d: Date | null): string | null {
   return d ? d.toISOString().slice(0, 10) : null;
 }
 
-// Minimum number of distinct companies a member must have a PUBLISHED review
-// for before their like/dislike votes count, per the plan's contribution gate.
-const REQUIRED_COMPANY_REVIEW_COUNT = 3;
-// Same distinct-company-count signal, reused to badge reviews with a
-// trust/contribution indicator — never the author's identity, just a tier.
+// Distinct-company-count thresholds for the CONTRIBUTOR/TOP_CONTRIBUTOR
+// badge shown on reviews — a trust/contribution indicator, never the
+// author's identity. No longer used to gate voting (2026-08-09: any
+// registered, logged-in member can vote helpful/not-helpful — see
+// castVote) — purely a badge-tier signal now.
+const CONTRIBUTOR_COMPANY_COUNT = 3;
 const TOP_CONTRIBUTOR_COMPANY_COUNT = 5;
 
 @Injectable()
@@ -572,7 +572,7 @@ export class ReviewsService {
     const contributorBadge = (userId: string): PublicReview["contributorBadge"] => {
       const count = distinctCompanyCountByAuthor.get(userId) ?? 0;
       if (count >= TOP_CONTRIBUTOR_COMPANY_COUNT) return "TOP_CONTRIBUTOR";
-      if (count >= REQUIRED_COMPANY_REVIEW_COUNT) return "CONTRIBUTOR";
+      if (count >= CONTRIBUTOR_COMPANY_COUNT) return "CONTRIBUTOR";
       return null;
     };
 
@@ -665,28 +665,13 @@ export class ReviewsService {
     return { byWorkplaceType };
   }
 
-  async getVoteEligibility(userId: string): Promise<VoteEligibility> {
-    const distinctCompanies = await this.prisma.review.findMany({
-      where: { userId, status: "PUBLISHED" },
-      distinct: ["companyId"],
-      select: { companyId: true },
-    });
-
-    return {
-      eligible: distinctCompanies.length >= REQUIRED_COMPANY_REVIEW_COUNT,
-      distinctCompanyReviewCount: distinctCompanies.length,
-      requiredCompanyReviewCount: REQUIRED_COMPANY_REVIEW_COUNT,
-    };
-  }
-
+  /**
+   * Any logged-in, registered member can vote — no contribution gate (see
+   * REVIEW.md-adjacent history: this used to require published reviews for 3
+   * distinct companies; removed 2026-08-09 per product decision). Still
+   * blocks self-voting and requires the target review to be PUBLISHED.
+   */
   async castVote(userId: string, input: CastVoteInput): Promise<CastVoteResult> {
-    const eligibility = await this.getVoteEligibility(userId);
-    if (!eligibility.eligible) {
-      throw new ForbiddenException(
-        `You need published reviews for ${eligibility.requiredCompanyReviewCount} different companies before you can vote (you have ${eligibility.distinctCompanyReviewCount}).`,
-      );
-    }
-
     const review = await this.prisma.review.findUnique({ where: { id: input.reviewId } });
     if (!review || review.status !== "PUBLISHED") {
       throw new NotFoundException("Review not found");

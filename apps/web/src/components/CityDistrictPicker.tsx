@@ -5,7 +5,15 @@ import { TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { COUNTRIES } from "@/lib/countries";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 
-const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ value: c.name, label: `${c.flag} ${c.name}` }));
+// Real vector flag icons (flag-icons package, imported globally in
+// layout.tsx) rather than Unicode flag emoji — Windows renders unsupported
+// flag-emoji sequences as their boxed two-letter fallback (e.g. "TR"), so
+// emoji alone can't be relied on across platforms.
+const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({
+  value: c.name,
+  label: c.name,
+  icon: <span className={`fi fi-${c.code.toLowerCase()} shrink-0 rounded-[2px]`} aria-hidden />,
+}));
 const DEFAULT_COUNTRY = "Turkey";
 
 // District selection keys are `${provinceName}::${districtName}` — district

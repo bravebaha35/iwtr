@@ -123,16 +123,6 @@ export const castVoteResultSchema = z.object({
 });
 export type CastVoteResult = z.infer<typeof castVoteResultSchema>;
 
-// Voting is contribution-gated: only members with published reviews across
-// several distinct companies can vote, to keep the like/dislike signal from
-// being gamed by brand-new or single-employer accounts.
-export const voteEligibilitySchema = z.object({
-  eligible: z.boolean(),
-  distinctCompanyReviewCount: z.number().int().min(0),
-  requiredCompanyReviewCount: z.number().int().min(0),
-});
-export type VoteEligibility = z.infer<typeof voteEligibilitySchema>;
-
 export const categoryScoresSchema = z.object({
   corporateCulture: categoryScore,
   leadership: categoryScore,

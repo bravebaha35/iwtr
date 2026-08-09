@@ -73,13 +73,6 @@ export class ReviewsController {
     return this.reviews.submitReview(user.id, body);
   }
 
-  @Get("reviews/vote-eligibility")
-  voteEligibility(@CurrentUser() user: AuthenticatedUser) {
-    return this.reviews.getVoteEligibility(user.id);
-  }
-
-  // Must stay below the /reviews/vote-eligibility route above — Nest matches
-  // routes in registration order, and this :id param would otherwise swallow it.
   @Get("reviews/:id")
   getMyReview(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
     return this.reviews.getMyReview(user.id, id);

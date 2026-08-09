@@ -4,6 +4,12 @@ import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import "./globals.css";
+// Real vector flag icons (not Unicode flag emoji) — Windows renders
+// unsupported flag-emoji regional-indicator pairs as a boxed two-letter
+// fallback (e.g. "TR" instead of a Turkish flag), so emoji alone can't be
+// relied on for country flags across platforms. Used by CityDistrictPicker's
+// country picker.
+import "flag-icons/css/flag-icons.min.css";
 
 // Applies the saved theme/density before first paint, so there's no flash
 // of the wrong theme on load — mirrors the logic in lib/settings-context.tsx.
