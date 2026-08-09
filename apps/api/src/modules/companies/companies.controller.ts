@@ -60,4 +60,9 @@ export class CompaniesController {
   listReviews(@Param("slug") slug: string, @OptionalCurrentUser() user?: AuthenticatedUser) {
     return this.reviews.listForCompany(slug, user?.id);
   }
+
+  @Get("companies/:slug/survey-stats")
+  surveyStats(@Param("slug") slug: string) {
+    return this.reviews.getSurveyStats(slug);
+  }
 }

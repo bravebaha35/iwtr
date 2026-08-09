@@ -2,6 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { TURKEY_PROVINCES } from "@/lib/turkeyGeo";
+import { COUNTRIES } from "@/lib/countries";
+import { SingleSelectDropdown } from "@/components/Dropdown";
+
+const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ value: c.name, label: `${c.flag} ${c.name}` }));
+const DEFAULT_COUNTRY = "Turkey";
 
 // District selection keys are `${provinceName}::${districtName}` — district
 // names repeat across provinces (nearly every province has a "Merkez"), so a
@@ -43,16 +48,24 @@ export function CityDistrictPicker({
 }) {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Only Turkey has real city/district data (see lib/countries.ts) — starts
+  // on Turkey since it's the only country that actually works today, not
+  // because the dropdown itself defaults open (it doesn't; see
+  // SingleSelectDropdown). Picking anything else just shows an empty state
+  // below until real data for that country exists.
+  const [country, setCountry] = useState<string>(DEFAULT_COUNTRY);
+  const isTurkey = country === DEFAULT_COUNTRY;
 
   const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
   const filtered = useMemo(() => {
+    if (!isTurkey) return [];
     if (!normalizedQuery) return TURKEY_PROVINCES;
     return TURKEY_PROVINCES.filter(
       (p) =>
         p.name.toLocaleLowerCase("tr-TR").includes(normalizedQuery) ||
         p.districts.some((d) => d.toLocaleLowerCase("tr-TR").includes(normalizedQuery)),
     );
-  }, [normalizedQuery]);
+  }, [normalizedQuery, isTurkey]);
 
   const nothingSelected = selectedCities.length === 0 && selectedDistrictKeys.length === 0;
 
@@ -92,13 +105,26 @@ export function CityDistrictPicker({
           </button>
         </div>
       </div>
+      <div className="mb-2">
+        <SingleSelectDropdown
+          value={country}
+          options={COUNTRY_OPTIONS}
+          placeholder="Select country"
+          onChange={(next) => setCountry(next ?? DEFAULT_COUNTRY)}
+        />
+      </div>
       <input
         type="search"
-        placeholder="Search city or district..."
+        placeholder={isTurkey ? "Search city or district..." : `Search ${country} city or district...`}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="mb-2 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
       />
+      {!isTurkey && (
+        <p className="mb-2 rounded-lg border border-dashed border-border p-2.5 text-xs text-muted-foreground">
+          City/district data for {country} isn&apos;t available yet — Turkey is the only country covered so far.
+        </p>
+      )}
       <div className="no-scrollbar max-h-72 overflow-y-auto rounded-lg border border-border p-1.5 text-sm">
         {filtered.map((p) => {
           const isExpanded = expanded.has(p.name) || normalizedQuery !== "";

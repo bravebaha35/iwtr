@@ -196,3 +196,28 @@ export const updateEmploymentHistoryInputSchema = z
     message: "Provide at least one field to update",
   });
 export type UpdateEmploymentHistoryInput = z.infer<typeof updateEmploymentHistoryInputSchema>;
+
+// Per-question consensus for a company's PUBLISHED reviews — how many
+// reviewers answered matching the question's correct answer ("agreed" the
+// workplace does the healthy thing), how many explicitly chose the opposite
+// ("disagreed"), and how many preferred not to answer. Deliberately never
+// includes the raw YES/NO breakdown or which literal choice was correct —
+// that stays server-only (see apps/api's survey-questions.data.ts) — this is
+// purely an outcome tally, which can't be reversed into the answer key.
+export const surveyQuestionStatsSchema = z.object({
+  questionId: z.string(),
+  category: categoryKeySchema,
+  text: z.string(),
+  agreeCount: z.number().int().min(0),
+  disagreeCount: z.number().int().min(0),
+  preferNotCount: z.number().int().min(0),
+});
+export type SurveyQuestionStats = z.infer<typeof surveyQuestionStatsSchema>;
+
+export const companySurveyStatsSchema = z.object({
+  totalReviews: z.number().int().min(0),
+  // All 25 questions for the company's workplaceType, in question-bank
+  // order. Empty when totalReviews is 0.
+  questions: z.array(surveyQuestionStatsSchema),
+});
+export type CompanySurveyStats = z.infer<typeof companySurveyStatsSchema>;

@@ -11,6 +11,7 @@ import type {
   CastVoteInput,
   CastVoteResult,
   CategoryScores,
+  CompanySurveyStats,
   CreateReviewInput,
   MyEmploymentEntry,
   MyReview,
@@ -587,6 +588,64 @@ export class ReviewsService {
       myVote: viewerUserId ? ((r.votes?.[0]?.value as 1 | -1 | undefined) ?? null) : null,
       contributorBadge: contributorBadge(r.userId),
     }));
+  }
+
+  /**
+   * Per-question consensus across a company's PUBLISHED reviews — powers the
+   * "most agreed / most disputed question" highlight and the full "All
+   * Questions" breakdown on the company page. Computed on demand rather than
+   * a maintained rollup table (unlike CompanyAggregateScore): this is a much
+   * lower-traffic read (one company-detail-page click-through, not every
+   * browse-page card), and 25 questions × however many published reviews a
+   * company has is cheap to tally per request.
+   *
+   * Only ever returns agree/disagree/prefer-not-to-answer COUNTS, never the
+   * raw per-review YES/NO breakdown or which literal choice was correct —
+   * that stays server-only in survey-questions.data.ts. A count of how many
+   * people agreed with the platform's rubric can't be reversed into the
+   * rubric itself.
+   */
+  async getSurveyStats(companySlug: string): Promise<CompanySurveyStats> {
+    const company = await this.prisma.company.findUnique({ where: { slug: companySlug } });
+    if (!company) {
+      throw new NotFoundException("Company not found");
+    }
+
+    const published = await this.prisma.review.findMany({
+      where: { companyId: company.id, status: "PUBLISHED" },
+      select: { surveyAnswers: true },
+    });
+
+    const questions = getQuestionsFor(company.workplaceType);
+    const tallies = new Map(
+      questions.map((q) => [q.id, { agreeCount: 0, disagreeCount: 0, preferNotCount: 0 }]),
+    );
+
+    for (const review of published) {
+      const answers = review.surveyAnswers as Record<string, SurveyAnswer>;
+      for (const question of questions) {
+        const answer = answers[question.id];
+        const tally = tallies.get(question.id);
+        if (!tally || answer === undefined) continue;
+        if (answer === question.correctAnswer) {
+          tally.agreeCount += 1;
+        } else if (answer === "PREFER_NOT_TO_ANSWER") {
+          tally.preferNotCount += 1;
+        } else {
+          tally.disagreeCount += 1;
+        }
+      }
+    }
+
+    return {
+      totalReviews: published.length,
+      questions: questions.map((q) => ({
+        questionId: q.id,
+        category: q.category,
+        text: q.text,
+        ...tallies.get(q.id)!,
+      })),
+    };
   }
 
   async getVoteEligibility(userId: string): Promise<VoteEligibility> {

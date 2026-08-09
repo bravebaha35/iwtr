@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { scoreBandLabel, type CompanyDetail } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
+import { SurveyHighlights } from "@/components/SurveyHighlights";
 import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { RateButton } from "@/components/RateButton";
@@ -94,6 +95,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
         )}
       </div>
 
+      <SurveyHighlights companySlug={slug} />
       <ReviewsList companySlug={slug} />
       <OwnerClaimPanel companySlug={slug} />
     </div>

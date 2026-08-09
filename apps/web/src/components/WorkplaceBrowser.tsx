@@ -7,6 +7,7 @@ import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
+import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CityDistrictPicker, districtKey } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
@@ -14,11 +15,11 @@ import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 
 type Geo = { lat: number; lng: number } | "denied" | null;
 
-// Placeholder emojis for the 0/3/5 rating-slider ticks — swap for real icons
-// once they're picked.
+// Placeholder emojis for the 0/2.5/5 rating-slider ticks — swap for real
+// icons once they're picked.
 const RATING_TICKS: { value: number; emoji: string }[] = [
   { value: 0, emoji: "😠" },
-  { value: 3, emoji: "😐" },
+  { value: 2.5, emoji: "😐" },
   { value: 5, emoji: "😄" },
 ];
 
@@ -151,6 +152,7 @@ function matchesCityDistrict(company: CompanyListItem, cities: string[], distric
 
 export function WorkplaceBrowser() {
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [minRating, setMinRating] = useState(0);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
@@ -256,10 +258,32 @@ export function WorkplaceBrowser() {
     };
   }, [query]);
 
+  // Job-category options depend on which workplace type(s) are active — e.g.
+  // clicking "Office" should only offer categories that actually occur among
+  // Office companies (Finance, IT, ...), not "Construction". Derived from the
+  // already-loaded company list client-side, same as every other filter here
+  // (only the name search `q` param goes to the server — see the effect
+  // above) rather than a separate API call.
+  const categoryOptions = useMemo(() => {
+    const scope =
+      workplaceTypes.length > 0 ? (companies ?? []).filter((c) => workplaceTypes.includes(c.workplaceType)) : companies ?? [];
+    const distinct = [...new Set(scope.map((c) => c.category))].sort((a, b) => a.localeCompare(b));
+    return distinct.map((c) => ({ value: c, label: c }));
+  }, [companies, workplaceTypes]);
+
+  // Changing which workplace type(s) are active can make the current
+  // category selection unavailable (or just irrelevant) — reset it rather
+  // than silently filtering against a category the visible dropdown no
+  // longer offers.
+  useEffect(() => {
+    setSelectedCategory(null);
+  }, [workplaceTypes]);
+
   const visibleCompanies = useMemo(() => {
     if (!companies) return null;
     let list = companies.filter((c) => {
       if (workplaceTypes.length > 0 && !workplaceTypes.includes(c.workplaceType)) return false;
+      if (selectedCategory && c.category !== selectedCategory) return false;
       if (minRating > 0 && (c.overallAvg === null || c.overallAvg > minRating)) return false;
       if (selectedCities.length > 0 || selectedDistrictKeys.length > 0) {
         if (!matchesCityDistrict(c, selectedCities, selectedDistrictKeys)) return false;
@@ -278,13 +302,13 @@ export function WorkplaceBrowser() {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
     return list;
-  }, [companies, workplaceTypes, minRating, selectedCities, selectedDistrictKeys, geo, sortBy]);
+  }, [companies, workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, geo, sortBy]);
 
   // Any change to what's being shown should land back on page 1 — otherwise
   // narrowing a filter can strand you on a now-nonexistent page 12 of 2.
   useEffect(() => {
     setPage(1);
-  }, [workplaceTypes, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
+  }, [workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
 
   const totalPages = visibleCompanies ? Math.max(1, Math.ceil(visibleCompanies.length / RESULTS_PAGE_SIZE)) : 1;
   const pageCompanies = visibleCompanies?.slice((page - 1) * RESULTS_PAGE_SIZE, page * RESULTS_PAGE_SIZE) ?? null;
@@ -313,13 +337,25 @@ export function WorkplaceBrowser() {
       <div className="w-full max-w-7xl">
         <div className="flex flex-col gap-6 sm:flex-row">
           <aside className="flex shrink-0 flex-col gap-6 sm:w-56">
-            <MultiFilterPillGroup
-              heading="Workplace"
-              options={WORKPLACE_TYPES}
-              selected={workplaceTypes}
-              onToggle={toggleWorkplaceType}
-              onClearAll={() => setWorkplaceTypes([])}
-            />
+            <div>
+              <MultiFilterPillGroup
+                heading="Workplace"
+                options={WORKPLACE_TYPES}
+                selected={workplaceTypes}
+                onToggle={toggleWorkplaceType}
+                onClearAll={() => setWorkplaceTypes([])}
+              />
+              {categoryOptions.length > 0 && (
+                <div className="mt-2">
+                  <SingleSelectDropdown
+                    value={selectedCategory}
+                    options={categoryOptions}
+                    placeholder="Any job type"
+                    onChange={setSelectedCategory}
+                  />
+                </div>
+              )}
+            </div>
 
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -336,18 +372,23 @@ export function WorkplaceBrowser() {
               </div>
               {/* Red-to-green slider, no stars. Shows companies at or BELOW
                   the chosen value (not "X and up"), so dragging left tightens
-                  toward the worst-rated end. Emojis at 1/3/5 are placeholders
-                  — swap for real artwork later. Click-and-drag on the track
-                  (or scroll) sets the value; avoids a native
+                  toward the worst-rated end. Emojis at 0/2.5/5 are
+                  placeholders — swap for real artwork later. Click-and-drag
+                  on the track (or scroll) sets the value; avoids a native
                   <input type="range">, which never fully themes across
-                  browsers and can't take a gradient track everywhere. */}
-              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-3 py-3 select-none">
-                <div className="relative pt-8">
+                  browsers and can't take a gradient track everywhere.
+                  Each tick's horizontal translate is edge-aware — centering
+                  every emoji (-translate-x-1/2) would push the leftmost one
+                  half outside the box on the left and the rightmost one half
+                  outside on the right, so the two ends anchor inward instead
+                  and only the middle tick stays centered. */}
+              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-3 py-3 select-none overflow-hidden">
+                <div className="relative pt-7">
                   {RATING_TICKS.map((tick) => (
                     <span
                       key={tick.value}
-                      className={`absolute top-0 text-2xl leading-none ${
-                        tick.value === 5 ? "-translate-x-1/4" : "-translate-x-1/2"
+                      className={`absolute top-0 text-lg leading-none ${
+                        tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
                       }`}
                       style={{ left: `${(tick.value / 5) * 100}%` }}
                     >
