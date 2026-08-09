@@ -61,14 +61,52 @@ function matchesAsWord(haystackLower: string, word: string): boolean {
 // as a substring (Picasso, topic, picnic...).
 const DISPLAY_NAME_BLOCKED_SUBSTRINGS = [...PROFANITY_WORDS.filter((w) => w !== "pic"), ...SEXUAL_CONTENT_WORDS];
 
+// Folds Turkish letters to their plain-ASCII equivalent and drops everything
+// but letters/digits, so "Cüneyt Baha", "cuneyt-baha", and "CÜNEYTBAHA" all
+// collapse to the same "cuneytbaha" for a substring check — matching on the
+// raw string would miss "cuneytbaha" against a real name of "Cüneyt" purely
+// because of casing/diacritics/spacing, which is exactly the disguise a user
+// picking a name-derived nickname would use, deliberately or not.
+function normalizeForNameCheck(s: string): string {
+  return s
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ç/g, "c")
+    .replace(/ğ/g, "g")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ş/g, "s")
+    .replace(/ü/g, "u")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 @Injectable()
 export class ModerationService {
   // For short free-text fields (currently: the self-chosen display name) where
   // only an unambiguous block matters — no name-pattern/job-title/shouting
   // heuristics, those are noisy on short strings and irrelevant to a nickname.
-  checkDisplayName(name: string): boolean {
+  //
+  // `identity` (the account's real, verified first/last name from PiiVault)
+  // is optional only because some callers may not have it on hand — when
+  // present, a display name containing either part of it (in any casing,
+  // with or without Turkish diacritics/spacing) is blocked too. The point
+  // isn't that the display name is public — it never is (see the User model's
+  // displayName doc comment) — it's that a reviewer picking their own real
+  // name as their "anonymous" label undermines the whole point of the label.
+  checkDisplayName(name: string, identity?: { firstName: string; lastName: string } | null): boolean {
     const lower = name.toLowerCase();
-    return DISPLAY_NAME_BLOCKED_SUBSTRINGS.some((w) => lower.includes(w));
+    if (DISPLAY_NAME_BLOCKED_SUBSTRINGS.some((w) => lower.includes(w))) return true;
+
+    if (identity) {
+      const normalizedName = normalizeForNameCheck(name);
+      const first = normalizeForNameCheck(identity.firstName);
+      const last = normalizeForNameCheck(identity.lastName);
+      // Skip parts under 2 characters — an initial like "A" would otherwise
+      // block huge swaths of ordinary nicknames as a false positive.
+      if (first.length >= 2 && normalizedName.includes(first)) return true;
+      if (last.length >= 2 && normalizedName.includes(last)) return true;
+    }
+
+    return false;
   }
 
   checkContent(texts: string[]): ContentCheckResult {

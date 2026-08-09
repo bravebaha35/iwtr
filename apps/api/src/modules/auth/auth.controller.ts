@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Post } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   loginEmailInputSchema,
   oauthLoginInputSchema,
@@ -16,11 +17,16 @@ import { AuthService } from "./auth.service";
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  // Tighter than the global default (100/min) — these are the two endpoints
+  // a credential-stuffing or fake-account-farming script would actually hit,
+  // so they get their own low ceiling rather than relying on the blanket limit.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("register")
   register(@Body(new ZodValidationPipe(registerEmailInputSchema)) body: RegisterEmailInput) {
     return this.auth.registerWithEmail(body, "web");
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("login")
   login(@Body(new ZodValidationPipe(loginEmailInputSchema)) body: LoginEmailInput) {
     return this.auth.loginWithEmail(body, "web");

@@ -115,11 +115,19 @@ model User {
   // avatarKey (not a Prisma/zod enum) so the palette can grow without a
   // migration; an unrecognized key just falls back to the first gradient.
   avatarGradient  String?
-  // Self-chosen pseudonym, editable any time from the account-settings page.
-  // Deliberately NOT part of PiiVault — it's a decorative label the user
-  // picks for their own header, never validated against or linked to real
-  // identity, and never returned in any public/review-facing payload.
+  // Self-chosen pseudonym, editable from the account-settings page (rate-
+  // limited to once per 14 days — see displayNameChangedAt below — and
+  // checked against the user's real first/last name — see
+  // ModerationService.checkDisplayName). Deliberately NOT part of PiiVault —
+  // it's a decorative label the user picks for their own header, never
+  // returned in any public/review-facing payload; the name-block rule exists
+  // only so a reviewer can't casually undermine their own anonymity by
+  // picking their real name as this label, not because the field is public.
   displayName     String?
+  // Set to now() whenever displayName actually changes value (not on a save
+  // that leaves it the same) — ProfileService.updateProfile reads this to
+  // enforce the 14-day cooldown above.
+  displayNameChangedAt DateTime?
   country         String?
   city            String?
   district        String?
@@ -180,8 +188,15 @@ model EducationHistory {
   level           EduLevel
   institutionName String
   graduationYear  Int?
+  // Only ever set for level === COLLEGE — see educationHistoryInputSchema.
+  faculty         String?
+  department      String?
   createdAt       DateTime @default(now())
 
+  // Unlike MySQL, Postgres does NOT automatically index a relation's scalar
+  // FK column — every @@index below this comment across this file exists to
+  // close that gap explicitly, since nothing here previously had one.
+  @@index([userId])
   @@schema("public")
 }
 
@@ -198,6 +213,8 @@ model EmploymentHistory {
 
   reviews Review[]
 
+  @@index([userId])
+  @@index([companyId])
   @@schema("public")
 }
 
@@ -227,6 +244,15 @@ model Company {
   aggregate           CompanyAggregateScore?
   ownerContactMessages OwnerContactMessage[]
 
+  // name: helps the case-insensitive exact-match duplicate check
+  // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
+  // plain btree index doesn't accelerate the `contains` search itself
+  // (that needs pg_trgm, a later step, not added here). city/district:
+  // now real WHERE filters (CompaniesService.search), previously unindexed
+  // even though city was already filterable.
+  @@index([name])
+  @@index([city])
+  @@index([district])
   @@schema("public")
 }
 
@@ -262,6 +288,7 @@ model OwnerContactMessage {
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
 
+  @@index([companyId])
   @@schema("public")
 }
 
@@ -306,6 +333,12 @@ model Review {
   votes ReviewVote[]
   moderationQueueItem ModerationQueueItem?
 
+  // The @@unique below already indexes userId as its leading column, which
+  // covers userId-alone lookups (e.g. counting a reviewer's prior published
+  // reviews) — but every companyId-alone lookup (listing a company's
+  // reviews, recomputing its aggregate, survey stats) had nothing to use
+  // until this explicit index.
+  @@index([companyId])
   @@unique([userId, companyId])
   @@schema("public")
 }
@@ -363,6 +396,7 @@ model AuditLog {
   metadata    Json?
   createdAt   DateTime @default(now())
 
+  @@index([actorUserId])
   @@schema("public")
 }
 
@@ -370,12 +404,19 @@ model RefreshToken {
   id          String    @id @default(uuid())
   userId      String
   user        User      @relation(fields: [userId], references: [id])
-  tokenHash   String
+  // Looked up by this value on every single refresh (AuthService.refresh)
+  // and logout — the single hottest query in this whole schema for any
+  // logged-in session (auth-context.tsx proactively refreshes ~14 minutes
+  // before each access token expires) — and it had no unique constraint or
+  // index at all before this. @@unique rather than a plain @@index since a
+  // collision genuinely should never happen (SHA-256 of 48 random bytes).
+  tokenHash   String    @unique
   deviceLabel String?
   expiresAt   DateTime
   revokedAt   DateTime?
   createdAt   DateTime  @default(now())
 
+  @@index([userId])
   @@schema("public")
 }
 

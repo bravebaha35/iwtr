@@ -1,22 +1,44 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import type {
-  EducationHistoryEntry,
-  EducationHistoryInput,
-  MyProfile,
-  UpdateEducationHistoryInput,
-  UpdateProfileInput,
+import {
+  eduLevelSchema,
+  type EducationHistoryEntry,
+  type EducationHistoryInput,
+  type MyProfile,
+  type UpdateEducationHistoryInput,
+  type UpdateProfileInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
 import { PhoneVerificationService } from "../phone-verification/phone-verification.service";
 
+const DISPLAY_NAME_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
+
+// Elementary -> High School -> College, always — regardless of the order
+// entries were actually added in (someone might add College first, then go
+// back and fill in Elementary School). eduLevelSchema.options is the single
+// source of truth for that order (it's declared ELEMENTARY, HIGH_SCHOOL,
+// COLLEGE), so this reads off it rather than hardcoding a second copy.
+const EDU_LEVEL_RANK: Record<string, number> = Object.fromEntries(
+  eduLevelSchema.options.map((level, i) => [level, i]),
+);
+function byEduLevel<T extends { level: string }>(a: T, b: T): number {
+  return EDU_LEVEL_RANK[a.level] - EDU_LEVEL_RANK[b.level];
+}
+
 /**
  * Post-onboarding account settings ("/me" page): avatar, self-chosen display
- * name, city/district, education history, and a read-only self-view of the
+ * name, city/district, education history, and a self-view of the
  * name/birth date/phone number submitted once during onboarding (decrypted
  * via PiiVaultService/PhoneVerificationService's self-view-only methods —
  * see their doc comments). T.C. Kimlik No is never included here at all.
+ *
+ * Of that identity data, only birthDate (typo-correctable via
+ * updateBirthDate) and phone number (re-verifiable via
+ * requestPhoneChangeOtp/verifyPhoneChangeOtp, going through the same OTP
+ * challenge as onboarding) can ever change post-registration. firstName/
+ * lastName have no update path anywhere in this service, deliberately — see
+ * updateIdentityInputSchema's doc comment.
  */
 @Injectable()
 export class ProfileService {
@@ -37,14 +59,16 @@ export class ProfileService {
 
   async getMyProfile(userId: string): Promise<MyProfile> {
     const user = await this.requireActiveUser(userId);
-    const [education, identity, phoneNumber] = await Promise.all([
+    const [educationRaw, identity, phoneNumber] = await Promise.all([
       this.prisma.educationHistory.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
       this.piiVault.getMyIdentity(userId),
       this.phoneVerification.getMyPhoneNumber(userId),
     ]);
+    const education = [...educationRaw].sort(byEduLevel);
 
     return {
       displayName: user.displayName,
+      displayNameChangedAt: user.displayNameChangedAt?.toISOString() ?? null,
       avatarKey: user.avatarKey,
       avatarGradient: user.avatarGradient,
       country: user.country,
@@ -55,6 +79,8 @@ export class ProfileService {
         level: e.level,
         institutionName: e.institutionName,
         graduationYear: e.graduationYear,
+        faculty: e.faculty,
+        department: e.department,
       })),
       firstName: identity?.firstName ?? null,
       lastName: identity?.lastName ?? null,
@@ -64,10 +90,32 @@ export class ProfileService {
   }
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
-    await this.requireActiveUser(userId);
+    const user = await this.requireActiveUser(userId);
 
-    if (input.displayName && this.moderation.checkDisplayName(input.displayName)) {
-      throw new BadRequestException("That display name isn't allowed — try something else.");
+    // Only an actual value change consumes the cooldown / needs re-checking
+    // against the user's real name — a save that touches avatar/location but
+    // leaves displayName as-is (the common case: the field just round-trips
+    // through the form unchanged) must not trip either.
+    const nextDisplayName = input.displayName !== undefined ? input.displayName || null : undefined;
+    const displayNameChanged = nextDisplayName !== undefined && nextDisplayName !== user.displayName;
+
+    if (displayNameChanged) {
+      if (user.displayNameChangedAt) {
+        const elapsedMs = Date.now() - user.displayNameChangedAt.getTime();
+        if (elapsedMs < DISPLAY_NAME_COOLDOWN_MS) {
+          const daysLeft = Math.ceil((DISPLAY_NAME_COOLDOWN_MS - elapsedMs) / (24 * 60 * 60 * 1000));
+          throw new BadRequestException(
+            `You can change your display name again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`,
+          );
+        }
+      }
+
+      if (nextDisplayName) {
+        const identity = await this.piiVault.getMyIdentity(userId);
+        if (this.moderation.checkDisplayName(nextDisplayName, identity)) {
+          throw new BadRequestException("That display name isn't allowed — try something else.");
+        }
+      }
     }
 
     await this.prisma.user.update({
@@ -77,6 +125,7 @@ export class ProfileService {
         // that's allowed to be blank (displayName); the others are non-empty
         // per their zod min(1), so no such ambiguity there.
         ...(input.displayName !== undefined ? { displayName: input.displayName || null } : {}),
+        ...(displayNameChanged ? { displayNameChangedAt: new Date() } : {}),
         ...(input.avatarKey !== undefined ? { avatarKey: input.avatarKey } : {}),
         ...(input.avatarGradient !== undefined ? { avatarGradient: input.avatarGradient } : {}),
         ...(input.country !== undefined ? { country: input.country } : {}),
@@ -94,6 +143,8 @@ export class ProfileService {
         level: input.level,
         institutionName: input.institutionName,
         graduationYear: input.graduationYear ?? null,
+        faculty: input.faculty ?? null,
+        department: input.department ?? null,
       },
     });
     return {
@@ -101,6 +152,8 @@ export class ProfileService {
       level: created.level,
       institutionName: created.institutionName,
       graduationYear: created.graduationYear,
+      faculty: created.faculty,
+      department: created.department,
     };
   }
 
@@ -121,6 +174,8 @@ export class ProfileService {
         ...(input.level !== undefined ? { level: input.level } : {}),
         ...(input.institutionName !== undefined ? { institutionName: input.institutionName } : {}),
         ...(input.graduationYear !== undefined ? { graduationYear: input.graduationYear } : {}),
+        ...(input.faculty !== undefined ? { faculty: input.faculty } : {}),
+        ...(input.department !== undefined ? { department: input.department } : {}),
       },
     });
 
@@ -129,6 +184,8 @@ export class ProfileService {
       level: updated.level,
       institutionName: updated.institutionName,
       graduationYear: updated.graduationYear,
+      faculty: updated.faculty,
+      department: updated.department,
     };
   }
 
@@ -139,5 +196,24 @@ export class ProfileService {
       throw new NotFoundException("Education history entry not found");
     }
     await this.prisma.educationHistory.delete({ where: { id: entryId } });
+  }
+
+  async updateBirthDate(userId: string, birthDate: string): Promise<void> {
+    await this.requireActiveUser(userId);
+    await this.piiVault.updateBirthDate(userId, birthDate);
+  }
+
+  // Reuses the exact same OTP challenge/response as onboarding
+  // (PhoneVerificationService doesn't know or care about User.status — see
+  // its own doc comment) — a successful verify overwrites the previously
+  // verified number the same way onboarding's first verification set it.
+  async requestPhoneChangeOtp(userId: string, phoneNumber: string): Promise<{ devCode?: string }> {
+    await this.requireActiveUser(userId);
+    return this.phoneVerification.requestOtp(userId, phoneNumber);
+  }
+
+  async verifyPhoneChangeOtp(userId: string, code: string): Promise<void> {
+    await this.requireActiveUser(userId);
+    await this.phoneVerification.verifyOtp(userId, code);
   }
 }

@@ -9,7 +9,7 @@ import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CompanyLogo } from "@/components/CompanyLogo";
-import { CityDistrictPicker, districtKey } from "@/components/CityDistrictPicker";
+import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 
@@ -142,14 +142,6 @@ function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number })
   return distanceKm(geo.lat, geo.lng, province.lat, province.lng);
 }
 
-function matchesCityDistrict(company: CompanyListItem, cities: string[], districtKeys: string[]): boolean {
-  const province = findProvinceByCityName(company.city);
-  const cityName = province?.name ?? company.city;
-  if (cityName && cities.includes(cityName)) return true;
-  if (cityName && company.district && districtKeys.includes(districtKey(cityName, company.district))) return true;
-  return false;
-}
-
 export function WorkplaceBrowser() {
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -158,6 +150,11 @@ export function WorkplaceBrowser() {
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
+  // Distinguishes "the request failed" from "genuinely zero matches" — both
+  // used to collapse into the same empty `companies` state and render the
+  // same "No workplaces match these filters yet" message, which made a
+  // backend/network outage indistinguishable from a real empty result.
+  const [loadError, setLoadError] = useState(false);
   // null = never asked (the resting/default state — "All" stays "All" until
   // the visitor deliberately clicks "Near Me"). Geolocation is NEVER
   // requested automatically and NEVER falls back to the visitor's own
@@ -238,40 +235,54 @@ export function WorkplaceBrowser() {
     );
   }
 
+  // Sends everything except `category` to the server — q, workplaceTypes,
+  // cities/districtKeys, and minRating are real Prisma WHERE clauses now
+  // (see CompaniesService.search), rather than fetching the whole directory
+  // and filtering it in the browser. `category` stays client-side (applied
+  // in visibleCompanies below) for one reason: the category dropdown's own
+  // option list needs to reflect what's available for the current
+  // workplaceTypes selection regardless of which category happens to be
+  // picked — filtering it server-side too would make picking a category
+  // collapse the dropdown down to just that one option. Debounced 250ms so
+  // dragging the rating slider or toggling several pills in a row doesn't
+  // fire a request per intermediate value.
   useEffect(() => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
+    if (workplaceTypes.length > 0) params.set("workplaceTypes", workplaceTypes.join(","));
+    if (selectedCities.length > 0) params.set("cities", selectedCities.join(","));
+    if (selectedDistrictKeys.length > 0) params.set("districtKeys", selectedDistrictKeys.join(","));
+    if (minRating > 0) params.set("minRating", String(minRating));
 
     let cancelled = false;
+    setLoadError(false);
     const handle = setTimeout(() => {
       apiGet<CompanyListItem[]>(`/companies?${params.toString()}`)
         .then((data) => {
           if (!cancelled) setCompanies(data);
         })
         .catch(() => {
-          if (!cancelled) setCompanies([]);
+          if (!cancelled) {
+            setCompanies([]);
+            setLoadError(true);
+          }
         });
     }, 250);
     return () => {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [query]);
+  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating]);
 
   // Job-category options depend on which workplace type(s) are active — e.g.
   // clicking "Office" should only offer categories that actually occur among
-  // Office companies (Finance, IT, ...), not "Construction". Derived from the
-  // already-loaded company list client-side, same as every other filter here
-  // (only the name search `q` param goes to the server — see the effect
-  // above) rather than a separate API call.
+  // Office companies (Finance, IT, ...), not "Construction". `companies` is
+  // already scoped to the current workplaceTypes by the server (see the
+  // effect above), so this just reads distinct categories off it directly.
   const categoryOptions = useMemo(() => {
-    const scope =
-      workplaceTypes.length > 0
-        ? (companies ?? []).filter((c) => workplaceTypes.some((t) => c.workplaceTypes.includes(t)))
-        : companies ?? [];
-    const distinct = [...new Set(scope.map((c) => c.category))].sort((a, b) => a.localeCompare(b));
+    const distinct = [...new Set((companies ?? []).map((c) => c.category))].sort((a, b) => a.localeCompare(b));
     return distinct.map((c) => ({ value: c, label: c }));
-  }, [companies, workplaceTypes]);
+  }, [companies]);
 
   // Changing which workplace type(s) are active can make the current
   // category selection unavailable (or just irrelevant) — reset it rather
@@ -283,15 +294,7 @@ export function WorkplaceBrowser() {
 
   const visibleCompanies = useMemo(() => {
     if (!companies) return null;
-    let list = companies.filter((c) => {
-      if (workplaceTypes.length > 0 && !workplaceTypes.some((t) => c.workplaceTypes.includes(t))) return false;
-      if (selectedCategory && c.category !== selectedCategory) return false;
-      if (minRating > 0 && (c.overallAvg === null || c.overallAvg > minRating)) return false;
-      if (selectedCities.length > 0 || selectedDistrictKeys.length > 0) {
-        if (!matchesCityDistrict(c, selectedCities, selectedDistrictKeys)) return false;
-      }
-      return true;
-    });
+    let list = selectedCategory ? companies.filter((c) => c.category === selectedCategory) : companies;
 
     if (sortBy === "alphabetical") {
       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
@@ -306,7 +309,7 @@ export function WorkplaceBrowser() {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
     return list;
-  }, [companies, workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, geo, sortBy]);
+  }, [companies, selectedCategory, geo, sortBy]);
 
   // Any change to what's being shown should land back on page 1 — otherwise
   // narrowing a filter can strand you on a now-nonexistent page 12 of 2.
@@ -502,7 +505,12 @@ export function WorkplaceBrowser() {
             )}
 
             {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
-            {pageCompanies !== null && pageCompanies.length === 0 && (
+            {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Couldn&apos;t load workplaces right now — check your connection and try again.
+              </p>
+            )}
+            {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
               <p className="text-sm text-muted-foreground">No workplaces match these filters yet.</p>
             )}
             <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 compact:lg:grid-cols-4">

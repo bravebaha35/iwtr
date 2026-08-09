@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
   claimCompanyInputSchema,
   contactAdminInputSchema,
@@ -44,7 +44,7 @@ export class OwnerController {
   @Patch("my-companies/:companyId")
   updateMyCompany(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("companyId") companyId: string,
+    @Param("companyId", new ParseUUIDPipe()) companyId: string,
     @Body(new ZodValidationPipe(updateCompanyInputSchema)) body: UpdateCompanyInput,
   ) {
     return this.owner.updateMyCompany(user.id, companyId, body);
@@ -53,7 +53,7 @@ export class OwnerController {
   @Post("my-companies/:companyId/contact-admin")
   contactAdmin(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("companyId") companyId: string,
+    @Param("companyId", new ParseUUIDPipe()) companyId: string,
     @Body(new ZodValidationPipe(contactAdminInputSchema)) body: ContactAdminInput,
   ) {
     return this.owner.contactAdmin(user.id, companyId, body);
@@ -69,14 +69,14 @@ export class OwnerController {
   @Post("admin/owner-claims/:id/approve")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  approveClaim(@Param("id") id: string) {
+  approveClaim(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.owner.approveClaim(id);
   }
 
   @Post("admin/owner-claims/:id/reject")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  rejectClaim(@Param("id") id: string) {
+  rejectClaim(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.owner.rejectClaim(id);
   }
 
@@ -90,7 +90,7 @@ export class OwnerController {
   @Post("admin/owner-messages/:id/resolve")
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
-  resolveContactMessage(@Param("id") id: string) {
+  resolveContactMessage(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.owner.resolveContactMessage(id);
   }
 }

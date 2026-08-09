@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import {
   adminCreateCompanyInputSchema,
-  workplaceTypeSchema,
+  companySearchQuerySchema,
   type AdminCreateCompanyInput,
-  type WorkplaceType,
+  type CompanySearchQuery,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -34,13 +34,8 @@ export class CompaniesController {
   }
 
   @Get("companies")
-  search(
-    @Query("q") q?: string,
-    @Query("category") category?: string,
-    @Query("city") city?: string,
-    @Query("workplaceType", new ZodValidationPipe(workplaceTypeSchema.optional())) workplaceType?: WorkplaceType,
-  ) {
-    return this.companies.search(q, category, city, workplaceType);
+  search(@Query(new ZodValidationPipe(companySearchQuerySchema)) query: CompanySearchQuery) {
+    return this.companies.search(query);
   }
 
   // Must be registered before "companies/:slug" — otherwise Nest's route

@@ -57,6 +57,17 @@ export const piiOnboardingInputSchema = z.object({
 });
 export type PiiOnboardingInput = z.infer<typeof piiOnboardingInputSchema>;
 
+// Post-onboarding self-correction of a typo — deliberately narrower than
+// piiOnboardingInputSchema: firstName/lastName are NOT included here on
+// purpose and have no update endpoint at all. Once submitted at
+// registration they're permanent; the only way to change them is to email
+// the site (see the /me page's identity section). birthDate is the one
+// field a typo is both plausible and low-risk to self-correct.
+export const updateIdentityInputSchema = z.object({
+  birthDate: z.string().date(),
+});
+export type UpdateIdentityInput = z.infer<typeof updateIdentityInputSchema>;
+
 export const eduLevelSchema = z.enum(["ELEMENTARY", "HIGH_SCHOOL", "COLLEGE"]);
 export type EduLevel = z.infer<typeof eduLevelSchema>;
 
@@ -64,6 +75,13 @@ export const educationHistoryInputSchema = z.object({
   level: eduLevelSchema,
   institutionName: z.string().min(1),
   graduationYear: z.number().int().min(1950).max(2100).nullable().optional(),
+  // Only meaningful for level === "COLLEGE" — the UI only shows these two
+  // fields once a university/college name has been entered — but left
+  // unconstrained by level here rather than refined against it, since a
+  // harmless extra faculty/department value on a non-college row isn't worth
+  // rejecting the whole submission over.
+  faculty: z.string().min(1).nullable().optional(),
+  department: z.string().min(1).nullable().optional(),
 });
 export type EducationHistoryInput = z.infer<typeof educationHistoryInputSchema>;
 
@@ -72,10 +90,18 @@ export const updateEducationHistoryInputSchema = z
     level: eduLevelSchema.optional(),
     institutionName: z.string().min(1).optional(),
     graduationYear: z.number().int().min(1950).max(2100).nullable().optional(),
+    faculty: z.string().min(1).nullable().optional(),
+    department: z.string().min(1).nullable().optional(),
   })
-  .refine((v) => v.level !== undefined || v.institutionName !== undefined || v.graduationYear !== undefined, {
-    message: "Provide at least one field to update",
-  });
+  .refine(
+    (v) =>
+      v.level !== undefined ||
+      v.institutionName !== undefined ||
+      v.graduationYear !== undefined ||
+      v.faculty !== undefined ||
+      v.department !== undefined,
+    { message: "Provide at least one field to update" },
+  );
 export type UpdateEducationHistoryInput = z.infer<typeof updateEducationHistoryInputSchema>;
 
 export const educationHistorySchema = educationHistoryInputSchema.extend({
@@ -135,6 +161,10 @@ export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
 // CLAUDE.md's Data Model section).
 export const myProfileSchema = z.object({
   displayName: z.string().nullable(),
+  // Null until displayName is ever actually changed; after that, the client
+  // uses it to compute the 14-day cooldown window (see updateProfileInputSchema
+  // below and ProfileService.updateProfile).
+  displayNameChangedAt: z.string().datetime().nullable(),
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
   country: z.string().nullable(),

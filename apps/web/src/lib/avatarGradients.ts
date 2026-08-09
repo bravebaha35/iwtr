@@ -1,7 +1,10 @@
-// 12 Instagram-logo-style multi-stop gradients users can pick as their avatar
-// background. Single point of edit — retune or replace any entry here and
-// every avatar using it updates everywhere (`key` is the stable storage
-// identifier in User.avatarGradient; `css` is a ready-to-use CSS value).
+// 11 Instagram-logo-style multi-stop gradients users can pick as their avatar
+// background — the AvatarEditor grid reserves one more slot after these for
+// the custom-color picker button, so together they fill the same 6x2 grid
+// the original 12 presets did. Single point of edit — retune or replace any
+// entry here and every avatar using it updates everywhere (`key` is the
+// stable storage identifier in User.avatarGradient; `css` is a ready-to-use
+// CSS value).
 export const AVATAR_GRADIENTS = [
   { key: "sunrise", css: "linear-gradient(45deg, #833AB4, #C13584, #E1306C, #FD1D1D, #F77737, #FCAF45)" },
   { key: "berry", css: "linear-gradient(135deg, #8A2387, #E94057, #F27121)" },
@@ -14,7 +17,6 @@ export const AVATAR_GRADIENTS = [
   { key: "citrus", css: "linear-gradient(135deg, #f7971e, #ffd200)" },
   { key: "lagoon", css: "linear-gradient(135deg, #43cea2, #185a9d)" },
   { key: "rose", css: "linear-gradient(135deg, #eb3349, #f45c43)" },
-  { key: "violet", css: "linear-gradient(135deg, #654ea3, #eaafc8)" },
 ] as const;
 
 const CUSTOM_PREFIX = "custom:";

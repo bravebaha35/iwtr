@@ -1,4 +1,16 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   addEmploymentHistoryInputSchema,
   castVoteInputSchema,
@@ -40,14 +52,17 @@ export class ReviewsController {
   @Patch("me/employment-history/:id")
   updateEmploymentHistory(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(updateEmploymentHistoryInputSchema)) body: UpdateEmploymentHistoryInput,
   ) {
     return this.reviews.updateEmploymentHistory(user.id, id, body);
   }
 
   @Delete("me/employment-history/:id")
-  async deleteEmploymentHistory(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  async deleteEmploymentHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ) {
     await this.reviews.deleteEmploymentHistory(user.id, id);
     return { success: true };
   }
@@ -65,6 +80,10 @@ export class ReviewsController {
     return getPublicQuestionsFor(parsed.data);
   }
 
+  // Well under the global default — a real reviewer submits at most a
+  // handful of reviews in any given minute; anything higher is either a
+  // client bug looping or an attempt to flood a company's review count.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("reviews")
   submitReview(
     @CurrentUser() user: AuthenticatedUser,
@@ -74,23 +93,27 @@ export class ReviewsController {
   }
 
   @Get("reviews/:id")
-  getMyReview(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  getMyReview(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) id: string) {
     return this.reviews.getMyReview(user.id, id);
   }
 
   @Patch("reviews/:id")
   updateReview(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(updateReviewInputSchema)) body: UpdateReviewInput,
   ) {
     return this.reviews.updateReview(user.id, id, body);
   }
 
+  // Voting is a one-click action, so its natural rate is higher than
+  // reviewing — but still capped well below the global default to blunt a
+  // script clicking through every review on a page.
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post("reviews/:id/vote")
   castVote(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(castVoteInputSchema.omit({ reviewId: true }))) body: Omit<CastVoteInput, "reviewId">,
   ) {
     return this.reviews.castVote(user.id, { reviewId: id, value: body.value });

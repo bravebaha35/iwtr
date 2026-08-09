@@ -95,8 +95,10 @@ export function AvatarEditor({
             style={{ background: avatarGradientCss(g.key) }}
           />
         ))}
-        {/* Clicking this triggers the hidden native color input, which opens
-            the browser/OS's own color-picker popup. */}
+        {/* Shares the last grid cell rather than getting its own row, but
+            sized the same as the 11 preset swatches — clicking it triggers
+            the hidden native color input, which opens the browser/OS's own
+            color-picker popup. */}
         <button
           type="button"
           onClick={() => colorInputRef.current?.click()}

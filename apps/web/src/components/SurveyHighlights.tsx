@@ -160,14 +160,29 @@ function WorkplaceTypeSurveySection({ stats }: { stats: CompanyWorkplaceSurveySt
  */
 export function SurveyHighlights({ companySlug }: { companySlug: string }) {
   const [stats, setStats] = useState<CompanySurveyStats | null>(null);
+  // Distinguishes "the request failed" from "no published reviews yet" —
+  // both left `stats` null and rendered nothing, silently hiding a fetch
+  // failure as if the company simply had no survey data.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
+    setLoadFailed(false);
     apiGet<CompanySurveyStats>(`/companies/${companySlug}/survey-stats`)
       .then(setStats)
-      .catch(() => setStats(null));
+      .catch(() => {
+        setStats(null);
+        setLoadFailed(true);
+      });
   }, [companySlug]);
 
   const populated = stats?.byWorkplaceType.filter((s) => s.totalReviews > 0) ?? [];
+  if (loadFailed) {
+    return (
+      <p className="mt-8 text-sm text-red-600 dark:text-red-400">
+        Couldn&apos;t load the survey highlights right now.
+      </p>
+    );
+  }
   if (populated.length === 0) return null;
 
   return (

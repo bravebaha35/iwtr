@@ -55,7 +55,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             </p>
           </div>
         </div>
-        <RateButton companyId={company.id} companySlug={company.slug} workplaceTypes={company.workplaceTypes} />
+        <RateButton companyId={company.id} companyName={company.name} workplaceTypes={company.workplaceTypes} />
       </div>
 
       <div className="mt-8 rounded-xl border border-border bg-surface p-6">

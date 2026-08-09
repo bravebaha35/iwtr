@@ -13,11 +13,11 @@ const EDU_LEVELS: { level: EduLevel; label: string }[] = [
   { level: "COLLEGE", label: "College" },
 ];
 
-type EduRow = { institutionName: string; graduationYear: string };
+type EduRow = { institutionName: string; graduationYear: string; faculty: string; department: string };
 const emptyEduRows: Record<EduLevel, EduRow> = {
-  ELEMENTARY: { institutionName: "", graduationYear: "" },
-  HIGH_SCHOOL: { institutionName: "", graduationYear: "" },
-  COLLEGE: { institutionName: "", graduationYear: "" },
+  ELEMENTARY: { institutionName: "", graduationYear: "", faculty: "", department: "" },
+  HIGH_SCHOOL: { institutionName: "", graduationYear: "", faculty: "", department: "" },
+  COLLEGE: { institutionName: "", graduationYear: "", faculty: "", department: "" },
 };
 
 type JobRow = {
@@ -61,6 +61,11 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
           level: l.level,
           institutionName: edu[l.level].institutionName,
           graduationYear: edu[l.level].graduationYear ? Number(edu[l.level].graduationYear) : undefined,
+          faculty: l.level === "COLLEGE" && edu[l.level].faculty.trim() ? edu[l.level].faculty.trim() : undefined,
+          department:
+            (l.level === "COLLEGE" || l.level === "HIGH_SCHOOL") && edu[l.level].department.trim()
+              ? edu[l.level].department.trim()
+              : undefined,
         }),
       );
       const employment = jobs
@@ -102,24 +107,56 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
 
         <div className="mb-6 flex flex-col gap-3">
           {EDU_LEVELS.map(({ level, label }) => (
-            <div key={level} className="grid grid-cols-3 gap-2">
-              <input
-                placeholder={label}
-                value={edu[level].institutionName}
-                onChange={(e) =>
-                  setEdu((prev) => ({ ...prev, [level]: { ...prev[level], institutionName: e.target.value } }))
-                }
-                className="col-span-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-              />
-              <input
-                placeholder="Grad. year"
-                inputMode="numeric"
-                value={edu[level].graduationYear}
-                onChange={(e) =>
-                  setEdu((prev) => ({ ...prev, [level]: { ...prev[level], graduationYear: e.target.value } }))
-                }
-                className="col-span-1 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-              />
+            <div key={level} className="flex flex-col gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  placeholder={label}
+                  value={edu[level].institutionName}
+                  onChange={(e) =>
+                    setEdu((prev) => ({ ...prev, [level]: { ...prev[level], institutionName: e.target.value } }))
+                  }
+                  className="col-span-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+                />
+                <input
+                  placeholder="Grad. year"
+                  inputMode="numeric"
+                  value={edu[level].graduationYear}
+                  onChange={(e) =>
+                    setEdu((prev) => ({ ...prev, [level]: { ...prev[level], graduationYear: e.target.value } }))
+                  }
+                  className="col-span-1 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+              {level === "COLLEGE" && edu.COLLEGE.institutionName.trim() !== "" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    placeholder="Faculty"
+                    value={edu.COLLEGE.faculty}
+                    onChange={(e) =>
+                      setEdu((prev) => ({ ...prev, COLLEGE: { ...prev.COLLEGE, faculty: e.target.value } }))
+                    }
+                    className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+                  />
+                  <input
+                    placeholder="Department (optional)"
+                    value={edu.COLLEGE.department}
+                    onChange={(e) =>
+                      setEdu((prev) => ({ ...prev, COLLEGE: { ...prev.COLLEGE, department: e.target.value } }))
+                    }
+                    className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+                  />
+                </div>
+              )}
+              {level === "HIGH_SCHOOL" && edu.HIGH_SCHOOL.institutionName.trim() !== "" && (
+                <input
+                  placeholder="Department (optional)"
+                  value={edu.HIGH_SCHOOL.department}
+                  onChange={(e) =>
+                    setEdu((prev) => ({ ...prev, HIGH_SCHOOL: { ...prev.HIGH_SCHOOL, department: e.target.value } }))
+                  }
+                  className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+                />
+              )}
             </div>
           ))}
         </div>
@@ -150,16 +187,28 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                   <p className="mb-1 text-[11px] font-medium text-muted-foreground">Start date</p>
                   <DateDropdownPicker
                     value={job.startDate}
-                    onChange={(v) => updateJob(i, { startDate: v })}
+                    onChange={(v) => {
+                      // Clearing the start date re-greys end date; picking a
+                      // later start year invalidates an existing end date
+                      // that's now earlier than it — both cases drop endDate
+                      // rather than leave it silently out of range.
+                      const endStillValid =
+                        v !== null && job.endDate !== null && Number(job.endDate.slice(0, 4)) >= Number(v.slice(0, 4));
+                      updateJob(i, { startDate: v, endDate: endStillValid ? job.endDate : null });
+                    }}
                     maxYear={new Date().getFullYear()}
                   />
                 </div>
                 <div>
-                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">End date (if any)</p>
+                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+                    End date (if any) {!job.startDate && "— pick a start date first"}
+                  </p>
                   <DateDropdownPicker
                     value={job.endDate}
                     onChange={(v) => updateJob(i, { endDate: v })}
+                    minYear={job.startDate ? Number(job.startDate.slice(0, 4)) : undefined}
                     maxYear={new Date().getFullYear()}
+                    disabled={!job.startDate}
                   />
                 </div>
               </div>

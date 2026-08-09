@@ -18,12 +18,21 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
   const { accessToken, isLoading: authLoading } = useAuth();
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Distinguishes "the request failed" from "this company genuinely has no
+  // published reviews yet" — both used to render as nothing at all (see the
+  // reviews.length === 0 check below), which silently hid a fetch failure
+  // behind what looked like an ordinary, unreviewed company.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [votingId, setVotingId] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoadFailed(false);
     apiGet<PublicReview[]>(`/companies/${companySlug}/reviews`, accessToken ?? undefined)
       .then(setReviews)
-      .catch(() => setReviews([]));
+      .catch(() => {
+        setReviews([]);
+        setLoadFailed(true);
+      });
   }, [companySlug, accessToken]);
 
   const vote = useCallback(
@@ -58,6 +67,13 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
   }
 
   if (reviews.length === 0) {
+    if (loadFailed) {
+      return (
+        <p className="mt-8 text-sm text-red-600 dark:text-red-400">
+          Couldn&apos;t load reviews right now — try refreshing the page.
+        </p>
+      );
+    }
     return null;
   }
 

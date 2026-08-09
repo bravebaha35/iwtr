@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
 import { HealthModule } from "./modules/health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -12,6 +14,11 @@ import { ProfileModule } from "./modules/profile/profile.module";
 
 @Module({
   imports: [
+    // Global default: 100 requests per minute per IP. Individual endpoints
+    // that need tighter limits (auth, review submission, voting) override
+    // this with their own @Throttle() decorator rather than a second global
+    // tier — see auth.controller.ts / reviews.controller.ts.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -23,5 +30,6 @@ import { ProfileModule } from "./modules/profile/profile.module";
     PaymentsModule,
     ProfileModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

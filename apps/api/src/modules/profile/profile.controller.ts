@@ -1,11 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
 import {
   educationHistoryInputSchema,
+  requestPhoneOtpSchema,
   updateEducationHistoryInputSchema,
+  updateIdentityInputSchema,
   updateProfileInputSchema,
+  verifyPhoneOtpSchema,
   type EducationHistoryInput,
+  type RequestPhoneOtpInput,
   type UpdateEducationHistoryInput,
+  type UpdateIdentityInput,
   type UpdateProfileInput,
+  type VerifyPhoneOtpInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -32,6 +38,32 @@ export class ProfileController {
     return { success: true };
   }
 
+  @Patch("me/identity")
+  async updateIdentity(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(updateIdentityInputSchema)) body: UpdateIdentityInput,
+  ) {
+    await this.profile.updateBirthDate(user.id, body.birthDate);
+    return { success: true };
+  }
+
+  @Post("me/phone/request-otp")
+  requestPhoneChangeOtp(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(requestPhoneOtpSchema)) body: RequestPhoneOtpInput,
+  ) {
+    return this.profile.requestPhoneChangeOtp(user.id, body.phoneNumber);
+  }
+
+  @Post("me/phone/verify-otp")
+  async verifyPhoneChangeOtp(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(verifyPhoneOtpSchema)) body: VerifyPhoneOtpInput,
+  ) {
+    await this.profile.verifyPhoneChangeOtp(user.id, body.code);
+    return { success: true };
+  }
+
   @Post("me/education-history")
   addEducationHistory(
     @CurrentUser() user: AuthenticatedUser,
@@ -43,14 +75,17 @@ export class ProfileController {
   @Patch("me/education-history/:id")
   updateEducationHistory(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(updateEducationHistoryInputSchema)) body: UpdateEducationHistoryInput,
   ) {
     return this.profile.updateEducationHistory(user.id, id, body);
   }
 
   @Delete("me/education-history/:id")
-  async deleteEducationHistory(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  async deleteEducationHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ) {
     await this.profile.deleteEducationHistory(user.id, id);
     return { success: true };
   }

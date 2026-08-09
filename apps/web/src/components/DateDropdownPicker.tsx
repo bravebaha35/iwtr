@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SingleSelectDropdown } from "@/components/Dropdown";
 
 const MONTHS = [
   "January",
@@ -31,13 +32,17 @@ function parse(value: string | null): { day: number | null; month: number | null
   return { year: y || null, month: m || null, day: d || null };
 }
 
-const selectClass =
-  "rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-foreground";
-
 /**
- * Day/month/year selection as three dropdowns — never a free-text date field.
- * `value`/`onChange` use the same "YYYY-MM-DD" shape the API already expects
- * (z.string().date()), so this drops in wherever a date input used to be.
+ * Day/month/year selection as three dropdowns — never a free-text date
+ * field. `value`/`onChange` use the same "YYYY-MM-DD" shape the API already
+ * expects (z.string().date()), so this drops in wherever a date input used
+ * to be.
+ *
+ * Built on SingleSelectDropdown rather than native `<select>`s: a native
+ * select's open list always includes its own placeholder option ("Day"
+ * sitting above "1", "2", "3"...) mixed in with the real values, which reads
+ * as a 32nd/13th choice rather than a hint. SingleSelectDropdown's list only
+ * ever shows real values — the placeholder text lives in the closed box.
  *
  * Day/month/year are tracked as local state, NOT derived fresh from `value`
  * every render — `onChange` only fires once all three are picked (the parent
@@ -52,11 +57,13 @@ export function DateDropdownPicker({
   onChange,
   minYear = 1950,
   maxYear = new Date().getFullYear() + 1,
+  disabled = false,
 }: {
   value: string | null;
   onChange: (value: string | null) => void;
   minYear?: number;
   maxYear?: number;
+  disabled?: boolean;
 }) {
   const [day, setDay] = useState<number | null>(() => parse(value).day);
   const [month, setMonth] = useState<number | null>(() => parse(value).month);
@@ -86,47 +93,38 @@ export function DateDropdownPicker({
     }
   }
 
+  const dayOptions = Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => ({ value: String(d), label: String(d) }));
+  const monthOptions = MONTHS.map((label, i) => ({ value: String(i + 1), label }));
   const years: number[] = [];
   for (let y = maxYear; y >= minYear; y--) years.push(y);
+  const yearOptions = years.map((y) => ({ value: String(y), label: String(y) }));
 
   return (
     <div className="grid grid-cols-3 gap-1.5">
-      <select
-        value={day ?? ""}
-        onChange={(e) => update(e.target.value ? Number(e.target.value) : null, month, year)}
-        className={selectClass}
-      >
-        <option value="">Day</option>
-        {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
-          <option key={d} value={d}>
-            {d}
-          </option>
-        ))}
-      </select>
-      <select
-        value={month ?? ""}
-        onChange={(e) => update(day, e.target.value ? Number(e.target.value) : null, year)}
-        className={selectClass}
-      >
-        <option value="">Month</option>
-        {MONTHS.map((label, i) => (
-          <option key={label} value={i + 1}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <select
-        value={year ?? ""}
-        onChange={(e) => update(day, month, e.target.value ? Number(e.target.value) : null)}
-        className={selectClass}
-      >
-        <option value="">Year</option>
-        {years.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </select>
+      <SingleSelectDropdown
+        value={day !== null ? String(day) : null}
+        options={dayOptions}
+        placeholder="Day"
+        disabled={disabled}
+        searchable={false}
+        onChange={(v) => update(v ? Number(v) : null, month, year)}
+      />
+      <SingleSelectDropdown
+        value={month !== null ? String(month) : null}
+        options={monthOptions}
+        placeholder="Month"
+        disabled={disabled}
+        searchable={false}
+        onChange={(v) => update(day, v ? Number(v) : null, year)}
+      />
+      <SingleSelectDropdown
+        value={year !== null ? String(year) : null}
+        options={yearOptions}
+        placeholder="Year"
+        disabled={disabled}
+        searchable={false}
+        onChange={(v) => update(day, month, v ? Number(v) : null)}
+      />
     </div>
   );
 }

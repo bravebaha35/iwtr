@@ -9,10 +9,15 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Company[]>([]);
   const [open, setOpen] = useState(false);
+  // A failed request used to render as an empty dropdown, indistinguishable
+  // from "no workplace matches this query" — someone searching during an
+  // outage would just see nothing with no hint that the search itself broke.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     if (query.trim().length === 0) {
       setResults([]);
+      setLoadFailed(false);
       return;
     }
     let cancelled = false;
@@ -22,10 +27,16 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
           // A faster-typed later query's response can still resolve after
           // this one if requests arrive out of order — ignore this result if
           // a newer query has since superseded it.
-          if (!cancelled) setResults(data);
+          if (!cancelled) {
+            setResults(data);
+            setLoadFailed(false);
+          }
         })
         .catch(() => {
-          if (!cancelled) setResults([]);
+          if (!cancelled) {
+            setResults([]);
+            setLoadFailed(true);
+          }
         });
     }, 250);
     return () => {
@@ -51,7 +62,16 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
             : "w-full rounded-full border border-border bg-surface px-4 py-1.5 text-sm text-foreground"
         }
       />
-      {open && results.length > 0 && (
+      {open && loadFailed && (
+        <div
+          className={`absolute z-10 mt-1 rounded-lg border border-border bg-surface px-4 py-2 text-sm text-red-600 shadow-lg dark:text-red-400 ${
+            isLarge ? "left-0 right-0" : "right-0 w-72"
+          }`}
+        >
+          Couldn&apos;t search right now — try again.
+        </div>
+      )}
+      {open && !loadFailed && results.length > 0 && (
         <div
           className={`absolute z-10 mt-1 rounded-lg border border-border bg-surface py-1 shadow-lg ${
             isLarge ? "left-0 right-0" : "right-0 w-72"

@@ -11,6 +11,12 @@ import { TokenService } from "./token.service";
 
 const PASSWORD_SALT_ROUNDS = 12;
 
+// A precomputed bcrypt hash of a value nobody will ever type, compared
+// against on the "no such account" path purely to burn the same ~bcrypt-12
+// wall-clock time a real password compare would take — see loginWithEmail.
+// The hash itself is never meant to match anything; only its cost matters.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("iwtr-dummy-hash-never-matches-anything", PASSWORD_SALT_ROUNDS);
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -38,12 +44,14 @@ export class AuthService {
 
   async loginWithEmail(input: LoginEmailInput, deviceLabel?: string): Promise<AuthTokensResponse> {
     const user = await this.prisma.user.findUnique({ where: { email: input.email } });
-    if (!user || !user.passwordHash) {
-      throw new UnauthorizedException("Invalid email or password");
-    }
 
-    const valid = await bcrypt.compare(input.password, user.passwordHash);
-    if (!valid) {
+    // Always run a bcrypt compare, even when there's no account (or no
+    // password hash — an OAuth-only account) to compare against — comparing
+    // input.password against a fixed dummy hash instead of short-circuiting
+    // keeps this path's timing indistinguishable from a real wrong-password
+    // attempt, so response time can't be used to enumerate registered emails.
+    const valid = await bcrypt.compare(input.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!user || !user.passwordHash || !valid) {
       throw new UnauthorizedException("Invalid email or password");
     }
 

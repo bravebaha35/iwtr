@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from "@nestjs/common";
 import { queueStatusSchema, type QueueStatus } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -18,17 +18,17 @@ export class AdminQueueController {
   }
 
   @Post(":id/approve")
-  approve(@Param("id") id: string) {
+  approve(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.queue.approve(id);
   }
 
   @Post(":id/reject")
-  reject(@Param("id") id: string) {
+  reject(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.queue.reject(id);
   }
 
   @Post(":id/request-sgk-doc")
-  requestSgkDoc(@Param("id") id: string) {
+  requestSgkDoc(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.queue.requestSgkDoc(id);
   }
 }

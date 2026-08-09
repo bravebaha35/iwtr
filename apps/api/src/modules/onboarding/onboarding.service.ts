@@ -103,6 +103,8 @@ export class OnboardingService {
             level: entry.level,
             institutionName: entry.institutionName,
             graduationYear: entry.graduationYear ?? null,
+            faculty: entry.faculty ?? null,
+            department: entry.department ?? null,
           },
         });
       }

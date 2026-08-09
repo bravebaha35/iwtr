@@ -26,6 +26,29 @@
   display: none; /* Chrome/Safari/new Edge */
 }
 
+/* Opposite of .no-scrollbar — a slim but real, draggable scrollbar thumb for
+   the one place a list runs long enough (SingleSelectDropdown's search
+   results, e.g. 250 countries) that people need something to grab and drag
+   rather than hunting with the wheel. Colored from the theme vars so it's
+   never the flat, theme-blind gray a bare native scrollbar would draw. */
+.thin-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--border) transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
 :root {
   --background: #f3f6f8;
   --foreground: #1b2024;

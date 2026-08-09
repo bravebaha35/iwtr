@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ownerTierSchema, planStatusSchema } from "./company";
+import { httpUrlSchema, ownerTierSchema, planStatusSchema } from "./company";
 
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export type OwnerClaimStatus = z.infer<typeof ownerClaimStatusSchema>;
@@ -57,10 +57,10 @@ export const updateCompanyInputSchema = z
   .object({
     name: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
-    mainPhotoUrl: z.string().url().optional(),
+    mainPhotoUrl: httpUrlSchema.optional(),
     // Plus-tier only:
     description: z.string().max(2000).optional(),
-    website: z.string().url().optional(),
+    website: httpUrlSchema.optional(),
   })
   .refine(
     (v) =>

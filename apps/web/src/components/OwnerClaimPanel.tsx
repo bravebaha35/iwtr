@@ -13,19 +13,38 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A failed fetch used to set claim to null, same as "you have no claim" —
+  // which then offered "Claim this company" without actually knowing
+  // whether one already exists. Distinguishing the two avoids that.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     if (!accessToken) {
       setClaim(undefined);
       return;
     }
+    setLoadFailed(false);
     apiGet<MyCompanyClaim[]>("/me/company-claims", accessToken)
       .then((claims) => setClaim(claims.find((c) => c.companySlug === companySlug) ?? null))
-      .catch(() => setClaim(null));
+      .catch(() => {
+        setClaim(null);
+        setLoadFailed(true);
+      });
   }, [accessToken, companySlug]);
 
   if (authLoading || !accessToken || onboardingStatus?.status !== "ACTIVE" || claim === undefined) {
     return null;
+  }
+
+  if (loadFailed) {
+    return (
+      <div className="mt-8 rounded-xl border border-dashed border-border p-5">
+        <h3 className="text-sm font-semibold text-foreground">Is this your company?</h3>
+        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+          Couldn&apos;t check your claim status right now — try refreshing the page.
+        </p>
+      </div>
+    );
   }
 
   async function submitClaim() {

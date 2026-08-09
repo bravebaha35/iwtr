@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import type { PiiOnboardingInput } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { decryptField, encryptField, generateDek, unwrapDek, wrapDek } from "./crypto.util";
@@ -90,6 +90,29 @@ export class PiiVaultService {
       console.error(`[pii-vault] Failed to decrypt identity for userId=${userId}:`, err);
       return null;
     }
+  }
+
+  /**
+   * Self-correction for a typo made at registration — firstName/lastName are
+   * deliberately NOT covered by any method here (see updateIdentityInputSchema's
+   * doc comment for why); only birthDate can be fixed after the fact.
+   * Re-encrypts under the row's existing (unwrapped) DEK rather than
+   * generating a new one — firstName/lastName stay byte-for-byte as they
+   * were, only encBirthDate's ciphertext changes.
+   */
+  async updateBirthDate(userId: string, birthDate: string): Promise<void> {
+    const row = await this.prisma.piiVault.findUnique({ where: { userId } });
+    if (!row) throw new NotFoundException("No identity on file yet");
+
+    const dek = unwrapDek(row.dekWrapped);
+    await this.prisma.piiVault.update({
+      where: { userId },
+      data: { encBirthDate: encryptField(birthDate, dek) },
+    });
+
+    await this.prisma.auditLog.create({
+      data: { actorUserId: userId, action: "PII_VAULT_WRITE", targetType: "PiiVault", targetId: userId },
+    });
   }
 
   /**

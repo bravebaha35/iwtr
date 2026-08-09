@@ -5,3 +5,4 @@ export * from "./schemas/review";
 export * from "./schemas/moderation";
 export * from "./schemas/owner";
 export * from "./schemas/payment";
+export * from "./geo/turkey";

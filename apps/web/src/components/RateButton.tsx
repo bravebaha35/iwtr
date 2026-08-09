@@ -81,16 +81,21 @@ function AnswerButtons({
  */
 export function RateButton({
   companyId,
-  companySlug,
+  companyName,
   workplaceTypes,
 }: {
   companyId: string;
-  companySlug: string;
+  companyName: string;
   workplaceTypes: WorkplaceType[];
 }) {
   const { accessToken } = useAuth();
   const router = useRouter();
   const [matchingEntry, setMatchingEntry] = useState<MyEmploymentEntry | null | undefined>(undefined);
+  // Only meaningful while logged in — an anonymous visitor or one with no
+  // matching employment history legitimately sees no button, so this only
+  // drives an error note for the one case where hiding the button is
+  // actually misleading: a logged-in fetch that failed rather than resolved.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [selectedWorkplaceType, setSelectedWorkplaceType] = useState<WorkplaceType | null>(null);
@@ -112,12 +117,16 @@ export function RateButton({
       setMatchingEntry(null);
       return;
     }
+    setLoadFailed(false);
     apiGet<MyEmploymentEntry[]>("/me/employment-history", accessToken)
       .then((entries) => {
         const match = entries.find((e) => e.companyId === companyId) ?? null;
         setMatchingEntry(match);
       })
-      .catch(() => setMatchingEntry(null));
+      .catch(() => {
+        setMatchingEntry(null);
+        setLoadFailed(true);
+      });
   }, [accessToken, companyId]);
 
   async function loadQuestionsFor(type: WorkplaceType) {
@@ -213,7 +222,16 @@ export function RateButton({
     }
   }
 
-  if (!matchingEntry) return null;
+  if (!matchingEntry) {
+    if (accessToken && loadFailed) {
+      return (
+        <p className="text-sm text-red-600 dark:text-red-400">
+          Couldn&apos;t check whether you can rate this workplace — try refreshing the page.
+        </p>
+      );
+    }
+    return null;
+  }
 
   return (
     <>
@@ -294,7 +312,7 @@ export function RateButton({
                   <h2 className="mb-1 text-xl font-bold text-foreground">
                     {onFinalStep
                       ? "Anything else to add?"
-                      : `${editing ? "Edit your rating for" : "Rate"} ${companySlug.replace(/-/g, " ")}`}
+                      : `${editing ? "Edit your rating for" : "Rate"} ${companyName}`}
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     {onFinalStep

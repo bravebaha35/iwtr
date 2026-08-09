@@ -1,11 +1,15 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import type {
-  AdminCreateCompanyInput,
-  Company,
-  CompanyDetail,
-  CompanyFilters,
-  CompanyListItem,
-  WorkplaceType,
+import {
+  findDistrictInProvince,
+  findProvinceByCityName,
+  workplaceTypeSchema,
+  type AdminCreateCompanyInput,
+  type Company,
+  type CompanyDetail,
+  type CompanyFilters,
+  type CompanyListItem,
+  type CompanySearchQuery,
+  type WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify } from "./slugify.util";
@@ -13,6 +17,42 @@ import { slugify } from "./slugify.util";
 @Injectable()
 export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Resolves free-typed city/district against the real province/district
+   * list (packages/shared-types/src/geo/turkey.ts) rather than trusting them
+   * verbatim — previously nothing checked these server-side, so a typo or
+   * casing drift silently created a company no city/district filter could
+   * ever find (see WorkplaceBrowser.tsx/WorkplacePicker.tsx, which both
+   * match by exact resolved province name). Returns the CANONICAL spelling,
+   * not whatever was submitted, so every stored value matches picker output
+   * byte-for-byte and future drift becomes structurally impossible rather
+   * than just discouraged.
+   */
+  private resolveLocation(city?: string, district?: string): { city: string | null; district: string | null } {
+    if (!city) {
+      if (district) {
+        throw new BadRequestException("A district can't be set without a city");
+      }
+      return { city: null, district: null };
+    }
+
+    const province = findProvinceByCityName(city);
+    if (!province) {
+      throw new BadRequestException(`"${city}" isn't a recognized Turkish province`);
+    }
+
+    if (!district) {
+      return { city: province.name, district: null };
+    }
+
+    const canonicalDistrict = findDistrictInProvince(province, district);
+    if (!canonicalDistrict) {
+      throw new BadRequestException(`"${district}" isn't a district of ${province.name}`);
+    }
+
+    return { city: province.name, district: canonicalDistrict };
+  }
 
   async createByAdmin(adminUserId: string, input: AdminCreateCompanyInput): Promise<Company> {
     // Company names are the only thing the employment-history matching (both
@@ -42,14 +82,16 @@ export class CompaniesService {
       slug = `${baseSlug}-${suffix}`;
     }
 
+    const { city, district } = this.resolveLocation(input.city, input.district);
+
     const company = await this.prisma.company.create({
       data: {
         slug,
         name: input.name,
         category: input.category,
         workplaceTypes: input.workplaceTypes,
-        city: input.city,
-        district: input.district,
+        city,
+        district,
         mainPhotoUrl: input.mainPhotoUrl,
         createdByAdminId: adminUserId,
       },
@@ -67,30 +109,86 @@ export class CompaniesService {
     return this.toPublicCompany(company);
   }
 
-  async search(
-    query?: string,
-    category?: string,
-    city?: string,
-    workplaceType?: WorkplaceType,
-  ): Promise<CompanyListItem[]> {
+  /**
+   * All of q/category/workplaceType/city/district/minRating are now real
+   * Prisma WHERE clauses — previously only `q` was ever sent by any caller,
+   * and WorkplaceBrowser.tsx fetched this entire (up to 5000-row) result and
+   * filtered everything else client-side. `cities`/`districtKeys` are
+   * resolved through the same shared-types province/district lookup used at
+   * write time (CompaniesService.createByAdmin's resolveLocation), so a
+   * request for "istanbul" still matches rows stored as "İstanbul" — this
+   * also means a legacy row whose city/district drifted before that
+   * write-time validation existed can still be found by name/category/type
+   * filters even if its location string itself doesn't match anything.
+   */
+  async search(query: CompanySearchQuery): Promise<CompanyListItem[]> {
+    const cities = query.cities ? query.cities.split(",").map((c) => c.trim()).filter(Boolean) : [];
+    const districtKeys = query.districtKeys
+      ? query.districtKeys.split(",").map((k) => k.trim()).filter(Boolean)
+      : [];
+    // Unrecognized tokens are dropped rather than rejected — a stale client
+    // sending a since-removed workplace type shouldn't 400 the whole search.
+    const workplaceTypes = query.workplaceTypes
+      ? query.workplaceTypes
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t): t is WorkplaceType => (workplaceTypeSchema.options as string[]).includes(t))
+      : [];
+
+    const canonicalCities = cities
+      .map((c) => findProvinceByCityName(c)?.name)
+      .filter((c): c is string => c !== undefined);
+
+    const districtPairs = districtKeys
+      .map((key) => {
+        const [provincePart, districtPart] = key.split("::");
+        const province = findProvinceByCityName(provincePart);
+        return province && districtPart ? { city: province.name, district: districtPart } : null;
+      })
+      .filter((p): p is { city: string; district: string } => p !== null);
+
+    // Matches WorkplaceBrowser's prior client-side semantics exactly:
+    // selecting a whole province matches every company in it regardless of
+    // district; selecting a specific district narrows to just that district.
+    // The two lists are OR'd together, same as before.
+    //
+    // Gated on the RAW requested lists (cities/districtKeys), not the
+    // resolved ones (canonicalCities/districtPairs) — if a caller asked for
+    // a location filter but nothing in it resolved to a real place (e.g. a
+    // typo'd city name), the correct result is zero matches, not silently
+    // falling back to "no location filter at all" and returning everything.
+    // An empty `OR: []` correctly means "match nothing" in Prisma, so this
+    // falls out naturally as long as the gate checks the right list.
+    const locationFilter =
+      cities.length > 0 || districtKeys.length > 0
+        ? {
+            OR: [
+              ...(canonicalCities.length > 0 ? [{ city: { in: canonicalCities } }] : []),
+              ...districtPairs.map((p) => ({ city: p.city, district: p.district })),
+            ],
+          }
+        : {};
+
     const companies = await this.prisma.company.findMany({
       where: {
-        ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
-        ...(category ? { category } : {}),
-        ...(city ? { city } : {}),
-        ...(workplaceType ? { workplaceTypes: { has: workplaceType } } : {}),
+        ...(query.q ? { name: { contains: query.q, mode: "insensitive" } } : {}),
+        ...(query.category ? { category: query.category } : {}),
+        // hasSome, not has: the sidebar filter is OR semantics across
+        // however many types are checked ("Office" or "Service" companies),
+        // matching MultiFilterPillGroup's multi-select in WorkplaceBrowser.
+        ...(workplaceTypes.length > 0 ? { workplaceTypes: { hasSome: workplaceTypes } } : {}),
+        // Companies with no aggregate row yet (zero reviews) naturally
+        // fail any minRating filter here, same as the old client-side
+        // `c.overallAvg === null` check did — an inner-join-style relation
+        // filter excludes them rather than needing an explicit null check.
+        ...(query.minRating !== undefined ? { aggregate: { is: { overallAvg: { lte: query.minRating } } } } : {}),
+        ...locationFilter,
       },
       include: { aggregate: true },
       orderBy: { name: "asc" },
-      // WorkplaceBrowser fetches the full filtered set and paginates
-      // client-side (see apps/web/src/components/WorkplaceBrowser.tsx) since
-      // its category/rating/city-district filters run in the browser, not in
-      // this query — a hard 50-row cap here was silently hiding everything
-      // past the first page's worth of results once the directory grew past
-      // 50 companies. 5000 is a safety ceiling, not the expected size; once
-      // the directory is large enough that fetching "everything matching
-      // `query`" stops being cheap, filtering/sorting/pagination all need to
-      // move server-side together, not just this ceiling raised further.
+      // Safety ceiling, not the expected size — once the directory is large
+      // enough that even a fully-filtered result routinely approaches this,
+      // real pagination (not just a higher ceiling) is the next step.
       take: 5000,
     });
     return companies.map((c) => ({

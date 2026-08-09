@@ -62,21 +62,26 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
         </p>
 
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              required
-              placeholder="First name"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-            />
-            <input
-              required
-              placeholder="Last name"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-            />
+          <div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                required
+                placeholder="First name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+              />
+              <input
+                required
+                placeholder="Last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Double-check the spelling — your name and surname can&apos;t be changed later except by contacting us.
+            </p>
           </div>
 
           <div>
