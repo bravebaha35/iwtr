@@ -27,7 +27,7 @@ export const WORK_TYPE_AVATARS: WorkTypeAvatars[] = [
     ],
   },
   {
-    workType: "REMOTE",
+    workType: "HYBRID_REMOTE",
     variants: [
       { key: "remote_1", emoji: "💻" },
       { key: "remote_2", emoji: "🏠" },

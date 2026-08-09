@@ -29,11 +29,11 @@ const DEMO_COMPANIES: AdminCreateCompanyInput[] = [
   { name: "Demo Teknoloji A.Ş.", category: "IT", workplaceType: "OFFICE", city: "İstanbul", district: "Kadıköy" },
   { name: "Örnek Kargo ve Lojistik", category: "Logistics", workplaceType: "MANUAL_LABOUR", city: "İstanbul", district: "Ümraniye" },
   { name: "Test Cafe & Restoran", category: "Food & Beverage", workplaceType: "SERVICE", city: "Ankara", district: "Çankaya" },
-  { name: "Placeholder Danışmanlık", category: "Consulting", workplaceType: "REMOTE" },
+  { name: "Placeholder Danışmanlık", category: "Consulting", workplaceType: "HYBRID_REMOTE" },
   { name: "Numune İnşaat", category: "Construction", workplaceType: "MANUAL_LABOUR", city: "İzmir", district: "Konak" },
   { name: "Demo Finans Holding", category: "Finance", workplaceType: "OFFICE", city: "İstanbul", district: "Şişli" },
   { name: "Örnek Perakende Mağazacılık", category: "Retail", workplaceType: "SERVICE", city: "Bursa", district: "Nilüfer" },
-  { name: "Test Yazılım Stüdyosu", category: "Software", workplaceType: "REMOTE" },
+  { name: "Test Yazılım Stüdyosu", category: "Software", workplaceType: "HYBRID_REMOTE" },
   { name: "Placeholder Sağlık Hizmetleri", category: "Healthcare", workplaceType: "OFFICE", city: "İstanbul", district: "Beşiktaş" },
   { name: "Numune Eğitim Kurumları", category: "Education", workplaceType: "OFFICE", city: "Ankara", district: "Yenimahalle" },
 ];

@@ -6,7 +6,7 @@ import { workplaceTypeSchema, type WorkplaceType } from "@iwtr/shared-types";
 // stays the single source of truth in shared-types.
 const WORKPLACE_TYPE_LABELS: Record<WorkplaceType, string> = {
   OFFICE: "Office",
-  REMOTE: "Remote",
+  HYBRID_REMOTE: "Hybrid/Remote",
   SERVICE: "Service",
   MANUAL_LABOUR: "Manual-Labour",
 };

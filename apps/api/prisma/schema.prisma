@@ -94,7 +94,7 @@ enum OwnerClaimStatus {
 // is what drives the browse-page sidebar filter; category does not.
 enum WorkplaceType {
   OFFICE
-  REMOTE
+  HYBRID_REMOTE
   SERVICE
   MANUAL_LABOUR
 

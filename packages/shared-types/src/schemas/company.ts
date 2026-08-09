@@ -11,7 +11,7 @@ export type PlanStatus = z.infer<typeof planStatusSchema>;
 // "Software", "Restaurant"). This is what drives the browse-page filter
 // sidebar; `category` does not. Display labels live in apps/web (presentation
 // concern), not here — see apps/web/src/lib/workplaceTypes.ts.
-export const workplaceTypeSchema = z.enum(["OFFICE", "REMOTE", "SERVICE", "MANUAL_LABOUR"]);
+export const workplaceTypeSchema = z.enum(["OFFICE", "HYBRID_REMOTE", "SERVICE", "MANUAL_LABOUR"]);
 export type WorkplaceType = z.infer<typeof workplaceTypeSchema>;
 
 export const companySchema = z.object({

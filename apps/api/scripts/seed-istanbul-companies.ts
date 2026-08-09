@@ -20,6 +20,7 @@ import { ConflictException } from "@nestjs/common";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { CompaniesService } from "../src/modules/companies/companies.service";
+import { classifyWorkplace } from "../src/modules/companies/workplace-classifier/classifyJobRole";
 
 const ADMIN_EMAIL = "cuneytbahasulunoglu@gmail.com";
 const PROVINCE_ISO = "TR-34";
@@ -133,11 +134,25 @@ const OFFICE_CATEGORY_LABELS: Record<string, string> = {
   security: "Security",
 };
 
-function categoryAndWorkplaceType(tags: Record<string, string>): { category: string; workplaceType: WorkplaceType } {
-  if (tags.office) {
-    return { category: OFFICE_CATEGORY_LABELS[tags.office] ?? titleCase(tags.office.replace(/_/g, " ")), workplaceType: "OFFICE" };
+// OSM only ever tags an entity as "office" or "craft" — a binary split that
+// can only ever produce OFFICE or MANUAL_LABOUR, never SERVICE or
+// HYBRID_REMOTE, and says nothing about which specific sector. Run the
+// business's name (and this tag-based guess, as extra context) through the
+// Turkish keyword classifier first; only fall back to the coarser tag split
+// when the classifier finds no real keyword match (confidenceScore === 0) —
+// most OSM entries' names won't contain one of our specific job-title
+// phrases, and in that case the tag-based guess is still a better prior than
+// an arbitrary fallback.
+function categoryAndWorkplaceType(name: string, tags: Record<string, string>): { category: string; workplaceType: WorkplaceType } {
+  const tagBased: { category: string; workplaceType: WorkplaceType } = tags.office
+    ? { category: OFFICE_CATEGORY_LABELS[tags.office] ?? titleCase(tags.office.replace(/_/g, " ")), workplaceType: "OFFICE" }
+    : { category: titleCase((tags.craft ?? "general").replace(/_/g, " ")), workplaceType: "MANUAL_LABOUR" };
+
+  const classified = classifyWorkplace(name, tagBased.category);
+  if (classified.confidenceScore > 0) {
+    return { category: classified.matchedSector, workplaceType: classified.workplaceType };
   }
-  return { category: titleCase((tags.craft ?? "general").replace(/_/g, " ")), workplaceType: "MANUAL_LABOUR" };
+  return tagBased;
 }
 
 interface OverpassElement {
@@ -233,7 +248,7 @@ async function main() {
     }
     seenNames.add(key);
 
-    const { category, workplaceType } = categoryAndWorkplaceType(tags);
+    const { category, workplaceType } = categoryAndWorkplaceType(name, tags);
     candidates.push({ name, category, workplaceType, district });
     stats.candidates++;
   }
