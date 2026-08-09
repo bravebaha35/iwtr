@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { CompanySurveyStats, SurveyQuestionStats } from "@iwtr/shared-types";
+import type { CategoryKey, CompanySurveyStats, SurveyQuestionStats } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 
-const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_ORDER: CategoryKey[] = ["corporateCulture", "leadership", "infrastructure", "workLifeBalance", "stability"];
+
+const CATEGORY_LABELS: Record<CategoryKey, string> = {
   corporateCulture: "Corporate Culture",
   leadership: "Leadership & Management",
   infrastructure: "Infrastructure & Resources",
@@ -17,11 +19,13 @@ function rate(q: SurveyQuestionStats, count: number): number {
   return total === 0 ? 0 : count / total;
 }
 
-function QuestionRow({ q }: { q: SurveyQuestionStats }) {
+function QuestionRow({ q, showCategory = true }: { q: SurveyQuestionStats; showCategory?: boolean }) {
   const total = q.agreeCount + q.disagreeCount + q.preferNotCount;
   return (
     <div>
-      <p className="text-xs font-medium text-muted-foreground">{CATEGORY_LABELS[q.category] ?? q.category}</p>
+      {showCategory && (
+        <p className="text-xs font-medium text-muted-foreground">{CATEGORY_LABELS[q.category] ?? q.category}</p>
+      )}
       <p className="mb-1 text-sm text-foreground">{q.text}</p>
       <p className="text-xs text-muted-foreground">
         {total === 0
@@ -30,6 +34,43 @@ function QuestionRow({ q }: { q: SurveyQuestionStats }) {
               q.preferNotCount > 0 ? ` · ${q.preferNotCount} preferred not to answer` : ""
             }`}
       </p>
+    </div>
+  );
+}
+
+// Each category is its own collapsible dropdown within "All Questions" —
+// starts collapsed (all 5 sub-lists closed) so opening "All Questions"
+// doesn't immediately dump all 25 questions at once.
+function CategorySection({
+  category,
+  questions,
+  expanded,
+  onToggle,
+}: {
+  category: CategoryKey;
+  questions: SurveyQuestionStats[];
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between text-left text-sm font-semibold text-foreground"
+      >
+        <span>
+          {CATEGORY_LABELS[category]} <span className="font-normal text-muted-foreground">({questions.length})</span>
+        </span>
+        <span className={`text-xs text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}>▾</span>
+      </button>
+      {expanded && (
+        <div className="mt-3 flex flex-col gap-3">
+          {questions.map((q) => (
+            <QuestionRow key={q.questionId} q={q} showCategory={false} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -45,6 +86,16 @@ function QuestionRow({ q }: { q: SurveyQuestionStats }) {
 export function SurveyHighlights({ companySlug }: { companySlug: string }) {
   const [stats, setStats] = useState<CompanySurveyStats | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<CategoryKey>>(new Set());
+
+  function toggleCategory(category: CategoryKey) {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
 
   useEffect(() => {
     apiGet<CompanySurveyStats>(`/companies/${companySlug}/survey-stats`)
@@ -85,9 +136,15 @@ export function SurveyHighlights({ companySlug }: { companySlug: string }) {
       </button>
 
       {showAll && (
-        <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
-          {stats.questions.map((q) => (
-            <QuestionRow key={q.questionId} q={q} />
+        <div className="mt-3 flex flex-col gap-1 border-t border-border pt-3">
+          {CATEGORY_ORDER.map((category) => (
+            <CategorySection
+              key={category}
+              category={category}
+              questions={stats.questions.filter((q) => q.category === category)}
+              expanded={expandedCategories.has(category)}
+              onToggle={() => toggleCategory(category)}
+            />
           ))}
         </div>
       )}
