@@ -29,6 +29,16 @@ export const createReviewInputSchema = z.object({
 });
 export type CreateReviewInput = z.infer<typeof createReviewInputSchema>;
 
+// Editing an existing review: same content shape as create, minus the fields
+// that identify which employment history it's tied to (that link can't
+// change — see ReviewsService.updateReview). Re-runs the same moderation
+// pipeline as initial submission, since the content is changing.
+export const updateReviewInputSchema = createReviewInputSchema.omit({
+  companyId: true,
+  employmentHistoryId: true,
+});
+export type UpdateReviewInput = z.infer<typeof updateReviewInputSchema>;
+
 // What's ever returned publicly for a review — no userId, no employment history
 // details beyond what's needed, nothing that could re-identify the reviewer.
 export const publicReviewSchema = z.object({
@@ -102,8 +112,33 @@ export const myEmploymentEntrySchema = z.object({
   startDate: z.string().date().nullable(),
   endDate: z.string().date().nullable(),
   hasReview: z.boolean(),
+  // Present whenever hasReview is true — lets the client fetch/edit the
+  // reviewer's own review via GET/PATCH /reviews/:id.
+  reviewId: z.string().uuid().nullable(),
 });
 export type MyEmploymentEntry = z.infer<typeof myEmploymentEntrySchema>;
+
+// The reviewer's own view of their review — unlike PublicReview, this is
+// never shown to anyone else, so it's fine to include non-published statuses
+// (PENDING_MODERATION/PENDING_ADMIN_REVIEW/REJECTED) so the edit form can
+// explain why a review isn't live.
+export const myReviewSchema = z.object({
+  id: z.string().uuid(),
+  companyId: z.string().uuid(),
+  corporateCultureScore: starScore,
+  corporateCultureComment: z.string().nullable(),
+  leadershipScore: starScore,
+  leadershipComment: z.string().nullable(),
+  infrastructureScore: starScore,
+  infrastructureComment: z.string().nullable(),
+  workLifeBalanceScore: starScore,
+  workLifeBalanceComment: z.string().nullable(),
+  stabilityScore: starScore,
+  stabilityComment: z.string().nullable(),
+  generalThoughts: z.string().nullable(),
+  status: reviewStatusSchema,
+});
+export type MyReview = z.infer<typeof myReviewSchema>;
 
 // Adding a post-onboarding employment entry from the account-settings page —
 // unlike onboarding's free-text rawCompanyName, this always references a real

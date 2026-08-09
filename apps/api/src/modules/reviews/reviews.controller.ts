@@ -4,10 +4,12 @@ import {
   castVoteInputSchema,
   createReviewInputSchema,
   updateEmploymentHistoryInputSchema,
+  updateReviewInputSchema,
   type AddEmploymentHistoryInput,
   type CastVoteInput,
   type CreateReviewInput,
   type UpdateEmploymentHistoryInput,
+  type UpdateReviewInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -59,6 +61,22 @@ export class ReviewsController {
   @Get("reviews/vote-eligibility")
   voteEligibility(@CurrentUser() user: AuthenticatedUser) {
     return this.reviews.getVoteEligibility(user.id);
+  }
+
+  // Must stay below the /reviews/vote-eligibility route above — Nest matches
+  // routes in registration order, and this :id param would otherwise swallow it.
+  @Get("reviews/:id")
+  getMyReview(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.reviews.getMyReview(user.id, id);
+  }
+
+  @Patch("reviews/:id")
+  updateReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateReviewInputSchema)) body: UpdateReviewInput,
+  ) {
+    return this.reviews.updateReview(user.id, id, body);
   }
 
   @Post("reviews/:id/vote")

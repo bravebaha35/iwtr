@@ -12,9 +12,11 @@ import type {
   CastVoteResult,
   CreateReviewInput,
   MyEmploymentEntry,
+  MyReview,
   PublicReview,
   SubmitReviewResult,
   UpdateEmploymentHistoryInput,
+  UpdateReviewInput,
   VoteEligibility,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -58,6 +60,7 @@ export class ReviewsService {
       startDate: toDateOnly(e.startDate),
       endDate: toDateOnly(e.endDate),
       hasReview: e.reviews.length > 0,
+      reviewId: e.reviews[0]?.id ?? null,
     }));
   }
 
@@ -96,6 +99,7 @@ export class ReviewsService {
       startDate: toDateOnly(created.startDate),
       endDate: toDateOnly(created.endDate),
       hasReview: false,
+      reviewId: null,
     };
   }
 
@@ -146,6 +150,7 @@ export class ReviewsService {
       startDate: toDateOnly(updated.startDate),
       endDate: toDateOnly(updated.endDate),
       hasReview: false,
+      reviewId: null,
     };
   }
 
@@ -179,55 +184,25 @@ export class ReviewsService {
       throw new ConflictException("You have already reviewed this company");
     }
 
-    const contentCheck = this.moderation.checkContent([
-      input.corporateCultureComment ?? "",
-      input.leadershipComment ?? "",
-      input.infrastructureComment ?? "",
-      input.workLifeBalanceComment ?? "",
-      input.stabilityComment ?? "",
-      input.generalThoughts ?? "",
-    ]);
-
-    if (contentCheck.violates && contentCheck.confidence >= 0.9) {
-      throw new BadRequestException({
-        message: `Your review couldn't be published: ${contentCheck.violationTypes.join(", ")}. Please remove any names, job titles, or inappropriate language and try again.`,
-        violationTypes: contentCheck.violationTypes,
-      });
-    }
-
     const [priorPublished, priorRejected] = await Promise.all([
       this.prisma.review.count({ where: { userId, status: "PUBLISHED" } }),
       this.prisma.review.count({ where: { userId, status: "REJECTED" } }),
     ]);
 
-    const accountAgeDays = (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24);
-    const employmentDatesPlausible =
-      !employment.startDate ||
-      !employment.endDate ||
-      employment.startDate <= employment.endDate;
-
-    const trustScore = this.moderation.scoreTrust({
-      accountAgeDays,
-      priorPublishedReviewCount: priorPublished,
-      priorRejectedReviewCount: priorRejected,
-      employmentDatesPlausible,
-    });
-
-    let status: "PUBLISHED" | "PENDING_ADMIN_REVIEW";
-    let queueReason: "CONTENT_FLAGGED" | "LOW_TRUST_SCORE" | "NEW_USER" | null = null;
-
-    if (contentCheck.violates) {
-      status = "PENDING_ADMIN_REVIEW";
-      queueReason = "CONTENT_FLAGGED";
-    } else if (trustScore.score >= AUTO_PUBLISH_THRESHOLD) {
-      status = "PUBLISHED";
-    } else if (trustScore.score >= MID_THRESHOLD) {
-      status = "PENDING_ADMIN_REVIEW";
-      queueReason = "LOW_TRUST_SCORE";
-    } else {
-      status = "PENDING_ADMIN_REVIEW";
-      queueReason = priorPublished === 0 ? "NEW_USER" : "LOW_TRUST_SCORE";
-    }
+    const { status, queueReason, contentCheck, trustScore } = this.runModerationPipeline(
+      [
+        input.corporateCultureComment ?? "",
+        input.leadershipComment ?? "",
+        input.infrastructureComment ?? "",
+        input.workLifeBalanceComment ?? "",
+        input.stabilityComment ?? "",
+        input.generalThoughts ?? "",
+      ],
+      employment,
+      user,
+      priorPublished,
+      priorRejected,
+    );
 
     const review = await this.prisma.review.create({
       data: {
@@ -268,6 +243,185 @@ export class ReviewsService {
       if (priorPublished === 0) {
         await this.piiVault.purgeTcKimlikNoIfPresent(userId);
       }
+    }
+
+    return {
+      reviewId: review.id,
+      status,
+      message:
+        status === "PUBLISHED"
+          ? "Your review is live."
+          : "Your review is being reviewed before publishing. This usually takes a short while.",
+    };
+  }
+
+  /**
+   * Shared by submitReview and updateReview so a re-submitted (edited) review
+   * is scored by exactly the same rules as a brand-new one — this logic is
+   * the anonymous-routing decision REVIEW.md flags as critical-severity, so
+   * it must not drift into two copies.
+   */
+  private runModerationPipeline(
+    comments: string[],
+    employment: { startDate: Date | null; endDate: Date | null },
+    user: { createdAt: Date },
+    priorPublishedCount: number,
+    priorRejectedCount: number,
+  ): {
+    status: "PUBLISHED" | "PENDING_ADMIN_REVIEW";
+    queueReason: "CONTENT_FLAGGED" | "LOW_TRUST_SCORE" | "NEW_USER" | null;
+    contentCheck: ReturnType<ModerationService["checkContent"]>;
+    trustScore: ReturnType<ModerationService["scoreTrust"]>;
+  } {
+    const contentCheck = this.moderation.checkContent(comments);
+
+    if (contentCheck.violates && contentCheck.confidence >= 0.9) {
+      throw new BadRequestException({
+        message: `Your review couldn't be published: ${contentCheck.violationTypes.join(", ")}. Please remove any names, job titles, or inappropriate language and try again.`,
+        violationTypes: contentCheck.violationTypes,
+      });
+    }
+
+    const accountAgeDays = (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+    const employmentDatesPlausible =
+      !employment.startDate || !employment.endDate || employment.startDate <= employment.endDate;
+
+    const trustScore = this.moderation.scoreTrust({
+      accountAgeDays,
+      priorPublishedReviewCount: priorPublishedCount,
+      priorRejectedReviewCount: priorRejectedCount,
+      employmentDatesPlausible,
+    });
+
+    let status: "PUBLISHED" | "PENDING_ADMIN_REVIEW";
+    let queueReason: "CONTENT_FLAGGED" | "LOW_TRUST_SCORE" | "NEW_USER" | null = null;
+
+    if (contentCheck.violates) {
+      status = "PENDING_ADMIN_REVIEW";
+      queueReason = "CONTENT_FLAGGED";
+    } else if (trustScore.score >= AUTO_PUBLISH_THRESHOLD) {
+      status = "PUBLISHED";
+    } else if (trustScore.score >= MID_THRESHOLD) {
+      status = "PENDING_ADMIN_REVIEW";
+      queueReason = "LOW_TRUST_SCORE";
+    } else {
+      status = "PENDING_ADMIN_REVIEW";
+      queueReason = priorPublishedCount === 0 ? "NEW_USER" : "LOW_TRUST_SCORE";
+    }
+
+    return { status, queueReason, contentCheck, trustScore };
+  }
+
+  /** Owner-only — never exposed to anyone but the review's author. */
+  async getMyReview(userId: string, reviewId: string): Promise<MyReview> {
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review || review.userId !== userId) {
+      throw new NotFoundException("Review not found");
+    }
+
+    return {
+      id: review.id,
+      companyId: review.companyId,
+      corporateCultureScore: review.corporateCultureScore,
+      corporateCultureComment: review.corporateCultureComment,
+      leadershipScore: review.leadershipScore,
+      leadershipComment: review.leadershipComment,
+      infrastructureScore: review.infrastructureScore,
+      infrastructureComment: review.infrastructureComment,
+      workLifeBalanceScore: review.workLifeBalanceScore,
+      workLifeBalanceComment: review.workLifeBalanceComment,
+      stabilityScore: review.stabilityScore,
+      stabilityComment: review.stabilityComment,
+      generalThoughts: review.generalThoughts,
+      status: review.status,
+    };
+  }
+
+  /**
+   * Re-scores edited content through the same pipeline a new submission gets
+   * (see runModerationPipeline) rather than just patching the row, since
+   * changed comments/scores could change whether the review should still be
+   * auto-published. The company's aggregate is recomputed whenever the
+   * review is (or was, before this edit) PUBLISHED, so an edit that changes
+   * scores — or pulls a review out of/into the published set — is reflected
+   * immediately.
+   */
+  async updateReview(userId: string, reviewId: string, input: UpdateReviewInput): Promise<SubmitReviewResult> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.status !== "ACTIVE") {
+      throw new ForbiddenException("Complete onboarding before editing a review");
+    }
+
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      include: { employmentHistory: true },
+    });
+    if (!review || review.userId !== userId) {
+      throw new NotFoundException("Review not found");
+    }
+
+    const wasPublished = review.status === "PUBLISHED";
+
+    const [priorPublished, priorRejected] = await Promise.all([
+      this.prisma.review.count({ where: { userId, status: "PUBLISHED", id: { not: reviewId } } }),
+      this.prisma.review.count({ where: { userId, status: "REJECTED", id: { not: reviewId } } }),
+    ]);
+
+    const { status, queueReason, contentCheck, trustScore } = this.runModerationPipeline(
+      [
+        input.corporateCultureComment ?? "",
+        input.leadershipComment ?? "",
+        input.infrastructureComment ?? "",
+        input.workLifeBalanceComment ?? "",
+        input.stabilityComment ?? "",
+        input.generalThoughts ?? "",
+      ],
+      review.employmentHistory,
+      user,
+      priorPublished,
+      priorRejected,
+    );
+
+    await this.prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        corporateCultureScore: input.corporateCultureScore,
+        corporateCultureComment: input.corporateCultureComment,
+        leadershipScore: input.leadershipScore,
+        leadershipComment: input.leadershipComment,
+        infrastructureScore: input.infrastructureScore,
+        infrastructureComment: input.infrastructureComment,
+        workLifeBalanceScore: input.workLifeBalanceScore,
+        workLifeBalanceComment: input.workLifeBalanceComment,
+        stabilityScore: input.stabilityScore,
+        stabilityComment: input.stabilityComment,
+        generalThoughts: input.generalThoughts,
+        status,
+        aiModerationScore: contentCheck.confidence,
+        aiTrustScore: trustScore.score,
+        moderationDetails: { contentCheck, trustScore } as object,
+        publishedAt: status === "PUBLISHED" ? (review.publishedAt ?? new Date()) : review.publishedAt,
+      },
+    });
+
+    if (queueReason) {
+      const aiSummary = `Content check: ${JSON.stringify(contentCheck)}. Trust score: ${trustScore.score.toFixed(2)} (${trustScore.factors.join(", ")}).`;
+      // reviewId is @unique on ModerationQueueItem, and a review can only
+      // ever get one (approve/reject update it in place, never delete) — so
+      // a second edit that re-flags the same review must update that row,
+      // not insert a new one.
+      await this.prisma.moderationQueueItem.upsert({
+        where: { reviewId },
+        create: { reviewId, reason: queueReason, aiSummary },
+        update: { reason: queueReason, aiSummary, status: "OPEN", resolvedAt: null },
+      });
+    }
+
+    if (status === "PUBLISHED" || wasPublished) {
+      await this.recomputeAggregate(review.companyId);
+    }
+    if (status === "PUBLISHED") {
+      await this.piiVault.purgeTcKimlikNoIfPresent(userId);
     }
 
     return {
