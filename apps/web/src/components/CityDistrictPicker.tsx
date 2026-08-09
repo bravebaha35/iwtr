@@ -57,14 +57,25 @@ export function CityDistrictPicker({
   const isTurkey = country === DEFAULT_COUNTRY;
 
   const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
+  // Searching "Buca" must surface only İzmir's Buca and Burdur's Bucak — not
+  // every other district those two provinces happen to have. So each
+  // matching province carries its own `matchingDistricts`: every district
+  // when the search is empty or matches the PROVINCE name itself (browsing
+  // that whole province), otherwise only the districts that individually
+  // match the query.
   const filtered = useMemo(() => {
     if (!isTurkey) return [];
-    if (!normalizedQuery) return TURKEY_PROVINCES;
-    return TURKEY_PROVINCES.filter(
-      (p) =>
-        p.name.toLocaleLowerCase("tr-TR").includes(normalizedQuery) ||
-        p.districts.some((d) => d.toLocaleLowerCase("tr-TR").includes(normalizedQuery)),
-    );
+    if (!normalizedQuery) {
+      return TURKEY_PROVINCES.map((p) => ({ province: p, matchingDistricts: p.districts }));
+    }
+    return TURKEY_PROVINCES.flatMap((p) => {
+      const provinceNameMatches = p.name.toLocaleLowerCase("tr-TR").includes(normalizedQuery);
+      const matchingDistricts = provinceNameMatches
+        ? p.districts
+        : p.districts.filter((d) => d.toLocaleLowerCase("tr-TR").includes(normalizedQuery));
+      if (!provinceNameMatches && matchingDistricts.length === 0) return [];
+      return [{ province: p, matchingDistricts }];
+    });
   }, [normalizedQuery, isTurkey]);
 
   const nothingSelected = selectedCities.length === 0 && selectedDistrictKeys.length === 0;
@@ -126,7 +137,7 @@ export function CityDistrictPicker({
         </p>
       )}
       <div className="no-scrollbar max-h-72 overflow-y-auto rounded-lg border border-border p-1.5 text-sm">
-        {filtered.map((p) => {
+        {filtered.map(({ province: p, matchingDistricts }) => {
           const isExpanded = expanded.has(p.name) || normalizedQuery !== "";
           const cityActive = selectedCities.includes(p.name);
           return (
@@ -152,7 +163,7 @@ export function CityDistrictPicker({
               </div>
               {isExpanded && (
                 <div className="ml-5 mt-0.5 flex flex-wrap gap-1">
-                  {p.districts.map((d) => {
+                  {matchingDistricts.map((d) => {
                     const key = districtKey(p.name, d);
                     const active = selectedDistrictKeys.includes(key);
                     return (
