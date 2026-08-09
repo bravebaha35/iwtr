@@ -12,19 +12,31 @@ function optionClass(active: boolean): string {
 }
 
 /**
- * "Which city/district is this workplace in, then find its name" — never a
- * free-text company name field. City/district picking lives behind a summary
- * box + "Choose" button that opens a popup (same pattern as LocationPicker),
- * not two always-open lists sitting inline — that ate a lot of vertical space
- * and, worse, is exactly where the Add-workplace flow used to show cut-off
- * district names. Company list comes from the real database (the same one
- * the browse page uses); as more workplaces get added there, more show up
- * here automatically.
+ * "Which city/district is this workplace in, then find its name." City/
+ * district picking lives behind a summary box + "Choose" button that opens a
+ * popup (same pattern as LocationPicker), not two always-open lists sitting
+ * inline — that ate a lot of vertical space and, worse, is exactly where the
+ * Add-workplace flow used to show cut-off district names. Company list comes
+ * from the real database (the same one the browse page uses); as more
+ * workplaces get added there, more show up here automatically.
+ *
+ * `allowFreeText` (off by default) adds a "can't find it? use this name"
+ * fallback below the results — needed for onboarding, whose
+ * `POST /onboarding/history` accepts a free-typed `rawCompanyName` with a
+ * null `companyId` and backfills the link later once/if a matching Company
+ * is seeded (see onboarding.service.ts's submitHistory). Without this, a
+ * user whose employer isn't in the (currently small) seeded company list
+ * could never get past onboarding at all. The post-onboarding
+ * account-settings "add workplace" flow (`POST /me/employment-history`)
+ * deliberately does NOT allow this — it always requires a real picked
+ * Company row — so it leaves `allowFreeText` at its default.
  */
 export function WorkplacePicker({
   onPick,
+  allowFreeText = false,
 }: {
-  onPick: (company: Pick<CompanyListItem, "id" | "name" | "slug">) => void;
+  onPick: (workplace: { companyId: string | null; name: string; slug: string | null }) => void;
+  allowFreeText?: boolean;
 }) {
   const [city, setCity] = useState<string | null>(null);
   const [district, setDistrict] = useState<string | null>(null);
@@ -166,11 +178,25 @@ export function WorkplacePicker({
               <p className="p-2 text-xs text-muted-foreground">No workplaces here yet.</p>
             )}
             {filtered.map((c) => (
-              <button key={c.id} type="button" onClick={() => onPick(c)} className={optionClass(false)}>
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onPick({ companyId: c.id, name: c.name, slug: c.slug })}
+                className={optionClass(false)}
+              >
                 {c.name}
               </button>
             ))}
           </div>
+          {allowFreeText && query.trim() && (
+            <button
+              type="button"
+              onClick={() => onPick({ companyId: null, name: query.trim(), slug: null })}
+              className="rounded-lg border border-dashed border-border px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:bg-surface-muted"
+            >
+              Can&apos;t find it? Use &ldquo;{query.trim()}&rdquo; as your workplace name
+            </button>
+          )}
         </>
       )}
     </div>

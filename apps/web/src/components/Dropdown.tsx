@@ -25,12 +25,14 @@ export function SingleSelectDropdown({
   placeholder,
   onChange,
   maxHeightClassName = "max-h-64",
+  disabled = false,
 }: {
   value: string | null;
   options: DropdownOption[];
   placeholder: string;
   onChange: (value: string | null) => void;
   maxHeightClassName?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const selectedOption = options.find((o) => o.value === value);
@@ -39,8 +41,9 @@ export function SingleSelectDropdown({
     <div className="relative">
       <button
         type="button"
+        disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted"
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-surface"
       >
         <span className={`flex min-w-0 items-center gap-1.5 truncate ${value ? "text-foreground" : "text-muted-foreground"}`}>
           {selectedOption?.icon}

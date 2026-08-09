@@ -422,7 +422,7 @@ export function WorkplaceBrowser() {
                   </div>
                 </div>
 
-                <span className="text-center text-sm font-semibold text-muted-foreground">
+                <span className="text-center text-xs font-normal text-muted-foreground">
                   {minRating === 0 ? "Any" : `${minRating.toFixed(1)} and Below`}
                 </span>
               </div>

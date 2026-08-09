@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type {
-  CompanyListItem,
   EduLevel,
   EducationHistoryEntry,
   MyEmploymentEntry,
@@ -65,7 +64,9 @@ export default function ProfilePage() {
   const [editEduYear, setEditEduYear] = useState("");
 
   const [showAddJob, setShowAddJob] = useState(false);
-  const [newJobCompany, setNewJobCompany] = useState<Pick<CompanyListItem, "id" | "name" | "slug"> | null>(null);
+  const [newJobCompany, setNewJobCompany] = useState<{ companyId: string | null; name: string; slug: string | null } | null>(
+    null,
+  );
   const [newJobStart, setNewJobStart] = useState<string | null>(null);
   const [newJobEnd, setNewJobEnd] = useState<string | null>(null);
   const [addingJob, setAddingJob] = useState(false);
@@ -209,13 +210,17 @@ export default function ProfilePage() {
   }
 
   async function addEmployment() {
-    if (!newJobCompany) return;
+    // companyId is never actually null here — WorkplacePicker below doesn't
+    // set allowFreeText, so it only ever calls onPick with a real picked
+    // company — but the type is shared with onboarding's free-text-capable
+    // usage, so this guards defensively rather than asserting it away.
+    if (!newJobCompany?.companyId) return;
     setAddingJob(true);
     setJobError(null);
     try {
       const created = await apiPost<MyEmploymentEntry>(
         "/me/employment-history",
-        { companyId: newJobCompany.id, startDate: newJobStart, endDate: newJobEnd },
+        { companyId: newJobCompany.companyId, startDate: newJobStart, endDate: newJobEnd },
         accessToken ?? undefined,
       );
       setEmployment((prev) => (prev ? [...prev, created] : [created]));

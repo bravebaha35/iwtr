@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiPost, ApiError } from "@/lib/api-client";
-import type { CompanyListItem, EduLevel } from "@iwtr/shared-types";
+import type { EduLevel } from "@iwtr/shared-types";
 import { WorkplacePicker } from "@/components/WorkplacePicker";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 
@@ -21,7 +21,12 @@ const emptyEduRows: Record<EduLevel, EduRow> = {
 };
 
 type JobRow = {
-  company: Pick<CompanyListItem, "id" | "name" | "slug"> | null;
+  // companyId is null when the reviewer free-typed a workplace name that
+  // didn't match anything already seeded — see WorkplacePicker's
+  // allowFreeText. The backend (onboarding.service.ts's submitHistory)
+  // stores it as a plain rawCompanyName either way and backfills the link
+  // later if/when a matching Company is seeded.
+  company: { companyId: string | null; name: string; slug: string | null } | null;
   startDate: string | null;
   endDate: string | null;
 };
@@ -62,7 +67,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         .filter((j) => j.company !== null)
         .map((j) => ({
           rawCompanyName: j.company!.name,
-          companyId: j.company!.id,
+          companyId: j.company!.companyId ?? undefined,
           startDate: j.startDate ?? undefined,
           endDate: j.endDate ?? undefined,
         }));
@@ -134,7 +139,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         <div className="flex flex-col gap-4">
           {jobs.map((job, i) => (
             <div key={i} className="flex flex-col gap-2 rounded-lg border border-border p-3">
-              <WorkplacePicker onPick={(company) => updateJob(i, { company })} />
+              <WorkplacePicker allowFreeText onPick={(company) => updateJob(i, { company })} />
               {job.company && (
                 <p className="text-xs text-muted-foreground">
                   Selected: <span className="font-medium text-foreground">{job.company.name}</span>
