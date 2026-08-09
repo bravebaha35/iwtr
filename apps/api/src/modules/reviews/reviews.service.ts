@@ -236,7 +236,11 @@ export class ReviewsService {
       throw new ConflictException("You have already reviewed this company");
     }
 
-    const { scores, surveyAnswers } = this.scoreAnswers(employment.company.workplaceType, input.answers);
+    if (!employment.company.workplaceTypes.includes(input.workplaceType)) {
+      throw new ForbiddenException("This company doesn't offer that role category");
+    }
+
+    const { scores, surveyAnswers } = this.scoreAnswers(input.workplaceType, input.answers);
 
     const [priorPublished, priorRejected] = await Promise.all([
       this.prisma.review.count({ where: { userId, status: "PUBLISHED" } }),
@@ -256,6 +260,7 @@ export class ReviewsService {
         userId,
         companyId: input.companyId,
         employmentHistoryId: input.employmentHistoryId,
+        workplaceType: input.workplaceType,
         corporateCultureScore: scores.corporateCulture,
         leadershipScore: scores.leadership,
         infrastructureScore: scores.infrastructure,
@@ -362,7 +367,6 @@ export class ReviewsService {
   async getMyReview(userId: string, reviewId: string): Promise<MyReview> {
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
-      include: { company: true },
     });
     if (!review || review.userId !== userId) {
       throw new NotFoundException("Review not found");
@@ -371,7 +375,7 @@ export class ReviewsService {
     return {
       id: review.id,
       companyId: review.companyId,
-      workplaceType: review.company.workplaceType,
+      workplaceType: review.workplaceType,
       corporateCultureScore: review.corporateCultureScore,
       leadershipScore: review.leadershipScore,
       infrastructureScore: review.infrastructureScore,
@@ -400,7 +404,7 @@ export class ReviewsService {
 
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
-      include: { employmentHistory: true, company: true },
+      include: { employmentHistory: true },
     });
     if (!review || review.userId !== userId) {
       throw new NotFoundException("Review not found");
@@ -408,7 +412,7 @@ export class ReviewsService {
 
     const wasPublished = review.status === "PUBLISHED";
 
-    const { scores, surveyAnswers } = this.scoreAnswers(review.company.workplaceType, input.answers);
+    const { scores, surveyAnswers } = this.scoreAnswers(review.workplaceType, input.answers);
 
     const [priorPublished, priorRejected] = await Promise.all([
       this.prisma.review.count({ where: { userId, status: "PUBLISHED", id: { not: reviewId } } }),
@@ -575,6 +579,7 @@ export class ReviewsService {
     return reviews.map((r) => ({
       id: r.id,
       companyId: r.companyId,
+      workplaceType: r.workplaceType,
       corporateCultureScore: r.corporateCultureScore,
       leadershipScore: r.leadershipScore,
       infrastructureScore: r.infrastructureScore,
@@ -599,6 +604,12 @@ export class ReviewsService {
    * browse-page card), and 25 questions × however many published reviews a
    * company has is cheap to tally per request.
    *
+   * One section per Company.workplaceTypes[i] — a 2-tag company (e.g. a
+   * hospital tagged SERVICE + OFFICE) gets its Service reviewers' answers
+   * tallied completely separately from its Office reviewers', since
+   * "SERVICE.corporateCulture.1" and "OFFICE.corporateCulture.1" are
+   * different questions entirely; merging them would be meaningless.
+   *
    * Only ever returns agree/disagree/prefer-not-to-answer COUNTS, never the
    * raw per-review YES/NO breakdown or which literal choice was correct —
    * that stays server-only in survey-questions.data.ts. A count of how many
@@ -613,39 +624,45 @@ export class ReviewsService {
 
     const published = await this.prisma.review.findMany({
       where: { companyId: company.id, status: "PUBLISHED" },
-      select: { surveyAnswers: true },
+      select: { workplaceType: true, surveyAnswers: true },
     });
 
-    const questions = getQuestionsFor(company.workplaceType);
-    const tallies = new Map(
-      questions.map((q) => [q.id, { agreeCount: 0, disagreeCount: 0, preferNotCount: 0 }]),
-    );
+    const byWorkplaceType = company.workplaceTypes.map((workplaceType) => {
+      const reviewsForType = published.filter((r) => r.workplaceType === workplaceType);
+      const questions = getQuestionsFor(workplaceType);
+      const tallies = new Map(
+        questions.map((q) => [q.id, { agreeCount: 0, disagreeCount: 0, preferNotCount: 0 }]),
+      );
 
-    for (const review of published) {
-      const answers = review.surveyAnswers as Record<string, SurveyAnswer>;
-      for (const question of questions) {
-        const answer = answers[question.id];
-        const tally = tallies.get(question.id);
-        if (!tally || answer === undefined) continue;
-        if (answer === question.correctAnswer) {
-          tally.agreeCount += 1;
-        } else if (answer === "PREFER_NOT_TO_ANSWER") {
-          tally.preferNotCount += 1;
-        } else {
-          tally.disagreeCount += 1;
+      for (const review of reviewsForType) {
+        const answers = review.surveyAnswers as Record<string, SurveyAnswer>;
+        for (const question of questions) {
+          const answer = answers[question.id];
+          const tally = tallies.get(question.id);
+          if (!tally || answer === undefined) continue;
+          if (answer === question.correctAnswer) {
+            tally.agreeCount += 1;
+          } else if (answer === "PREFER_NOT_TO_ANSWER") {
+            tally.preferNotCount += 1;
+          } else {
+            tally.disagreeCount += 1;
+          }
         }
       }
-    }
 
-    return {
-      totalReviews: published.length,
-      questions: questions.map((q) => ({
-        questionId: q.id,
-        category: q.category,
-        text: q.text,
-        ...tallies.get(q.id)!,
-      })),
-    };
+      return {
+        workplaceType,
+        totalReviews: reviewsForType.length,
+        questions: questions.map((q) => ({
+          questionId: q.id,
+          category: q.category,
+          text: q.text,
+          ...tallies.get(q.id)!,
+        })),
+      };
+    });
+
+    return { byWorkplaceType };
   }
 
   async getVoteEligibility(userId: string): Promise<VoteEligibility> {

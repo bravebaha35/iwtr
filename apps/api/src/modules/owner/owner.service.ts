@@ -95,7 +95,6 @@ export class OwnerService {
       data: {
         name: input.name,
         category: input.category,
-        workplaceType: input.workplaceType,
         mainPhotoUrl: input.mainPhotoUrl,
         description: input.description,
         website: input.website,

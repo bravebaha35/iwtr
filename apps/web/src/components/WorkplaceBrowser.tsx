@@ -110,7 +110,7 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
         <div className="min-w-0">
           <p className="truncate font-semibold text-foreground compact:text-sm">{company.name}</p>
           <p className="truncate text-xs text-muted-foreground">
-            {workplaceTypeLabel(company.workplaceType)} · {company.category}
+            {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
             {company.city ? ` · ${company.city}` : ""}
             {company.district ? `, ${company.district}` : ""}
           </p>
@@ -266,7 +266,9 @@ export function WorkplaceBrowser() {
   // above) rather than a separate API call.
   const categoryOptions = useMemo(() => {
     const scope =
-      workplaceTypes.length > 0 ? (companies ?? []).filter((c) => workplaceTypes.includes(c.workplaceType)) : companies ?? [];
+      workplaceTypes.length > 0
+        ? (companies ?? []).filter((c) => workplaceTypes.some((t) => c.workplaceTypes.includes(t)))
+        : companies ?? [];
     const distinct = [...new Set(scope.map((c) => c.category))].sort((a, b) => a.localeCompare(b));
     return distinct.map((c) => ({ value: c, label: c }));
   }, [companies, workplaceTypes]);
@@ -282,7 +284,7 @@ export function WorkplaceBrowser() {
   const visibleCompanies = useMemo(() => {
     if (!companies) return null;
     let list = companies.filter((c) => {
-      if (workplaceTypes.length > 0 && !workplaceTypes.includes(c.workplaceType)) return false;
+      if (workplaceTypes.length > 0 && !workplaceTypes.some((t) => c.workplaceTypes.includes(t))) return false;
       if (selectedCategory && c.category !== selectedCategory) return false;
       if (minRating > 0 && (c.overallAvg === null || c.overallAvg > minRating)) return false;
       if (selectedCities.length > 0 || selectedDistrictKeys.length > 0) {
@@ -296,8 +298,10 @@ export function WorkplaceBrowser() {
     } else if (sortBy === "rating") {
       list = [...list].sort((a, b) => (b.overallAvg ?? -1) - (a.overallAvg ?? -1));
     } else if (sortBy === "workplace") {
+      // Sorts by each company's first (primary) tag only — not a full
+      // multi-key sort — since a company can carry up to 2 workplaceTypes.
       const order = WORKPLACE_TYPES.map((t) => t.value);
-      list = [...list].sort((a, b) => order.indexOf(a.workplaceType) - order.indexOf(b.workplaceType));
+      list = [...list].sort((a, b) => order.indexOf(a.workplaceTypes[0]) - order.indexOf(b.workplaceTypes[0]));
     } else if (geo && geo !== "denied") {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }

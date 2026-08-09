@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { PublicReview, VoteEligibility, VoteValue } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
 const CATEGORY_FIELDS: { score: keyof PublicReview; label: string }[] = [
   { score: "corporateCultureScore", label: "Corporate Culture" },
@@ -88,17 +89,25 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
           key={review.id}
           className="rounded-xl border border-border bg-surface p-5 compact:p-3"
         >
-          {review.contributorBadge && (
-            <span
-              className={`mb-3 compact:mb-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                review.contributorBadge === "TOP_CONTRIBUTOR"
-                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
-                  : "bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300"
-              }`}
-            >
-              {review.contributorBadge === "TOP_CONTRIBUTOR" ? "Top Contributor" : "Contributor"}
+          <div className="mb-3 compact:mb-1.5 flex flex-wrap items-center gap-2">
+            {/* Which of the company's (up to 2) workplaceTypes this review is
+                about — matters once a company spans more than one, e.g. a
+                hospital's Service and Office reviews read very differently. */}
+            <span className="inline-block rounded-full border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              {workplaceTypeLabel(review.workplaceType)}
             </span>
-          )}
+            {review.contributorBadge && (
+              <span
+                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                  review.contributorBadge === "TOP_CONTRIBUTOR"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                    : "bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300"
+                }`}
+              >
+                {review.contributorBadge === "TOP_CONTRIBUTOR" ? "Top Contributor" : "Contributor"}
+              </span>
+            )}
+          </div>
           <div className="flex flex-col gap-1 text-sm compact:text-xs">
             {CATEGORY_FIELDS.map((f) => (
               <div key={f.label} className="text-muted-foreground">

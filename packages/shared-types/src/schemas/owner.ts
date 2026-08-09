@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ownerTierSchema, planStatusSchema, workplaceTypeSchema } from "./company";
+import { ownerTierSchema, planStatusSchema } from "./company";
 
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export type OwnerClaimStatus = z.infer<typeof ownerClaimStatusSchema>;
@@ -47,11 +47,16 @@ export type AdminOwnerClaim = z.infer<typeof adminOwnerClaimSchema>;
 // (owner.service.ts) unless the caller's CompanyOwner row is tier=PLUS with
 // planStatus=ACTIVE. Keeping one schema (rather than Free/Plus variants)
 // means the allowlist lives in exactly one place: the service layer.
+//
+// workplaceTypes is deliberately NOT owner-editable here (even though it was
+// before Company.workplaceType became a multi-value array) — self-service
+// editing of a company's workplace-type tags is deferred to a future Plus
+// company-profile phase, not part of this pass. Only admins can set it
+// (CompaniesService.createByAdmin) until that's designed.
 export const updateCompanyInputSchema = z
   .object({
     name: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
-    workplaceType: workplaceTypeSchema.optional(),
     mainPhotoUrl: z.string().url().optional(),
     // Plus-tier only:
     description: z.string().max(2000).optional(),
@@ -61,7 +66,6 @@ export const updateCompanyInputSchema = z
     (v) =>
       v.name !== undefined ||
       v.category !== undefined ||
-      v.workplaceType !== undefined ||
       v.mainPhotoUrl !== undefined ||
       v.description !== undefined ||
       v.website !== undefined,

@@ -20,7 +20,7 @@ import { ConflictException } from "@nestjs/common";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { CompaniesService } from "../src/modules/companies/companies.service";
-import { classifyWorkplace } from "../src/modules/companies/workplace-classifier/classifyJobRole";
+import { classifyWorkplace, inferCompanyWorkplaceTypes } from "../src/modules/companies/workplace-classifier/classifyJobRole";
 
 const ADMIN_EMAIL = "cuneytbahasulunoglu@gmail.com";
 const PROVINCE_ISO = "TR-34";
@@ -134,6 +134,21 @@ const OFFICE_CATEGORY_LABELS: Record<string, string> = {
   security: "Security",
 };
 
+// A hospital/healthcare or industrial/factory OSM tag is a strong enough
+// signal to apply inferCompanyWorkplaceTypes's 2-tag sector override
+// directly (e.g. a hospital is genuinely SERVICE + OFFICE, not just
+// whichever single type its name happens to contain a keyword for) —
+// checked before the single-type name-based classification below.
+function sectorOverrideFromTags(tags: Record<string, string>): WorkplaceType[] | null {
+  if (tags.amenity === "hospital" || tags.healthcare) {
+    return inferCompanyWorkplaceTypes("Hastane / Sağlık");
+  }
+  if (tags.building === "industrial" || tags.man_made === "works") {
+    return inferCompanyWorkplaceTypes("Üretim / Fabrika");
+  }
+  return null;
+}
+
 // OSM only ever tags an entity as "office" or "craft" — a binary split that
 // can only ever produce OFFICE or MANUAL_LABOUR, never SERVICE or
 // HYBRID_REMOTE, and says nothing about which specific sector. Run the
@@ -143,16 +158,21 @@ const OFFICE_CATEGORY_LABELS: Record<string, string> = {
 // most OSM entries' names won't contain one of our specific job-title
 // phrases, and in that case the tag-based guess is still a better prior than
 // an arbitrary fallback.
-function categoryAndWorkplaceType(name: string, tags: Record<string, string>): { category: string; workplaceType: WorkplaceType } {
+function categoryAndWorkplaceTypes(name: string, tags: Record<string, string>): { category: string; workplaceTypes: WorkplaceType[] } {
   const tagBased: { category: string; workplaceType: WorkplaceType } = tags.office
     ? { category: OFFICE_CATEGORY_LABELS[tags.office] ?? titleCase(tags.office.replace(/_/g, " ")), workplaceType: "OFFICE" }
     : { category: titleCase((tags.craft ?? "general").replace(/_/g, " ")), workplaceType: "MANUAL_LABOUR" };
 
+  const sectorOverride = sectorOverrideFromTags(tags);
+  if (sectorOverride) {
+    return { category: tagBased.category, workplaceTypes: sectorOverride };
+  }
+
   const classified = classifyWorkplace(name, tagBased.category);
   if (classified.confidenceScore > 0) {
-    return { category: classified.matchedSector, workplaceType: classified.workplaceType };
+    return { category: classified.matchedSector, workplaceTypes: [classified.workplaceType] };
   }
-  return tagBased;
+  return { category: tagBased.category, workplaceTypes: [tagBased.workplaceType] };
 }
 
 interface OverpassElement {
@@ -181,7 +201,7 @@ async function fetchOverpass(query: string): Promise<OverpassElement[]> {
 interface Candidate {
   name: string;
   category: string;
-  workplaceType: WorkplaceType;
+  workplaceTypes: WorkplaceType[];
   district: string;
 }
 
@@ -248,8 +268,8 @@ async function main() {
     }
     seenNames.add(key);
 
-    const { category, workplaceType } = categoryAndWorkplaceType(name, tags);
-    candidates.push({ name, category, workplaceType, district });
+    const { category, workplaceTypes } = categoryAndWorkplaceTypes(name, tags);
+    candidates.push({ name, category, workplaceTypes, district });
     stats.candidates++;
   }
 
@@ -276,7 +296,7 @@ async function main() {
         await companiesService.createByAdmin(admin.id, {
           name: c.name,
           category: c.category,
-          workplaceType: c.workplaceType,
+          workplaceTypes: c.workplaceTypes,
           city: PROVINCE_NAME,
           district: c.district,
         });

@@ -14,12 +14,18 @@ export type PlanStatus = z.infer<typeof planStatusSchema>;
 export const workplaceTypeSchema = z.enum(["OFFICE", "HYBRID_REMOTE", "SERVICE", "MANUAL_LABOUR"]);
 export type WorkplaceType = z.infer<typeof workplaceTypeSchema>;
 
+// A company can genuinely span more than one kind of work (e.g. a hospital
+// is SERVICE + OFFICE) but never more than 2 — a reviewer's own review still
+// records a single workplaceType (see review.ts's createReviewInputSchema),
+// picked from this set at rating time.
+export const companyWorkplaceTypesSchema = z.array(workplaceTypeSchema).min(1).max(2);
+
 export const companySchema = z.object({
   id: z.string().uuid(),
   slug: z.string(),
   name: z.string(),
   category: z.string(),
-  workplaceType: workplaceTypeSchema,
+  workplaceTypes: companyWorkplaceTypesSchema,
   mainPhotoUrl: z.string().url().nullable(),
   description: z.string().nullable(),
   website: z.string().url().nullable(),
@@ -53,7 +59,7 @@ export type CompanyFilters = z.infer<typeof companyFiltersSchema>;
 export const adminCreateCompanyInputSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),
-  workplaceType: workplaceTypeSchema,
+  workplaceTypes: companyWorkplaceTypesSchema,
   city: z.string().min(1).optional(),
   district: z.string().min(1).optional(),
   mainPhotoUrl: z.string().url().optional(),

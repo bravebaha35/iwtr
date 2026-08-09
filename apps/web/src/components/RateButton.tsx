@@ -16,6 +16,7 @@ import type {
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { RATE_BUTTON_EMOJI } from "@/lib/rateButton";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
 const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "corporateCulture", label: "Corporate Culture" },
@@ -24,9 +25,6 @@ const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "workLifeBalance", label: "Work-Life Balance" },
   { key: "stability", label: "Organizational Stability" },
 ];
-
-// One extra step at the end for general thoughts + submit.
-const TOTAL_STEPS = CATEGORIES.length + 1;
 
 const ANSWER_OPTIONS: { value: SurveyAnswer; label: string }[] = [
   { value: "YES", label: "Yes" },
@@ -66,26 +64,36 @@ function AnswerButtons({
  * their own employment history — pulled from /me/employment-history, the
  * same data the account-settings page uses. Rating is a fixed 25-question
  * yes/no/prefer-not-to-answer survey (5 questions × 5 categories, specific
- * to the company's workplaceType) — category scores are computed server-side
- * from the answers, never picked directly here. If the user already has a
- * review, the button switches to edit mode: it loads their own review (GET
- * /reviews/:id, owner-only) and PATCHes it instead of POSTing a new one.
- * The star icon (RATE_BUTTON_EMOJI) is a one-file swap for later.
+ * to whichever workplaceType the review is about) — category scores are
+ * computed server-side from the answers, never picked directly here.
+ *
+ * A company can carry up to 2 workplaceTypes (e.g. a hospital is tagged
+ * SERVICE + OFFICE) — when creating a NEW review for a 2-type company, an
+ * extra first step asks the reviewer which role best describes them, since
+ * that decides which 25-question set they answer. Skipped entirely when the
+ * company only has one type, or when editing (a review's workplaceType is
+ * fixed once set — see ReviewsService.updateReview).
+ *
+ * If the user already has a review, the button switches to edit mode: it
+ * loads their own review (GET /reviews/:id, owner-only) and PATCHes it
+ * instead of POSTing a new one. The star icon (RATE_BUTTON_EMOJI) is a
+ * one-file swap for later.
  */
 export function RateButton({
   companyId,
   companySlug,
-  workplaceType,
+  workplaceTypes,
 }: {
   companyId: string;
   companySlug: string;
-  workplaceType: WorkplaceType;
+  workplaceTypes: WorkplaceType[];
 }) {
   const { accessToken } = useAuth();
   const router = useRouter();
   const [matchingEntry, setMatchingEntry] = useState<MyEmploymentEntry | null | undefined>(undefined);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
+  const [selectedWorkplaceType, setSelectedWorkplaceType] = useState<WorkplaceType | null>(null);
   const [questions, setQuestions] = useState<SurveyQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
   const [generalThoughts, setGeneralThoughts] = useState("");
@@ -95,6 +103,9 @@ export function RateButton({
   const [submitting, setSubmitting] = useState(false);
 
   const editing = Boolean(matchingEntry?.reviewId);
+  const hasRoleStep = !editing && workplaceTypes.length > 1;
+  const categoryOffset = hasRoleStep ? 1 : 0;
+  const totalSteps = categoryOffset + CATEGORIES.length + 1;
 
   useEffect(() => {
     if (!accessToken) {
@@ -109,26 +120,49 @@ export function RateButton({
       .catch(() => setMatchingEntry(null));
   }, [accessToken, companyId]);
 
+  async function loadQuestionsFor(type: WorkplaceType) {
+    const questionSet = await apiGet<SurveyQuestion[]>(`/reviews/survey/${type}`, accessToken ?? undefined);
+    setQuestions(questionSet);
+  }
+
   async function handleOpen() {
     setStep(0);
     setAnswers({});
     setGeneralThoughts("");
     setError(null);
     setResult(null);
+    setSelectedWorkplaceType(null);
+    setQuestions(null);
     setOpen(true);
     setLoadingExisting(true);
     try {
-      const questionSet = await apiGet<SurveyQuestion[]>(
-        `/reviews/survey/${workplaceType}`,
-        accessToken ?? undefined,
-      );
-      setQuestions(questionSet);
-
       if (matchingEntry?.reviewId) {
         const review = await apiGet<MyReview>(`/reviews/${matchingEntry.reviewId}`, accessToken ?? undefined);
         setAnswers(review.surveyAnswers);
         setGeneralThoughts(review.generalThoughts ?? "");
+        setSelectedWorkplaceType(review.workplaceType);
+        await loadQuestionsFor(review.workplaceType);
+      } else if (workplaceTypes.length === 1) {
+        setSelectedWorkplaceType(workplaceTypes[0]);
+        await loadQuestionsFor(workplaceTypes[0]);
       }
+      // Otherwise: a new review on a multi-type company — the role-picker
+      // step (step 0) loads questions itself once a role is chosen.
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't load the rating survey.");
+    } finally {
+      setLoadingExisting(false);
+    }
+  }
+
+  async function selectRole(type: WorkplaceType) {
+    setError(null);
+    setAnswers({});
+    setSelectedWorkplaceType(type);
+    setLoadingExisting(true);
+    try {
+      await loadQuestionsFor(type);
+      setStep(1);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load the rating survey.");
     } finally {
@@ -140,14 +174,15 @@ export function RateButton({
     return (questions ?? []).filter((q) => q.category === category);
   }
 
-  const onFinalStep = step === CATEGORIES.length;
-  const currentCategory = onFinalStep ? null : CATEGORIES[step];
+  const onRoleStep = hasRoleStep && step === 0;
+  const onFinalStep = step === categoryOffset + CATEGORIES.length;
+  const currentCategory = !onRoleStep && !onFinalStep ? CATEGORIES[step - categoryOffset] : null;
   const currentStepAnswered = currentCategory
     ? questionsFor(currentCategory.key).every((q) => answers[q.id] !== undefined)
     : true;
 
   async function handleSubmit() {
-    if (!matchingEntry || !questions) return;
+    if (!matchingEntry || !questions || !selectedWorkplaceType) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -161,7 +196,12 @@ export function RateButton({
           )
         : await apiPost<SubmitReviewResult>(
             "/reviews",
-            { companyId, employmentHistoryId: matchingEntry.id, ...content } satisfies CreateReviewInput,
+            {
+              companyId,
+              employmentHistoryId: matchingEntry.id,
+              workplaceType: selectedWorkplaceType,
+              ...content,
+            } satisfies CreateReviewInput,
             accessToken ?? undefined,
           );
       setResult(res);
@@ -208,13 +248,48 @@ export function RateButton({
                   Done
                 </button>
               </>
+            ) : onRoleStep ? (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">
+                    Step 1 of {totalSteps}
+                  </p>
+                  <h2 className="mb-1 text-xl font-bold text-foreground">
+                    Which best describes your role here?
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    This company has more than one kind of work — pick whichever matches what you actually did.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {workplaceTypes.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => selectRole(type)}
+                      disabled={loadingExisting}
+                      className="rounded-lg border border-border px-4 py-3 text-left text-sm font-medium text-foreground transition hover:border-brand-400 hover:bg-surface-muted disabled:opacity-50"
+                    >
+                      {workplaceTypeLabel(type)}
+                    </button>
+                  ))}
+                </div>
+                {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+                >
+                  Cancel
+                </button>
+              </div>
             ) : loadingExisting || !questions ? (
               <p className="text-sm text-muted-foreground">Loading survey...</p>
             ) : (
               <div className="flex flex-col gap-4">
                 <div>
                   <p className="mb-1 text-xs font-medium text-muted-foreground">
-                    Step {step + 1} of {TOTAL_STEPS}
+                    Step {step + 1} of {totalSteps}
                   </p>
                   <h2 className="mb-1 text-xl font-bold text-foreground">
                     {onFinalStep

@@ -8,6 +8,7 @@ import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { RateButton } from "@/components/RateButton";
 import { scoreBarColor } from "@/lib/scoreBandColors";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -49,12 +50,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
               )}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {company.category}
+              {company.category} · {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")}
               {company.city ? ` · ${company.city}` : ""}
             </p>
           </div>
         </div>
-        <RateButton companyId={company.id} companySlug={company.slug} workplaceType={company.workplaceType} />
+        <RateButton companyId={company.id} companySlug={company.slug} workplaceTypes={company.workplaceTypes} />
       </div>
 
       <div className="mt-8 rounded-xl border border-border bg-surface p-6">

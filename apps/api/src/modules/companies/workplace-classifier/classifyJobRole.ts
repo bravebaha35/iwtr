@@ -101,3 +101,52 @@ export function classifyWorkplace(title: string, sector?: string, description?: 
 
   return { workplaceType: bestType, confidenceScore, matchedSector: bestSector };
 }
+
+/**
+ * Simpler single-job-title variant of classifyWorkplace, for callers that
+ * just need "what WorkplaceType is this role" without the sector/confidence
+ * detail — a thin wrapper, not a second matching implementation. Returns
+ * `null` (rather than falling back to SERVICE) when nothing matches, so a
+ * caller can tell "genuinely unclassifiable" apart from "classified as
+ * Service" and route it to manual review instead of silently guessing.
+ */
+export function classifyJobRole(jobTitle: string): WorkplaceType | null {
+  const result = classifyWorkplace(jobTitle);
+  return result.confidenceScore > 0 ? result.workplaceType : null;
+}
+
+// Exact-match (case/locale-insensitive) sector overrides for the handful of
+// sectors known to obviously span more than one WorkplaceType — checked
+// before falling back to classifying individual job roles. Trimmed to at
+// most 2 entries each per the product decision that a company carries a
+// MAXIMUM of 2 workplace-type tags (e.g. a hospital is SERVICE + OFFICE, not
+// SERVICE + OFFICE + MANUAL_LABOUR as a naive "every department" reading
+// would suggest).
+const SECTOR_OVERRIDES: Record<string, WorkplaceType[]> = {
+  "hastane / sağlık": ["SERVICE", "OFFICE"],
+  "üretim / fabrika": ["MANUAL_LABOUR", "OFFICE"],
+  "yazılım / bilişim": ["HYBRID_REMOTE", "OFFICE"],
+};
+
+/**
+ * Multi-category engine: infers which WorkplaceType tag(s) a company should
+ * carry, either from a known sector label (checked first, exact match) or
+ * from the aggregate of its job roles (classified individually via
+ * classifyJobRole, deduplicated in first-occurrence order). Always capped to
+ * at most 2 results — never returns 3+, even if 3 distinct types are present
+ * among the given job roles — matching the "max 2 tags per company" product
+ * decision. Used by the admin/seeding side of the app (e.g.
+ * seed-istanbul-companies.ts); not exposed to end users, who never pick a
+ * company's tags themselves.
+ */
+export function inferCompanyWorkplaceTypes(sector: string, jobRoles: string[] = []): WorkplaceType[] {
+  const normalizedSector = sector.toLocaleLowerCase("tr-TR").trim();
+  const override = SECTOR_OVERRIDES[normalizedSector];
+  if (override) return override;
+
+  const fromRoles = jobRoles
+    .map((role) => classifyJobRole(role))
+    .filter((t): t is WorkplaceType => t !== null);
+
+  return [...new Set(fromRoles)].slice(0, 2);
+}

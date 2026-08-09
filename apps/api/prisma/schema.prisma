@@ -206,7 +206,12 @@ model Company {
   slug             String        @unique
   name             String
   category         String
-  workplaceType    WorkplaceType @default(SERVICE)
+  // Up to 2 tags — a company can genuinely span more than one kind of work
+  // (e.g. a hospital is SERVICE + OFFICE), but never more than 2 (enforced
+  // in shared-types/company.ts's zod schema, not at the DB layer). A
+  // reviewer's own Review.workplaceType is a single value picked from this
+  // set — see Review below.
+  workplaceTypes   WorkplaceType[] @default([SERVICE])
   mainPhotoUrl     String?
   description      String?
   website          String?
@@ -268,6 +273,14 @@ model Review {
   company             Company  @relation(fields: [companyId], references: [id])
   employmentHistoryId String
   employmentHistory   EmploymentHistory @relation(fields: [employmentHistoryId], references: [id])
+
+  // Which of the company's (up to 2) workplaceTypes this specific review is
+  // about — the reviewer's own role, picked at submission time and
+  // immutable on edit (changing it would mean answering an entirely
+  // different 25-question set, which isn't an "edit"). Must be one of
+  // Company.workplaceTypes at submission time (validated in
+  // ReviewsService.submitReview, never trusted from the client).
+  workplaceType WorkplaceType
 
   // 0-5, computed server-side from surveyAnswers — never picked directly by
   // the reviewer. See ReviewsService.scoreAnswers.

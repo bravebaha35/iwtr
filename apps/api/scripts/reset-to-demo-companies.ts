@@ -26,16 +26,20 @@ const ADMIN_EMAIL = "cuneytbahasulunoglu@gmail.com";
 // every workplaceType, a spread of categories, and both "has a city/district"
 // and "remote, no location" rendering paths in the browse UI.
 const DEMO_COMPANIES: AdminCreateCompanyInput[] = [
-  { name: "Demo Teknoloji A.Ş.", category: "IT", workplaceType: "OFFICE", city: "İstanbul", district: "Kadıköy" },
-  { name: "Örnek Kargo ve Lojistik", category: "Logistics", workplaceType: "MANUAL_LABOUR", city: "İstanbul", district: "Ümraniye" },
-  { name: "Test Cafe & Restoran", category: "Food & Beverage", workplaceType: "SERVICE", city: "Ankara", district: "Çankaya" },
-  { name: "Placeholder Danışmanlık", category: "Consulting", workplaceType: "HYBRID_REMOTE" },
-  { name: "Numune İnşaat", category: "Construction", workplaceType: "MANUAL_LABOUR", city: "İzmir", district: "Konak" },
-  { name: "Demo Finans Holding", category: "Finance", workplaceType: "OFFICE", city: "İstanbul", district: "Şişli" },
-  { name: "Örnek Perakende Mağazacılık", category: "Retail", workplaceType: "SERVICE", city: "Bursa", district: "Nilüfer" },
-  { name: "Test Yazılım Stüdyosu", category: "Software", workplaceType: "HYBRID_REMOTE" },
-  { name: "Placeholder Sağlık Hizmetleri", category: "Healthcare", workplaceType: "OFFICE", city: "İstanbul", district: "Beşiktaş" },
-  { name: "Numune Eğitim Kurumları", category: "Education", workplaceType: "OFFICE", city: "Ankara", district: "Yenimahalle" },
+  { name: "Demo Teknoloji A.Ş.", category: "IT", workplaceTypes: ["OFFICE"], city: "İstanbul", district: "Kadıköy" },
+  { name: "Örnek Kargo ve Lojistik", category: "Logistics", workplaceTypes: ["MANUAL_LABOUR"], city: "İstanbul", district: "Ümraniye" },
+  { name: "Test Cafe & Restoran", category: "Food & Beverage", workplaceTypes: ["SERVICE"], city: "Ankara", district: "Çankaya" },
+  { name: "Placeholder Danışmanlık", category: "Consulting", workplaceTypes: ["HYBRID_REMOTE"] },
+  { name: "Numune İnşaat", category: "Construction", workplaceTypes: ["MANUAL_LABOUR"], city: "İzmir", district: "Konak" },
+  { name: "Demo Finans Holding", category: "Finance", workplaceTypes: ["OFFICE"], city: "İstanbul", district: "Şişli" },
+  { name: "Örnek Perakende Mağazacılık", category: "Retail", workplaceTypes: ["SERVICE"], city: "Bursa", district: "Nilüfer" },
+  { name: "Test Yazılım Stüdyosu", category: "Software", workplaceTypes: ["HYBRID_REMOTE"] },
+  // The concrete "hospital" example from the multi-type classification
+  // spec: genuinely spans Service (nurses/care staff) and Office (HR/
+  // billing) — the only 2-tag demo company, so the split survey-stats UI
+  // has something real to show.
+  { name: "Placeholder Sağlık Hizmetleri", category: "Healthcare", workplaceTypes: ["SERVICE", "OFFICE"], city: "İstanbul", district: "Beşiktaş" },
+  { name: "Numune Eğitim Kurumları", category: "Education", workplaceTypes: ["OFFICE"], city: "Ankara", district: "Yenimahalle" },
 ];
 
 async function main() {

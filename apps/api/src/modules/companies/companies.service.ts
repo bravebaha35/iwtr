@@ -47,7 +47,7 @@ export class CompaniesService {
         slug,
         name: input.name,
         category: input.category,
-        workplaceType: input.workplaceType,
+        workplaceTypes: input.workplaceTypes,
         city: input.city,
         district: input.district,
         mainPhotoUrl: input.mainPhotoUrl,
@@ -78,7 +78,7 @@ export class CompaniesService {
         ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
         ...(category ? { category } : {}),
         ...(city ? { city } : {}),
-        ...(workplaceType ? { workplaceType } : {}),
+        ...(workplaceType ? { workplaceTypes: { has: workplaceType } } : {}),
       },
       include: { aggregate: true },
       orderBy: { name: "asc" },
@@ -146,7 +146,7 @@ export class CompaniesService {
     slug: string;
     name: string;
     category: string;
-    workplaceType: WorkplaceType;
+    workplaceTypes: WorkplaceType[];
     mainPhotoUrl: string | null;
     description: string | null;
     website: string | null;
@@ -159,7 +159,7 @@ export class CompaniesService {
       slug: c.slug,
       name: c.name,
       category: c.category,
-      workplaceType: c.workplaceType,
+      workplaceTypes: c.workplaceTypes,
       mainPhotoUrl: c.mainPhotoUrl,
       description: c.description,
       website: c.website,

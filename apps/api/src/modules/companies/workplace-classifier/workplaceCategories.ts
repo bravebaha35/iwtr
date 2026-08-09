@@ -9,11 +9,13 @@ import type { WorkplaceType } from "@iwtr/shared-types";
 // an unused DB enum here would just be dead weight. If a real per-company
 // "sector" column is ever needed, promote this type into shared-types then.
 export type JobSector =
+  | "Executive & Administration"
   | "Finance, Accounting & Audit"
   | "HR & Admin"
   | "Legal & Compliance"
   | "Banking Branch & Ops"
   | "Real Estate / Property"
+  | "Traditional Engineering"
   | "Software & Tech"
   | "Digital Marketing & Content"
   | "Product & Design"
@@ -50,16 +52,28 @@ export const WORKPLACE_TYPE_ORDER: WorkplaceType[] = ["OFFICE", "HYBRID_REMOTE",
 export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]> = {
   OFFICE: [
     {
+      sector: "Executive & Administration",
+      keywords: [
+        "CEO",
+        "Genel Müdür",
+        "Departman Direktörü",
+        "Şube Müdürü",
+        "Yönetici Asistanı",
+        "Veri Giriş Elemanı",
+        "Satınalma",
+      ],
+    },
+    {
       sector: "Finance, Accounting & Audit",
       keywords: ["Finans", "Muhasebe", "Mali Müşavir", "Denetçi", "Finansal Analist"],
     },
     {
       sector: "HR & Admin",
-      keywords: ["İnsan Kaynakları", "Recruiter", "İdari İşler", "Ofis Yöneticisi"],
+      keywords: ["İnsan Kaynakları", "Recruiter", "İdari İşler", "Ofis Yöneticisi", "Bordro Uzmanı", "İK İş Ortağı"],
     },
     {
       sector: "Legal & Compliance",
-      keywords: ["Hukuk", "Avukat", "Uyum Uzmanı", "Mevzuat"],
+      keywords: ["Hukuk", "Avukat", "Uyum Uzmanı", "Mevzuat", "İcra Katibi"],
     },
     {
       sector: "Banking Branch & Ops",
@@ -68,6 +82,10 @@ export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]>
     {
       sector: "Real Estate / Property",
       keywords: ["Portföy Yöneticisi", "Gayrimenkul Danışmanı"],
+    },
+    {
+      sector: "Traditional Engineering",
+      keywords: ["Mimari Çizim", "Planlama Mühendisi", "Maliyet Kontrol Mühendisi"],
     },
   ],
   HYBRID_REMOTE: [
@@ -83,6 +101,9 @@ export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]>
         "Sistem Yöneticisi",
         "Developer",
         "Software Engineer",
+        "Siber Güvenlik",
+        "Veri Bilimci",
+        "Veri Mühendisi",
       ],
     },
     {
@@ -91,11 +112,28 @@ export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]>
     },
     {
       sector: "Product & Design",
-      keywords: ["UI/UX", "UI", "UX", "Grafik Tasarım", "Ürün Yöneticisi", "Product Manager", "Scrum Master"],
+      keywords: [
+        "UI/UX",
+        "UI",
+        "UX",
+        "Grafik Tasarım",
+        "Ürün Yöneticisi",
+        "Product Manager",
+        "Scrum Master",
+        "3D Artist",
+      ],
     },
     {
       sector: "Remote Support",
-      keywords: ["Uzaktan Çağrı Merkezi", "Müşteri Başarısı", "Customer Success"],
+      keywords: [
+        "Uzaktan Çağrı Merkezi",
+        "Müşteri Başarısı",
+        "Customer Success",
+        "Telesatış",
+        "Uzaktan Müşteri Destek",
+        "Sanal Asistan",
+        "Çevirmen",
+      ],
     },
     {
       sector: "E-Commerce Operations",
@@ -105,15 +143,26 @@ export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]>
   SERVICE: [
     {
       sector: "Healthcare & Hospitals",
-      keywords: ["Doktor", "Hemşire", "Hasta Bakıcı", "Tıbbi Mümessil", "Tıbbi Sekreter", "Klinik Elemanı"],
+      keywords: [
+        "Doktor",
+        "Hemşire",
+        "Hasta Bakıcı",
+        "Tıbbi Mümessil",
+        "Tıbbi Sekreter",
+        "Klinik Elemanı",
+        "Diş Hekimi",
+        "Fizyoterapist",
+        "Eczacı",
+        "Psikolog",
+      ],
     },
     {
       sector: "Retail & Stores",
-      keywords: ["Saha Satış Danışmanı", "Mağaza Müdürü", "Kasiyer", "Görsel Düzenleme"],
+      keywords: ["Saha Satış Danışmanı", "Satış Danışmanı", "Mağaza Müdürü", "Kasiyer", "Görsel Düzenleme"],
     },
     {
       sector: "Hospitality & Gastronomy",
-      keywords: ["Garson", "Komi", "Aşçı", "Resepsiyonist", "Kat Hizmetleri", "Tur Rehberi"],
+      keywords: ["Garson", "Komi", "Aşçı", "Resepsiyonist", "Kat Hizmetleri", "Tur Rehberi", "Barista"],
     },
     {
       sector: "Field Sales",
@@ -121,11 +170,11 @@ export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]>
     },
     {
       sector: "Private Education",
-      keywords: ["Özel Okul Öğretmeni", "Dershane Eğitmeni", "Eğitim Danışmanı"],
+      keywords: ["Özel Okul Öğretmeni", "Öğretmen", "Dershane Eğitmeni", "Eğitim Danışmanı", "Rehberlik (PDR)", "Dadı"],
     },
     {
       sector: "Wellness",
-      keywords: ["Güzellik Uzmanı", "Estetisyen", "Fitness Koçu"],
+      keywords: ["Güzellik Uzmanı", "Estetisyen", "Fitness Koçu", "Kuaför", "Spor Eğitmeni"],
     },
   ],
   MANUAL_LABOUR: [
@@ -143,19 +192,37 @@ export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]>
     },
     {
       sector: "Manufacturing & Industrial (OSB)",
-      keywords: ["Üretim Hattı İşçisi", "Makine Operatörü", "Kalite Kontrol", "Montaj", "Kaynakçı", "Tekstil İşçisi"],
+      keywords: [
+        "Üretim Hattı İşçisi",
+        "Üretim İşçisi",
+        "Makine Operatörü",
+        "Kalite Kontrol",
+        "Montaj",
+        "Kaynakçı",
+        "Tekstil İşçisi",
+        "CNC Operatörü",
+        "Ambalaj",
+      ],
     },
     {
       sector: "Construction & Sites",
-      keywords: ["Şantiye İşçisi", "Elektrik Ustası", "Tesisatçı", "Boyacı", "İnşaat Teknikeri", "Vinç Operatörü"],
+      keywords: [
+        "Şantiye İşçisi",
+        "Elektrik Ustası",
+        "Tesisatçı",
+        "Boyacı",
+        "İnşaat Teknikeri",
+        "Vinç Operatörü",
+        "Demirci",
+      ],
     },
     {
       sector: "Maintenance",
-      keywords: ["Saha Teknikeri", "İklimlendirme Teknikeri", "Sanayi Bakım Onarım", "Oto Tamircisi"],
+      keywords: ["Saha Teknikeri", "İklimlendirme Teknikeri", "Sanayi Bakım Onarım", "Oto Tamircisi", "Asansör Bakım"],
     },
     {
       sector: "Facility & Security",
-      keywords: ["Özel Güvenlik", "Temizlik Personeli", "Bina Bakım Elemanı"],
+      keywords: ["Özel Güvenlik", "Güvenlik Görevlisi", "Temizlik Personeli", "Bina Bakım Elemanı", "Kapıcı", "Atık Toplama"],
     },
   ],
 };

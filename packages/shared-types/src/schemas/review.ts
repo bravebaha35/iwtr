@@ -52,7 +52,12 @@ export const createReviewInputSchema = z.object({
   // Must be an EmploymentHistory row owned by the caller and matching companyId;
   // the server re-validates this regardless of what the client sends.
   employmentHistoryId: z.string().uuid(),
-  // Must cover exactly the 25 question ids for the company's workplaceType —
+  // Which of the company's (up to 2) workplaceTypes this review is about —
+  // the reviewer's own role. Must be one of Company.workplaceTypes; the
+  // server re-validates this (see ReviewsService.submitReview) and it's what
+  // decides which 25-question set `answers` below must match.
+  workplaceType: workplaceTypeSchema,
+  // Must cover exactly the 25 question ids for the chosen workplaceType —
   // the server re-validates this too (see ReviewsService.scoreAnswers).
   answers: z.array(surveyResponseSchema).length(25),
   generalThoughts: z.string().max(4000).optional(),
@@ -61,11 +66,15 @@ export type CreateReviewInput = z.infer<typeof createReviewInputSchema>;
 
 // Editing an existing review: same content shape as create, minus the fields
 // that identify which employment history it's tied to (that link can't
-// change — see ReviewsService.updateReview). Re-runs the same moderation
-// pipeline as initial submission, since the content is changing.
+// change — see ReviewsService.updateReview) and workplaceType, which is
+// equally immutable once set: changing it would mean answering an entirely
+// different 25-question set, which isn't really an "edit" of the same
+// review. Re-runs the same moderation pipeline as initial submission, since
+// the content is changing.
 export const updateReviewInputSchema = createReviewInputSchema.omit({
   companyId: true,
   employmentHistoryId: true,
+  workplaceType: true,
 });
 export type UpdateReviewInput = z.infer<typeof updateReviewInputSchema>;
 
@@ -74,6 +83,10 @@ export type UpdateReviewInput = z.infer<typeof updateReviewInputSchema>;
 export const publicReviewSchema = z.object({
   id: z.string().uuid(),
   companyId: z.string().uuid(),
+  // Which of the company's (up to 2) workplaceTypes this review is about —
+  // matters now that a company can span more than one, so a reader can tell
+  // which "side" of e.g. a hospital a given review is describing.
+  workplaceType: workplaceTypeSchema,
   corporateCultureScore: categoryScore,
   leadershipScore: categoryScore,
   infrastructureScore: categoryScore,
@@ -214,10 +227,22 @@ export const surveyQuestionStatsSchema = z.object({
 });
 export type SurveyQuestionStats = z.infer<typeof surveyQuestionStatsSchema>;
 
-export const companySurveyStatsSchema = z.object({
+// One entry per Company.workplaceTypes[i] — a company with 2 tags gets 2
+// entries here, since each workplaceType has its own, entirely different
+// 25-question set (e.g. "SERVICE.corporateCulture.1" and
+// "OFFICE.corporateCulture.1" are different questions). Mixing a Service
+// reviewer's answers into an Office reviewer's tally would be meaningless,
+// so stats are always scoped to one workplaceType at a time, never merged.
+export const companyWorkplaceSurveyStatsSchema = z.object({
+  workplaceType: workplaceTypeSchema,
   totalReviews: z.number().int().min(0),
-  // All 25 questions for the company's workplaceType, in question-bank
-  // order. Empty when totalReviews is 0.
+  // All 25 questions for this workplaceType, in question-bank order. Empty
+  // when totalReviews is 0.
   questions: z.array(surveyQuestionStatsSchema),
+});
+export type CompanyWorkplaceSurveyStats = z.infer<typeof companyWorkplaceSurveyStatsSchema>;
+
+export const companySurveyStatsSchema = z.object({
+  byWorkplaceType: z.array(companyWorkplaceSurveyStatsSchema),
 });
 export type CompanySurveyStats = z.infer<typeof companySurveyStatsSchema>;

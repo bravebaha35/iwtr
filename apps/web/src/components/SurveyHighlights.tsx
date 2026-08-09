@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { CategoryKey, CompanySurveyStats, SurveyQuestionStats } from "@iwtr/shared-types";
+import type {
+  CategoryKey,
+  CompanySurveyStats,
+  CompanyWorkplaceSurveyStats,
+  SurveyQuestionStats,
+} from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
 const CATEGORY_ORDER: CategoryKey[] = ["corporateCulture", "leadership", "infrastructure", "workLifeBalance", "stability"];
 
@@ -75,16 +81,12 @@ function CategorySection({
   );
 }
 
-/**
- * Shows the single question reviewers most agreed on and the single question
- * they most disputed (by rate, not raw count, so it's fair across companies
- * with different review counts) — pulled from GET /companies/:slug/survey-
- * stats, which only ever returns agree/disagree/prefer-not-to-answer tallies,
- * never which literal answer was "correct". "All Questions" expands the full
- * 25-question breakdown for the company's workplaceType.
- */
-export function SurveyHighlights({ companySlug }: { companySlug: string }) {
-  const [stats, setStats] = useState<CompanySurveyStats | null>(null);
+// One full "most agreed / most disputed / All Questions" block for a single
+// workplaceType. A company with 2 tags (e.g. a hospital: SERVICE + OFFICE)
+// renders one of these per tag that actually has reviews — never merged,
+// since "SERVICE.corporateCulture.1" and "OFFICE.corporateCulture.1" are
+// different questions entirely.
+function WorkplaceTypeSurveySection({ stats }: { stats: CompanyWorkplaceSurveyStats }) {
   const [showAll, setShowAll] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<CategoryKey>>(new Set());
 
@@ -97,20 +99,14 @@ export function SurveyHighlights({ companySlug }: { companySlug: string }) {
     });
   }
 
-  useEffect(() => {
-    apiGet<CompanySurveyStats>(`/companies/${companySlug}/survey-stats`)
-      .then(setStats)
-      .catch(() => setStats(null));
-  }, [companySlug]);
-
-  if (!stats || stats.totalReviews === 0 || stats.questions.length === 0) return null;
-
   const mostAgreed = [...stats.questions].sort((a, b) => rate(b, b.agreeCount) - rate(a, a.agreeCount))[0];
   const mostDisputed = [...stats.questions].sort((a, b) => rate(b, b.disagreeCount) - rate(a, a.disagreeCount))[0];
 
   return (
-    <div className="mt-8 rounded-xl border border-border bg-surface p-6">
-      <h2 className="mb-3 text-lg font-semibold text-foreground">What reviewers said</h2>
+    <div className="rounded-xl border border-border bg-surface p-6">
+      <h2 className="mb-3 text-lg font-semibold text-foreground">
+        What reviewers said <span className="font-normal text-muted-foreground">— {workplaceTypeLabel(stats.workplaceType)}</span>
+      </h2>
       <div className="flex flex-col gap-4">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">
@@ -148,6 +144,37 @@ export function SurveyHighlights({ companySlug }: { companySlug: string }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * One section per Company.workplaceTypes[i] that has at least one published
+ * review — each shows the single question its reviewers most agreed on and
+ * the one they most disputed (by rate, not raw count, so it's fair across
+ * companies with different review counts), plus an "All Questions" toggle
+ * for the full 25-question breakdown. Pulled from GET
+ * /companies/:slug/survey-stats, which only ever returns
+ * agree/disagree/prefer-not-to-answer tallies, never which literal answer
+ * was "correct".
+ */
+export function SurveyHighlights({ companySlug }: { companySlug: string }) {
+  const [stats, setStats] = useState<CompanySurveyStats | null>(null);
+
+  useEffect(() => {
+    apiGet<CompanySurveyStats>(`/companies/${companySlug}/survey-stats`)
+      .then(setStats)
+      .catch(() => setStats(null));
+  }, [companySlug]);
+
+  const populated = stats?.byWorkplaceType.filter((s) => s.totalReviews > 0) ?? [];
+  if (populated.length === 0) return null;
+
+  return (
+    <div className="mt-8 flex flex-col gap-4">
+      {populated.map((s) => (
+        <WorkplaceTypeSurveySection key={s.workplaceType} stats={s} />
+      ))}
     </div>
   );
 }

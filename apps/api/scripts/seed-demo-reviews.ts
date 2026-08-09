@@ -21,7 +21,7 @@
 
 import "dotenv/config";
 import { ConflictException } from "@nestjs/common";
-import type { CategoryKey } from "@iwtr/shared-types";
+import type { CategoryKey, WorkplaceType } from "@iwtr/shared-types";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { ReviewsService } from "../src/modules/reviews/reviews.service";
 import { ModerationService } from "../src/modules/moderation/moderation.service";
@@ -36,6 +36,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // same 2.4-4.2 spread the original hand-picked star demo data had.
 interface DemoReview {
   companyName: string;
+  // Which of the company's (up to 2) workplaceTypes this reviewer is
+  // answering as — must be one of Company.workplaceTypes at submission time
+  // (ReviewsService.submitReview re-validates this).
+  workplaceType: WorkplaceType;
   reviewerEmail: string;
   reviewerDisplayName: string;
   missCounts: Record<CategoryKey, number>;
@@ -45,6 +49,7 @@ interface DemoReview {
 const DEMO_REVIEWS: DemoReview[] = [
   {
     companyName: "Demo Teknoloji A.Ş.",
+    workplaceType: "OFFICE",
     reviewerEmail: "demo-reviewer-1@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 1",
     missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 0, workLifeBalance: 2, stability: 1 },
@@ -52,6 +57,7 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
   {
     companyName: "Örnek Kargo ve Lojistik",
+    workplaceType: "MANUAL_LABOUR",
     reviewerEmail: "demo-reviewer-2@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 2",
     missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 2, workLifeBalance: 2, stability: 2 },
@@ -59,6 +65,7 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
   {
     companyName: "Test Cafe & Restoran",
+    workplaceType: "SERVICE",
     reviewerEmail: "demo-reviewer-3@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 3",
     missCounts: { corporateCulture: 0, leadership: 1, infrastructure: 1, workLifeBalance: 2, stability: 1 },
@@ -66,6 +73,7 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
   {
     companyName: "Placeholder Danışmanlık",
+    workplaceType: "HYBRID_REMOTE",
     reviewerEmail: "demo-reviewer-4@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 4",
     missCounts: { corporateCulture: 1, leadership: 0, infrastructure: 1, workLifeBalance: 1, stability: 2 },
@@ -73,6 +81,7 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
   {
     companyName: "Numune İnşaat",
+    workplaceType: "MANUAL_LABOUR",
     reviewerEmail: "demo-reviewer-5@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 5",
     missCounts: { corporateCulture: 3, leadership: 3, infrastructure: 2, workLifeBalance: 3, stability: 2 },
@@ -80,6 +89,7 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
   {
     companyName: "Demo Finans Holding",
+    workplaceType: "OFFICE",
     reviewerEmail: "demo-reviewer-6@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 6",
     missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 0, workLifeBalance: 2, stability: 0 },
@@ -87,6 +97,7 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
   {
     companyName: "Örnek Perakende Mağazacılık",
+    workplaceType: "SERVICE",
     reviewerEmail: "demo-reviewer-7@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 7",
     missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 2, workLifeBalance: 2, stability: 2 },
@@ -94,13 +105,16 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
   {
     companyName: "Test Yazılım Stüdyosu",
+    workplaceType: "HYBRID_REMOTE",
     reviewerEmail: "demo-reviewer-8@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 8",
     missCounts: { corporateCulture: 0, leadership: 0, infrastructure: 1, workLifeBalance: 2, stability: 1 },
     generalThoughts: "Sample review content for design purposes — small team, lots of ownership.",
   },
   {
+    // SERVICE side of the hospital — a nurse/care-staff perspective.
     companyName: "Placeholder Sağlık Hizmetleri",
+    workplaceType: "SERVICE",
     reviewerEmail: "demo-reviewer-9@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 9",
     missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 1, workLifeBalance: 3, stability: 1 },
@@ -108,10 +122,22 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
   {
     companyName: "Numune Eğitim Kurumları",
+    workplaceType: "OFFICE",
     reviewerEmail: "demo-reviewer-10@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 10",
     missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 2, workLifeBalance: 1, stability: 1 },
     generalThoughts: "Sample review content for design purposes — supportive colleagues.",
+  },
+  {
+    // OFFICE side of the same hospital — an HR/billing perspective. Exists
+    // specifically so the split "What reviewers said" survey-stats UI has
+    // real data on both sides of a 2-type company, not just one.
+    companyName: "Placeholder Sağlık Hizmetleri",
+    workplaceType: "OFFICE",
+    reviewerEmail: "demo-reviewer-11@iwtr.local",
+    reviewerDisplayName: "Demo Reviewer 11",
+    missCounts: { corporateCulture: 2, leadership: 1, infrastructure: 0, workLifeBalance: 1, stability: 2 },
+    generalThoughts: "Sample review content for design purposes — back-office side is much calmer than the floor.",
   },
 ];
 
@@ -176,7 +202,7 @@ async function main() {
       workLifeBalance: 0,
       stability: 0,
     };
-    const answers = getQuestionsFor(company.workplaceType).map((question) => {
+    const answers = getQuestionsFor(demo.workplaceType).map((question) => {
       const alreadyMissed = missSeenByCategory[question.category];
       const shouldMiss = alreadyMissed < demo.missCounts[question.category];
       if (shouldMiss) missSeenByCategory[question.category] += 1;
@@ -190,6 +216,7 @@ async function main() {
       const result = await reviews.submitReview(user.id, {
         companyId: company.id,
         employmentHistoryId: employment.id,
+        workplaceType: demo.workplaceType,
         answers,
         generalThoughts: demo.generalThoughts,
       });
