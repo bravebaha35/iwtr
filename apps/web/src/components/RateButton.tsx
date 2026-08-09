@@ -3,96 +3,91 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
+  CategoryKey,
   CreateReviewInput,
   MyEmploymentEntry,
   MyReview,
   SubmitReviewResult,
+  SurveyAnswer,
+  SurveyQuestion,
   UpdateReviewInput,
+  WorkplaceType,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { RATE_BUTTON_EMOJI } from "@/lib/rateButton";
 
-const CATEGORIES = [
+const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "corporateCulture", label: "Corporate Culture" },
   { key: "leadership", label: "Leadership & Management" },
   { key: "infrastructure", label: "Infrastructure & Resources" },
   { key: "workLifeBalance", label: "Work-Life Balance" },
   { key: "stability", label: "Organizational Stability" },
-] as const;
+];
 
-type CategoryKey = (typeof CATEGORIES)[number]["key"];
-type Scores = Record<CategoryKey, number>;
-type Comments = Record<CategoryKey, string>;
+// One extra step at the end for general thoughts + submit.
+const TOTAL_STEPS = CATEGORIES.length + 1;
 
-const emptyScores: Scores = {
-  corporateCulture: 0,
-  leadership: 0,
-  infrastructure: 0,
-  workLifeBalance: 0,
-  stability: 0,
-};
-const emptyComments: Comments = {
-  corporateCulture: "",
-  leadership: "",
-  infrastructure: "",
-  workLifeBalance: "",
-  stability: "",
-};
+const ANSWER_OPTIONS: { value: SurveyAnswer; label: string }[] = [
+  { value: "YES", label: "Yes" },
+  { value: "NO", label: "No" },
+  { value: "PREFER_NOT_TO_ANSWER", label: "Prefer not to answer" },
+];
 
-function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+function AnswerButtons({
+  value,
+  onChange,
+}: {
+  value: SurveyAnswer | undefined;
+  onChange: (answer: SurveyAnswer) => void;
+}) {
   return (
-    <div className="flex">
-      {[1, 2, 3, 4, 5].map((n) => (
+    <div className="flex flex-wrap gap-2">
+      {ANSWER_OPTIONS.map((opt) => (
         <button
-          key={n}
+          key={opt.value}
           type="button"
-          onClick={() => onChange(n)}
-          className={`text-2xl leading-none transition ${
-            n <= value ? "text-amber-500" : "text-muted-foreground/30 hover:text-amber-500/50"
+          onClick={() => onChange(opt.value)}
+          className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+            value === opt.value
+              ? "border-brand-600 bg-brand-600 text-white"
+              : "border-border text-muted-foreground hover:bg-surface-muted"
           }`}
         >
-          {RATE_BUTTON_EMOJI}
+          {opt.label}
         </button>
       ))}
     </div>
   );
 }
 
-function scoresFromReview(review: MyReview): Scores {
-  return {
-    corporateCulture: review.corporateCultureScore,
-    leadership: review.leadershipScore,
-    infrastructure: review.infrastructureScore,
-    workLifeBalance: review.workLifeBalanceScore,
-    stability: review.stabilityScore,
-  };
-}
-function commentsFromReview(review: MyReview): Comments {
-  return {
-    corporateCulture: review.corporateCultureComment ?? "",
-    leadership: review.leadershipComment ?? "",
-    infrastructure: review.infrastructureComment ?? "",
-    workLifeBalance: review.workLifeBalanceComment ?? "",
-    stability: review.stabilityComment ?? "",
-  };
-}
-
 /**
  * Renders for a visitor who (a) is logged in and (b) has this company in
  * their own employment history — pulled from /me/employment-history, the
- * same data the account-settings page uses. If they've already reviewed it,
- * the button switches to edit mode: it loads their own review (GET
+ * same data the account-settings page uses. Rating is a fixed 25-question
+ * yes/no/prefer-not-to-answer survey (5 questions × 5 categories, specific
+ * to the company's workplaceType) — category scores are computed server-side
+ * from the answers, never picked directly here. If the user already has a
+ * review, the button switches to edit mode: it loads their own review (GET
  * /reviews/:id, owner-only) and PATCHes it instead of POSTing a new one.
  * The star icon (RATE_BUTTON_EMOJI) is a one-file swap for later.
  */
-export function RateButton({ companyId, companySlug }: { companyId: string; companySlug: string }) {
+export function RateButton({
+  companyId,
+  companySlug,
+  workplaceType,
+}: {
+  companyId: string;
+  companySlug: string;
+  workplaceType: WorkplaceType;
+}) {
   const { accessToken } = useAuth();
   const router = useRouter();
   const [matchingEntry, setMatchingEntry] = useState<MyEmploymentEntry | null | undefined>(undefined);
   const [open, setOpen] = useState(false);
-  const [scores, setScores] = useState<Scores>(emptyScores);
-  const [comments, setComments] = useState<Comments>(emptyComments);
+  const [step, setStep] = useState(0);
+  const [questions, setQuestions] = useState<SurveyQuestion[] | null>(null);
+  const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
   const [generalThoughts, setGeneralThoughts] = useState("");
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,56 +109,50 @@ export function RateButton({ companyId, companySlug }: { companyId: string; comp
       .catch(() => setMatchingEntry(null));
   }, [accessToken, companyId]);
 
-  function resetForm() {
-    setScores(emptyScores);
-    setComments(emptyComments);
+  async function handleOpen() {
+    setStep(0);
+    setAnswers({});
     setGeneralThoughts("");
     setError(null);
     setResult(null);
-  }
-
-  async function handleOpen() {
-    resetForm();
     setOpen(true);
-    if (matchingEntry?.reviewId) {
-      setLoadingExisting(true);
-      try {
+    setLoadingExisting(true);
+    try {
+      const questionSet = await apiGet<SurveyQuestion[]>(
+        `/reviews/survey/${workplaceType}`,
+        accessToken ?? undefined,
+      );
+      setQuestions(questionSet);
+
+      if (matchingEntry?.reviewId) {
         const review = await apiGet<MyReview>(`/reviews/${matchingEntry.reviewId}`, accessToken ?? undefined);
-        setScores(scoresFromReview(review));
-        setComments(commentsFromReview(review));
+        setAnswers(review.surveyAnswers);
         setGeneralThoughts(review.generalThoughts ?? "");
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Couldn't load your existing rating.");
-      } finally {
-        setLoadingExisting(false);
       }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't load the rating survey.");
+    } finally {
+      setLoadingExisting(false);
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!matchingEntry) return;
-    const missing = CATEGORIES.some((c) => scores[c.key] === 0);
-    if (missing) {
-      setError("Please rate every category before submitting.");
-      return;
-    }
+  function questionsFor(category: CategoryKey): SurveyQuestion[] {
+    return (questions ?? []).filter((q) => q.category === category);
+  }
+
+  const onFinalStep = step === CATEGORIES.length;
+  const currentCategory = onFinalStep ? null : CATEGORIES[step];
+  const currentStepAnswered = currentCategory
+    ? questionsFor(currentCategory.key).every((q) => answers[q.id] !== undefined)
+    : true;
+
+  async function handleSubmit() {
+    if (!matchingEntry || !questions) return;
     setError(null);
     setSubmitting(true);
     try {
-      const content = {
-        corporateCultureScore: scores.corporateCulture,
-        corporateCultureComment: comments.corporateCulture.trim() || undefined,
-        leadershipScore: scores.leadership,
-        leadershipComment: comments.leadership.trim() || undefined,
-        infrastructureScore: scores.infrastructure,
-        infrastructureComment: comments.infrastructure.trim() || undefined,
-        workLifeBalanceScore: scores.workLifeBalance,
-        workLifeBalanceComment: comments.workLifeBalance.trim() || undefined,
-        stabilityScore: scores.stability,
-        stabilityComment: comments.stability.trim() || undefined,
-        generalThoughts: generalThoughts.trim() || undefined,
-      };
+      const answerList = questions.map((q) => ({ questionId: q.id, answer: answers[q.id] }));
+      const content = { answers: answerList, generalThoughts: generalThoughts.trim() || undefined };
       const res = matchingEntry.reviewId
         ? await apiPatch<SubmitReviewResult>(
             `/reviews/${matchingEntry.reviewId}`,
@@ -202,7 +191,15 @@ export function RateButton({ companyId, companySlug }: { companyId: string; comp
             {result ? (
               <>
                 <h2 className="mb-2 text-xl font-bold text-foreground">{editing ? "Updated!" : "Thanks!"}</h2>
-                <p className="mb-6 text-sm text-muted-foreground">{result.message}</p>
+                <p className="mb-4 text-sm text-muted-foreground">{result.message}</p>
+                <ul className="mb-6 flex flex-col gap-1 text-sm">
+                  {CATEGORIES.map((c) => (
+                    <li key={c.key} className="flex justify-between text-foreground">
+                      <span>{c.label}</span>
+                      <span className="font-medium">{result.scores[c.key]}/5</span>
+                    </li>
+                  ))}
+                </ul>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
@@ -211,58 +208,83 @@ export function RateButton({ companyId, companySlug }: { companyId: string; comp
                   Done
                 </button>
               </>
-            ) : loadingExisting ? (
-              <p className="text-sm text-muted-foreground">Loading your rating...</p>
+            ) : loadingExisting || !questions ? (
+              <p className="text-sm text-muted-foreground">Loading survey...</p>
             ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4">
                 <div>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">
+                    Step {step + 1} of {TOTAL_STEPS}
+                  </p>
                   <h2 className="mb-1 text-xl font-bold text-foreground">
-                    {editing ? "Edit your rating for" : "Rate"} {companySlug.replace(/-/g, " ")}
+                    {onFinalStep
+                      ? "Anything else to add?"
+                      : `${editing ? "Edit your rating for" : "Rate"} ${companySlug.replace(/-/g, " ")}`}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Anonymous — this is never linked back to you. Comments are optional per category.
+                    {onFinalStep
+                      ? "Optional — anonymous, never linked back to you."
+                      : currentCategory?.label}
                   </p>
                 </div>
 
-                {CATEGORIES.map((c) => (
-                  <div key={c.key} className="border-t border-border pt-3">
-                    <div className="mb-1 flex items-center justify-between">
-                      <p className="text-sm font-medium text-foreground">{c.label}</p>
-                      <StarPicker
-                        value={scores[c.key]}
-                        onChange={(n) => setScores((prev) => ({ ...prev, [c.key]: n }))}
-                      />
-                    </div>
+                {!onFinalStep && currentCategory && (
+                  <div className="flex flex-col gap-4">
+                    {questionsFor(currentCategory.key).map((q) => (
+                      <div key={q.id} className="border-t border-border pt-3">
+                        <p className="mb-2 text-sm text-foreground">{q.text}</p>
+                        <AnswerButtons
+                          value={answers[q.id]}
+                          onChange={(answer) => setAnswers((prev) => ({ ...prev, [q.id]: answer }))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {onFinalStep && (
+                  <div className="border-t border-border pt-3">
                     <textarea
-                      value={comments[c.key]}
-                      onChange={(e) => setComments((prev) => ({ ...prev, [c.key]: e.target.value }))}
+                      value={generalThoughts}
+                      onChange={(e) => setGeneralThoughts(e.target.value)}
                       placeholder="Optional comment..."
-                      rows={2}
+                      rows={4}
                       className="w-full rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
                     />
                   </div>
-                ))}
-
-                <div className="border-t border-border pt-3">
-                  <p className="mb-1 text-sm font-medium text-foreground">General thoughts (optional)</p>
-                  <textarea
-                    value={generalThoughts}
-                    onChange={(e) => setGeneralThoughts(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
-                  />
-                </div>
+                )}
 
                 {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
                 <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-                  >
-                    {submitting ? "Saving..." : editing ? "Save changes" : "Submit review"}
-                  </button>
+                  {step > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setStep((s) => s - 1)}
+                      className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+                    >
+                      Back
+                    </button>
+                  )}
+                  {onFinalStep ? (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                    >
+                      {submitting ? "Saving..." : editing ? "Save changes" : "Submit review"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setStep((s) => s + 1)}
+                      disabled={!currentStepAnswered}
+                      className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
@@ -271,7 +293,7 @@ export function RateButton({ companyId, companySlug }: { companyId: string; comp
                     Cancel
                   </button>
                 </div>
-              </form>
+              </div>
             )}
           </div>
         </div>

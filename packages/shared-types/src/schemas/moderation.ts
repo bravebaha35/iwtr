@@ -54,15 +54,10 @@ export const adminQueueItemSchema = z.object({
   companyName: z.string(),
   review: z.object({
     corporateCultureScore: z.number(),
-    corporateCultureComment: z.string().nullable(),
     leadershipScore: z.number(),
-    leadershipComment: z.string().nullable(),
     infrastructureScore: z.number(),
-    infrastructureComment: z.string().nullable(),
     workLifeBalanceScore: z.number(),
-    workLifeBalanceComment: z.string().nullable(),
     stabilityScore: z.number(),
-    stabilityComment: z.string().nullable(),
     generalThoughts: z.string().nullable(),
   }),
 });

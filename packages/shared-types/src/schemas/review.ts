@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { workplaceTypeSchema } from "./company";
 
 export const reviewStatusSchema = z.enum([
   "PENDING_MODERATION",
@@ -8,23 +9,52 @@ export const reviewStatusSchema = z.enum([
 ]);
 export type ReviewStatus = z.infer<typeof reviewStatusSchema>;
 
-const starScore = z.number().int().min(1).max(5);
+// A computed 0-5 category score — no longer picked directly by the reviewer,
+// derived server-side from how many of that category's 5 survey questions
+// were answered "correctly" (see apps/api's ReviewsService.scoreAnswers).
+// 0 is a valid score now (all 5 missed), unlike the old free-pick 1-5 range.
+const categoryScore = z.number().int().min(0).max(5);
+
+export const categoryKeySchema = z.enum([
+  "corporateCulture",
+  "leadership",
+  "infrastructure",
+  "workLifeBalance",
+  "stability",
+]);
+export type CategoryKey = z.infer<typeof categoryKeySchema>;
+
+export const surveyAnswerSchema = z.enum(["YES", "NO", "PREFER_NOT_TO_ANSWER"]);
+export type SurveyAnswer = z.infer<typeof surveyAnswerSchema>;
+
+// The public (no answer key) shape of a survey question — what the client
+// renders. The full question bank including each question's correct answer
+// lives only in apps/api (survey-questions.data.ts) and is never sent to the
+// client; scoring always happens server-side.
+export const surveyQuestionSchema = z.object({
+  id: z.string(),
+  category: categoryKeySchema,
+  text: z.string(),
+});
+export type SurveyQuestion = z.infer<typeof surveyQuestionSchema>;
+
+export const surveyQuestionSetSchema = z.array(surveyQuestionSchema).length(25);
+export type SurveyQuestionSet = z.infer<typeof surveyQuestionSetSchema>;
+
+export const surveyResponseSchema = z.object({
+  questionId: z.string(),
+  answer: surveyAnswerSchema,
+});
+export type SurveyResponse = z.infer<typeof surveyResponseSchema>;
 
 export const createReviewInputSchema = z.object({
   companyId: z.string().uuid(),
   // Must be an EmploymentHistory row owned by the caller and matching companyId;
   // the server re-validates this regardless of what the client sends.
   employmentHistoryId: z.string().uuid(),
-  corporateCultureScore: starScore,
-  corporateCultureComment: z.string().max(2000).optional(),
-  leadershipScore: starScore,
-  leadershipComment: z.string().max(2000).optional(),
-  infrastructureScore: starScore,
-  infrastructureComment: z.string().max(2000).optional(),
-  workLifeBalanceScore: starScore,
-  workLifeBalanceComment: z.string().max(2000).optional(),
-  stabilityScore: starScore,
-  stabilityComment: z.string().max(2000).optional(),
+  // Must cover exactly the 25 question ids for the company's workplaceType —
+  // the server re-validates this too (see ReviewsService.scoreAnswers).
+  answers: z.array(surveyResponseSchema).length(25),
   generalThoughts: z.string().max(4000).optional(),
 });
 export type CreateReviewInput = z.infer<typeof createReviewInputSchema>;
@@ -44,16 +74,11 @@ export type UpdateReviewInput = z.infer<typeof updateReviewInputSchema>;
 export const publicReviewSchema = z.object({
   id: z.string().uuid(),
   companyId: z.string().uuid(),
-  corporateCultureScore: starScore,
-  corporateCultureComment: z.string().nullable(),
-  leadershipScore: starScore,
-  leadershipComment: z.string().nullable(),
-  infrastructureScore: starScore,
-  infrastructureComment: z.string().nullable(),
-  workLifeBalanceScore: starScore,
-  workLifeBalanceComment: z.string().nullable(),
-  stabilityScore: starScore,
-  stabilityComment: z.string().nullable(),
+  corporateCultureScore: categoryScore,
+  leadershipScore: categoryScore,
+  infrastructureScore: categoryScore,
+  workLifeBalanceScore: categoryScore,
+  stabilityScore: categoryScore,
   generalThoughts: z.string().nullable(),
   status: reviewStatusSchema,
   publishedAt: z.string().datetime().nullable(),
@@ -95,10 +120,22 @@ export const voteEligibilitySchema = z.object({
 });
 export type VoteEligibility = z.infer<typeof voteEligibilitySchema>;
 
+export const categoryScoresSchema = z.object({
+  corporateCulture: categoryScore,
+  leadership: categoryScore,
+  infrastructure: categoryScore,
+  workLifeBalance: categoryScore,
+  stability: categoryScore,
+});
+export type CategoryScores = z.infer<typeof categoryScoresSchema>;
+
 export const submitReviewResultSchema = z.object({
   reviewId: z.string().uuid(),
   status: reviewStatusSchema,
   message: z.string(),
+  // The just-computed category scores, so the post-submit screen can show a
+  // quick recap without a second round trip.
+  scores: categoryScoresSchema,
 });
 export type SubmitReviewResult = z.infer<typeof submitReviewResultSchema>;
 
@@ -121,20 +158,18 @@ export type MyEmploymentEntry = z.infer<typeof myEmploymentEntrySchema>;
 // The reviewer's own view of their review — unlike PublicReview, this is
 // never shown to anyone else, so it's fine to include non-published statuses
 // (PENDING_MODERATION/PENDING_ADMIN_REVIEW/REJECTED) so the edit form can
-// explain why a review isn't live.
+// explain why a review isn't live. surveyAnswers lets the edit form reload
+// exactly what was answered before.
 export const myReviewSchema = z.object({
   id: z.string().uuid(),
   companyId: z.string().uuid(),
-  corporateCultureScore: starScore,
-  corporateCultureComment: z.string().nullable(),
-  leadershipScore: starScore,
-  leadershipComment: z.string().nullable(),
-  infrastructureScore: starScore,
-  infrastructureComment: z.string().nullable(),
-  workLifeBalanceScore: starScore,
-  workLifeBalanceComment: z.string().nullable(),
-  stabilityScore: starScore,
-  stabilityComment: z.string().nullable(),
+  workplaceType: workplaceTypeSchema,
+  corporateCultureScore: categoryScore,
+  leadershipScore: categoryScore,
+  infrastructureScore: categoryScore,
+  workLifeBalanceScore: categoryScore,
+  stabilityScore: categoryScore,
+  surveyAnswers: z.record(z.string(), surveyAnswerSchema),
   generalThoughts: z.string().nullable(),
   status: reviewStatusSchema,
 });

@@ -10,18 +10,23 @@ import type {
   AddEmploymentHistoryInput,
   CastVoteInput,
   CastVoteResult,
+  CategoryScores,
   CreateReviewInput,
   MyEmploymentEntry,
   MyReview,
   PublicReview,
   SubmitReviewResult,
+  SurveyAnswer,
+  SurveyResponse,
   UpdateEmploymentHistoryInput,
   UpdateReviewInput,
   VoteEligibility,
+  WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
+import { getQuestionsFor } from "./survey-questions.data";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
 const MID_THRESHOLD = 0.5;
@@ -162,6 +167,51 @@ export class ReviewsService {
     await this.prisma.employmentHistory.delete({ where: { id: entryId } });
   }
 
+  /**
+   * Scores a submitted survey against the question bank for a workplaceType.
+   * A category's score is simply how many of its 5 questions were answered
+   * with that question's predefined "correct" answer (0-5) — "prefer not to
+   * answer" and the non-correct choice both score 0, same as a miss. Rejects
+   * (400) anything that doesn't cover exactly that workplaceType's question
+   * set, so a stale/tampered client can't submit a partial or mismatched
+   * survey. Never trusts a client-computed score — this is the only place
+   * scores are produced.
+   */
+  private scoreAnswers(
+    workplaceType: WorkplaceType,
+    answers: SurveyResponse[],
+  ): { scores: CategoryScores; surveyAnswers: Record<string, SurveyAnswer> } {
+    const questions = getQuestionsFor(workplaceType);
+    const answerByQuestionId = new Map(answers.map((a) => [a.questionId, a.answer]));
+
+    const validShape =
+      answers.length === questions.length &&
+      answerByQuestionId.size === questions.length &&
+      questions.every((question) => answerByQuestionId.has(question.id));
+
+    if (!validShape) {
+      throw new BadRequestException("Survey answers don't match this workplace type's question set");
+    }
+
+    const surveyAnswers: Record<string, SurveyAnswer> = {};
+    const scores: CategoryScores = {
+      corporateCulture: 0,
+      leadership: 0,
+      infrastructure: 0,
+      workLifeBalance: 0,
+      stability: 0,
+    };
+    for (const question of questions) {
+      const answer = answerByQuestionId.get(question.id)!;
+      surveyAnswers[question.id] = answer;
+      if (answer === question.correctAnswer) {
+        scores[question.category] += 1;
+      }
+    }
+
+    return { scores, surveyAnswers };
+  }
+
   async submitReview(userId: string, input: CreateReviewInput): Promise<SubmitReviewResult> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (user.status !== "ACTIVE") {
@@ -170,8 +220,9 @@ export class ReviewsService {
 
     const employment = await this.prisma.employmentHistory.findUnique({
       where: { id: input.employmentHistoryId },
+      include: { company: true },
     });
-    if (!employment || employment.userId !== userId || employment.companyId !== input.companyId) {
+    if (!employment || employment.userId !== userId || employment.companyId !== input.companyId || !employment.company) {
       throw new ForbiddenException(
         "You can only rate a company that appears in your own employment history",
       );
@@ -184,20 +235,15 @@ export class ReviewsService {
       throw new ConflictException("You have already reviewed this company");
     }
 
+    const { scores, surveyAnswers } = this.scoreAnswers(employment.company.workplaceType, input.answers);
+
     const [priorPublished, priorRejected] = await Promise.all([
       this.prisma.review.count({ where: { userId, status: "PUBLISHED" } }),
       this.prisma.review.count({ where: { userId, status: "REJECTED" } }),
     ]);
 
     const { status, queueReason, contentCheck, trustScore } = this.runModerationPipeline(
-      [
-        input.corporateCultureComment ?? "",
-        input.leadershipComment ?? "",
-        input.infrastructureComment ?? "",
-        input.workLifeBalanceComment ?? "",
-        input.stabilityComment ?? "",
-        input.generalThoughts ?? "",
-      ],
+      [input.generalThoughts ?? ""],
       employment,
       user,
       priorPublished,
@@ -209,16 +255,12 @@ export class ReviewsService {
         userId,
         companyId: input.companyId,
         employmentHistoryId: input.employmentHistoryId,
-        corporateCultureScore: input.corporateCultureScore,
-        corporateCultureComment: input.corporateCultureComment,
-        leadershipScore: input.leadershipScore,
-        leadershipComment: input.leadershipComment,
-        infrastructureScore: input.infrastructureScore,
-        infrastructureComment: input.infrastructureComment,
-        workLifeBalanceScore: input.workLifeBalanceScore,
-        workLifeBalanceComment: input.workLifeBalanceComment,
-        stabilityScore: input.stabilityScore,
-        stabilityComment: input.stabilityComment,
+        corporateCultureScore: scores.corporateCulture,
+        leadershipScore: scores.leadership,
+        infrastructureScore: scores.infrastructure,
+        workLifeBalanceScore: scores.workLifeBalance,
+        stabilityScore: scores.stability,
+        surveyAnswers,
         generalThoughts: input.generalThoughts,
         status,
         aiModerationScore: contentCheck.confidence,
@@ -252,6 +294,7 @@ export class ReviewsService {
         status === "PUBLISHED"
           ? "Your review is live."
           : "Your review is being reviewed before publishing. This usually takes a short while.",
+      scores,
     };
   }
 
@@ -259,7 +302,9 @@ export class ReviewsService {
    * Shared by submitReview and updateReview so a re-submitted (edited) review
    * is scored by exactly the same rules as a brand-new one — this logic is
    * the anonymous-routing decision REVIEW.md flags as critical-severity, so
-   * it must not drift into two copies.
+   * it must not drift into two copies. `comments` is just `[generalThoughts]`
+   * now that per-category free text is gone — survey answers are fixed
+   * choices, so they can never trip the content-rule checks.
    */
   private runModerationPipeline(
     comments: string[],
@@ -314,7 +359,10 @@ export class ReviewsService {
 
   /** Owner-only — never exposed to anyone but the review's author. */
   async getMyReview(userId: string, reviewId: string): Promise<MyReview> {
-    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      include: { company: true },
+    });
     if (!review || review.userId !== userId) {
       throw new NotFoundException("Review not found");
     }
@@ -322,16 +370,13 @@ export class ReviewsService {
     return {
       id: review.id,
       companyId: review.companyId,
+      workplaceType: review.company.workplaceType,
       corporateCultureScore: review.corporateCultureScore,
-      corporateCultureComment: review.corporateCultureComment,
       leadershipScore: review.leadershipScore,
-      leadershipComment: review.leadershipComment,
       infrastructureScore: review.infrastructureScore,
-      infrastructureComment: review.infrastructureComment,
       workLifeBalanceScore: review.workLifeBalanceScore,
-      workLifeBalanceComment: review.workLifeBalanceComment,
       stabilityScore: review.stabilityScore,
-      stabilityComment: review.stabilityComment,
+      surveyAnswers: review.surveyAnswers as Record<string, SurveyAnswer>,
       generalThoughts: review.generalThoughts,
       status: review.status,
     };
@@ -339,9 +384,9 @@ export class ReviewsService {
 
   /**
    * Re-scores edited content through the same pipeline a new submission gets
-   * (see runModerationPipeline) rather than just patching the row, since
-   * changed comments/scores could change whether the review should still be
-   * auto-published. The company's aggregate is recomputed whenever the
+   * (see runModerationPipeline/scoreAnswers) rather than just patching the
+   * row, since a changed survey could change whether the review should still
+   * be auto-published. The company's aggregate is recomputed whenever the
    * review is (or was, before this edit) PUBLISHED, so an edit that changes
    * scores — or pulls a review out of/into the published set — is reflected
    * immediately.
@@ -354,7 +399,7 @@ export class ReviewsService {
 
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
-      include: { employmentHistory: true },
+      include: { employmentHistory: true, company: true },
     });
     if (!review || review.userId !== userId) {
       throw new NotFoundException("Review not found");
@@ -362,20 +407,15 @@ export class ReviewsService {
 
     const wasPublished = review.status === "PUBLISHED";
 
+    const { scores, surveyAnswers } = this.scoreAnswers(review.company.workplaceType, input.answers);
+
     const [priorPublished, priorRejected] = await Promise.all([
       this.prisma.review.count({ where: { userId, status: "PUBLISHED", id: { not: reviewId } } }),
       this.prisma.review.count({ where: { userId, status: "REJECTED", id: { not: reviewId } } }),
     ]);
 
     const { status, queueReason, contentCheck, trustScore } = this.runModerationPipeline(
-      [
-        input.corporateCultureComment ?? "",
-        input.leadershipComment ?? "",
-        input.infrastructureComment ?? "",
-        input.workLifeBalanceComment ?? "",
-        input.stabilityComment ?? "",
-        input.generalThoughts ?? "",
-      ],
+      [input.generalThoughts ?? ""],
       review.employmentHistory,
       user,
       priorPublished,
@@ -385,16 +425,12 @@ export class ReviewsService {
     await this.prisma.review.update({
       where: { id: reviewId },
       data: {
-        corporateCultureScore: input.corporateCultureScore,
-        corporateCultureComment: input.corporateCultureComment,
-        leadershipScore: input.leadershipScore,
-        leadershipComment: input.leadershipComment,
-        infrastructureScore: input.infrastructureScore,
-        infrastructureComment: input.infrastructureComment,
-        workLifeBalanceScore: input.workLifeBalanceScore,
-        workLifeBalanceComment: input.workLifeBalanceComment,
-        stabilityScore: input.stabilityScore,
-        stabilityComment: input.stabilityComment,
+        corporateCultureScore: scores.corporateCulture,
+        leadershipScore: scores.leadership,
+        infrastructureScore: scores.infrastructure,
+        workLifeBalanceScore: scores.workLifeBalance,
+        stabilityScore: scores.stability,
+        surveyAnswers,
         generalThoughts: input.generalThoughts,
         status,
         aiModerationScore: contentCheck.confidence,
@@ -431,6 +467,7 @@ export class ReviewsService {
         status === "PUBLISHED"
           ? "Your review is live."
           : "Your review is being reviewed before publishing. This usually takes a short while.",
+      scores,
     };
   }
 
@@ -538,15 +575,10 @@ export class ReviewsService {
       id: r.id,
       companyId: r.companyId,
       corporateCultureScore: r.corporateCultureScore,
-      corporateCultureComment: r.corporateCultureComment,
       leadershipScore: r.leadershipScore,
-      leadershipComment: r.leadershipComment,
       infrastructureScore: r.infrastructureScore,
-      infrastructureComment: r.infrastructureComment,
       workLifeBalanceScore: r.workLifeBalanceScore,
-      workLifeBalanceComment: r.workLifeBalanceComment,
       stabilityScore: r.stabilityScore,
-      stabilityComment: r.stabilityComment,
       generalThoughts: r.generalThoughts,
       status: r.status,
       publishedAt: r.publishedAt?.toISOString() ?? null,

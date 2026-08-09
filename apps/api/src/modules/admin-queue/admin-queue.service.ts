@@ -29,15 +29,10 @@ export class AdminQueueService {
       companyName: item.review.company.name,
       review: {
         corporateCultureScore: item.review.corporateCultureScore,
-        corporateCultureComment: item.review.corporateCultureComment,
         leadershipScore: item.review.leadershipScore,
-        leadershipComment: item.review.leadershipComment,
         infrastructureScore: item.review.infrastructureScore,
-        infrastructureComment: item.review.infrastructureComment,
         workLifeBalanceScore: item.review.workLifeBalanceScore,
-        workLifeBalanceComment: item.review.workLifeBalanceComment,
         stabilityScore: item.review.stabilityScore,
-        stabilityComment: item.review.stabilityComment,
         generalThoughts: item.review.generalThoughts,
       },
     }));

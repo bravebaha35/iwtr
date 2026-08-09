@@ -5,12 +5,12 @@ import type { PublicReview, VoteEligibility, VoteValue } from "@iwtr/shared-type
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 
-const CATEGORY_FIELDS: { score: keyof PublicReview; comment: keyof PublicReview; label: string }[] = [
-  { score: "corporateCultureScore", comment: "corporateCultureComment", label: "Corporate Culture" },
-  { score: "leadershipScore", comment: "leadershipComment", label: "Leadership & Management" },
-  { score: "infrastructureScore", comment: "infrastructureComment", label: "Infrastructure & Resources" },
-  { score: "workLifeBalanceScore", comment: "workLifeBalanceComment", label: "Work-Life Balance" },
-  { score: "stabilityScore", comment: "stabilityComment", label: "Organizational Stability" },
+const CATEGORY_FIELDS: { score: keyof PublicReview; label: string }[] = [
+  { score: "corporateCultureScore", label: "Corporate Culture" },
+  { score: "leadershipScore", label: "Leadership & Management" },
+  { score: "infrastructureScore", label: "Infrastructure & Resources" },
+  { score: "workLifeBalanceScore", label: "Work-Life Balance" },
+  { score: "stabilityScore", label: "Organizational Stability" },
 ];
 
 export function ReviewsList({ companySlug }: { companySlug: string }) {
@@ -105,7 +105,6 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
                 <span className="font-medium text-foreground">
                   {f.label}: {String(review[f.score])}/5
                 </span>
-                {review[f.comment] && <span> &mdash; {String(review[f.comment])}</span>}
               </div>
             ))}
             {review.generalThoughts && (

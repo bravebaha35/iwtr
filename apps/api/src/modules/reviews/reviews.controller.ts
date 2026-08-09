@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import {
   addEmploymentHistoryInputSchema,
   castVoteInputSchema,
   createReviewInputSchema,
   updateEmploymentHistoryInputSchema,
   updateReviewInputSchema,
+  workplaceTypeSchema,
   type AddEmploymentHistoryInput,
   type CastVoteInput,
   type CreateReviewInput,
@@ -16,6 +17,7 @@ import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { ReviewsService } from "./reviews.service";
+import { getPublicQuestionsFor } from "./survey-questions.data";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -48,6 +50,19 @@ export class ReviewsController {
   async deleteEmploymentHistory(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
     await this.reviews.deleteEmploymentHistory(user.id, id);
     return { success: true };
+  }
+
+  // Behind the same JwtAuthGuard as the rest of this controller — question
+  // text isn't sensitive on its own, but there's no existing bypass-auth
+  // decorator in this codebase and RateButton only ever calls this while
+  // already logged in, so reusing the guard is simpler than adding one.
+  @Get("reviews/survey/:workplaceType")
+  getSurveyQuestions(@Param("workplaceType") workplaceType: string) {
+    const parsed = workplaceTypeSchema.safeParse(workplaceType);
+    if (!parsed.success) {
+      throw new BadRequestException("Unknown workplace type");
+    }
+    return getPublicQuestionsFor(parsed.data);
   }
 
   @Post("reviews")

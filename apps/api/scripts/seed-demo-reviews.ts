@@ -1,6 +1,9 @@
 // Gives each demo company (see reset-to-demo-companies.ts) one published
 // demo review, so company cards/pages have a rating to look at (and to edit,
 // via the new PATCH /reviews/:id endpoint) while the frontend is designed.
+// Submits a full 25-question survey per company — matching that company's
+// workplaceType question set — rather than raw scores, since scores are now
+// always computed server-side from answers (see ReviewsService.scoreAnswers).
 //
 // Creates one throwaway reviewer account per company — backdated 60 days so
 // ModerationService.scoreTrust's "account_older_than_7_days" bonus applies,
@@ -18,24 +21,24 @@
 
 import "dotenv/config";
 import { ConflictException } from "@nestjs/common";
+import type { CategoryKey } from "@iwtr/shared-types";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { ReviewsService } from "../src/modules/reviews/reviews.service";
 import { ModerationService } from "../src/modules/moderation/moderation.service";
 import { PiiVaultService } from "../src/modules/pii-vault/pii-vault.service";
+import { getQuestionsFor } from "../src/modules/reviews/survey-questions.data";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// How many of each category's 5 questions this reviewer gets "wrong" (the
+// opposite of the question's correct answer) — the rest are answered
+// correctly. Chosen to land each company's overall average in roughly the
+// same 2.4-4.2 spread the original hand-picked star demo data had.
 interface DemoReview {
   companyName: string;
   reviewerEmail: string;
   reviewerDisplayName: string;
-  scores: {
-    corporateCulture: number;
-    leadership: number;
-    infrastructure: number;
-    workLifeBalance: number;
-    stability: number;
-  };
+  missCounts: Record<CategoryKey, number>;
   generalThoughts: string;
 }
 
@@ -44,73 +47,77 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Demo Teknoloji A.Ş.",
     reviewerEmail: "demo-reviewer-1@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 1",
-    scores: { corporateCulture: 4, leadership: 4, infrastructure: 5, workLifeBalance: 3, stability: 4 },
+    missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 0, workLifeBalance: 2, stability: 1 },
     generalThoughts: "Sample review content for design purposes — good team, occasionally long hours.",
   },
   {
     companyName: "Örnek Kargo ve Lojistik",
     reviewerEmail: "demo-reviewer-2@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 2",
-    scores: { corporateCulture: 3, leadership: 3, infrastructure: 3, workLifeBalance: 2, stability: 4 },
+    missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 2, workLifeBalance: 2, stability: 2 },
     generalThoughts: "Sample review content for design purposes — physically demanding but steady work.",
   },
   {
     companyName: "Test Cafe & Restoran",
     reviewerEmail: "demo-reviewer-3@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 3",
-    scores: { corporateCulture: 5, leadership: 4, infrastructure: 4, workLifeBalance: 4, stability: 3 },
+    missCounts: { corporateCulture: 0, leadership: 1, infrastructure: 1, workLifeBalance: 2, stability: 1 },
     generalThoughts: "Sample review content for design purposes — friendly place, tips were fair.",
   },
   {
     companyName: "Placeholder Danışmanlık",
     reviewerEmail: "demo-reviewer-4@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 4",
-    scores: { corporateCulture: 4, leadership: 5, infrastructure: 3, workLifeBalance: 5, stability: 3 },
+    missCounts: { corporateCulture: 1, leadership: 0, infrastructure: 1, workLifeBalance: 1, stability: 2 },
     generalThoughts: "Sample review content for design purposes — fully remote, great flexibility.",
   },
   {
     companyName: "Numune İnşaat",
     reviewerEmail: "demo-reviewer-5@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 5",
-    scores: { corporateCulture: 2, leadership: 2, infrastructure: 3, workLifeBalance: 2, stability: 3 },
+    missCounts: { corporateCulture: 3, leadership: 3, infrastructure: 2, workLifeBalance: 3, stability: 2 },
     generalThoughts: "Sample review content for design purposes — safety gear was inconsistent.",
   },
   {
     companyName: "Demo Finans Holding",
     reviewerEmail: "demo-reviewer-6@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 6",
-    scores: { corporateCulture: 4, leadership: 3, infrastructure: 5, workLifeBalance: 3, stability: 5 },
+    missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 0, workLifeBalance: 2, stability: 0 },
     generalThoughts: "Sample review content for design purposes — very stable, formal culture.",
   },
   {
     companyName: "Örnek Perakende Mağazacılık",
     reviewerEmail: "demo-reviewer-7@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 7",
-    scores: { corporateCulture: 3, leadership: 3, infrastructure: 3, workLifeBalance: 3, stability: 3 },
+    missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 2, workLifeBalance: 2, stability: 2 },
     generalThoughts: "Sample review content for design purposes — pretty average all around.",
   },
   {
     companyName: "Test Yazılım Stüdyosu",
     reviewerEmail: "demo-reviewer-8@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 8",
-    scores: { corporateCulture: 5, leadership: 5, infrastructure: 4, workLifeBalance: 4, stability: 3 },
+    missCounts: { corporateCulture: 0, leadership: 0, infrastructure: 1, workLifeBalance: 2, stability: 1 },
     generalThoughts: "Sample review content for design purposes — small team, lots of ownership.",
   },
   {
     companyName: "Placeholder Sağlık Hizmetleri",
     reviewerEmail: "demo-reviewer-9@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 9",
-    scores: { corporateCulture: 4, leadership: 4, infrastructure: 4, workLifeBalance: 2, stability: 4 },
+    missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 1, workLifeBalance: 3, stability: 1 },
     generalThoughts: "Sample review content for design purposes — rewarding but exhausting shifts.",
   },
   {
     companyName: "Numune Eğitim Kurumları",
     reviewerEmail: "demo-reviewer-10@iwtr.local",
     reviewerDisplayName: "Demo Reviewer 10",
-    scores: { corporateCulture: 4, leadership: 3, infrastructure: 3, workLifeBalance: 4, stability: 4 },
+    missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 2, workLifeBalance: 1, stability: 1 },
     generalThoughts: "Sample review content for design purposes — supportive colleagues.",
   },
 ];
+
+function oppositeAnswer(correct: "YES" | "NO"): "YES" | "NO" {
+  return correct === "YES" ? "NO" : "YES";
+}
 
 async function main() {
   const prisma = new PrismaService();
@@ -160,15 +167,30 @@ async function main() {
       });
     }
 
+    // Miss the FIRST N questions of each category (deterministic, simple —
+    // order within a category doesn't carry meaning), correct the rest.
+    const missSeenByCategory: Record<CategoryKey, number> = {
+      corporateCulture: 0,
+      leadership: 0,
+      infrastructure: 0,
+      workLifeBalance: 0,
+      stability: 0,
+    };
+    const answers = getQuestionsFor(company.workplaceType).map((question) => {
+      const alreadyMissed = missSeenByCategory[question.category];
+      const shouldMiss = alreadyMissed < demo.missCounts[question.category];
+      if (shouldMiss) missSeenByCategory[question.category] += 1;
+      return {
+        questionId: question.id,
+        answer: shouldMiss ? oppositeAnswer(question.correctAnswer) : question.correctAnswer,
+      };
+    });
+
     try {
       const result = await reviews.submitReview(user.id, {
         companyId: company.id,
         employmentHistoryId: employment.id,
-        corporateCultureScore: demo.scores.corporateCulture,
-        leadershipScore: demo.scores.leadership,
-        infrastructureScore: demo.scores.infrastructure,
-        workLifeBalanceScore: demo.scores.workLifeBalance,
-        stabilityScore: demo.scores.stability,
+        answers,
         generalThoughts: demo.generalThoughts,
       });
       console.log(`  ${demo.companyName}: ${result.status} (${demo.reviewerEmail})`);

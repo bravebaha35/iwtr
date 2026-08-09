@@ -269,17 +269,18 @@ model Review {
   employmentHistoryId String
   employmentHistory   EmploymentHistory @relation(fields: [employmentHistoryId], references: [id])
 
-  corporateCultureScore   Int
-  corporateCultureComment String?
-  leadershipScore         Int
-  leadershipComment       String?
-  infrastructureScore     Int
-  infrastructureComment   String?
-  workLifeBalanceScore    Int
-  workLifeBalanceComment  String?
-  stabilityScore          Int
-  stabilityComment        String?
-  generalThoughts         String?
+  // 0-5, computed server-side from surveyAnswers — never picked directly by
+  // the reviewer. See ReviewsService.scoreAnswers.
+  corporateCultureScore Int
+  leadershipScore       Int
+  infrastructureScore   Int
+  workLifeBalanceScore  Int
+  stabilityScore        Int
+  // Raw { [questionId]: "YES" | "NO" | "PREFER_NOT_TO_ANSWER" } the reviewer
+  // submitted, keyed by the stable ids in survey-questions.data.ts. Kept so
+  // an edit can reload prior answers and so scores are always re-derivable.
+  surveyAnswers Json
+  generalThoughts String?
 
   status            ReviewStatus @default(PENDING_MODERATION)
   aiModerationScore Float?

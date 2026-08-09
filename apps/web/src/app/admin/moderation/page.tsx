@@ -5,12 +5,12 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 import type { AdminQueueItem } from "@iwtr/shared-types";
 
-const CATEGORY_FIELDS: { score: keyof AdminQueueItem["review"]; comment: keyof AdminQueueItem["review"]; label: string }[] = [
-  { score: "corporateCultureScore", comment: "corporateCultureComment", label: "Corporate Culture" },
-  { score: "leadershipScore", comment: "leadershipComment", label: "Leadership & Management" },
-  { score: "infrastructureScore", comment: "infrastructureComment", label: "Infrastructure & Resources" },
-  { score: "workLifeBalanceScore", comment: "workLifeBalanceComment", label: "Work-Life Balance" },
-  { score: "stabilityScore", comment: "stabilityComment", label: "Organizational Stability" },
+const CATEGORY_FIELDS: { score: keyof AdminQueueItem["review"]; label: string }[] = [
+  { score: "corporateCultureScore", label: "Corporate Culture" },
+  { score: "leadershipScore", label: "Leadership & Management" },
+  { score: "infrastructureScore", label: "Infrastructure & Resources" },
+  { score: "workLifeBalanceScore", label: "Work-Life Balance" },
+  { score: "stabilityScore", label: "Organizational Stability" },
 ];
 
 export default function ModerationQueuePage() {
@@ -86,7 +86,6 @@ export default function ModerationQueuePage() {
                   <span className="font-medium text-foreground">
                     {f.label}: {String(item.review[f.score])}/5
                   </span>
-                  {item.review[f.comment] && <span> &mdash; {String(item.review[f.comment])}</span>}
                 </div>
               ))}
               {item.review.generalThoughts && (
