@@ -6,6 +6,7 @@ import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { SECTORS } from "@/lib/sectors";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CompanyLogo } from "@/components/CompanyLogo";
@@ -25,7 +26,7 @@ const RATING_TICKS: { value: number; emoji: string }[] = [
 
 type SortOption = "default" | "alphabetical" | "rating" | "workplace";
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "alphabetical", label: "Alphabetically" },
+  { value: "alphabetical", label: "A-Z" },
   { value: "rating", label: "Rating" },
   { value: "workplace", label: "Workplace" },
 ];
@@ -167,6 +168,10 @@ export function WorkplaceBrowser() {
   const [page, setPage] = useState(1);
   const sliderTrackRef = useRef<HTMLDivElement>(null);
   const resultsTopRef = useRef<HTMLDivElement>(null);
+  // Anchor point (cursor position + value at the start of the current drag)
+  // for the damped scrub below — read on every pointermove, written only on
+  // pointerdown.
+  const sliderDragAnchor = useRef<{ x: number; value: number } | null>(null);
 
   function stepRating(delta: number) {
     setMinRating((prev) => Math.min(5, Math.max(0, Math.round((prev + delta) * 10) / 10)));
@@ -200,17 +205,38 @@ export function WorkplaceBrowser() {
   function applyRatingFromClientX(el: HTMLDivElement, clientX: number) {
     const rect = el.getBoundingClientRect();
     const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    setMinRating(Math.round(fraction * 5 * 10) / 10);
+    const value = Math.round(fraction * 5 * 10) / 10;
+    setMinRating(value);
+    return value;
   }
+
+  // A little under 1 so dragging feels a bit less twitchy/instant than a
+  // straight 1:1 cursor-to-value mapping — moving the mouse across the whole
+  // track no longer quite reaches the far end in one sweep, which reads as
+  // slower/less smooth without making fine control any harder.
+  const SLIDER_DRAG_SENSITIVITY = 0.7;
 
   function handleSliderPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
-    applyRatingFromClientX(e.currentTarget, e.clientX);
+    const value = applyRatingFromClientX(e.currentTarget, e.clientX);
+    sliderDragAnchor.current = { x: e.clientX, value };
   }
 
   function handleSliderPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (e.buttons !== 1) return;
-    applyRatingFromClientX(e.currentTarget, e.clientX);
+    const anchor = sliderDragAnchor.current;
+    if (!anchor) {
+      applyRatingFromClientX(e.currentTarget, e.clientX);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const deltaFraction = ((e.clientX - anchor.x) / rect.width) * SLIDER_DRAG_SENSITIVITY;
+    const value = Math.min(5, Math.max(0, Math.round((anchor.value + deltaFraction * 5) * 10) / 10));
+    setMinRating(value);
+  }
+
+  function handleSliderPointerUp() {
+    sliderDragAnchor.current = null;
   }
 
   // "Near Me" button only: geolocation is never requested until the visitor
@@ -274,22 +300,22 @@ export function WorkplaceBrowser() {
     };
   }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating]);
 
-  // Job-category options depend on which workplace type(s) are active — e.g.
-  // clicking "Office" should only offer categories that actually occur among
-  // Office companies (Finance, IT, ...), not "Construction". `companies` is
-  // already scoped to the current workplaceTypes by the server (see the
-  // effect above), so this just reads distinct categories off it directly.
-  const categoryOptions = useMemo(() => {
-    const distinct = [...new Set((companies ?? []).map((c) => c.category))].sort((a, b) => a.localeCompare(b));
-    return distinct.map((c) => ({ value: c, label: c }));
-  }, [companies]);
-
   // Changing which workplace type(s) are active can make the current
   // category selection unavailable (or just irrelevant) — reset it rather
   // than silently filtering against a category the visible dropdown no
   // longer offers.
   useEffect(() => {
     setSelectedCategory(null);
+  }, [workplaceTypes]);
+
+  // Narrows the Sector dropdown to whichever sectors are tagged with at
+  // least one of the currently selected workplace type(s) (see sectors.ts)
+  // — e.g. selecting "Office" hides purely-manual sectors like
+  // "Construction" but keeps "Healthcare" (tagged Office + Service). With no
+  // workplace type selected ("All"), every sector is shown.
+  const sectorOptions = useMemo(() => {
+    if (workplaceTypes.length === 0) return SECTORS;
+    return SECTORS.filter((s) => s.workplaceTypes.some((t) => workplaceTypes.includes(t)));
   }, [workplaceTypes]);
 
   const visibleCompanies = useMemo(() => {
@@ -325,8 +351,16 @@ export function WorkplaceBrowser() {
     resultsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  // Mirrors the "a company can carry at most 2 workplaceTypes" rule (see
+  // CLAUDE.md) on the filter side too: picking a 3rd, distinct type doesn't
+  // add to the selection — it resets straight back to "All", the same as
+  // clicking the "All" pill directly.
   function toggleWorkplaceType(value: WorkplaceType) {
-    setWorkplaceTypes((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+    setWorkplaceTypes((prev) => {
+      if (prev.includes(value)) return prev.filter((v) => v !== value);
+      if (prev.length >= 2) return [];
+      return [...prev, value];
+    });
   }
 
   function toggleCity(city: string) {
@@ -351,17 +385,16 @@ export function WorkplaceBrowser() {
                 selected={workplaceTypes}
                 onToggle={toggleWorkplaceType}
                 onClearAll={() => setWorkplaceTypes([])}
+                direction="grid"
               />
-              {categoryOptions.length > 0 && (
-                <div className="mt-2">
-                  <SingleSelectDropdown
-                    value={selectedCategory}
-                    options={categoryOptions}
-                    placeholder="Any job type"
-                    onChange={setSelectedCategory}
-                  />
-                </div>
-              )}
+              <div className="mt-2">
+                <SingleSelectDropdown
+                  value={selectedCategory}
+                  options={sectorOptions}
+                  placeholder="Sector"
+                  onChange={setSelectedCategory}
+                />
+              </div>
             </div>
 
             <div>
@@ -407,6 +440,8 @@ export function WorkplaceBrowser() {
                     ref={sliderTrackRef}
                     onPointerDown={handleSliderPointerDown}
                     onPointerMove={handleSliderPointerMove}
+                    onPointerUp={handleSliderPointerUp}
+                    onPointerCancel={handleSliderPointerUp}
                     className="relative h-2 w-full cursor-pointer touch-none rounded-full"
                     style={{ background: "linear-gradient(to right, #ef4444, #22c55e)" }}
                     title="Click and drag along the slider, or scroll, to fine-tune"
@@ -426,7 +461,7 @@ export function WorkplaceBrowser() {
                 </div>
 
                 <span className="text-center text-xs font-normal text-muted-foreground">
-                  {minRating === 0 ? "Any" : `${minRating.toFixed(1)} and Below`}
+                  {minRating === 0 || minRating === 5 ? "Any" : `${minRating.toFixed(1)} and Below`}
                 </span>
               </div>
             </div>

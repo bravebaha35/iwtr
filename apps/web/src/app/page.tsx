@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
-import { CompanySearch } from "@/components/CompanySearch";
 import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
 import { Logo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
@@ -58,7 +57,6 @@ export default function Home() {
           <Logo size="sm" />
           <span className="text-lg font-bold text-foreground">I Worked There</span>
         </Link>
-        <CompanySearch />
         <div className="ml-auto flex items-center gap-4">
           {role === "ADMIN" && (
             <nav className="flex items-center gap-4 text-sm text-muted-foreground">

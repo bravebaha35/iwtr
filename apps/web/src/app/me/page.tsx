@@ -18,7 +18,7 @@ import { WorkplacePicker } from "@/components/WorkplacePicker";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
 
-const SUPPORT_EMAIL = "support@iwtr.com";
+const SUPPORT_EMAIL = "info@iwtr.net";
 
 const EDU_LEVELS: { level: EduLevel; label: string }[] = [
   { level: "ELEMENTARY", label: "Elementary School" },

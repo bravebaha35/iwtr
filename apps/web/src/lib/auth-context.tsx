@@ -149,6 +149,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(handle);
   }, [tokens, doRefresh]);
 
+  // Keep every open tab on the same session. Without this, two tabs each run
+  // their own proactive-refresh timer against their own in-memory copy of
+  // the tokens — whichever tab refreshes first rotates the refresh token in
+  // the database, and the other tab's later refresh then presents an
+  // already-used token, which the API treats as theft and revokes every
+  // session for the account. `storage` only fires in OTHER tabs (never the
+  // one that made the write), so adopting the new value here just follows
+  // whichever tab refreshed most recently instead of racing it — and since
+  // this updates `tokens`, the proactive-refresh effect above automatically
+  // reschedules its timer against the freshly-synced expiry.
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key !== STORAGE_KEY) return;
+      if (e.newValue) {
+        setTokens(JSON.parse(e.newValue) as StoredTokens);
+      } else {
+        setTokens(null);
+        setOnboardingStatus(null);
+      }
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   const persistTokens = useCallback(
     async (result: AuthTokensResponse) => {
       if (!result.refreshToken) {

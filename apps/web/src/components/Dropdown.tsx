@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 export interface DropdownOption {
   value: string;
@@ -41,6 +41,7 @@ export function SingleSelectDropdown({
   maxHeightClassName = "max-h-64",
   disabled = false,
   searchable: searchableOverride,
+  openSignal,
 }: {
   value: string | null;
   options: DropdownOption[];
@@ -54,9 +55,18 @@ export function SingleSelectDropdown({
   // scroll (typing "3" to jump isn't the expected interaction for a day/year
   // number the way it is for a 250-country list).
   searchable?: boolean;
+  // Bump this number from the parent to force the menu open — used for
+  // cascading pickers where finishing one selection should open the next
+  // (e.g. LocationPicker: pick a country, city opens automatically). Only
+  // the change matters, not the value itself.
+  openSignal?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (openSignal !== undefined && !disabled) setOpen(true);
+  }, [openSignal]);
   const selectedOption = options.find((o) => o.value === value);
   const searchable = searchableOverride ?? options.length > SEARCH_THRESHOLD;
 
@@ -77,7 +87,7 @@ export function SingleSelectDropdown({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-surface"
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:border-border/50 disabled:bg-surface-muted disabled:text-muted-foreground disabled:opacity-60 disabled:hover:bg-surface-muted"
       >
         <span className={`flex min-w-0 items-center gap-1.5 truncate ${value ? "text-foreground" : "text-muted-foreground"}`}>
           {selectedOption?.icon}

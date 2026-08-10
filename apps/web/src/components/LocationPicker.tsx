@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { COUNTRIES } from "@/lib/countries";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -35,13 +36,41 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
   const cityOptions = TURKEY_PROVINCES.map((p) => ({ value: p.name, label: p.name }));
   const districtOptions = (province?.districts ?? []).map((d) => ({ value: d, label: d }));
 
+  // Bumped to force the next dropdown open right after the previous one is
+  // picked (Country -> City -> District) — see SingleSelectDropdown's
+  // `openSignal`. The "just picked" refs make sure that only fires off a
+  // real, interactive selection, never on initial load with an
+  // already-filled-in location (which would otherwise yank focus into the
+  // city/district field the moment the profile page renders).
+  const [cityOpenSignal, setCityOpenSignal] = useState(0);
+  const [districtOpenSignal, setDistrictOpenSignal] = useState(0);
+  const justPickedCountry = useRef(false);
+  const justPickedCity = useRef(false);
+
+  useEffect(() => {
+    if (!justPickedCountry.current) return;
+    justPickedCountry.current = false;
+    // Only the Turkey path re-renders City as a dropdown — the free-text
+    // fallback for other countries has nothing to "open".
+    if (isTurkey) setCityOpenSignal((n) => n + 1);
+  }, [value.country, isTurkey]);
+
+  useEffect(() => {
+    if (!justPickedCity.current) return;
+    justPickedCity.current = false;
+    if (isTurkey) setDistrictOpenSignal((n) => n + 1);
+  }, [value.city, isTurkey]);
+
   return (
     <div className="grid grid-cols-3 gap-2">
       <SingleSelectDropdown
         value={value.country}
         options={COUNTRY_OPTIONS}
         placeholder="Country"
-        onChange={(country) => onChange({ country, city: null, district: null })}
+        onChange={(country) => {
+          justPickedCountry.current = true;
+          onChange({ country, city: null, district: null });
+        }}
       />
 
       {value.country && !isTurkey ? (
@@ -57,7 +86,11 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
           options={cityOptions}
           placeholder="City"
           disabled={!value.country}
-          onChange={(city) => onChange({ ...value, city, district: null })}
+          openSignal={cityOpenSignal}
+          onChange={(city) => {
+            justPickedCity.current = true;
+            onChange({ ...value, city, district: null });
+          }}
         />
       )}
 
@@ -74,6 +107,7 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
           options={districtOptions}
           placeholder="District"
           disabled={!value.city}
+          openSignal={districtOpenSignal}
           onChange={(district) => onChange({ ...value, district })}
         />
       )}

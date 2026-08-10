@@ -26,11 +26,47 @@ const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "stability", label: "Organizational Stability" },
 ];
 
-const ANSWER_OPTIONS: { value: SurveyAnswer; label: string }[] = [
-  { value: "YES", label: "Yes" },
-  { value: "NO", label: "No" },
-  { value: "PREFER_NOT_TO_ANSWER", label: "Prefer not to answer" },
-];
+// Icon + color per answer, swapped in for the old "Yes"/"No"/"Prefer not to
+// answer" text pills — a checkmark, an X, and a hollow (unfilled) circle, each
+// "lit up" in its own color only once picked, dim/outline gray otherwise.
+const ANSWER_META: Record<SurveyAnswer, { srLabel: string; litClassName: string }> = {
+  YES: {
+    srLabel: "Yes",
+    litClassName: "border-green-500 bg-green-500/10 text-green-500",
+  },
+  NO: {
+    srLabel: "No",
+    litClassName: "border-red-500 bg-red-500/10 text-red-500",
+  },
+  PREFER_NOT_TO_ANSWER: {
+    srLabel: "Prefer not to answer",
+    litClassName: "border-amber-400 bg-amber-400/10 text-amber-400",
+  },
+};
+
+const ANSWER_ORDER: SurveyAnswer[] = ["YES", "NO", "PREFER_NOT_TO_ANSWER"];
+
+function AnswerIcon({ answer }: { answer: SurveyAnswer }) {
+  if (answer === "YES") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 13l4 4L19 7" />
+      </svg>
+    );
+  }
+  if (answer === "NO") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 6l12 12M18 6L6 18" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <circle cx="12" cy="12" r="7" />
+    </svg>
+  );
+}
 
 function AnswerButtons({
   value,
@@ -40,21 +76,26 @@ function AnswerButtons({
   onChange: (answer: SurveyAnswer) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {ANSWER_OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-            value === opt.value
-              ? "border-brand-600 bg-brand-600 text-white"
-              : "border-border text-muted-foreground hover:bg-surface-muted"
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
+    <div className="flex gap-2">
+      {ANSWER_ORDER.map((answer) => {
+        const meta = ANSWER_META[answer];
+        const selected = value === answer;
+        return (
+          <button
+            key={answer}
+            type="button"
+            onClick={() => onChange(answer)}
+            aria-label={meta.srLabel}
+            aria-pressed={selected}
+            title={meta.srLabel}
+            className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition ${
+              selected ? meta.litClassName : "border-border text-muted-foreground hover:bg-surface-muted"
+            }`}
+          >
+            <AnswerIcon answer={answer} />
+          </button>
+        );
+      })}
     </div>
   );
 }
