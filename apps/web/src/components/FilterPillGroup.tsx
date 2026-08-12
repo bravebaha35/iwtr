@@ -27,15 +27,17 @@ function headerAllButtonClass(active: boolean): string {
   }`;
 }
 
-// Multi-select filter pill group. Clicking "All" clears the selection
-// (equivalent to "no filter applied"), so picking individual values and
-// picking "All" are mutually exclusive states.
+// Multi-select filter pill group. "All" is a toggle, not just a reset: the
+// caller's onAllClick decides what it does, but the intended pattern (see
+// WorkplaceBrowser.tsx) is select-every-option when not everything is
+// already selected, and deselect-everything when it is — so pressing it
+// twice in a row lands back where you started.
 export function MultiFilterPillGroup<T extends string>({
   heading,
   options,
   selected,
   onToggle,
-  onClearAll,
+  onAllClick,
   direction = "wrap",
   allButtonPlacement = "inline",
 }: {
@@ -43,7 +45,7 @@ export function MultiFilterPillGroup<T extends string>({
   options: { value: T; label: string }[];
   selected: T[];
   onToggle: (value: T) => void;
-  onClearAll: () => void;
+  onAllClick: () => void;
   // "grid" lines pills up in a fixed 2-column grid instead of letting them
   // wrap wherever they happen to fit — a narrow sidebar with mixed-length
   // labels (e.g. "Hybrid/Remote") wraps unevenly under plain flex-wrap,
@@ -62,18 +64,16 @@ export function MultiFilterPillGroup<T extends string>({
       : direction === "grid"
         ? "grid grid-cols-2 gap-1.5"
         : "flex flex-wrap gap-1.5";
-  // No selection means "no filter applied" — every option is effectively
-  // included, so every pill shows as active too rather than leaving the
-  // visitor guessing what an empty selection actually covers. Picking any
-  // single option moves out of this state and back to normal per-pill
-  // toggling, exactly like today.
-  const allActive = selected.length === 0;
+  // "All" only lights up once every individual option is actually selected —
+  // it's a real state (every pill picked), not a stand-in for "nothing
+  // picked", so its own highlight and the pills' highlights always agree.
+  const allSelected = options.length > 0 && selected.length === options.length;
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
         {allButtonPlacement === "header" && (
-          <button type="button" onClick={onClearAll} className={headerAllButtonClass(allActive)}>
+          <button type="button" onClick={onAllClick} className={headerAllButtonClass(allSelected)}>
             All
           </button>
         )}
@@ -82,8 +82,8 @@ export function MultiFilterPillGroup<T extends string>({
         {allButtonPlacement === "inline" && (
           <button
             type="button"
-            onClick={onClearAll}
-            className={direction === "grid" ? gridPillClass(allActive) : pillClass(allActive)}
+            onClick={onAllClick}
+            className={direction === "grid" ? gridPillClass(allSelected) : pillClass(allSelected)}
           >
             All
           </button>
@@ -93,11 +93,7 @@ export function MultiFilterPillGroup<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onToggle(o.value)}
-            className={
-              direction === "grid"
-                ? gridPillClass(allActive || selected.includes(o.value))
-                : pillClass(allActive || selected.includes(o.value))
-            }
+            className={direction === "grid" ? gridPillClass(selected.includes(o.value)) : pillClass(selected.includes(o.value))}
           >
             {o.label}
           </button>

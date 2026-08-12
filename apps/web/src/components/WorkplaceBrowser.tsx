@@ -336,14 +336,24 @@ export function WorkplaceBrowser() {
 
   // Mirrors the "a company can carry at most 2 workplaceTypes" rule (see
   // CLAUDE.md) on the filter side too: picking a 3rd, distinct type doesn't
-  // add to the selection — it resets straight back to "All", the same as
-  // clicking the "All" pill directly.
+  // add to the selection — it resets to none selected, same as pressing
+  // "All" a second time (see toggleAllWorkplaceTypes below).
   function toggleWorkplaceType(value: WorkplaceType) {
     setWorkplaceTypes((prev) => {
       if (prev.includes(value)) return prev.filter((v) => v !== value);
       if (prev.length >= 2) return [];
       return [...prev, value];
     });
+  }
+
+  // "All" is a toggle: press it once to select every workplace type (which
+  // also widens the Sector dropdown to every sector, same as today's "no
+  // type filter" state — see sectorOptions below), press it again to clear
+  // back to none selected. Bypasses toggleWorkplaceType's own "max 2 picks"
+  // cap on purpose — that cap exists to mirror a single company's own tags,
+  // not to limit how many types a visitor can browse across at once.
+  function toggleAllWorkplaceTypes() {
+    setWorkplaceTypes((prev) => (prev.length === WORKPLACE_TYPES.length ? [] : WORKPLACE_TYPES.map((t) => t.value)));
   }
 
   function toggleCity(city: string) {
@@ -367,7 +377,7 @@ export function WorkplaceBrowser() {
                 options={WORKPLACE_TYPES}
                 selected={workplaceTypes}
                 onToggle={toggleWorkplaceType}
-                onClearAll={() => setWorkplaceTypes([])}
+                onAllClick={toggleAllWorkplaceTypes}
                 direction="grid"
                 allButtonPlacement="header"
               />
