@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
 import { apiPost, ApiError } from "@/lib/api-client";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
 
 export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
-  const { accessToken } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState<string | null>(null);
@@ -26,19 +24,15 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
     setError(null);
     setSubmitting(true);
     try {
-      await apiPost(
-        "/onboarding/pii",
-        {
-          firstName,
-          lastName,
-          birthDate,
-          phoneNumber,
-          country: location.country,
-          city: location.city,
-          district: location.district ?? undefined,
-        },
-        accessToken ?? undefined,
-      );
+      await apiPost("/onboarding/pii", {
+        firstName,
+        lastName,
+        birthDate,
+        phoneNumber,
+        country: location.country,
+        city: location.city,
+        district: location.district ?? undefined,
+      });
       onSubmitted();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");

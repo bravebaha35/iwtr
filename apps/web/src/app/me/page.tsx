@@ -44,7 +44,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default function ProfilePage() {
-  const { accessToken, isLoading: authLoading, refreshOnboardingStatus } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, refreshOnboardingStatus } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [employment, setEmployment] = useState<MyEmploymentEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -126,11 +126,11 @@ export default function ProfilePage() {
   })();
 
   const load = useCallback(async () => {
-    if (!accessToken) return;
+    if (!isAuthenticated) return;
     try {
       const [profileData, employmentData] = await Promise.all([
-        apiGet<MyProfile>("/me/profile", accessToken),
-        apiGet<MyEmploymentEntry[]>("/me/employment-history", accessToken),
+        apiGet<MyProfile>("/me/profile"),
+        apiGet<MyEmploymentEntry[]>("/me/employment-history"),
       ]);
       setProfile(profileData);
       setEmployment(employmentData);
@@ -141,7 +141,7 @@ export default function ProfilePage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load your profile.");
     }
-  }, [accessToken]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void load();
@@ -157,11 +157,7 @@ export default function ProfilePage() {
       // and avatarKey/avatarGradient are always set by the time this button
       // is reachable, but there's no reason to make "did the value happen to
       // be falsy" a factor in whether a field gets saved at all.
-      await apiPatch(
-        "/me/profile",
-        { displayName, avatarKey, avatarGradient },
-        accessToken ?? undefined,
-      );
+      await apiPatch("/me/profile", { displayName, avatarKey, avatarGradient });
       await load();
       // The homepage header reads avatar/name from AuthContext's
       // onboardingStatus, not from this page's own `profile` state — without
@@ -182,11 +178,11 @@ export default function ProfilePage() {
     setLocationError(null);
     setLocationStatus(null);
     try {
-      await apiPatch(
-        "/me/profile",
-        { country: location.country, city: location.city, district: location.district || "" },
-        accessToken ?? undefined,
-      );
+      await apiPatch("/me/profile", {
+        country: location.country,
+        city: location.city,
+        district: location.district || "",
+      });
       await load();
       await refreshOnboardingStatus();
       setLocationStatus("Saved.");
@@ -208,7 +204,7 @@ export default function ProfilePage() {
     setBirthDateSaving(true);
     setBirthDateError(null);
     try {
-      await apiPatch("/me/identity", { birthDate: birthDateDraft }, accessToken ?? undefined);
+      await apiPatch("/me/identity", { birthDate: birthDateDraft });
       await load();
       setEditingBirthDate(false);
     } catch (err) {
@@ -231,11 +227,7 @@ export default function ProfilePage() {
     setPhoneSaving(true);
     setPhoneError(null);
     try {
-      const result = await apiPost<{ devCode?: string }>(
-        "/me/phone/request-otp",
-        { phoneNumber: phoneDraft },
-        accessToken ?? undefined,
-      );
+      const result = await apiPost<{ devCode?: string }>("/me/phone/request-otp", { phoneNumber: phoneDraft });
       setPhoneDevCode(result.devCode ?? null);
       setPhoneStage("otp");
     } catch (err) {
@@ -249,7 +241,7 @@ export default function ProfilePage() {
     setPhoneSaving(true);
     setPhoneError(null);
     try {
-      await apiPost("/me/phone/verify-otp", { code: phoneOtpCode }, accessToken ?? undefined);
+      await apiPost("/me/phone/verify-otp", { code: phoneOtpCode });
       await load();
       setEditingPhone(false);
     } catch (err) {
@@ -264,20 +256,16 @@ export default function ProfilePage() {
     setAddingEdu(true);
     setEduError(null);
     try {
-      const created = await apiPost<EducationHistoryEntry>(
-        "/me/education-history",
-        {
-          level: newEduLevel,
-          institutionName: newEduInstitution.trim(),
-          graduationYear: newEduYear ? Number(newEduYear) : undefined,
-          faculty: newEduLevel === "COLLEGE" && newEduFaculty.trim() ? newEduFaculty.trim() : undefined,
-          department:
-            (newEduLevel === "COLLEGE" || newEduLevel === "HIGH_SCHOOL") && newEduDepartment.trim()
-              ? newEduDepartment.trim()
-              : undefined,
-        },
-        accessToken ?? undefined,
-      );
+      const created = await apiPost<EducationHistoryEntry>("/me/education-history", {
+        level: newEduLevel,
+        institutionName: newEduInstitution.trim(),
+        graduationYear: newEduYear ? Number(newEduYear) : undefined,
+        faculty: newEduLevel === "COLLEGE" && newEduFaculty.trim() ? newEduFaculty.trim() : undefined,
+        department:
+          (newEduLevel === "COLLEGE" || newEduLevel === "HIGH_SCHOOL") && newEduDepartment.trim()
+            ? newEduDepartment.trim()
+            : undefined,
+      });
       setProfile((prev) => (prev ? { ...prev, education: [...prev.education, created] } : prev));
       setNewEduInstitution("");
       setNewEduYear("");
@@ -305,18 +293,14 @@ export default function ProfilePage() {
     if (!editingEduId || !editEduInstitution.trim()) return;
     setEduError(null);
     try {
-      const updated = await apiPatch<EducationHistoryEntry>(
-        `/me/education-history/${editingEduId}`,
-        {
-          level: editEduLevel,
-          institutionName: editEduInstitution.trim(),
-          graduationYear: editEduYear ? Number(editEduYear) : null,
-          faculty: editEduLevel === "COLLEGE" ? (editEduFaculty.trim() || null) : null,
-          department:
-            editEduLevel === "COLLEGE" || editEduLevel === "HIGH_SCHOOL" ? (editEduDepartment.trim() || null) : null,
-        },
-        accessToken ?? undefined,
-      );
+      const updated = await apiPatch<EducationHistoryEntry>(`/me/education-history/${editingEduId}`, {
+        level: editEduLevel,
+        institutionName: editEduInstitution.trim(),
+        graduationYear: editEduYear ? Number(editEduYear) : null,
+        faculty: editEduLevel === "COLLEGE" ? (editEduFaculty.trim() || null) : null,
+        department:
+          editEduLevel === "COLLEGE" || editEduLevel === "HIGH_SCHOOL" ? (editEduDepartment.trim() || null) : null,
+      });
       setProfile((prev) =>
         prev ? { ...prev, education: prev.education.map((e) => (e.id === updated.id ? updated : e)) } : prev,
       );
@@ -329,7 +313,7 @@ export default function ProfilePage() {
   async function deleteEducation(id: string) {
     setEduError(null);
     try {
-      await apiDelete(`/me/education-history/${id}`, accessToken ?? undefined);
+      await apiDelete(`/me/education-history/${id}`);
       setProfile((prev) => (prev ? { ...prev, education: prev.education.filter((e) => e.id !== id) } : prev));
     } catch (err) {
       setEduError(err instanceof ApiError ? err.message : "Couldn't remove that.");
@@ -345,11 +329,11 @@ export default function ProfilePage() {
     setAddingJob(true);
     setJobError(null);
     try {
-      const created = await apiPost<MyEmploymentEntry>(
-        "/me/employment-history",
-        { companyId: newJobCompany.companyId, startDate: newJobStart, endDate: newJobEnd },
-        accessToken ?? undefined,
-      );
+      const created = await apiPost<MyEmploymentEntry>("/me/employment-history", {
+        companyId: newJobCompany.companyId,
+        startDate: newJobStart,
+        endDate: newJobEnd,
+      });
       setEmployment((prev) => (prev ? [...prev, created] : [created]));
       setNewJobCompany(null);
       setNewJobStart(null);
@@ -373,11 +357,10 @@ export default function ProfilePage() {
     if (!editingJobId) return;
     setJobError(null);
     try {
-      const updated = await apiPatch<MyEmploymentEntry>(
-        `/me/employment-history/${editingJobId}`,
-        { startDate: editJobStart, endDate: editJobEnd },
-        accessToken ?? undefined,
-      );
+      const updated = await apiPatch<MyEmploymentEntry>(`/me/employment-history/${editingJobId}`, {
+        startDate: editJobStart,
+        endDate: editJobEnd,
+      });
       setEmployment((prev) => (prev ? prev.map((e) => (e.id === updated.id ? updated : e)) : prev));
       setEditingJobId(null);
     } catch (err) {
@@ -388,7 +371,7 @@ export default function ProfilePage() {
   async function deleteEmployment(id: string) {
     setJobError(null);
     try {
-      await apiDelete(`/me/employment-history/${id}`, accessToken ?? undefined);
+      await apiDelete(`/me/employment-history/${id}`);
       setEmployment((prev) => (prev ? prev.filter((e) => e.id !== id) : prev));
     } catch (err) {
       setJobError(err instanceof ApiError ? err.message : "Couldn't remove that.");
@@ -397,7 +380,7 @@ export default function ProfilePage() {
 
   if (authLoading) return null;
 
-  if (!accessToken) {
+  if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-muted-foreground">Log in to see your account settings.</p>

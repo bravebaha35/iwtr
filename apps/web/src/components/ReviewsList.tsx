@@ -15,7 +15,7 @@ const CATEGORY_FIELDS: { score: keyof PublicReview; label: string }[] = [
 ];
 
 export function ReviewsList({ companySlug }: { companySlug: string }) {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Distinguishes "the request failed" from "this company genuinely has no
@@ -27,24 +27,23 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
 
   useEffect(() => {
     setLoadFailed(false);
-    apiGet<PublicReview[]>(`/companies/${companySlug}/reviews`, accessToken ?? undefined)
+    apiGet<PublicReview[]>(`/companies/${companySlug}/reviews`)
       .then(setReviews)
       .catch(() => {
         setReviews([]);
         setLoadFailed(true);
       });
-  }, [companySlug, accessToken]);
+  }, [companySlug, isAuthenticated]);
 
   const vote = useCallback(
     async (reviewId: string, value: VoteValue) => {
-      if (!accessToken || !reviews) return;
+      if (!isAuthenticated || !reviews) return;
       setError(null);
       setVotingId(reviewId);
       try {
         const result = await apiPost<{ reviewId: string; likeCount: number; dislikeCount: number; myVote: VoteValue | null }>(
           `/reviews/${reviewId}/vote`,
           { value },
-          accessToken,
         );
         setReviews((prev) =>
           (prev ?? []).map((r) =>
@@ -59,7 +58,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
         setVotingId(null);
       }
     },
-    [accessToken, reviews],
+    [isAuthenticated, reviews],
   );
 
   if (reviews === null) {
@@ -79,7 +78,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
 
   // Any logged-in, registered member can vote — no contribution gate (see
   // ReviewsService.castVote).
-  const canVote = !authLoading && !!accessToken;
+  const canVote = !authLoading && isAuthenticated;
 
   return (
     <div className="mt-8 flex flex-col gap-4 compact:gap-2">
@@ -129,7 +128,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
             <button
               onClick={() => vote(review.id, 1)}
               disabled={!canVote || votingId === review.id}
-              title={!accessToken ? "Log in to vote" : undefined}
+              title={!isAuthenticated ? "Log in to vote" : undefined}
               className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-40 ${
                 review.myVote === 1
                   ? "border-green-600 bg-green-50 text-green-700 dark:border-green-500 dark:bg-green-950 dark:text-green-400"
@@ -141,7 +140,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
             <button
               onClick={() => vote(review.id, -1)}
               disabled={!canVote || votingId === review.id}
-              title={!accessToken ? "Log in to vote" : undefined}
+              title={!isAuthenticated ? "Log in to vote" : undefined}
               className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-40 ${
                 review.myVote === -1
                   ? "border-red-600 bg-red-50 text-red-700 dark:border-red-500 dark:bg-red-950 dark:text-red-400"

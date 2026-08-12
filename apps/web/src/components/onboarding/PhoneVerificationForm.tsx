@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
 import { apiPost, ApiError } from "@/lib/api-client";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void }) {
-  const { accessToken } = useAuth();
   const [stage, setStage] = useState<"phone" | "otp">("phone");
   const [phoneNumber, setPhoneNumber] = useState("+90");
   const [code, setCode] = useState("");
@@ -28,11 +26,9 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
     setError(null);
     setSubmitting(true);
     try {
-      const result = await apiPost<{ success: boolean; devCode?: string }>(
-        "/onboarding/phone/request-otp",
-        { phoneNumber },
-        accessToken ?? undefined,
-      );
+      const result = await apiPost<{ success: boolean; devCode?: string }>("/onboarding/phone/request-otp", {
+        phoneNumber,
+      });
       setDevCode(result.devCode ?? null);
       setStage("otp");
       setCooldown(RESEND_COOLDOWN_SECONDS);
@@ -53,7 +49,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
     setError(null);
     setSubmitting(true);
     try {
-      await apiPost("/onboarding/phone/verify-otp", { code }, accessToken ?? undefined);
+      await apiPost("/onboarding/phone/verify-otp", { code });
       onSubmitted();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");

@@ -46,8 +46,11 @@ export type RefreshRequest = z.infer<typeof refreshRequestSchema>;
 
 export const authTokensResponseSchema = z.object({
   accessToken: z.string(),
-  // Present in the JSON body for mobile clients; web clients instead receive
-  // this as an httpOnly cookie set by the Next.js proxy route (see apps/web/lib/auth).
+  // The API always returns this in the JSON body — it's the Next.js route
+  // handlers under apps/web/src/app/api/auth/* and api/proxy/[...path] that
+  // turn it into an httpOnly cookie before anything reaches the browser (see
+  // apps/web/src/lib/server-auth.ts). A raw mobile client would read this
+  // field directly instead.
   refreshToken: z.string().optional(),
   expiresInSeconds: z.number(),
 });

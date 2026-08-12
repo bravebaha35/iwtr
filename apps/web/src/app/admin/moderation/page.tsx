@@ -14,20 +14,20 @@ const CATEGORY_FIELDS: { score: keyof AdminQueueItem["review"]; label: string }[
 ];
 
 export default function ModerationQueuePage() {
-  const { accessToken, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [items, setItems] = useState<AdminQueueItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!accessToken) return;
+    if (!isAuthenticated) return;
     try {
-      const data = await apiGet<AdminQueueItem[]>("/admin/moderation-queue?status=OPEN", accessToken);
+      const data = await apiGet<AdminQueueItem[]>("/admin/moderation-queue?status=OPEN");
       setItems(data);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load queue.");
     }
-  }, [accessToken]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void load();
@@ -37,7 +37,7 @@ export default function ModerationQueuePage() {
     setActioningId(id);
     setError(null);
     try {
-      await apiPost(`/admin/moderation-queue/${id}/${action}`, {}, accessToken ?? undefined);
+      await apiPost(`/admin/moderation-queue/${id}/${action}`, {});
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed.");
@@ -48,7 +48,7 @@ export default function ModerationQueuePage() {
 
   if (isLoading) return null;
 
-  if (!accessToken) {
+  if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-muted-foreground">Log in as an admin to view this page.</p>

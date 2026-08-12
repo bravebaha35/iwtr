@@ -10,7 +10,7 @@ import { Avatar } from "@/components/Avatar";
 import { avatarLabel } from "@/lib/avatars";
 
 export default function Home() {
-  const { isLoading, accessToken, role, onboardingStatus, logout } = useAuth();
+  const { isLoading, isAuthenticated, role, onboardingStatus, logout } = useAuth();
 
   if (isLoading) {
     return (
@@ -20,7 +20,7 @@ export default function Home() {
     );
   }
 
-  if (!accessToken) {
+  if (!isAuthenticated) {
     return (
       <div className="relative min-h-screen">
         <AuthModal />
@@ -28,10 +28,10 @@ export default function Home() {
     );
   }
 
-  // A fresh login/register has a token but hasn't finished the onboarding-status
-  // fetch yet (persistTokens sets the token synchronously, then awaits the
-  // status call) — treat "not loaded yet" as still loading, not as ACTIVE,
-  // so a brand-new PENDING_PII account can't flash into the authenticated shell.
+  // A fresh login/register is authenticated but hasn't finished the
+  // onboarding-status fetch yet (loadSession sets isAuthenticated first, then
+  // awaits the status call) — treat "not loaded yet" as still loading, not as
+  // ACTIVE, so a brand-new PENDING_PII account can't flash into the authenticated shell.
   if (!onboardingStatus) {
     return (
       <div className="flex min-h-screen items-center justify-center">

@@ -1,21 +1,16 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { AuthTokensResponse, OnboardingStatus, UserRole } from "@iwtr/shared-types";
-import { apiGet, apiPost } from "./api-client";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import type { OnboardingStatus, UserRole } from "@iwtr/shared-types";
+import { apiGet } from "./api-client";
 
-const STORAGE_KEY = "iwtr_tokens";
-// Refresh a bit before the access token's real expiry so requests in flight
-// right at the boundary don't get caught by a token that just expired.
-const REFRESH_SAFETY_MARGIN_MS = 60 * 1000;
-
-interface StoredTokens {
-  accessToken: string;
-  refreshToken: string;
+interface SessionResponse {
+  isAuthenticated: boolean;
+  role: UserRole | null;
 }
 
 interface AuthContextValue {
-  accessToken: string | null;
+  isAuthenticated: boolean;
   role: UserRole | null;
   isLoading: boolean;
   onboardingStatus: OnboardingStatus | null;
@@ -27,107 +22,60 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function decodeClaims(accessToken: string): { exp?: number; role?: UserRole } | null {
-  try {
-    const payload = accessToken.split(".")[1];
-    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    return JSON.parse(atob(padded)) as { exp?: number; role?: UserRole };
-  } catch {
-    return null;
+async function postCredentials(path: string, body: unknown): Promise<void> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let message = `Request failed: ${res.status}`;
+    try {
+      const data = (await res.json()) as { message?: string };
+      if (typeof data.message === "string") message = data.message;
+    } catch {
+      // no JSON body to read a message from
+    }
+    throw new Error(message);
   }
 }
 
-function decodeExpiryMs(accessToken: string): number | null {
-  const exp = decodeClaims(accessToken)?.exp;
-  return typeof exp === "number" ? exp * 1000 : null;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [tokens, setTokens] = useState<StoredTokens | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
-  // Concurrent refresh attempts must share one request: the API treats a
-  // second presentation of an already-rotated refresh token as theft and
-  // revokes every session for the account, so two accidental simultaneous
-  // refresh calls (a proactive timer firing right as another one is in
-  // flight) would otherwise log the user out instead of just being wasteful.
-  const refreshInFlight = useRef<Promise<StoredTokens | null> | null>(null);
 
-  const loadStatus = useCallback(async (accessToken: string) => {
-    const status = await apiGet<OnboardingStatus>("/onboarding/status", accessToken);
+  const loadStatus = useCallback(async () => {
+    const status = await apiGet<OnboardingStatus>("/onboarding/status");
     setOnboardingStatus(status);
   }, []);
 
-  const storeTokens = useCallback((next: StoredTokens | null) => {
-    if (next) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } else {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-    setTokens(next);
-  }, []);
-
-  const doRefresh = useCallback(
-    (refreshToken: string): Promise<StoredTokens | null> => {
-      if (refreshInFlight.current) return refreshInFlight.current;
-
-      const attempt = (async () => {
-        try {
-          const result = await apiPost<AuthTokensResponse>("/auth/refresh", { refreshToken });
-          if (!result.refreshToken) return null;
-          const next: StoredTokens = { accessToken: result.accessToken, refreshToken: result.refreshToken };
-          storeTokens(next);
-          return next;
-        } catch {
-          storeTokens(null);
-          setOnboardingStatus(null);
-          return null;
-        } finally {
-          refreshInFlight.current = null;
-        }
-      })();
-
-      refreshInFlight.current = attempt;
-      return attempt;
-    },
-    [storeTokens],
-  );
-
-  // On load: if the stored access token is already expired (or close to it —
-  // e.g. the laptop was asleep for hours), refresh before trusting it rather
-  // than firing a status request that's guaranteed to 401.
-  useEffect(() => {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setIsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const parsed: StoredTokens = JSON.parse(raw);
-
-    (async () => {
-      const expiryMs = decodeExpiryMs(parsed.accessToken);
-      const needsRefresh = expiryMs !== null && expiryMs - REFRESH_SAFETY_MARGIN_MS <= Date.now();
-      const active = needsRefresh ? await doRefresh(parsed.refreshToken) : parsed;
-
-      if (cancelled) return;
-      if (!active) {
-        setIsLoading(false);
-        return;
-      }
-      if (!needsRefresh) setTokens(active);
-
+  // The single source of truth for "am I logged in" — the /api/session route
+  // decodes the httpOnly access-token cookie server-side (transparently
+  // refreshing it if needed) since browser JS can no longer read it directly.
+  const loadSession = useCallback(async () => {
+    const res = await fetch("/api/session", { cache: "no-store" });
+    const session = (await res.json()) as SessionResponse;
+    setIsAuthenticated(session.isAuthenticated);
+    setRole(session.role);
+    if (session.isAuthenticated) {
       try {
-        await loadStatus(active.accessToken);
+        await loadStatus();
       } catch {
-        if (!cancelled) storeTokens(null);
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        setOnboardingStatus(null);
       }
-    })();
+    } else {
+      setOnboardingStatus(null);
+    }
+  }, [loadStatus]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await loadSession();
+      if (!cancelled) setIsLoading(false);
+    })();
     return () => {
       cancelled = true;
     };
@@ -135,98 +83,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Proactively refresh before the access token actually expires, so a
-  // 15-minute session doesn't just die silently mid-use.
+  // Cookies (unlike the old localStorage tokens) are already shared live
+  // across tabs by the browser, but this tab's React state isn't — e.g.
+  // logging out in another tab wouldn't otherwise update this one until a
+  // reload. Resyncing on focus covers the case that actually matters.
   useEffect(() => {
-    if (!tokens) return;
-    const expiryMs = decodeExpiryMs(tokens.accessToken);
-    if (expiryMs === null) return;
-
-    const delay = Math.max(expiryMs - REFRESH_SAFETY_MARGIN_MS - Date.now(), 0);
-    const handle = setTimeout(() => {
-      void doRefresh(tokens.refreshToken);
-    }, delay);
-    return () => clearTimeout(handle);
-  }, [tokens, doRefresh]);
-
-  // Keep every open tab on the same session. Without this, two tabs each run
-  // their own proactive-refresh timer against their own in-memory copy of
-  // the tokens — whichever tab refreshes first rotates the refresh token in
-  // the database, and the other tab's later refresh then presents an
-  // already-used token, which the API treats as theft and revokes every
-  // session for the account. `storage` only fires in OTHER tabs (never the
-  // one that made the write), so adopting the new value here just follows
-  // whichever tab refreshed most recently instead of racing it — and since
-  // this updates `tokens`, the proactive-refresh effect above automatically
-  // reschedules its timer against the freshly-synced expiry.
-  useEffect(() => {
-    function onStorage(e: StorageEvent) {
-      if (e.key !== STORAGE_KEY) return;
-      if (e.newValue) {
-        setTokens(JSON.parse(e.newValue) as StoredTokens);
-      } else {
-        setTokens(null);
-        setOnboardingStatus(null);
-      }
+    function onFocus() {
+      void loadSession();
     }
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  const persistTokens = useCallback(
-    async (result: AuthTokensResponse) => {
-      if (!result.refreshToken) {
-        throw new Error("Auth response did not include a refresh token");
-      }
-      const next: StoredTokens = { accessToken: result.accessToken, refreshToken: result.refreshToken };
-      storeTokens(next);
-      await loadStatus(next.accessToken);
-    },
-    [storeTokens, loadStatus],
-  );
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadSession]);
 
   const register = useCallback(
     async (email: string, password: string) => {
-      const result = await apiPost<AuthTokensResponse>("/auth/register", { email, password });
-      await persistTokens(result);
+      await postCredentials("/api/auth/register", { email, password });
+      await loadSession();
     },
-    [persistTokens],
+    [loadSession],
   );
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const result = await apiPost<AuthTokensResponse>("/auth/login", { email, password });
-      await persistTokens(result);
+      await postCredentials("/api/auth/login", { email, password });
+      await loadSession();
     },
-    [persistTokens],
+    [loadSession],
   );
 
   const logout = useCallback(() => {
-    const refreshToken = tokens?.refreshToken;
-    storeTokens(null);
+    setIsAuthenticated(false);
+    setRole(null);
     setOnboardingStatus(null);
-    if (refreshToken) {
-      // Best-effort server-side revocation. The local session is already
-      // cleared either way, so a network failure here isn't user-visible —
-      // but without this, a stolen refresh token would keep working for up
-      // to 30 days after the legitimate user clicked "Log out".
-      void apiPost("/auth/logout", { refreshToken }).catch(() => {});
-    }
-  }, [tokens, storeTokens]);
+    void fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+  }, []);
 
   const refreshOnboardingStatus = useCallback(async () => {
-    if (tokens) await loadStatus(tokens.accessToken);
-  }, [tokens, loadStatus]);
-
-  const role = useMemo(
-    () => (tokens ? (decodeClaims(tokens.accessToken)?.role ?? null) : null),
-    [tokens],
-  );
+    if (isAuthenticated) await loadStatus();
+  }, [isAuthenticated, loadStatus]);
 
   return (
     <AuthContext.Provider
       value={{
-        accessToken: tokens?.accessToken ?? null,
+        isAuthenticated,
         role,
         isLoading,
         onboardingStatus,

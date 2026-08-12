@@ -131,10 +131,18 @@ else, and an isolated `pii` schema containing only `PiiVault`.
 
 App Router pages under `src/app/`; `src/components/auth/` and `src/components/onboarding/` hold the
 modal-driven auth/onboarding UI, orchestrated by `src/components/onboarding/OnboardingFlow.tsx` which
-switches on `User.status`. `src/lib/auth-context.tsx` is a client-side React context holding the JWT
-access/refresh token pair (currently persisted to `localStorage`, sent as `Authorization: Bearer` — not
-yet the httpOnly-cookie proxy pattern the longer-term plan describes) and exposes `register`/`login`/
-`logout`/`refreshOnboardingStatus`. `src/lib/api-client.ts` is the only place that calls `apps/api`.
+switches on `User.status`. Auth tokens never reach the browser: `src/app/api/auth/{login,register,logout}`
+and `src/app/api/session` (Next.js Route Handlers) exchange credentials with `apps/api` and store the
+resulting access/refresh JWTs as httpOnly, sameSite=lax cookies (helpers in `src/lib/server-auth.ts`,
+including a single-flight refresh so concurrent requests never replay an already-rotated refresh token).
+Every other authenticated call from the browser goes through the same-origin catch-all proxy at
+`src/app/api/proxy/[...path]/route.ts`, which attaches the cookie's access token as `Authorization: Bearer`
+server-side and transparently retries once after a silent refresh on a 401. `src/lib/auth-context.tsx` is
+a client-side React context holding only `isAuthenticated`/`role` (learned from `/api/session`, never the
+raw JWT) and exposes `register`/`login`/`logout`/`refreshOnboardingStatus`. `src/lib/api-client.ts`'s
+`apiGet`/`apiPost`/`apiPatch`/`apiDelete` call the proxy and are the only functions client components use
+to reach `apps/api`; `apiGetPublic` is a direct-to-`apps/api` escape hatch for the one unauthenticated
+Server Component fetch (`app/companies/[slug]/page.tsx`), which has no browser cookies to proxy anyway.
 
 The homepage (`src/app/page.tsx`) is the single router for top-level app state: not logged in → `AuthModal`;
 logged in but `status !== "ACTIVE"` → `OnboardingFlow`; otherwise the main authenticated shell.

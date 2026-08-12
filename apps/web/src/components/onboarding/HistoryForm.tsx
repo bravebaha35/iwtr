@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
 import { apiPost, ApiError } from "@/lib/api-client";
 import type { EduLevel } from "@iwtr/shared-types";
 import { WorkplacePicker } from "@/components/WorkplacePicker";
@@ -33,7 +32,6 @@ type JobRow = {
 const emptyJob: JobRow = { company: null, startDate: null, endDate: null };
 
 export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
-  const { accessToken } = useAuth();
   const [edu, setEdu] = useState(emptyEduRows);
   const [jobs, setJobs] = useState<JobRow[]>([{ ...emptyJob }]);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +81,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         return;
       }
 
-      await apiPost("/onboarding/history", { education, employment }, accessToken ?? undefined);
+      await apiPost("/onboarding/history", { education, employment });
       onSubmitted();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");

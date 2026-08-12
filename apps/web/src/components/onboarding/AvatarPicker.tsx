@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
 import { apiPost, ApiError } from "@/lib/api-client";
 import { AVATAR_GRADIENTS } from "@/lib/avatarGradients";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
 
 export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
-  const { accessToken } = useAuth();
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [selectedGradient, setSelectedGradient] = useState<string>(AVATAR_GRADIENTS[0].key);
   const [error, setError] = useState<string | null>(null);
@@ -19,11 +17,7 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
     setError(null);
     setSubmitting(true);
     try {
-      await apiPost(
-        "/onboarding/avatar",
-        { avatarKey: selectedAvatar, avatarGradient: selectedGradient },
-        accessToken ?? undefined,
-      );
+      await apiPost("/onboarding/avatar", { avatarKey: selectedAvatar, avatarGradient: selectedGradient });
       onSubmitted();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");

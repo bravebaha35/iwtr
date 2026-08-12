@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 
 export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
-  const { accessToken, onboardingStatus, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, onboardingStatus, isLoading: authLoading } = useAuth();
   const [claim, setClaim] = useState<MyCompanyClaim | null | undefined>(undefined);
   const [message, setMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -19,20 +19,20 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
   const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
-    if (!accessToken) {
+    if (!isAuthenticated) {
       setClaim(undefined);
       return;
     }
     setLoadFailed(false);
-    apiGet<MyCompanyClaim[]>("/me/company-claims", accessToken)
+    apiGet<MyCompanyClaim[]>("/me/company-claims")
       .then((claims) => setClaim(claims.find((c) => c.companySlug === companySlug) ?? null))
       .catch(() => {
         setClaim(null);
         setLoadFailed(true);
       });
-  }, [accessToken, companySlug]);
+  }, [isAuthenticated, companySlug]);
 
-  if (authLoading || !accessToken || onboardingStatus?.status !== "ACTIVE" || claim === undefined) {
+  if (authLoading || !isAuthenticated || onboardingStatus?.status !== "ACTIVE" || claim === undefined) {
     return null;
   }
 
@@ -51,11 +51,9 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await apiPost<MyCompanyClaim>(
-        `/companies/${companySlug}/claim`,
-        { message: message.trim() || undefined },
-        accessToken ?? undefined,
-      );
+      const result = await apiPost<MyCompanyClaim>(`/companies/${companySlug}/claim`, {
+        message: message.trim() || undefined,
+      });
       setClaim(result);
       setShowForm(false);
     } catch (err) {

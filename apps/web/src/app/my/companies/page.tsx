@@ -24,7 +24,7 @@ const emptyBilling = {
   address: "",
 };
 
-function UpgradeToPlus({ companyId, accessToken }: { companyId: string; accessToken: string }) {
+function UpgradeToPlus({ companyId }: { companyId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [billing, setBilling] = useState(emptyBilling);
   const [checkout, setCheckout] = useState<PlusCheckoutResult | null>(null);
@@ -39,23 +39,19 @@ function UpgradeToPlus({ companyId, accessToken }: { companyId: string; accessTo
     setSubmitting(true);
     setError(null);
     try {
-      const result = await apiPost<PlusCheckoutResult>(
-        `/my-companies/${companyId}/plus/checkout`,
-        {
-          buyerName: billing.buyerName,
-          buyerSurname: billing.buyerSurname,
-          buyerIdentityNumber: billing.buyerIdentityNumber,
-          buyerEmail: billing.buyerEmail,
-          buyerGsmNumber: billing.buyerGsmNumber || undefined,
-          billingAddress: {
-            contactName: `${billing.buyerName} ${billing.buyerSurname}`.trim(),
-            city: billing.city,
-            country: "Turkey",
-            address: billing.address,
-          },
+      const result = await apiPost<PlusCheckoutResult>(`/my-companies/${companyId}/plus/checkout`, {
+        buyerName: billing.buyerName,
+        buyerSurname: billing.buyerSurname,
+        buyerIdentityNumber: billing.buyerIdentityNumber,
+        buyerEmail: billing.buyerEmail,
+        buyerGsmNumber: billing.buyerGsmNumber || undefined,
+        billingAddress: {
+          contactName: `${billing.buyerName} ${billing.buyerSurname}`.trim(),
+          city: billing.city,
+          country: "Turkey",
+          address: billing.address,
         },
-        accessToken,
-      );
+      });
       setCheckout(result);
     } catch (err) {
       if (err instanceof ApiError && err.status === 501) {
@@ -159,7 +155,7 @@ function UpgradeToPlus({ companyId, accessToken }: { companyId: string; accessTo
   );
 }
 
-function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; accessToken: string }) {
+function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [name, setName] = useState(claim.companyName);
   const [category, setCategory] = useState("");
   const [mainPhotoUrl, setMainPhotoUrl] = useState("");
@@ -188,7 +184,7 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
         setError("Change at least one field before saving.");
         return;
       }
-      await apiPatch(`/my-companies/${claim.companyId}`, body, accessToken);
+      await apiPatch(`/my-companies/${claim.companyId}`, body);
       setStatus("Saved.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't save changes.");
@@ -203,7 +199,7 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
     setError(null);
     setStatus(null);
     try {
-      await apiPost(`/my-companies/${claim.companyId}/contact-admin`, { message: contactMessage.trim() }, accessToken);
+      await apiPost(`/my-companies/${claim.companyId}/contact-admin`, { message: contactMessage.trim() });
       setContactMessage("");
       setStatus("Message sent to the admin.");
     } catch (err) {
@@ -284,7 +280,7 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
             </label>
           </>
         ) : (
-          <UpgradeToPlus companyId={claim.companyId} accessToken={accessToken} />
+          <UpgradeToPlus companyId={claim.companyId} />
         )}
 
         <button
@@ -323,19 +319,19 @@ function OwnedCompanyCard({ claim, accessToken }: { claim: MyCompanyClaim; acces
 }
 
 export default function MyCompaniesPage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [claims, setClaims] = useState<MyCompanyClaim[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!accessToken) return;
+    if (!isAuthenticated) return;
     try {
-      const data = await apiGet<MyCompanyClaim[]>("/me/company-claims", accessToken);
+      const data = await apiGet<MyCompanyClaim[]>("/me/company-claims");
       setClaims(data);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load your claims.");
     }
-  }, [accessToken]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void load();
@@ -343,7 +339,7 @@ export default function MyCompaniesPage() {
 
   if (authLoading) return null;
 
-  if (!accessToken) {
+  if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-muted-foreground">Log in to see companies you own or have claimed.</p>
@@ -371,7 +367,7 @@ export default function MyCompaniesPage() {
       <div className="flex flex-col gap-4 compact:gap-2">
         {claims?.map((claim) =>
           claim.claimStatus === "APPROVED" ? (
-            <OwnedCompanyCard key={claim.id} claim={claim} accessToken={accessToken} />
+            <OwnedCompanyCard key={claim.id} claim={claim} />
           ) : (
             <div
               key={claim.id}

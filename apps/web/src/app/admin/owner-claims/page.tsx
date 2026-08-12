@@ -6,25 +6,25 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 
 export default function OwnerClaimsPage() {
-  const { accessToken, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [claims, setClaims] = useState<AdminOwnerClaim[] | null>(null);
   const [messages, setMessages] = useState<OwnerContactMessage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!accessToken) return;
+    if (!isAuthenticated) return;
     try {
       const [claimsData, messagesData] = await Promise.all([
-        apiGet<AdminOwnerClaim[]>("/admin/owner-claims?status=PENDING", accessToken),
-        apiGet<OwnerContactMessage[]>("/admin/owner-messages", accessToken),
+        apiGet<AdminOwnerClaim[]>("/admin/owner-claims?status=PENDING"),
+        apiGet<OwnerContactMessage[]>("/admin/owner-messages"),
       ]);
       setClaims(claimsData);
       setMessages(messagesData);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load owner claims.");
     }
-  }, [accessToken]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void load();
@@ -34,7 +34,7 @@ export default function OwnerClaimsPage() {
     setActioningId(id);
     setError(null);
     try {
-      await apiPost(`/admin/owner-claims/${id}/${action}`, {}, accessToken ?? undefined);
+      await apiPost(`/admin/owner-claims/${id}/${action}`, {});
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed.");
@@ -47,7 +47,7 @@ export default function OwnerClaimsPage() {
     setActioningId(id);
     setError(null);
     try {
-      await apiPost(`/admin/owner-messages/${id}/resolve`, {}, accessToken ?? undefined);
+      await apiPost(`/admin/owner-messages/${id}/resolve`, {});
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed.");
@@ -58,7 +58,7 @@ export default function OwnerClaimsPage() {
 
   if (isLoading) return null;
 
-  if (!accessToken) {
+  if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-muted-foreground">Log in as an admin to view this page.</p>

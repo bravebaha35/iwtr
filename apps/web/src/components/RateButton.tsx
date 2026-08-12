@@ -129,7 +129,7 @@ export function RateButton({
   companyName: string;
   workplaceTypes: WorkplaceType[];
 }) {
-  const { accessToken } = useAuth();
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [matchingEntry, setMatchingEntry] = useState<MyEmploymentEntry | null | undefined>(undefined);
   // Only meaningful while logged in — an anonymous visitor or one with no
@@ -154,12 +154,12 @@ export function RateButton({
   const totalSteps = categoryOffset + CATEGORIES.length + 1;
 
   useEffect(() => {
-    if (!accessToken) {
+    if (!isAuthenticated) {
       setMatchingEntry(null);
       return;
     }
     setLoadFailed(false);
-    apiGet<MyEmploymentEntry[]>("/me/employment-history", accessToken)
+    apiGet<MyEmploymentEntry[]>("/me/employment-history")
       .then((entries) => {
         const match = entries.find((e) => e.companyId === companyId) ?? null;
         setMatchingEntry(match);
@@ -168,10 +168,10 @@ export function RateButton({
         setMatchingEntry(null);
         setLoadFailed(true);
       });
-  }, [accessToken, companyId]);
+  }, [isAuthenticated, companyId]);
 
   async function loadQuestionsFor(type: WorkplaceType) {
-    const questionSet = await apiGet<SurveyQuestion[]>(`/reviews/survey/${type}`, accessToken ?? undefined);
+    const questionSet = await apiGet<SurveyQuestion[]>(`/reviews/survey/${type}`);
     setQuestions(questionSet);
   }
 
@@ -187,7 +187,7 @@ export function RateButton({
     setLoadingExisting(true);
     try {
       if (matchingEntry?.reviewId) {
-        const review = await apiGet<MyReview>(`/reviews/${matchingEntry.reviewId}`, accessToken ?? undefined);
+        const review = await apiGet<MyReview>(`/reviews/${matchingEntry.reviewId}`);
         setAnswers(review.surveyAnswers);
         setGeneralThoughts(review.generalThoughts ?? "");
         setSelectedWorkplaceType(review.workplaceType);
@@ -239,21 +239,13 @@ export function RateButton({
       const answerList = questions.map((q) => ({ questionId: q.id, answer: answers[q.id] }));
       const content = { answers: answerList, generalThoughts: generalThoughts.trim() || undefined };
       const res = matchingEntry.reviewId
-        ? await apiPatch<SubmitReviewResult>(
-            `/reviews/${matchingEntry.reviewId}`,
-            content satisfies UpdateReviewInput,
-            accessToken ?? undefined,
-          )
-        : await apiPost<SubmitReviewResult>(
-            "/reviews",
-            {
-              companyId,
-              employmentHistoryId: matchingEntry.id,
-              workplaceType: selectedWorkplaceType,
-              ...content,
-            } satisfies CreateReviewInput,
-            accessToken ?? undefined,
-          );
+        ? await apiPatch<SubmitReviewResult>(`/reviews/${matchingEntry.reviewId}`, content satisfies UpdateReviewInput)
+        : await apiPost<SubmitReviewResult>("/reviews", {
+            companyId,
+            employmentHistoryId: matchingEntry.id,
+            workplaceType: selectedWorkplaceType,
+            ...content,
+          } satisfies CreateReviewInput);
       setResult(res);
       router.refresh();
     } catch (err) {
@@ -264,7 +256,7 @@ export function RateButton({
   }
 
   if (!matchingEntry) {
-    if (accessToken && loadFailed) {
+    if (isAuthenticated && loadFailed) {
       return (
         <p className="text-sm text-red-600 dark:text-red-400">
           Couldn&apos;t check whether you can rate this workplace — try refreshing the page.

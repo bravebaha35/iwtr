@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { scoreBandLabel, type CompanyDetail } from "@iwtr/shared-types";
-import { apiGet, ApiError } from "@/lib/api-client";
+import { apiGetPublic, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
 import { SurveyHighlights } from "@/components/SurveyHighlights";
 import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
@@ -23,7 +23,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
 
   let detail: CompanyDetail;
   try {
-    detail = await apiGet<CompanyDetail>(`/companies/${slug}`);
+    detail = await apiGetPublic<CompanyDetail>(`/companies/${slug}`);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
