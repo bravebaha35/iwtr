@@ -147,6 +147,12 @@ export function WorkplaceBrowser() {
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [minRating, setMinRating] = useState(0);
+  // minRating already starts at 0 ("Any"/no restriction) before the visitor
+  // touches anything, so `minRating === 0` alone can't drive the "All"
+  // button's highlight — that would light it up by default with no
+  // interaction. This tracks whether the rating control has actually been
+  // used yet (drag, scroll, or the "All" button itself).
+  const [ratingTouched, setRatingTouched] = useState(false);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   // Tracked separately from selectedCities/selectedDistrictKeys being empty
@@ -174,6 +180,7 @@ export function WorkplaceBrowser() {
   const resultsTopRef = useRef<HTMLDivElement>(null);
 
   function stepRating(delta: number) {
+    setRatingTouched(true);
     setMinRating((prev) => Math.min(5, Math.max(0, Math.round((prev + delta) * 10) / 10)));
   }
 
@@ -212,6 +219,7 @@ export function WorkplaceBrowser() {
     const rect = el.getBoundingClientRect();
     const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     const value = Math.round(fraction * 5 * 10) / 10;
+    setRatingTouched(true);
     setMinRating(value);
     return value;
   }
@@ -413,9 +421,14 @@ export function WorkplaceBrowser() {
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h3>
                 <button
                   type="button"
-                  onClick={() => setMinRating(0)}
+                  onClick={() => {
+                    setRatingTouched(true);
+                    setMinRating(0);
+                  }}
                   className={`text-xs font-medium ${
-                    minRating === 0 ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
+                    ratingTouched && minRating === 0
+                      ? "text-brand-600 dark:text-brand-400"
+                      : "text-muted-foreground hover:underline"
                   }`}
                 >
                   All
