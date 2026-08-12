@@ -18,9 +18,18 @@ function gridPillClass(active: boolean): string {
   }`;
 }
 
-// Multi-select filter pill group. The "All" pill is always the first item —
-// clicking it clears the selection (equivalent to "no filter applied"), so
-// picking individual values and picking "All" are mutually exclusive states.
+// Small text-only "All" button used next to a section heading — same look
+// as the Rating section's "All" reset button in WorkplaceBrowser.tsx, so
+// every filter's "clear this section" control reads consistently.
+function headerAllButtonClass(active: boolean): string {
+  return `text-xs font-medium ${
+    active ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
+  }`;
+}
+
+// Multi-select filter pill group. Clicking "All" clears the selection
+// (equivalent to "no filter applied"), so picking individual values and
+// picking "All" are mutually exclusive states.
 export function MultiFilterPillGroup<T extends string>({
   heading,
   options,
@@ -28,6 +37,7 @@ export function MultiFilterPillGroup<T extends string>({
   onToggle,
   onClearAll,
   direction = "wrap",
+  allButtonPlacement = "inline",
 }: {
   heading: string;
   options: { value: T; label: string }[];
@@ -36,10 +46,15 @@ export function MultiFilterPillGroup<T extends string>({
   onClearAll: () => void;
   // "grid" lines pills up in a fixed 2-column grid instead of letting them
   // wrap wherever they happen to fit — a narrow sidebar with mixed-length
-  // labels (e.g. "All" next to "Hybrid/Remote") wraps unevenly under plain
-  // flex-wrap, leaving a lone pill stranded on its own row. The grid keeps
-  // every row the same two-column shape regardless of label length.
+  // labels (e.g. "Hybrid/Remote") wraps unevenly under plain flex-wrap,
+  // leaving a lone pill stranded on its own row. The grid keeps every row
+  // the same two-column shape regardless of label length.
   direction?: "wrap" | "column" | "grid";
+  // "inline" (default) renders "All" as the first pill among the options,
+  // same size as the rest. "header" instead renders it as a small text
+  // button next to the heading — for a group like Workplace, where "All" is
+  // really just a reset action, not one option among equals.
+  allButtonPlacement?: "inline" | "header";
 }) {
   const layoutClassName =
     direction === "column"
@@ -49,15 +64,24 @@ export function MultiFilterPillGroup<T extends string>({
         : "flex flex-wrap gap-1.5";
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
+        {allButtonPlacement === "header" && (
+          <button type="button" onClick={onClearAll} className={headerAllButtonClass(selected.length === 0)}>
+            All
+          </button>
+        )}
+      </div>
       <div className={layoutClassName}>
-        <button
-          type="button"
-          onClick={onClearAll}
-          className={direction === "grid" ? gridPillClass(selected.length === 0) : pillClass(selected.length === 0)}
-        >
-          All
-        </button>
+        {allButtonPlacement === "inline" && (
+          <button
+            type="button"
+            onClick={onClearAll}
+            className={direction === "grid" ? gridPillClass(selected.length === 0) : pillClass(selected.length === 0)}
+          >
+            All
+          </button>
+        )}
         {options.map((o) => (
           <button
             key={o.value}

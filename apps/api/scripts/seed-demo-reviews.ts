@@ -1,11 +1,6 @@
-// Gives each demo company (see reset-to-demo-companies.ts) at least one
-// published demo review, so company cards/pages have a rating to look at
-// (and to edit, via the PATCH /reviews/:id endpoint) while the frontend is
-// designed. A handful of companies get extra reviewers on top of their one
-// baseline review specifically to cross MIN_REVIEWS_FOR_EXACT_COUNT
-// (apps/web/src/lib/reviewCount.ts) — see the block below the first 11
-// entries — so both the low-sample ("percentage, no count") and normal
-// ("X.X, N reviews") card/detail-page UIs have real demo data to look at.
+// Gives each demo company (see reset-to-demo-companies.ts) one published
+// demo review, so company cards/pages have a rating to look at (and to edit,
+// via the new PATCH /reviews/:id endpoint) while the frontend is designed.
 // Submits a full 25-question survey per company — matching that company's
 // workplaceType question set — rather than raw scores, since scores are now
 // always computed server-side from answers (see ReviewsService.scoreAnswers).
@@ -143,102 +138,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     reviewerDisplayName: "Demo Reviewer 11",
     missCounts: { corporateCulture: 2, leadership: 1, infrastructure: 0, workLifeBalance: 1, stability: 2 },
     generalThoughts: "Sample review content for design purposes — back-office side is much calmer than the floor.",
-  },
-
-  // Everything below this line exists purely to push a handful of demo
-  // companies to (or just under) MIN_REVIEWS_FOR_EXACT_COUNT
-  // (apps/web/src/lib/reviewCount.ts) — most demo companies sit at 1 review,
-  // which shows the low-sample "score as a percentage, no count" UI; these
-  // three go to exactly 4 to show the normal "X.X (N reviews)" UI instead,
-  // and Numune İnşaat goes to 3 to show a just-under-the-line example too.
-
-  // Demo Teknoloji A.Ş.: 1 -> 4 reviews.
-  {
-    companyName: "Demo Teknoloji A.Ş.",
-    workplaceType: "OFFICE",
-    reviewerEmail: "demo-reviewer-12@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 12",
-    missCounts: { corporateCulture: 0, leadership: 1, infrastructure: 1, workLifeBalance: 1, stability: 0 },
-    generalThoughts: "Sample review content for design purposes — solid onboarding, clear expectations.",
-  },
-  {
-    companyName: "Demo Teknoloji A.Ş.",
-    workplaceType: "OFFICE",
-    reviewerEmail: "demo-reviewer-13@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 13",
-    missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 1, workLifeBalance: 3, stability: 1 },
-    generalThoughts: "Sample review content for design purposes — crunch before releases, otherwise fine.",
-  },
-  {
-    companyName: "Demo Teknoloji A.Ş.",
-    workplaceType: "OFFICE",
-    reviewerEmail: "demo-reviewer-14@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 14",
-    missCounts: { corporateCulture: 1, leadership: 0, infrastructure: 0, workLifeBalance: 1, stability: 1 },
-    generalThoughts: "Sample review content for design purposes — good hardware, decent raises.",
-  },
-
-  // Test Cafe & Restoran: 1 -> 4 reviews.
-  {
-    companyName: "Test Cafe & Restoran",
-    workplaceType: "SERVICE",
-    reviewerEmail: "demo-reviewer-15@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 15",
-    missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 1, workLifeBalance: 1, stability: 2 },
-    generalThoughts: "Sample review content for design purposes — busy weekends, management pitches in.",
-  },
-  {
-    companyName: "Test Cafe & Restoran",
-    workplaceType: "SERVICE",
-    reviewerEmail: "demo-reviewer-16@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 16",
-    missCounts: { corporateCulture: 0, leadership: 0, infrastructure: 2, workLifeBalance: 1, stability: 1 },
-    generalThoughts: "Sample review content for design purposes — kitchen equipment could be newer.",
-  },
-  {
-    companyName: "Test Cafe & Restoran",
-    workplaceType: "SERVICE",
-    reviewerEmail: "demo-reviewer-17@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 17",
-    missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 1, workLifeBalance: 2, stability: 1 },
-    generalThoughts: "Sample review content for design purposes — flexible shift swaps, casual atmosphere.",
-  },
-
-  // Placeholder Sağlık Hizmetleri: 2 -> 4 reviews (one more per type).
-  {
-    companyName: "Placeholder Sağlık Hizmetleri",
-    workplaceType: "SERVICE",
-    reviewerEmail: "demo-reviewer-18@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 18",
-    missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 1, workLifeBalance: 2, stability: 1 },
-    generalThoughts: "Sample review content for design purposes — short-staffed on night shifts.",
-  },
-  {
-    companyName: "Placeholder Sağlık Hizmetleri",
-    workplaceType: "OFFICE",
-    reviewerEmail: "demo-reviewer-19@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 19",
-    missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 0, workLifeBalance: 1, stability: 1 },
-    generalThoughts: "Sample review content for design purposes — billing team is well organized.",
-  },
-
-  // Numune İnşaat: 1 -> 3 reviews (deliberately left just under the
-  // threshold, to show the percentage UI right at its edge case).
-  {
-    companyName: "Numune İnşaat",
-    workplaceType: "MANUAL_LABOUR",
-    reviewerEmail: "demo-reviewer-20@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 20",
-    missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 3, workLifeBalance: 2, stability: 3 },
-    generalThoughts: "Sample review content for design purposes — pay is late some months.",
-  },
-  {
-    companyName: "Numune İnşaat",
-    workplaceType: "MANUAL_LABOUR",
-    reviewerEmail: "demo-reviewer-21@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 21",
-    missCounts: { corporateCulture: 3, leadership: 2, infrastructure: 2, workLifeBalance: 3, stability: 3 },
-    generalThoughts: "Sample review content for design purposes — heavy workload, high turnover.",
   },
 ];
 

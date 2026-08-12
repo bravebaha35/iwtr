@@ -5,7 +5,6 @@ import Link from "next/link";
 import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
-import { MIN_REVIEWS_FOR_EXACT_COUNT, scoreAsPercent } from "@/lib/reviewCount";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { SECTORS } from "@/lib/sectors";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
@@ -121,32 +120,15 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
 
       {company.overallAvg !== null ? (
         <div className="flex items-baseline gap-2">
-          {company.reviewCount >= MIN_REVIEWS_FOR_EXACT_COUNT ? (
-            <>
-              <span className="text-lg compact:text-base font-bold text-foreground">
-                {company.overallAvg.toFixed(1)}
-              </span>
-              <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-                {scoreBandLabel(company.overallAvg)}
-              </span>
-              <span className="text-xs text-muted-foreground compact:hidden">
-                ({company.reviewCount} review{company.reviewCount === 1 ? "" : "s"})
-              </span>
-            </>
-          ) : (
-            // Fewer than MIN_REVIEWS_FOR_EXACT_COUNT reviews — showing the
-            // exact count (or an X.X/5 average with that few data points)
-            // risks reverse-identifying a reviewer at a small company, so
-            // show the score as a rounded percentage with no count at all.
-            <>
-              <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-                {scoreBandLabel(company.overallAvg)}
-              </span>
-              <span className="text-lg compact:text-base font-bold text-foreground">
-                {scoreAsPercent(company.overallAvg)}%
-              </span>
-            </>
-          )}
+          <span className="text-lg compact:text-base font-bold text-foreground">
+            {company.overallAvg.toFixed(1)}
+          </span>
+          <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
+            {scoreBandLabel(company.overallAvg)}
+          </span>
+          <span className="text-xs text-muted-foreground compact:hidden">
+            ({company.reviewCount} review{company.reviewCount === 1 ? "" : "s"})
+          </span>
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">No reviews yet</p>
@@ -387,6 +369,7 @@ export function WorkplaceBrowser() {
                 onToggle={toggleWorkplaceType}
                 onClearAll={() => setWorkplaceTypes([])}
                 direction="grid"
+                allButtonPlacement="header"
               />
               <div className="mt-2">
                 <SingleSelectDropdown
