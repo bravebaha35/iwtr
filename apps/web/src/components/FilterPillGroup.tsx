@@ -62,12 +62,18 @@ export function MultiFilterPillGroup<T extends string>({
       : direction === "grid"
         ? "grid grid-cols-2 gap-1.5"
         : "flex flex-wrap gap-1.5";
+  // No selection means "no filter applied" — every option is effectively
+  // included, so every pill shows as active too rather than leaving the
+  // visitor guessing what an empty selection actually covers. Picking any
+  // single option moves out of this state and back to normal per-pill
+  // toggling, exactly like today.
+  const allActive = selected.length === 0;
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
         {allButtonPlacement === "header" && (
-          <button type="button" onClick={onClearAll} className={headerAllButtonClass(selected.length === 0)}>
+          <button type="button" onClick={onClearAll} className={headerAllButtonClass(allActive)}>
             All
           </button>
         )}
@@ -77,7 +83,7 @@ export function MultiFilterPillGroup<T extends string>({
           <button
             type="button"
             onClick={onClearAll}
-            className={direction === "grid" ? gridPillClass(selected.length === 0) : pillClass(selected.length === 0)}
+            className={direction === "grid" ? gridPillClass(allActive) : pillClass(allActive)}
           >
             All
           </button>
@@ -87,7 +93,11 @@ export function MultiFilterPillGroup<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onToggle(o.value)}
-            className={direction === "grid" ? gridPillClass(selected.includes(o.value)) : pillClass(selected.includes(o.value))}
+            className={
+              direction === "grid"
+                ? gridPillClass(allActive || selected.includes(o.value))
+                : pillClass(allActive || selected.includes(o.value))
+            }
           >
             {o.label}
           </button>
