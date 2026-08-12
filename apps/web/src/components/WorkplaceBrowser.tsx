@@ -149,6 +149,10 @@ export function WorkplaceBrowser() {
   const [minRating, setMinRating] = useState(0);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
+  // Tracked separately from selectedCities/selectedDistrictKeys being empty
+  // — see CityDistrictPicker's allSelected prop comment for why "All" can't
+  // just mean "populate every province name" the way Workplace's "All" does.
+  const [allCitiesActive, setAllCitiesActive] = useState(false);
   const [query, setQuery] = useState("");
   const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
   // Distinguishes "the request failed" from "genuinely zero matches" — both
@@ -357,11 +361,24 @@ export function WorkplaceBrowser() {
   }
 
   function toggleCity(city: string) {
+    // Picking any specific city always exits the "All" state, whether or not
+    // it was even active — narrowing to one real city is never "still all".
+    setAllCitiesActive(false);
     setSelectedCities((prev) => (prev.includes(city) ? prev.filter((v) => v !== city) : [...prev, city]));
   }
 
   function toggleDistrict(key: string) {
+    setAllCitiesActive(false);
     setSelectedDistrictKeys((prev) => (prev.includes(key) ? prev.filter((v) => v !== key) : [...prev, key]));
+  }
+
+  // "All" is a toggle, same as Workplace's: press it once to mark every
+  // city/district as included (allCitiesActive true, any partial picks
+  // cleared), press it again to go back to none selected.
+  function toggleAllCities() {
+    setAllCitiesActive((prev) => !prev);
+    setSelectedCities([]);
+    setSelectedDistrictKeys([]);
   }
 
   return (
@@ -463,10 +480,8 @@ export function WorkplaceBrowser() {
               selectedDistrictKeys={selectedDistrictKeys}
               onToggleCity={toggleCity}
               onToggleDistrict={toggleDistrict}
-              onClearAll={() => {
-                setSelectedCities([]);
-                setSelectedDistrictKeys([]);
-              }}
+              allSelected={allCitiesActive}
+              onAllClick={toggleAllCities}
               onNearMe={requestNearMe}
               nearMeLoading={geoRequesting}
               nearMeActive={geo !== null && geo !== "denied"}

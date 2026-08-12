@@ -37,7 +37,8 @@ export function CityDistrictPicker({
   selectedDistrictKeys,
   onToggleCity,
   onToggleDistrict,
-  onClearAll,
+  allSelected,
+  onAllClick,
   onNearMe,
   nearMeLoading,
   nearMeActive,
@@ -46,7 +47,15 @@ export function CityDistrictPicker({
   selectedDistrictKeys: string[];
   onToggleCity: (province: string) => void;
   onToggleDistrict: (key: string) => void;
-  onClearAll: () => void;
+  // Driven by the parent, not derived from selectedCities/selectedDistrictKeys
+  // being empty: those stay empty both when nothing is picked AND when "All"
+  // is active (some real companies have no city set at all — e.g. fully
+  // remote ones — so actually listing every province in the query would
+  // wrongly exclude them; "no location filter" is what really means "every
+  // company", so the all-state is tracked separately and never sent as a
+  // literal list of every city).
+  allSelected: boolean;
+  onAllClick: () => void;
   // "Near Me" only ever reorders results by proximity (see WorkplaceBrowser)
   // — it deliberately never touches selectedCities/selectedDistrictKeys, so
   // "All" here always means every city, never a silently-narrowed one.
@@ -86,8 +95,6 @@ export function CityDistrictPicker({
     });
   }, [normalizedQuery, isTurkey]);
 
-  const nothingSelected = selectedCities.length === 0 && selectedDistrictKeys.length === 0;
-
   function toggleExpanded(province: string) {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -115,9 +122,9 @@ export function CityDistrictPicker({
           </button>
           <button
             type="button"
-            onClick={onClearAll}
+            onClick={onAllClick}
             className={`text-xs font-medium ${
-              nothingSelected ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
+              allSelected ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
             }`}
           >
             All
@@ -156,7 +163,7 @@ export function CityDistrictPicker({
           // just that district; clicking the city's own name (below) is the
           // only thing that broadens the filter to the whole city.
           const hasSelectedDistrict = p.districts.some((d) => selectedDistrictKeys.includes(districtKey(p.name, d)));
-          const cityActive = wholeCitySelected || hasSelectedDistrict;
+          const cityActive = allSelected || wholeCitySelected || hasSelectedDistrict;
           // A plain toggleCity() only flips the coarse selectedCities flag —
           // fine when nothing's selected yet (turns the whole city on), but
           // once a district has been carved out (city flag already dropped,
@@ -168,7 +175,12 @@ export function CityDistrictPicker({
           // flag, one district, or "all but one") always clears everything
           // for it; clicking an inactive one selects the whole city.
           function handleCityClick() {
-            if (cityActive) {
+            if (allSelected) {
+              // "All" is active (not a real per-city selection to unwind) —
+              // clicking a specific city narrows down to just that one,
+              // same as clicking it from a genuinely empty selection.
+              onToggleCity(p.name);
+            } else if (cityActive) {
               if (wholeCitySelected) onToggleCity(p.name);
               p.districts.forEach((d) => {
                 const k = districtKey(p.name, d);
@@ -210,16 +222,19 @@ export function CityDistrictPicker({
                     // selectedCities rather than stored per-district,
                     // deselecting the city un-lights them all again with no
                     // extra bookkeeping.
-                    const active = selectedDistrictKeys.includes(key) || wholeCitySelected;
+                    const active = allSelected || selectedDistrictKeys.includes(key) || wholeCitySelected;
                     // Clicking a district that's only lit because the whole
-                    // city is selected carves it out: drop the coarse city
-                    // flag and individually re-select every OTHER district,
-                    // so the net effect is "this city, minus the one just
-                    // clicked" rather than an all-or-nothing city toggle.
-                    // Once the city is no longer selected wholesale, this is
-                    // just the normal single-district toggle.
+                    // city is selected (or because "All" is active) carves it
+                    // out: drop the coarse city flag and individually
+                    // re-select every OTHER district, so the net effect is
+                    // "this city, minus the one just clicked" rather than an
+                    // all-or-nothing city toggle. Once the city is no longer
+                    // selected wholesale, this is just the normal
+                    // single-district toggle.
                     function handleClick() {
-                      if (wholeCitySelected) {
+                      if (allSelected) {
+                        onToggleDistrict(key);
+                      } else if (wholeCitySelected) {
                         onToggleCity(p.name);
                         p.districts
                           .filter((other) => other !== d)
