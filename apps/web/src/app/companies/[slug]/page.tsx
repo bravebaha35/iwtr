@@ -8,6 +8,7 @@ import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { RateButton } from "@/components/RateButton";
 import { scoreBarColor } from "@/lib/scoreBandColors";
+import { MIN_REVIEWS_FOR_EXACT_COUNT, scoreAsPercent } from "@/lib/reviewCount";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
 const CATEGORIES = [
@@ -62,15 +63,32 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
         {aggregate && aggregate.reviewCount > 0 ? (
           <>
             <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-bold text-foreground">
-                {aggregate.overallAvg.toFixed(1)}
-              </span>
-              <span className="text-lg font-medium text-foreground/80">
-                {scoreBandLabel(aggregate.overallAvg)}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                ({aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"})
-              </span>
+              {aggregate.reviewCount >= MIN_REVIEWS_FOR_EXACT_COUNT ? (
+                <>
+                  <span className="text-4xl font-bold text-foreground">
+                    {aggregate.overallAvg.toFixed(1)}
+                  </span>
+                  <span className="text-lg font-medium text-foreground/80">
+                    {scoreBandLabel(aggregate.overallAvg)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    ({aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"})
+                  </span>
+                </>
+              ) : (
+                // Fewer than MIN_REVIEWS_FOR_EXACT_COUNT reviews — showing the
+                // exact count (or an X.X/5 average with that few data points)
+                // risks reverse-identifying a reviewer at a small company, so
+                // show the score as a rounded percentage with no count at all.
+                <>
+                  <span className="text-lg font-medium text-foreground/80">
+                    {scoreBandLabel(aggregate.overallAvg)}
+                  </span>
+                  <span className="text-4xl font-bold text-foreground">
+                    {scoreAsPercent(aggregate.overallAvg)}%
+                  </span>
+                </>
+              )}
             </div>
             <div className="mt-6 flex flex-col gap-2">
               {CATEGORIES.map((c) => (

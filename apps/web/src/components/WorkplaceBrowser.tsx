@@ -5,6 +5,7 @@ import Link from "next/link";
 import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
+import { MIN_REVIEWS_FOR_EXACT_COUNT, scoreAsPercent } from "@/lib/reviewCount";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { SECTORS } from "@/lib/sectors";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
@@ -120,15 +121,32 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
 
       {company.overallAvg !== null ? (
         <div className="flex items-baseline gap-2">
-          <span className="text-lg compact:text-base font-bold text-foreground">
-            {company.overallAvg.toFixed(1)}
-          </span>
-          <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-            {scoreBandLabel(company.overallAvg)}
-          </span>
-          <span className="text-xs text-muted-foreground compact:hidden">
-            ({company.reviewCount} review{company.reviewCount === 1 ? "" : "s"})
-          </span>
+          {company.reviewCount >= MIN_REVIEWS_FOR_EXACT_COUNT ? (
+            <>
+              <span className="text-lg compact:text-base font-bold text-foreground">
+                {company.overallAvg.toFixed(1)}
+              </span>
+              <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
+                {scoreBandLabel(company.overallAvg)}
+              </span>
+              <span className="text-xs text-muted-foreground compact:hidden">
+                ({company.reviewCount} review{company.reviewCount === 1 ? "" : "s"})
+              </span>
+            </>
+          ) : (
+            // Fewer than MIN_REVIEWS_FOR_EXACT_COUNT reviews — showing the
+            // exact count (or an X.X/5 average with that few data points)
+            // risks reverse-identifying a reviewer at a small company, so
+            // show the score as a rounded percentage with no count at all.
+            <>
+              <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
+                {scoreBandLabel(company.overallAvg)}
+              </span>
+              <span className="text-lg compact:text-base font-bold text-foreground">
+                {scoreAsPercent(company.overallAvg)}%
+              </span>
+            </>
+          )}
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">No reviews yet</p>
@@ -168,10 +186,6 @@ export function WorkplaceBrowser() {
   const [page, setPage] = useState(1);
   const sliderTrackRef = useRef<HTMLDivElement>(null);
   const resultsTopRef = useRef<HTMLDivElement>(null);
-  // Anchor point (cursor position + value at the start of the current drag)
-  // for the damped scrub below — read on every pointermove, written only on
-  // pointerdown.
-  const sliderDragAnchor = useRef<{ x: number; value: number } | null>(null);
 
   function stepRating(delta: number) {
     setMinRating((prev) => Math.min(5, Math.max(0, Math.round((prev + delta) * 10) / 10)));
@@ -202,6 +216,12 @@ export function WorkplaceBrowser() {
   // window, leaking a permanent mousemove listener that fires setMinRating on
   // every future mouse move anywhere on the page — which starves re-renders
   // and makes unrelated clicks (e.g. Cities & Districts) look "disabled".
+  // Maps cursor position directly onto the 0-5 range every time — the thumb
+  // is drawn at `(minRating / 5) * 100%` (see below), so this is the only
+  // formula that keeps the thumb glued exactly under the cursor. An earlier
+  // version damped pointermove by scaling the drag *delta*, which felt
+  // smoother but desynced the thumb from the actual cursor position the
+  // moment you started dragging — don't reintroduce delta-based tracking here.
   function applyRatingFromClientX(el: HTMLDivElement, clientX: number) {
     const rect = el.getBoundingClientRect();
     const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
@@ -210,33 +230,14 @@ export function WorkplaceBrowser() {
     return value;
   }
 
-  // A little under 1 so dragging feels a bit less twitchy/instant than a
-  // straight 1:1 cursor-to-value mapping — moving the mouse across the whole
-  // track no longer quite reaches the far end in one sweep, which reads as
-  // slower/less smooth without making fine control any harder.
-  const SLIDER_DRAG_SENSITIVITY = 0.7;
-
   function handleSliderPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
-    const value = applyRatingFromClientX(e.currentTarget, e.clientX);
-    sliderDragAnchor.current = { x: e.clientX, value };
+    applyRatingFromClientX(e.currentTarget, e.clientX);
   }
 
   function handleSliderPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (e.buttons !== 1) return;
-    const anchor = sliderDragAnchor.current;
-    if (!anchor) {
-      applyRatingFromClientX(e.currentTarget, e.clientX);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const deltaFraction = ((e.clientX - anchor.x) / rect.width) * SLIDER_DRAG_SENSITIVITY;
-    const value = Math.min(5, Math.max(0, Math.round((anchor.value + deltaFraction * 5) * 10) / 10));
-    setMinRating(value);
-  }
-
-  function handleSliderPointerUp() {
-    sliderDragAnchor.current = null;
+    applyRatingFromClientX(e.currentTarget, e.clientX);
   }
 
   // "Near Me" button only: geolocation is never requested until the visitor
@@ -440,8 +441,6 @@ export function WorkplaceBrowser() {
                     ref={sliderTrackRef}
                     onPointerDown={handleSliderPointerDown}
                     onPointerMove={handleSliderPointerMove}
-                    onPointerUp={handleSliderPointerUp}
-                    onPointerCancel={handleSliderPointerUp}
                     className="relative h-2 w-full cursor-pointer touch-none rounded-full"
                     style={{ background: "linear-gradient(to right, #ef4444, #22c55e)" }}
                     title="Click and drag along the slider, or scroll, to fine-tune"
