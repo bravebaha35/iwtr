@@ -103,6 +103,14 @@ export const publicReviewSchema = z.object({
   // (anonymous) author has published reviews for elsewhere — never reveals
   // who the author is, just a contribution tier.
   contributorBadge: z.enum(["CONTRIBUTOR", "TOP_CONTRIBUTOR"]).nullable(),
+  // The author's own self-chosen anonymous avatar (see REVIEW.md rule #8 —
+  // an explicit, deliberate exception, not an oversight: the product owner
+  // accepted that the same avatar repeating across a reviewer's other
+  // reviews narrows the anonymity set somewhat). Deliberately NOT paired
+  // with displayName, email, or any other User field — see
+  // ReviewsService.listForCompany, which selects only these two columns.
+  avatarKey: z.string().nullable(),
+  avatarGradient: z.string().nullable(),
 });
 export type PublicReview = z.infer<typeof publicReviewSchema>;
 

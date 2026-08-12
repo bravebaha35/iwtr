@@ -81,6 +81,20 @@ the severity because the diff is short.
    free-text company name before backfill, etc.) narrows the anonymity set
    even without naming the user directly.
 
+   **Explicit, approved exception (2026-08):** `PublicReview.avatarKey` /
+   `avatarGradient` — the author's own self-chosen anonymous avatar — is a
+   deliberate product decision, not an oversight, made knowing that the same
+   avatar repeating across a reviewer's other reviews narrows the anonymity
+   set somewhat (someone could notice "the fox-avatar reviewer" posted at
+   two different companies, without learning who that is). `ReviewsService.
+   listForCompany` sources it from a batched `prisma.user.findMany({select:
+   {id, avatarKey, avatarGradient}})` — never `include: { user: true }` on
+   the review query itself. Do not let this exception justify adding any
+   *other* User field (displayName, city, join date, etc.) to a review
+   response without an equally explicit, separate decision — this is a
+   narrow carve-out for exactly these two columns, not a precedent for
+   review-author fields in general.
+
 ## What reviewers must do for an in-scope PR
 
 - Read the full diff, not just the hunk — leaks in this codebase come from

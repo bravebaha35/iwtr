@@ -30,6 +30,45 @@ import { getQuestionsFor } from "../src/modules/reviews/survey-questions.data";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Mirrors the stable storage keys in apps/web/src/lib/avatars.ts and
+// avatarGradients.ts — this script deliberately doesn't import apps/web's
+// presentation-layer code (avatarKey/avatarGradient are just opaque strings
+// as far as the API/DB is concerned; the actual emoji/gradient palette is
+// resolved client-side), so the variant lists are duplicated here rather
+// than imported across the web/api boundary.
+const AVATAR_VARIANTS_BY_TYPE: Record<WorkplaceType, string[]> = {
+  OFFICE: ["office_1", "office_2", "office_3", "office_4"],
+  HYBRID_REMOTE: ["remote_1", "remote_2", "remote_3", "remote_4"],
+  SERVICE: ["service_1", "service_2", "service_3", "service_4"],
+  MANUAL_LABOUR: ["manual_1", "manual_2", "manual_3", "manual_4"],
+};
+const AVATAR_GRADIENT_KEYS = [
+  "sunrise",
+  "berry",
+  "ocean",
+  "mint",
+  "grape",
+  "flame",
+  "dusk",
+  "candy",
+  "citrus",
+  "lagoon",
+  "rose",
+];
+
+// Gives each demo reviewer a real avatar (matching their own workplaceType,
+// like the real onboarding picker does) instead of leaving them null —
+// PublicReview.avatarKey/avatarGradient now come from the review author's
+// actual User row (see ReviewsService.listForCompany), so demo companies
+// need real demo avatars to show the feature working, not a UI-only mock.
+function demoAvatarFor(index: number, workplaceType: WorkplaceType): { avatarKey: string; avatarGradient: string } {
+  const variants = AVATAR_VARIANTS_BY_TYPE[workplaceType];
+  return {
+    avatarKey: variants[index % variants.length],
+    avatarGradient: AVATAR_GRADIENT_KEYS[index % AVATAR_GRADIENT_KEYS.length],
+  };
+}
+
 // How many of each category's 5 questions this reviewer gets "wrong" (the
 // opposite of the question's correct answer) — the rest are answered
 // correctly. Chosen to land each company's overall average in roughly the
@@ -159,13 +198,14 @@ async function main() {
   let created = 0;
   let skipped = 0;
 
-  for (const demo of DEMO_REVIEWS) {
+  for (const [index, demo] of DEMO_REVIEWS.entries()) {
     const company = await prisma.company.findFirst({ where: { name: demo.companyName } });
     if (!company) {
       console.warn(`Skipping "${demo.companyName}" — company not found (did reset-to-demo-companies.ts run?)`);
       continue;
     }
 
+    const avatar = demoAvatarFor(index, demo.workplaceType);
     const user = await prisma.user.upsert({
       where: { email: demo.reviewerEmail },
       create: {
@@ -174,8 +214,12 @@ async function main() {
         status: "ACTIVE",
         displayName: demo.reviewerDisplayName,
         createdAt: backdatedCreatedAt,
+        avatarKey: avatar.avatarKey,
+        avatarGradient: avatar.avatarGradient,
       },
-      update: {},
+      // Re-running the script also backfills avatars onto demo reviewer
+      // accounts created before this field existed.
+      update: { avatarKey: avatar.avatarKey, avatarGradient: avatar.avatarGradient },
     });
 
     let employment = await prisma.employmentHistory.findFirst({

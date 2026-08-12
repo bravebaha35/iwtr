@@ -576,6 +576,17 @@ export class ReviewsService {
       return null;
     };
 
+    // The author's own self-chosen anonymous avatar (see REVIEW.md rule #8 —
+    // an explicit, approved exception). Explicit `select` of exactly these
+    // two columns, never `include: { user: true }` — that would also pull
+    // back email/displayName/city/etc. on a review-shaped query, which is
+    // exactly the leak pattern REVIEW.md's red flag #1 warns about.
+    const authors = await this.prisma.user.findMany({
+      where: { id: { in: authorIds } },
+      select: { id: true, avatarKey: true, avatarGradient: true },
+    });
+    const avatarByAuthor = new Map(authors.map((a) => [a.id, { avatarKey: a.avatarKey, avatarGradient: a.avatarGradient }]));
+
     return reviews.map((r) => ({
       id: r.id,
       companyId: r.companyId,
@@ -592,6 +603,8 @@ export class ReviewsService {
       dislikeCount: dislikeByReview.get(r.id) ?? 0,
       myVote: viewerUserId ? ((r.votes?.[0]?.value as 1 | -1 | undefined) ?? null) : null,
       contributorBadge: contributorBadge(r.userId),
+      avatarKey: avatarByAuthor.get(r.userId)?.avatarKey ?? null,
+      avatarGradient: avatarByAuthor.get(r.userId)?.avatarGradient ?? null,
     }));
   }
 

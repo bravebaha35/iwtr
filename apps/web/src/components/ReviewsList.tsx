@@ -5,36 +5,7 @@ import type { PublicReview, VoteValue } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
-import { WORK_TYPE_AVATARS } from "@/lib/avatars";
-import { AVATAR_GRADIENTS } from "@/lib/avatarGradients";
 import { Avatar } from "@/components/Avatar";
-
-// DEMO ONLY, not real reviewer data — PublicReview has no avatar field on
-// purpose (see review.ts: reviews are anonymous by design, and the
-// contributorBadge comment there is explicit that nothing here should ever
-// reveal who wrote a review). This just hashes the review id into a stable
-// pick from the same avatar/gradient sets users choose from on their own
-// profile, purely so the card layout can be previewed with something in that
-// slot. Wiring it to a reviewer's *real* chosen avatar is a separate,
-// deliberate anonymity call — the same avatar would then repeat across all
-// of that person's other reviews, letting them be linked together even
-// without knowing who they are.
-const ALL_AVATAR_KEYS = WORK_TYPE_AVATARS.flatMap((g) => g.variants.map((v) => v.key));
-
-function hashToIndex(seed: string, length: number): number {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) % length;
-}
-
-function demoAvatarFor(reviewId: string): { avatarKey: string; avatarGradient: string } {
-  return {
-    avatarKey: ALL_AVATAR_KEYS[hashToIndex(reviewId, ALL_AVATAR_KEYS.length)],
-    avatarGradient: AVATAR_GRADIENTS[hashToIndex(`${reviewId}:g`, AVATAR_GRADIENTS.length)].key,
-  };
-}
 
 const CATEGORY_FIELDS: { score: keyof PublicReview; label: string }[] = [
   { score: "corporateCultureScore", label: "Corporate Culture" },
@@ -115,15 +86,13 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
       <h2 className="text-lg font-semibold text-foreground">Reviews</h2>
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      {reviews.map((review) => {
-        const demoAvatar = demoAvatarFor(review.id);
-        return (
+      {reviews.map((review) => (
         <div
           key={review.id}
           className="rounded-xl border border-border bg-surface p-5 compact:p-3"
         >
           <div className="mb-3 compact:mb-1.5 flex items-center gap-2">
-            <Avatar avatarKey={demoAvatar.avatarKey} avatarGradient={demoAvatar.avatarGradient} size="sm" />
+            <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />
             <div className="flex flex-wrap items-center gap-2">
               {/* Which of the company's (up to 2) workplaceTypes this review
                   is about — matters once a company spans more than one, e.g.
@@ -186,8 +155,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
             </button>
           </div>
         </div>
-        );
-      })}
+      ))}
     </div>
   );
 }
