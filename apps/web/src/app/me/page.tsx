@@ -491,6 +491,14 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-4 border-t border-border pt-4 text-sm">
+              <p className="text-xs font-medium text-muted-foreground">Username</p>
+              <p className="font-mono text-foreground">{profile.memberNumber ?? "—"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Assigned automatically and shown on your own reviews — this can&apos;t be changed.
+              </p>
+            </div>
+
+            <div className="mt-4 border-t border-border pt-4 text-sm">
               <p className="mb-1 text-xs font-medium text-muted-foreground">Birth date</p>
               {editingBirthDate ? (
                 <div className="flex flex-col gap-2">

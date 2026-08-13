@@ -165,6 +165,13 @@ export const myProfileSchema = z.object({
   // uses it to compute the 14-day cooldown window (see updateProfileInputSchema
   // below and ProfileService.updateProfile).
   displayNameChangedAt: z.string().datetime().nullable(),
+  // System-generated, immutable 11-digit handle ("0" never appears) — shown
+  // read-only under "Username" on the account-settings page, and (unlike
+  // displayName) also on the user's own reviews. Never part of
+  // updateProfileInputSchema below — there is no way for a client to set or
+  // change this. Nullable only for accounts created before this field
+  // existed and not yet backfilled.
+  memberNumber: z.string().nullable(),
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
   country: z.string().nullable(),

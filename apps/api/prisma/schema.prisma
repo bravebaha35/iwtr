@@ -145,6 +145,17 @@ model User {
   // self-view case, never for anything else.
   encPhoneNumber  Bytes?
   phoneVerifiedAt DateTime?
+  // System-generated, immutable 11-digit handle (digits 1-9 only, never "0")
+  // shown on the user's own profile ("Username" section — see
+  // apps/web/src/app/me/page.tsx) and, unlike displayName above, ALSO on
+  // their own published reviews (see ReviewsService.listForCompany and
+  // REVIEW.md rule #8's approved-exception note) — a deliberate product
+  // decision, not an oversight. Never user-settable: not part of
+  // UpdateProfileInput, generated once at registration
+  // (auth/member-number.util.ts) and never written to again. Nullable only
+  // so accounts created before this field existed can be backfilled by
+  // scripts/backfill-member-numbers.ts rather than requiring a data wipe.
+  memberNumber    String?      @unique
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 

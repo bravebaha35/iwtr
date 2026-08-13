@@ -69,6 +69,7 @@ export class ProfileService {
     return {
       displayName: user.displayName,
       displayNameChangedAt: user.displayNameChangedAt?.toISOString() ?? null,
+      memberNumber: user.memberNumber,
       avatarKey: user.avatarKey,
       avatarGradient: user.avatarGradient,
       country: user.country,

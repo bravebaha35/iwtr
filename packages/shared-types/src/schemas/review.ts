@@ -111,6 +111,11 @@ export const publicReviewSchema = z.object({
   // ReviewsService.listForCompany, which selects only these two columns.
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
+  // The author's system-generated, immutable member number (see User.
+  // memberNumber and REVIEW.md rule #8's approved-exception note) — same
+  // anonymity trade-off as avatarKey/avatarGradient above, accepted for the
+  // same explicit reason. Still never displayName/email/etc.
+  memberNumber: z.string().nullable(),
 });
 export type PublicReview = z.infer<typeof publicReviewSchema>;
 

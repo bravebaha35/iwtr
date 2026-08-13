@@ -82,18 +82,22 @@ the severity because the diff is short.
    even without naming the user directly.
 
    **Explicit, approved exception (2026-08):** `PublicReview.avatarKey` /
-   `avatarGradient` — the author's own self-chosen anonymous avatar — is a
-   deliberate product decision, not an oversight, made knowing that the same
-   avatar repeating across a reviewer's other reviews narrows the anonymity
-   set somewhat (someone could notice "the fox-avatar reviewer" posted at
-   two different companies, without learning who that is). `ReviewsService.
-   listForCompany` sources it from a batched `prisma.user.findMany({select:
-   {id, avatarKey, avatarGradient}})` — never `include: { user: true }` on
-   the review query itself. Do not let this exception justify adding any
-   *other* User field (displayName, city, join date, etc.) to a review
-   response without an equally explicit, separate decision — this is a
-   narrow carve-out for exactly these two columns, not a precedent for
-   review-author fields in general.
+   `avatarGradient` / `memberNumber` — the author's own self-chosen
+   anonymous avatar, and their system-generated, immutable 11-digit member
+   number (`User.memberNumber`, digits 1-9 only) — are a deliberate product
+   decision, not an oversight, made knowing that the same avatar/number
+   repeating across a reviewer's other reviews narrows the anonymity set
+   somewhat (someone could notice "member 583947261" posted at two different
+   companies, without learning who that is). `ReviewsService.listForCompany`
+   sources all three from one batched `prisma.user.findMany({select: {id,
+   avatarKey, avatarGradient, memberNumber}})` — never `include: { user:
+   true }` on the review query itself. `memberNumber` is never user-settable
+   (generated once at registration, not part of `UpdateProfileInput`) and is
+   never paired with `displayName`/`email`/anything else. Do not let this
+   exception justify adding any *other* User field (displayName, city, join
+   date, etc.) to a review response without an equally explicit, separate
+   decision — this is a narrow carve-out for exactly these three columns,
+   not a precedent for review-author fields in general.
 
 ## What reviewers must do for an in-scope PR
 

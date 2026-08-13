@@ -27,6 +27,7 @@ import { ReviewsService } from "../src/modules/reviews/reviews.service";
 import { ModerationService } from "../src/modules/moderation/moderation.service";
 import { PiiVaultService } from "../src/modules/pii-vault/pii-vault.service";
 import { getQuestionsFor } from "../src/modules/reviews/survey-questions.data";
+import { generateUniqueMemberNumber } from "../src/modules/auth/member-number.util";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -221,6 +222,16 @@ async function main() {
       // accounts created before this field existed.
       update: { avatarKey: avatar.avatarKey, avatarGradient: avatar.avatarGradient },
     });
+
+    // Generated once, never overwritten on re-run — same immutability
+    // guarantee as a real registration (see AuthService.registerWithEmail).
+    // Existing demo accounts already got theirs from
+    // scripts/backfill-member-numbers.ts; this only covers a brand new
+    // demo reviewer added to DEMO_REVIEWS in the future.
+    if (!user.memberNumber) {
+      const memberNumber = await generateUniqueMemberNumber(prisma);
+      await prisma.user.update({ where: { id: user.id }, data: { memberNumber } });
+    }
 
     let employment = await prisma.employmentHistory.findFirst({
       where: { userId: user.id, companyId: company.id },
