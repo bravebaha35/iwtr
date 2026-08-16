@@ -104,22 +104,20 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
   return (
     <Link
       href={`/companies/${company.slug}`}
-      className="flex flex-col gap-3 compact:gap-1.5 rounded-xl border border-border bg-surface p-4 compact:p-2.5 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
+      className="flex items-center gap-3 compact:gap-2 rounded-xl border border-border bg-surface p-4 compact:p-2.5 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
     >
-      <div className="flex items-center gap-3 compact:gap-2">
-        <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-foreground compact:text-sm">{company.name}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
-            {company.city ? ` · ${company.city}` : ""}
-            {company.district ? `, ${company.district}` : ""}
-          </p>
-        </div>
+      <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold text-foreground compact:text-sm">{company.name}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
+          {company.city ? ` · ${company.city}` : ""}
+          {company.district ? `, ${company.district}` : ""}
+        </p>
       </div>
 
       {company.overallAvg !== null ? (
-        <div className="flex items-baseline gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
           <span className="text-lg compact:text-base font-bold text-foreground">
             {company.overallAvg.toFixed(1)}
           </span>
@@ -131,7 +129,7 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
           </span>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">No reviews yet</p>
+        <p className="shrink-0 text-xs text-muted-foreground">No reviews yet</p>
       )}
     </Link>
   );
@@ -348,12 +346,12 @@ export function WorkplaceBrowser() {
 
   // Mirrors the "a company can carry at most 2 workplaceTypes" rule (see
   // CLAUDE.md) on the filter side too: picking a 3rd, distinct type doesn't
-  // add to the selection — it resets to none selected, same as pressing
-  // "All" a second time (see toggleAllWorkplaceTypes below).
+  // add to the selection — it starts a fresh selection with just that type,
+  // as if the two previous picks were cleared first.
   function toggleWorkplaceType(value: WorkplaceType) {
     setWorkplaceTypes((prev) => {
       if (prev.includes(value)) return prev.filter((v) => v !== value);
-      if (prev.length >= 2) return [];
+      if (prev.length >= 2) return [value];
       return [...prev, value];
     });
   }

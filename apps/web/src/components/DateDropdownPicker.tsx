@@ -100,13 +100,18 @@ export function DateDropdownPicker({
   const yearOptions = years.map((y) => ({ value: String(y), label: String(y) }));
 
   return (
-    <div className="grid grid-cols-3 gap-1.5">
+    // flex, not a 3-equal-column grid — day/month/year labels are very
+    // different lengths ("1" vs "September"), so each box sizes to its own
+    // content (via fitContent below) instead of being squeezed into a third
+    // of the row and truncating.
+    <div className="flex flex-wrap gap-1.5">
       <SingleSelectDropdown
         value={day !== null ? String(day) : null}
         options={dayOptions}
         placeholder="Day"
         disabled={disabled}
         searchable={false}
+        fitContent
         onChange={(v) => update(v ? Number(v) : null, month, year)}
       />
       <SingleSelectDropdown
@@ -115,6 +120,7 @@ export function DateDropdownPicker({
         placeholder="Month"
         disabled={disabled}
         searchable={false}
+        fitContent
         onChange={(v) => update(day, v ? Number(v) : null, year)}
       />
       <SingleSelectDropdown
@@ -123,6 +129,7 @@ export function DateDropdownPicker({
         placeholder="Year"
         disabled={disabled}
         searchable={false}
+        fitContent
         onChange={(v) => update(day, month, v ? Number(v) : null)}
       />
     </div>

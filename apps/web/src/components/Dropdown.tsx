@@ -43,6 +43,7 @@ export function SingleSelectDropdown({
   searchable: searchableOverride,
   openSignal,
   clearable = true,
+  fitContent = false,
 }: {
   value: string | null;
   options: DropdownOption[];
@@ -67,6 +68,13 @@ export function SingleSelectDropdown({
   // (e.g. LocationPicker: pick a country, city opens automatically). Only
   // the change matters, not the value itself.
   openSignal?: number;
+  // When true, neither the closed box nor the open list ever truncates —
+  // both size to fit their longest label instead of being pinned to a fixed
+  // width. Used by DateDropdownPicker's day/month/year boxes, where every
+  // label is short enough that sizing to content is safe; left off (the
+  // default) everywhere else, since an unbounded country/company-name list
+  // sizing to its longest entry would blow out the layout.
+  fitContent?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -105,11 +113,13 @@ export function SingleSelectDropdown({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:border-border/50 disabled:bg-surface-muted disabled:text-muted-foreground disabled:opacity-60 disabled:hover:bg-surface-muted"
+        className={`flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:border-border/50 disabled:bg-surface-muted disabled:text-muted-foreground disabled:opacity-60 disabled:hover:bg-surface-muted ${fitContent ? "w-max" : "w-full"}`}
       >
-        <span className={`flex min-w-0 items-center gap-1.5 truncate ${value ? "text-foreground" : "text-muted-foreground"}`}>
+        <span
+          className={`flex min-w-0 items-center gap-1.5 ${fitContent ? "whitespace-nowrap" : "truncate"} ${value ? "text-foreground" : "text-muted-foreground"}`}
+        >
           {selectedOption?.icon}
-          <span className="truncate">{selectedOption?.label ?? placeholder}</span>
+          <span className={fitContent ? "whitespace-nowrap" : "truncate"}>{selectedOption?.label ?? placeholder}</span>
         </span>
         <span className={`shrink-0 text-[10px] text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}>
           ▾
@@ -119,7 +129,7 @@ export function SingleSelectDropdown({
         <>
           <div className="fixed inset-0 z-[65]" onClick={close} />
           <div
-            className="absolute left-0 right-0 z-[70] mt-1 rounded-lg border border-border bg-surface p-1 shadow-lg"
+            className={`absolute left-0 z-[70] mt-1 rounded-lg border border-border bg-surface p-1 shadow-lg ${fitContent ? "w-max min-w-full" : "right-0"}`}
             onClick={(e) => e.stopPropagation()}
           >
             {searchable && (
@@ -163,7 +173,7 @@ export function SingleSelectDropdown({
                   }`}
                 >
                   {o.icon}
-                  <span className="truncate">{o.label}</span>
+                  <span className={fitContent ? "whitespace-nowrap" : "truncate"}>{o.label}</span>
                 </button>
               ))}
             </div>

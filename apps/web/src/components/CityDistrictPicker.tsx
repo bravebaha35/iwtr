@@ -107,7 +107,7 @@ export function CityDistrictPicker({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cities &amp; districts</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"

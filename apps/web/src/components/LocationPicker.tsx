@@ -29,7 +29,15 @@ const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({
  * city/district data (lib/turkeyGeo.ts); every other country falls back to
  * free-text city/district entry, since no such dataset exists for them.
  */
-export function LocationPicker({ value, onChange }: { value: LocationValue; onChange: (value: LocationValue) => void }) {
+export function LocationPicker({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: LocationValue;
+  onChange: (value: LocationValue) => void;
+  disabled?: boolean;
+}) {
   const isTurkey = value.country === "Turkey";
   const province = isTurkey ? findProvinceByCityName(value.city) : null;
 
@@ -68,6 +76,7 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
         options={COUNTRY_OPTIONS}
         placeholder="Country"
         clearable={false}
+        disabled={disabled}
         onChange={(country) => {
           justPickedCountry.current = true;
           onChange({ country, city: null, district: null });
@@ -77,16 +86,17 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
       {value.country && !isTurkey ? (
         <input
           placeholder="City"
+          disabled={disabled}
           value={value.city ?? ""}
           onChange={(e) => onChange({ ...value, city: e.target.value || null, district: null })}
-          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
+          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
         />
       ) : (
         <SingleSelectDropdown
           value={value.city}
           options={cityOptions}
           placeholder="City"
-          disabled={!value.country}
+          disabled={disabled || !value.country}
           openSignal={cityOpenSignal}
           clearable={false}
           onChange={(city) => {
@@ -99,16 +109,17 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
       {value.city && !isTurkey ? (
         <input
           placeholder="District (optional)"
+          disabled={disabled}
           value={value.district ?? ""}
           onChange={(e) => onChange({ ...value, district: e.target.value || null })}
-          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
+          className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
         />
       ) : (
         <SingleSelectDropdown
           value={value.district}
           options={districtOptions}
           placeholder="District"
-          disabled={!value.city}
+          disabled={disabled || !value.city}
           openSignal={districtOpenSignal}
           clearable={false}
           onChange={(district) => onChange({ ...value, district })}
