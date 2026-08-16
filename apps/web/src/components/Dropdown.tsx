@@ -42,6 +42,7 @@ export function SingleSelectDropdown({
   disabled = false,
   searchable: searchableOverride,
   openSignal,
+  clearable = true,
 }: {
   value: string | null;
   options: DropdownOption[];
@@ -49,6 +50,12 @@ export function SingleSelectDropdown({
   onChange: (value: string | null) => void;
   maxHeightClassName?: string;
   disabled?: boolean;
+  // Whether the option list shows a leading "clear back to placeholder"
+  // entry once something is selected. Off for pickers like LocationPicker's
+  // Country/City/District, where the field is a required step rather than
+  // a resettable filter — that entry read as a stray "City"/"District"
+  // list item there instead of a clear affordance.
+  clearable?: boolean;
   // Undefined (the default) auto-decides from list length; pass explicitly
   // to force it either way — e.g. DateDropdownPicker's day/month/year lists
   // are long enough to cross SEARCH_THRESHOLD but are meant to stay a plain
@@ -126,7 +133,7 @@ export function SingleSelectDropdown({
               />
             )}
             <div className={`thin-scrollbar overflow-y-auto py-0.5 ${maxHeightClassName}`}>
-              {value !== null && (
+              {clearable && value !== null && (
                 <button
                   type="button"
                   onClick={() => {

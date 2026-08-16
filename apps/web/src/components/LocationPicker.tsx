@@ -67,6 +67,7 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
         value={value.country}
         options={COUNTRY_OPTIONS}
         placeholder="Country"
+        clearable={false}
         onChange={(country) => {
           justPickedCountry.current = true;
           onChange({ country, city: null, district: null });
@@ -87,6 +88,7 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
           placeholder="City"
           disabled={!value.country}
           openSignal={cityOpenSignal}
+          clearable={false}
           onChange={(city) => {
             justPickedCity.current = true;
             onChange({ ...value, city, district: null });
@@ -108,6 +110,7 @@ export function LocationPicker({ value, onChange }: { value: LocationValue; onCh
           placeholder="District"
           disabled={!value.city}
           openSignal={districtOpenSignal}
+          clearable={false}
           onChange={(district) => onChange({ ...value, district })}
         />
       )}
