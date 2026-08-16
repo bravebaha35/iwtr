@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export interface DropdownOption {
   value: string;
@@ -64,9 +64,20 @@ export function SingleSelectDropdown({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
+  // Only open when openSignal actually changes to a new value, never on the
+  // mount run itself. A plain "is this the first effect run" flag isn't
+  // enough — React Strict Mode double-invokes effects in dev (mount, fake
+  // cleanup, mount again) against the same component instance, so a
+  // one-shot flag already flips false by the second pass and the menu pops
+  // open anyway. Comparing against the last-seen openSignal value is
+  // idempotent across that double-invoke.
+  const prevOpenSignalRef = useRef(openSignal);
   useEffect(() => {
-    if (openSignal !== undefined && !disabled) setOpen(true);
-  }, [openSignal]);
+    if (openSignal !== undefined && openSignal !== prevOpenSignalRef.current && !disabled) {
+      setOpen(true);
+    }
+    prevOpenSignalRef.current = openSignal;
+  }, [openSignal, disabled]);
   const selectedOption = options.find((o) => o.value === value);
   const searchable = searchableOverride ?? options.length > SEARCH_THRESHOLD;
 
