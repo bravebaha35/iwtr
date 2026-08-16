@@ -453,7 +453,10 @@ model PiiVault {
   // from the account-settings page.
   tcKimlikNoHash String?   @unique
   encBirthDate   Bytes
-  encPhoneNumber Bytes
+  // Phone number is NOT stored here — it's collected and OTP-verified once,
+  // earlier in onboarding (User.encPhoneNumber, via the phone-verification
+  // module), and that's the single source of truth. Storing an unverified
+  // second copy here would just be redundant duplicate data entry.
   dekWrapped     Bytes
   dekVersion     Int       @default(1)
   tcknPurgedAt   DateTime?

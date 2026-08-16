@@ -4,13 +4,11 @@ import { useState } from "react";
 import { apiPost, ApiError } from "@/lib/api-client";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
-import { PhoneNumberInput } from "@/components/PhoneNumberInput";
 
 export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState<string | null>(null);
-  const [phoneNumber, setPhoneNumber] = useState("+90");
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -28,7 +26,6 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
         firstName,
         lastName,
         birthDate,
-        phoneNumber,
         country: location.country,
         city: location.city,
         district: location.district ?? undefined,
@@ -81,11 +78,6 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
           <div>
             <p className="mb-1 text-xs text-muted-foreground">Birth date</p>
             <DateDropdownPicker value={birthDate} onChange={setBirthDate} maxYear={new Date().getFullYear()} />
-          </div>
-
-          <div>
-            <p className="mb-1 text-xs text-muted-foreground">Phone number</p>
-            <PhoneNumberInput value={phoneNumber} onChange={setPhoneNumber} />
           </div>
 
           <div>

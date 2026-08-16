@@ -32,14 +32,12 @@ export class PiiVaultService {
         encFirstName: encryptField(input.firstName, dek),
         encLastName: encryptField(input.lastName, dek),
         encBirthDate: encryptField(input.birthDate, dek),
-        encPhoneNumber: encryptField(input.phoneNumber, dek),
         dekWrapped,
       },
       update: {
         encFirstName: encryptField(input.firstName, dek),
         encLastName: encryptField(input.lastName, dek),
         encBirthDate: encryptField(input.birthDate, dek),
-        encPhoneNumber: encryptField(input.phoneNumber, dek),
         dekWrapped,
       },
     });
