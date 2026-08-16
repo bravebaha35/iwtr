@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
-import { SettingsPanel } from "@/components/SettingsPanel";
+import { BackButton } from "@/components/BackButton";
+import { GlobalHeader } from "@/components/GlobalHeader";
 import "./globals.css";
 // Real vector flag icons (not Unicode flag emoji) — Windows renders
 // unsupported flag-emoji regional-indicator pairs as a boxed two-letter
@@ -11,17 +12,15 @@ import "./globals.css";
 // country picker.
 import "flag-icons/css/flag-icons.min.css";
 
-// Applies the saved theme/density before first paint, so there's no flash
-// of the wrong theme on load — mirrors the logic in lib/settings-context.tsx.
+// Applies the saved theme before first paint, so there's no flash of the
+// wrong theme on load — mirrors the logic in lib/settings-context.tsx.
 // Wrapped in try/catch since localStorage/matchMedia can throw in some
 // privacy-locked-down browsers, and a theme glitch shouldn't break the app.
 const THEME_BOOT_SCRIPT = `(function(){
   try {
-    var theme = localStorage.getItem('iwtr:theme') || 'system';
-    var density = localStorage.getItem('iwtr:density') || 'detailed';
-    var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var theme = localStorage.getItem('iwtr:theme');
+    var isDark = theme === 'dark' || (theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.setAttribute('data-density', density);
   } catch (e) {}
 })();`;
 
@@ -61,8 +60,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <SettingsProvider>
           <AuthProvider>
+            <GlobalHeader />
             {children}
-            <SettingsPanel />
+            <BackButton />
           </AuthProvider>
         </SettingsProvider>
       </body>

@@ -100,3 +100,20 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Tailwind's preflight leaves <button> at the browser default arrow cursor
+   (only <a href> gets a pointer natively) — override that site-wide so every
+   clickable control shows a pointing hand, without having to remember
+   `cursor-pointer` on each individual button. Disabled controls get
+   not-allowed instead, still overriding the arrow default. */
+button:not(:disabled),
+a[href],
+select,
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}

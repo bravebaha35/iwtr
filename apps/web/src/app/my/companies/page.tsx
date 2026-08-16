@@ -349,10 +349,7 @@ export default function MyCompaniesPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl px-6 py-10">
-      <Link href="/" className="text-sm text-muted-foreground hover:underline">
-        &larr; Back
-      </Link>
-      <h1 className="mt-4 mb-1 text-2xl font-bold text-foreground">My companies</h1>
+      <h1 className="mb-1 text-2xl font-bold text-foreground">My companies</h1>
       <p className="mb-6 text-sm text-muted-foreground">
         Companies you&apos;ve claimed, and their approval status. Search a workplace and use &ldquo;Claim this
         company&rdquo; on its page to add one here.
