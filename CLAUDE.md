@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-"I Worked There" (iwtr.com) — a Turkey-first, anonymous employer-review platform. Employees rate and
+"I Worked There" (iworkedthere.com) — a Turkey-first, anonymous employer-review platform. Employees rate and
 comment on past employers anonymously; new hires browse company scores before accepting a job. The
 central design tension: the platform must collect real identity data (including T.C. Kimlik Numarası,
 the Turkish national ID) to deter fraudulent reviews, while guaranteeing reviewers stay anonymous to

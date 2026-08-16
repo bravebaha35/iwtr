@@ -25,7 +25,7 @@ export class TwilioSmsProvider implements ISmsProvider {
     await client.messages.create({
       to: phoneNumber,
       from,
-      body: `Your iwtr.com verification code is ${code}. It expires in 5 minutes.`,
+      body: `Your iworkedthere.com verification code is ${code}. It expires in 5 minutes.`,
     });
   }
 }

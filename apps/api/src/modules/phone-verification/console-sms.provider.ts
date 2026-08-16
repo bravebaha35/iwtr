@@ -16,6 +16,6 @@ export class ConsoleSmsProvider implements ISmsProvider {
       );
     }
     // eslint-disable-next-line no-console
-    console.log(`[iwtr] DEV SMS to ${phoneNumber}: your iwtr.com verification code is ${code}`);
+    console.log(`[iworkedthere] DEV SMS to ${phoneNumber}: your iworkedthere.com verification code is ${code}`);
   }
 }
