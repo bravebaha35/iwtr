@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiPost, ApiError } from "@/lib/api-client";
+import { PhoneNumberInput } from "@/components/PhoneNumberInput";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -69,16 +70,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
               continue &mdash; your number is never shown publicly.
             </p>
 
-            <input
-              required
-              type="tel"
-              placeholder="+905551234567"
-              pattern="\+[1-9][0-9]{7,14}"
-              title="Enter your number in international format, e.g. +905551234567"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-            />
+            <PhoneNumberInput value={phoneNumber} onChange={setPhoneNumber} />
 
             {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 

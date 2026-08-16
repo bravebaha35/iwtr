@@ -12,6 +12,62 @@ const EDU_LEVELS: { level: EduLevel; label: string }[] = [
   { level: "COLLEGE", label: "College" },
 ];
 
+// Elementary is assumed universal and always shown. High school and college
+// aren't — not everyone finished (or attended) either, so both get a
+// "didn't graduate" toggle. Unticked (the default) is the normal case —
+// fields stay active. Ticking it doesn't hide the row (a collapsing form is
+// disorienting) — the fields just grey out and stop accepting input, without
+// losing whatever was already typed, so unticking again picks right back up.
+// Anyone who skipped one here can still add it later from the Edit Profile
+// page (its education section is an open-ended list, not fixed per-level
+// slots).
+const OPTIONAL_EDU_LEVELS: EduLevel[] = ["HIGH_SCHOOL", "COLLEGE"];
+
+function DidNotGraduateToggle({
+  checked,
+  onChange,
+  tooltip,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  tooltip: string;
+  disabled?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      className="relative inline-flex shrink-0"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={checked}
+        aria-label={tooltip}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
+          checked ? "border-brand-600 bg-brand-600" : "border-border bg-transparent hover:border-muted-foreground"
+        } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+      >
+        {checked && (
+          <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        )}
+      </button>
+      {hovered && (
+        <div className="pointer-events-none absolute right-full top-1/2 z-10 mr-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background shadow-lg">
+          {tooltip}
+          <span className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-foreground" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 type EduRow = { institutionName: string; graduationYear: string; faculty: string; department: string };
 const emptyEduRows: Record<EduLevel, EduRow> = {
   ELEMENTARY: { institutionName: "", graduationYear: "", faculty: "", department: "" },
@@ -33,9 +89,30 @@ const emptyJob: JobRow = { company: null, startDate: null, endDate: null };
 
 export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
   const [edu, setEdu] = useState(emptyEduRows);
+  const [didNotGraduate, setDidNotGraduate] = useState<Record<EduLevel, boolean>>({
+    ELEMENTARY: false,
+    HIGH_SCHOOL: false,
+    COLLEGE: false,
+  });
   const [jobs, setJobs] = useState<JobRow[]>([{ ...emptyJob }]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // College graduation requires having graduated high school first, so
+  // "didn't graduate high school" and "didn't graduate college" are kept in
+  // lockstep whenever high school is the one being toggled: ticking it
+  // forces college on too (and locks it — see the `disabled` prop below),
+  // unticking it clears and unlocks college again, since "I did graduate
+  // high school" removes the only reason college was forced on. College can
+  // still be ticked/unticked independently whenever high school itself is
+  // unticked.
+  function setDidNotGraduateLevel(level: EduLevel, next: boolean) {
+    setDidNotGraduate((prev) => {
+      const updated = { ...prev, [level]: next };
+      if (level === "HIGH_SCHOOL") updated.COLLEGE = next;
+      return updated;
+    });
+  }
 
   function updateJob(index: number, patch: Partial<JobRow>) {
     setJobs((prev) => prev.map((j, i) => (i === index ? { ...j, ...patch } : j)));
@@ -54,7 +131,9 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
     setError(null);
     setSubmitting(true);
     try {
-      const education = EDU_LEVELS.filter((l) => edu[l.level].institutionName.trim() !== "").map(
+      const education = EDU_LEVELS.filter(
+        (l) => !didNotGraduate[l.level] && edu[l.level].institutionName.trim() !== "",
+      ).map(
         (l) => ({
           level: l.level,
           institutionName: edu[l.level].institutionName,
@@ -94,7 +173,11 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 px-4 py-8">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-lg rounded-xl bg-surface p-8 shadow-xl"
+        // max-w-xl (not the lg used elsewhere) — the start/end date pair
+        // below sit side by side in a 2-column row, and each half needs
+        // enough room for Day/Month/Year to stay on one line ("September"
+        // is the long pole) instead of wrapping.
+        className="w-full max-w-xl rounded-xl bg-surface p-8 shadow-xl"
       >
         <h2 className="mb-1 text-xl font-bold text-foreground">
           Your education &amp; work history
@@ -104,59 +187,88 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         </p>
 
         <div className="mb-6 flex flex-col gap-3">
-          {EDU_LEVELS.map(({ level, label }) => (
-            <div key={level} className="flex flex-col gap-2">
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  placeholder={label}
-                  value={edu[level].institutionName}
-                  onChange={(e) =>
-                    setEdu((prev) => ({ ...prev, [level]: { ...prev[level], institutionName: e.target.value } }))
-                  }
-                  className="col-span-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-                />
-                <input
-                  placeholder="Grad. year"
-                  inputMode="numeric"
-                  value={edu[level].graduationYear}
-                  onChange={(e) =>
-                    setEdu((prev) => ({ ...prev, [level]: { ...prev[level], graduationYear: e.target.value } }))
-                  }
-                  className="col-span-1 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-                />
-              </div>
-              {level === "COLLEGE" && edu.COLLEGE.institutionName.trim() !== "" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    placeholder="Faculty"
-                    value={edu.COLLEGE.faculty}
-                    onChange={(e) =>
-                      setEdu((prev) => ({ ...prev, COLLEGE: { ...prev.COLLEGE, faculty: e.target.value } }))
-                    }
-                    className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-                  />
-                  <input
-                    placeholder="Department (optional)"
-                    value={edu.COLLEGE.department}
-                    onChange={(e) =>
-                      setEdu((prev) => ({ ...prev, COLLEGE: { ...prev.COLLEGE, department: e.target.value } }))
-                    }
-                    className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-                  />
+          {EDU_LEVELS.map(({ level, label }) => {
+            const isOptional = OPTIONAL_EDU_LEVELS.includes(level);
+            const greyedOut = isOptional && didNotGraduate[level];
+            return (
+              <div key={level} className="flex flex-col gap-2">
+                {isOptional && (
+                  <div className="flex items-center gap-2">
+                    <DidNotGraduateToggle
+                      checked={didNotGraduate[level]}
+                      onChange={(next) => setDidNotGraduateLevel(level, next)}
+                      disabled={level === "COLLEGE" && didNotGraduate.HIGH_SCHOOL}
+                      tooltip={
+                        level === "COLLEGE" && didNotGraduate.HIGH_SCHOOL
+                          ? "Can't graduate college without graduating high school first."
+                          : `I didn't graduate from ${level === "HIGH_SCHOOL" ? "high school" : "college"}.`
+                      }
+                    />
+                    <span className="text-sm font-medium text-foreground">{label}</span>
+                  </div>
+                )}
+                <div className={`flex flex-col gap-2 transition-opacity ${greyedOut ? "opacity-40" : ""}`}>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      disabled={greyedOut}
+                      placeholder={isOptional ? "Institution name" : label}
+                      value={edu[level].institutionName}
+                      onChange={(e) =>
+                        setEdu((prev) => ({ ...prev, [level]: { ...prev[level], institutionName: e.target.value } }))
+                      }
+                      className="col-span-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed"
+                    />
+                    <input
+                      disabled={greyedOut}
+                      placeholder="Grad. year"
+                      inputMode="numeric"
+                      value={edu[level].graduationYear}
+                      onChange={(e) =>
+                        setEdu((prev) => ({ ...prev, [level]: { ...prev[level], graduationYear: e.target.value } }))
+                      }
+                      className="col-span-1 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed"
+                    />
+                  </div>
+                  {level === "COLLEGE" && edu.COLLEGE.institutionName.trim() !== "" && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        disabled={greyedOut}
+                        placeholder="Faculty"
+                        value={edu.COLLEGE.faculty}
+                        onChange={(e) =>
+                          setEdu((prev) => ({ ...prev, COLLEGE: { ...prev.COLLEGE, faculty: e.target.value } }))
+                        }
+                        className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed"
+                      />
+                      <input
+                        disabled={greyedOut}
+                        placeholder="Department (optional)"
+                        value={edu.COLLEGE.department}
+                        onChange={(e) =>
+                          setEdu((prev) => ({ ...prev, COLLEGE: { ...prev.COLLEGE, department: e.target.value } }))
+                        }
+                        className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed"
+                      />
+                    </div>
+                  )}
+                  {level === "HIGH_SCHOOL" && edu.HIGH_SCHOOL.institutionName.trim() !== "" && (
+                    <input
+                      disabled={greyedOut}
+                      placeholder="Department (optional)"
+                      value={edu.HIGH_SCHOOL.department}
+                      onChange={(e) =>
+                        setEdu((prev) => ({
+                          ...prev,
+                          HIGH_SCHOOL: { ...prev.HIGH_SCHOOL, department: e.target.value },
+                        }))
+                      }
+                      className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed"
+                    />
+                  )}
                 </div>
-              )}
-              {level === "HIGH_SCHOOL" && edu.HIGH_SCHOOL.institutionName.trim() !== "" && (
-                <input
-                  placeholder="Department (optional)"
-                  value={edu.HIGH_SCHOOL.department}
-                  onChange={(e) =>
-                    setEdu((prev) => ({ ...prev, HIGH_SCHOOL: { ...prev.HIGH_SCHOOL, department: e.target.value } }))
-                  }
-                  className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-                />
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
 
         <div className="mb-2 flex items-center justify-between">
