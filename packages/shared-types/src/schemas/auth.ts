@@ -33,6 +33,31 @@ export const loginEmailInputSchema = z.object({
 });
 export type LoginEmailInput = z.infer<typeof loginEmailInputSchema>;
 
+// Same strength rule the frontend already enforces client-side at
+// registration (apps/web/src/lib/passwordValidation.ts) — mirrored here as a
+// real server-side rule (unlike that file, which is deliberately UI-only)
+// since this backs an actual mutation (change-password) rather than just
+// gating a submit button.
+const PASSWORD_MIN_LENGTH = 12;
+const PASSWORD_MAX_LENGTH = 128;
+function countPasswordCategories(password: string): number {
+  const categoryPatterns = [/[A-Z]/, /[a-z]/, /[0-9]/, /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~`]/];
+  return categoryPatterns.filter((re) => re.test(password)).length;
+}
+export const strongPasswordSchema = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, `Must be at least ${PASSWORD_MIN_LENGTH} characters`)
+  .max(PASSWORD_MAX_LENGTH, `Must be at most ${PASSWORD_MAX_LENGTH} characters`)
+  .refine((password) => countPasswordCategories(password) >= 3, {
+    message: "Must include at least 3 of: uppercase letter, lowercase letter, number, special symbol",
+  });
+
+export const changePasswordInputSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: strongPasswordSchema,
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
+
 export const oauthLoginInputSchema = z.object({
   provider: z.enum(["GOOGLE", "APPLE"]),
   idToken: z.string().min(1),

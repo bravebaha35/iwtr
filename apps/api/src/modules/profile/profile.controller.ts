@@ -1,11 +1,13 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
 import {
+  changePasswordInputSchema,
   educationHistoryInputSchema,
   requestPhoneOtpSchema,
   updateEducationHistoryInputSchema,
   updateIdentityInputSchema,
   updateProfileInputSchema,
   verifyPhoneOtpSchema,
+  type ChangePasswordInput,
   type EducationHistoryInput,
   type RequestPhoneOtpInput,
   type UpdateEducationHistoryInput,
@@ -87,6 +89,27 @@ export class ProfileController {
     @Param("id", new ParseUUIDPipe()) id: string,
   ) {
     await this.profile.deleteEducationHistory(user.id, id);
+    return { success: true };
+  }
+
+  @Patch("me/password")
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(changePasswordInputSchema)) body: ChangePasswordInput,
+  ) {
+    await this.profile.changePassword(user.id, body);
+    return { success: true };
+  }
+
+  @Post("me/freeze")
+  async freezeAccount(@CurrentUser() user: AuthenticatedUser) {
+    await this.profile.freezeAccount(user.id);
+    return { success: true };
+  }
+
+  @Delete("me")
+  async deleteAccount(@CurrentUser() user: AuthenticatedUser) {
+    await this.profile.deleteAccount(user.id);
     return { success: true };
   }
 }

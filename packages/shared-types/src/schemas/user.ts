@@ -46,6 +46,11 @@ export type PublicUser = z.infer<typeof publicUserSchema>;
 // it'll come later from the account-settings page once that verification
 // flow is actually built, not bundled into registration. See
 // PiiVaultService.submitPii for how the absence is handled server-side.
+//
+// No phoneNumber field here on purpose — it's already collected and
+// OTP-verified in the PENDING_PHONE step that comes before this one (see
+// requestPhoneOtpSchema above), so asking again here would just be a
+// duplicate, unverified second copy of the same field.
 export const piiOnboardingInputSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -53,7 +58,6 @@ export const piiOnboardingInputSchema = z.object({
   country: z.string().min(1),
   city: z.string().min(1),
   district: z.string().min(1).optional(),
-  phoneNumber: z.string().min(7),
 });
 export type PiiOnboardingInput = z.infer<typeof piiOnboardingInputSchema>;
 
@@ -182,6 +186,10 @@ export const myProfileSchema = z.object({
   lastName: z.string().nullable(),
   birthDate: z.string().nullable(),
   phoneNumber: z.string().nullable(),
+  // The login email — not PII-vault material (it's already the account's
+  // public-to-the-account-holder identifier, shown back to themselves on the
+  // Contact Information tab), read straight off User.email.
+  email: z.string().nullable(),
 });
 export type MyProfile = z.infer<typeof myProfileSchema>;
 

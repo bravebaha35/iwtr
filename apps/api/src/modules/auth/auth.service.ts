@@ -58,7 +58,16 @@ export class AuthService {
       throw new UnauthorizedException("Invalid email or password");
     }
 
-    return this.issueTokenPair(user.id, user.role, user.status, deviceLabel);
+    // Logging back in is the reactivation path for a self-frozen account
+    // (ProfileService.freezeAccount) — "you can reactivate any time" just
+    // means "log in again", not a separate unfreeze flow.
+    let status = user.status;
+    if (status === "SUSPENDED") {
+      const reactivated = await this.prisma.user.update({ where: { id: user.id }, data: { status: "ACTIVE" } });
+      status = reactivated.status;
+    }
+
+    return this.issueTokenPair(user.id, user.role, status, deviceLabel);
   }
 
   async refresh(refreshToken: string): Promise<AuthTokensResponse> {

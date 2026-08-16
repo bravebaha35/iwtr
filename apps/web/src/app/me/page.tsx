@@ -17,8 +17,21 @@ import { LocationPicker, type LocationValue } from "@/components/LocationPicker"
 import { WorkplacePicker } from "@/components/WorkplacePicker";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
+import { ChangePasswordForm } from "@/components/profile/ChangePasswordForm";
+import { AccountOptionsPanel } from "@/components/profile/AccountOptionsPanel";
 
-const SUPPORT_EMAIL = "info@iwtr.net";
+const SUPPORT_EMAIL = "iworkedthere@hotmail.com";
+
+type TabKey = "customize" | "personal" | "contact" | "education" | "security" | "account";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "customize", label: "Customize" },
+  { key: "personal", label: "Personal Information" },
+  { key: "contact", label: "Contact Information" },
+  { key: "education", label: "Education & Work History" },
+  { key: "security", label: "Security" },
+  { key: "account", label: "Account Options" },
+];
 
 const EDU_LEVELS: { level: EduLevel; label: string }[] = [
   { level: "ELEMENTARY", label: "Elementary School" },
@@ -48,6 +61,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [employment, setEmployment] = useState<MyEmploymentEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("customize");
 
   // Local editable form state, seeded from the loaded profile.
   const [displayName, setDisplayName] = useState("");
@@ -63,6 +77,12 @@ export default function ProfilePage() {
   const [locationSaving, setLocationSaving] = useState(false);
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  // Locked/greyed out by default — location is now a required step during
+  // registration (see PiiForm), so there's normally already a value here and
+  // the common case is "just look at it", not "edit it". Only starts
+  // unlocked for pre-existing accounts from before that requirement existed,
+  // which may not have one on file yet.
+  const [editingLocation, setEditingLocation] = useState(false);
 
   const [editingBirthDate, setEditingBirthDate] = useState(false);
   const [birthDateDraft, setBirthDateDraft] = useState<string | null>(null);
@@ -138,6 +158,7 @@ export default function ProfilePage() {
       setAvatarKey(profileData.avatarKey);
       setAvatarGradient(profileData.avatarGradient);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
+      setEditingLocation(!profileData.country || !profileData.city);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load your profile.");
     }
@@ -181,11 +202,15 @@ export default function ProfilePage() {
       await apiPatch("/me/profile", {
         country: location.country,
         city: location.city,
-        district: location.district || "",
+        // Omit rather than send "" — updateProfileInputSchema's district is
+        // z.string().min(1).optional(), so an empty string fails validation
+        // (400) while an omitted key just leaves the stored district as-is.
+        district: location.district ?? undefined,
       });
       await load();
       await refreshOnboardingStatus();
       setLocationStatus("Saved.");
+      setEditingLocation(false);
     } catch (err) {
       setLocationError(err instanceof ApiError ? err.message : "Couldn't save changes.");
     } finally {
@@ -389,11 +414,15 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-2xl px-6 py-10">
-      <Link href="/" className="text-sm text-muted-foreground hover:underline">
-        &larr; Back
-      </Link>
-      <h1 className="mt-4 mb-6 text-2xl font-bold text-foreground">Your account</h1>
+    // w-full alongside max-w-5xl/mx-auto isn't redundant here — body is a
+    // column flex container (layout.tsx), and a block child's cross-axis
+    // stretch inside a flex-column parent doesn't reliably fill the
+    // available width before max-width is applied, so without w-full this
+    // shrinks to whatever the current tab's content happens to need. That's
+    // what was making the sidebar visibly jump left/right when switching
+    // tabs — each tab's card content has a different natural width.
+    <div className="mx-auto min-h-screen w-full max-w-5xl px-6 py-10">
+      <h1 className="mb-6 text-2xl font-bold text-foreground">Your account</h1>
 
       {profile === null ? (
         error ? (
@@ -407,7 +436,29 @@ export default function ProfilePage() {
           <p className="text-sm text-muted-foreground">Loading...</p>
         )
       ) : (
+        <div className="flex flex-col gap-6 sm:flex-row">
+          {/* Vertical tab list */}
+          <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto sm:w-56 sm:flex-col sm:overflow-visible">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
+                  activeTab === tab.key
+                    ? "bg-brand-600 text-white"
+                    : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="min-w-0 flex-1">
         <div className="flex flex-col gap-6">
+          {activeTab === "customize" && (
+          <>
           {/* Avatar, display name, background */}
           <div className="rounded-xl border border-border bg-surface p-5">
             <div className="mb-4 flex items-center gap-3">
@@ -448,22 +499,53 @@ export default function ProfilePage() {
             {avatarStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{avatarStatus}</p>}
             {avatarError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{avatarError}</p>}
           </div>
+          </>
+          )}
 
+          {activeTab === "personal" && (
+          <>
           {/* Personal information */}
           <div className="rounded-xl border border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">Personal Information</h2>
 
-            <p className="mb-1 text-xs font-medium text-muted-foreground">Country, city &amp; district</p>
-            <LocationPicker value={location} onChange={setLocation} />
-            <button
-              onClick={saveLocation}
-              disabled={locationSaving || !location.country || !location.city}
-              className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
-            >
-              Save location
-            </button>
-            {locationStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{locationStatus}</p>}
-            {locationError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{locationError}</p>}
+            <div className="text-sm">
+              <p className="text-xs font-medium text-muted-foreground">Name</p>
+              <p className="text-foreground">{profile.firstName ?? "—"}</p>
+            </div>
+
+            <div className="mt-4 border-t border-border pt-4 text-sm">
+              <p className="text-xs font-medium text-muted-foreground">Surname</p>
+              <p className="text-foreground">{profile.lastName ?? "—"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Name and surname can&apos;t be changed here — email{" "}
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-600 hover:underline dark:text-brand-400">
+                  {SUPPORT_EMAIL}
+                </a>{" "}
+                if either needs correcting.
+              </p>
+            </div>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">Location</p>
+              <LocationPicker value={location} onChange={setLocation} disabled={!editingLocation} />
+              <button
+                onClick={() => {
+                  if (editingLocation) {
+                    void saveLocation();
+                  } else {
+                    setLocationStatus(null);
+                    setLocationError(null);
+                    setEditingLocation(true);
+                  }
+                }}
+                disabled={locationSaving || (editingLocation && (!location.country || !location.city))}
+                className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
+              >
+                {editingLocation ? (locationSaving ? "Saving..." : "Save location") : "Change location"}
+              </button>
+              {locationStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{locationStatus}</p>}
+              {locationError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{locationError}</p>}
+            </div>
 
             <div className="mt-4 border-t border-border pt-4">
               {/* Placeholder — not wired to anything yet, just here so the
@@ -474,20 +556,6 @@ export default function ProfilePage() {
                 placeholder="Coming soon"
                 className="w-full cursor-not-allowed rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-muted-foreground opacity-60"
               />
-            </div>
-
-            <div className="mt-4 border-t border-border pt-4 text-sm">
-              <p className="text-xs font-medium text-muted-foreground">Name</p>
-              <p className="text-foreground">
-                {profile.firstName} {profile.lastName}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Can&apos;t be changed here — email{" "}
-                <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-600 hover:underline dark:text-brand-400">
-                  {SUPPORT_EMAIL}
-                </a>{" "}
-                if this needs correcting.
-              </p>
             </div>
 
             <div className="mt-4 border-t border-border pt-4 text-sm">
@@ -538,6 +606,20 @@ export default function ProfilePage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+          </>
+          )}
+
+          {activeTab === "contact" && (
+          <>
+          {/* Contact information */}
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h2 className="mb-3 font-semibold text-foreground">Contact Information</h2>
+
+            <div className="text-sm">
+              <p className="text-xs font-medium text-muted-foreground">E-Mail Address</p>
+              <p className="text-foreground">{profile.email ?? "—"}</p>
             </div>
 
             <div className="mt-4 border-t border-border pt-4 text-sm">
@@ -617,7 +699,11 @@ export default function ProfilePage() {
               removed — we never hold on to national ID numbers.
             </p>
           </div>
+          </>
+          )}
 
+          {activeTab === "education" && (
+          <>
           {/* Education */}
           <div className="rounded-xl border border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">Education</h2>
@@ -954,6 +1040,14 @@ export default function ProfilePage() {
                 + Add workplace
               </button>
             )}
+          </div>
+          </>
+          )}
+
+          {activeTab === "security" && <ChangePasswordForm />}
+
+          {activeTab === "account" && <AccountOptionsPanel email={profile.email} />}
+        </div>
           </div>
         </div>
       )}
