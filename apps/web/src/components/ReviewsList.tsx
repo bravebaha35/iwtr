@@ -63,13 +63,13 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
   );
 
   if (reviews === null) {
-    return <p className="mt-8 text-sm text-muted-foreground">Loading reviews...</p>;
+    return <p className="text-sm text-muted-foreground">Loading reviews...</p>;
   }
 
   if (reviews.length === 0) {
     if (loadFailed) {
       return (
-        <p className="mt-8 text-sm text-red-600 dark:text-red-400">
+        <p className="text-sm text-red-600 dark:text-red-400">
           Couldn&apos;t load reviews right now — try refreshing the page.
         </p>
       );
@@ -82,7 +82,7 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
   const canVote = !authLoading && isAuthenticated;
 
   return (
-    <div className="mt-8 flex flex-col gap-4 compact:gap-2">
+    <div className="flex flex-col gap-4 compact:gap-2">
       <h2 className="text-lg font-semibold text-foreground">Reviews</h2>
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 

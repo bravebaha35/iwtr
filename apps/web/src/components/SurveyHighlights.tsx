@@ -178,7 +178,7 @@ export function SurveyHighlights({ companySlug }: { companySlug: string }) {
   const populated = stats?.byWorkplaceType.filter((s) => s.totalReviews > 0) ?? [];
   if (loadFailed) {
     return (
-      <p className="mt-8 text-sm text-red-600 dark:text-red-400">
+      <p className="text-sm text-red-600 dark:text-red-400">
         Couldn&apos;t load the survey highlights right now.
       </p>
     );
@@ -186,7 +186,7 @@ export function SurveyHighlights({ companySlug }: { companySlug: string }) {
   if (populated.length === 0) return null;
 
   return (
-    <div className="mt-8 flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {populated.map((s) => (
         <WorkplaceTypeSurveySection key={s.workplaceType} stats={s} />
       ))}

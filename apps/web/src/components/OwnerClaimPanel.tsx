@@ -38,7 +38,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
 
   if (loadFailed) {
     return (
-      <div className="mt-8 rounded-xl border border-dashed border-border p-5">
+      <div className="rounded-xl border border-dashed border-border p-5">
         <h3 className="text-sm font-semibold text-foreground">Is this your company?</h3>
         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
           Couldn&apos;t check your claim status right now — try refreshing the page.
@@ -64,7 +64,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
   }
 
   return (
-    <div className="mt-8 rounded-xl border border-dashed border-border p-5">
+    <div className="rounded-xl border border-dashed border-border p-5">
       <h3 className="text-sm font-semibold text-foreground">Is this your company?</h3>
 
       {claim === null && !showForm && (
