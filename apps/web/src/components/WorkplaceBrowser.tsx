@@ -6,8 +6,10 @@ import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { collarPillClassName } from "@/lib/collarColors";
 import { SECTORS } from "@/lib/sectors";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
+import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
@@ -145,18 +147,8 @@ export function WorkplaceBrowser() {
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [minRating, setMinRating] = useState(0);
-  // minRating already starts at 0 ("Any"/no restriction) before the visitor
-  // touches anything, so `minRating === 0` alone can't drive the "All"
-  // button's highlight — that would light it up by default with no
-  // interaction. This tracks whether the rating control has actually been
-  // used yet (drag, scroll, or the "All" button itself).
-  const [ratingTouched, setRatingTouched] = useState(false);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
-  // Tracked separately from selectedCities/selectedDistrictKeys being empty
-  // — see CityDistrictPicker's allSelected prop comment for why "All" can't
-  // just mean "populate every province name" the way Workplace's "All" does.
-  const [allCitiesActive, setAllCitiesActive] = useState(false);
   const [query, setQuery] = useState("");
   const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
   // Distinguishes "the request failed" from "genuinely zero matches" — both
@@ -178,7 +170,6 @@ export function WorkplaceBrowser() {
   const resultsTopRef = useRef<HTMLDivElement>(null);
 
   function stepRating(delta: number) {
-    setRatingTouched(true);
     setMinRating((prev) => Math.min(5, Math.max(0, Math.round((prev + delta) * 10) / 10)));
   }
 
@@ -217,7 +208,6 @@ export function WorkplaceBrowser() {
     const rect = el.getBoundingClientRect();
     const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     const value = Math.round(fraction * 5 * 10) / 10;
-    setRatingTouched(true);
     setMinRating(value);
     return value;
   }
@@ -356,33 +346,22 @@ export function WorkplaceBrowser() {
     });
   }
 
-  // "All" is a toggle: press it once to select every workplace type (which
-  // also widens the Sector dropdown to every sector, same as today's "no
-  // type filter" state — see sectorOptions below), press it again to clear
-  // back to none selected. Bypasses toggleWorkplaceType's own "max 2 picks"
-  // cap on purpose — that cap exists to mirror a single company's own tags,
-  // not to limit how many types a visitor can browse across at once.
-  function toggleAllWorkplaceTypes() {
-    setWorkplaceTypes((prev) => (prev.length === WORKPLACE_TYPES.length ? [] : WORKPLACE_TYPES.map((t) => t.value)));
+  // Clears back to no workplace-type filter — which, since the server only
+  // filters by workplaceTypes when the list is non-empty, is the same thing
+  // as "show every workplace type".
+  function resetWorkplaceTypes() {
+    setWorkplaceTypes([]);
   }
 
   function toggleCity(city: string) {
-    // Picking any specific city always exits the "All" state, whether or not
-    // it was even active — narrowing to one real city is never "still all".
-    setAllCitiesActive(false);
     setSelectedCities((prev) => (prev.includes(city) ? prev.filter((v) => v !== city) : [...prev, city]));
   }
 
   function toggleDistrict(key: string) {
-    setAllCitiesActive(false);
     setSelectedDistrictKeys((prev) => (prev.includes(key) ? prev.filter((v) => v !== key) : [...prev, key]));
   }
 
-  // "All" is a toggle, same as Workplace's: press it once to mark every
-  // city/district as included (allCitiesActive true, any partial picks
-  // cleared), press it again to go back to none selected.
-  function toggleAllCities() {
-    setAllCitiesActive((prev) => !prev);
+  function resetLocation() {
     setSelectedCities([]);
     setSelectedDistrictKeys([]);
   }
@@ -400,9 +379,9 @@ export function WorkplaceBrowser() {
                 options={WORKPLACE_TYPES}
                 selected={workplaceTypes}
                 onToggle={toggleWorkplaceType}
-                onAllClick={toggleAllWorkplaceTypes}
+                onReset={resetWorkplaceTypes}
                 direction="grid"
-                allButtonPlacement="header"
+                pillColorClassName={collarPillClassName}
               />
               <div className="mt-2">
                 <SingleSelectDropdown
@@ -417,20 +396,7 @@ export function WorkplaceBrowser() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRatingTouched(true);
-                    setMinRating(0);
-                  }}
-                  className={`text-xs font-medium ${
-                    ratingTouched && minRating === 0
-                      ? "text-brand-600 dark:text-brand-400"
-                      : "text-muted-foreground hover:underline"
-                  }`}
-                >
-                  All
-                </button>
+                <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               {/* Red-to-green slider, no stars. Shows companies at or BELOW
                   the chosen value (not "X and up"), so dragging left tightens
@@ -491,8 +457,7 @@ export function WorkplaceBrowser() {
               selectedDistrictKeys={selectedDistrictKeys}
               onToggleCity={toggleCity}
               onToggleDistrict={toggleDistrict}
-              allSelected={allCitiesActive}
-              onAllClick={toggleAllCities}
+              onReset={resetLocation}
               onNearMe={requestNearMe}
               nearMeLoading={geoRequesting}
               nearMeActive={geo !== null && geo !== "denied"}

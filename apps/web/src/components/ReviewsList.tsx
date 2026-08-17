@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { PublicReview, VoteValue } from "@iwtr/shared-types";
+import type { PublicReview, VoteValue, WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
-import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { workplaceTypeLabel, WORKPLACE_TYPES } from "@/lib/workplaceTypes";
+import { collarBorderClass, collarPillClassName } from "@/lib/collarColors";
 import { Avatar } from "@/components/Avatar";
+import { SingleSelectPillTabs } from "@/components/FilterPillGroup";
 
 const CATEGORY_FIELDS: { score: keyof PublicReview; label: string }[] = [
   { score: "corporateCultureScore", label: "Corporate Culture" },
@@ -15,7 +17,17 @@ const CATEGORY_FIELDS: { score: keyof PublicReview; label: string }[] = [
   { score: "stabilityScore", label: "Organizational Stability" },
 ];
 
-export function ReviewsList({ companySlug }: { companySlug: string }) {
+export function ReviewsList({
+  companySlug,
+  workplaceTypes,
+}: {
+  companySlug: string;
+  // The company's own (up to 2) workplace-type tags, passed down from the
+  // company page — drives which color-coded collar filter tabs render above
+  // the review list. Optional so existing callers that predate this filter
+  // still compile; the tabs simply don't render without it.
+  workplaceTypes?: WorkplaceType[];
+}) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +37,8 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
   // behind what looked like an ordinary, unreviewed company.
   const [loadFailed, setLoadFailed] = useState(false);
   const [votingId, setVotingId] = useState<string | null>(null);
+  // null = "All" collar tab selected (no filtering).
+  const [activeCollar, setActiveCollar] = useState<WorkplaceType | null>(null);
 
   useEffect(() => {
     setLoadFailed(false);
@@ -81,15 +95,34 @@ export function ReviewsList({ companySlug }: { companySlug: string }) {
   // ReviewsService.castVote).
   const canVote = !authLoading && isAuthenticated;
 
+  // Collar filter tabs only make sense when the company actually spans more
+  // than one workplace type — a single-type company has nothing to filter,
+  // so the tabs (and their color-coding) simply don't render.
+  const collarOptions = WORKPLACE_TYPES.filter((t) => workplaceTypes?.includes(t.value));
+  const filteredReviews = activeCollar ? reviews.filter((r) => r.workplaceType === activeCollar) : reviews;
+
   return (
     <div className="flex flex-col gap-4 compact:gap-2">
       <h2 className="text-lg font-semibold text-foreground">Reviews</h2>
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      {reviews.map((review) => (
+      {collarOptions.length > 1 && (
+        <SingleSelectPillTabs
+          options={collarOptions}
+          selected={activeCollar}
+          onSelect={setActiveCollar}
+          pillColorClassName={collarPillClassName}
+        />
+      )}
+
+      {filteredReviews.length === 0 && (
+        <p className="text-sm text-muted-foreground">No reviews for this workplace type yet.</p>
+      )}
+
+      {filteredReviews.map((review) => (
         <div
           key={review.id}
-          className="rounded-xl border border-border bg-surface p-5 compact:p-3"
+          className={`rounded-xl border border-border border-l-4 bg-surface p-5 compact:p-3 ${collarBorderClass(review.workplaceType)}`}
         >
           <div className="mb-3 compact:mb-1.5 flex items-center gap-2">
             <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />

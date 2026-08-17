@@ -61,12 +61,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
           <RateButton companyId={company.id} companyName={company.name} workplaceTypes={company.workplaceTypes} />
         </div>
 
-        {/* Score breakdown (left) and "What reviewers said" (right) sit side
-            by side on wide screens instead of stacking — they're both
-            summary/at-a-glance content, not competing for the same reading
-            column the way the full review list below does. */}
+        {/* Score breakdown + Information (left) and "What reviewers said"
+            (right) sit side by side on wide screens instead of stacking —
+            they're both summary/at-a-glance content, not competing for the
+            same reading column the way the full review list below does. */}
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-border bg-surface p-6">
+          <div className="h-full rounded-xl border border-border bg-surface p-6">
             {aggregate && aggregate.reviewCount > 0 ? (
               <>
                 <div className="flex items-baseline gap-3">
@@ -102,6 +102,37 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                 No reviews yet. Be the first to rate this workplace if it&apos;s in your work history.
               </p>
             )}
+
+            {/* Free-text company info — only a Plus-tier owner can set
+                description/website (see owner.service.ts's edit allowlist),
+                so a null description here is itself the reliable "no Plus
+                subscription, or hasn't filled it in yet" signal; no
+                separate tier check needed. Lives in the same card as the
+                score breakdown (a divider, not a second box) so the left
+                column reads as one connected panel. */}
+            <div className="mt-6 border-t border-border pt-6">
+              <h2 className="mb-2 text-lg font-semibold text-foreground">Information</h2>
+              {company.description ? (
+                <p className="whitespace-pre-wrap text-sm text-foreground">{company.description}</p>
+              ) : (
+                <div className="flex flex-col items-center gap-1 py-6 text-center text-sm text-muted-foreground">
+                  <span className="text-3xl" aria-hidden="true">
+                    😔
+                  </span>
+                  <span>No information yet.</span>
+                </div>
+              )}
+              {company.website && (
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
+                >
+                  {company.website}
+                </a>
+              )}
+            </div>
           </div>
 
           <SurveyHighlights companySlug={slug} />
@@ -111,7 +142,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             the actual review text people are here to read, so it gets the
             most room. */}
         <div className="mt-8">
-          <ReviewsList companySlug={slug} />
+          <ReviewsList companySlug={slug} workplaceTypes={company.workplaceTypes} />
         </div>
 
         <div className="mt-8">
