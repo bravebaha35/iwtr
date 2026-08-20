@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { BackButton } from "@/components/BackButton";
 import { GlobalHeader } from "@/components/GlobalHeader";
+import { AuthModal } from "@/components/auth/AuthModal";
 import "./globals.css";
 // Real vector flag icons (not Unicode flag emoji) — Windows renders
 // unsupported flag-emoji regional-indicator pairs as a boxed two-letter
@@ -63,6 +64,7 @@ export default function RootLayout({
             <GlobalHeader />
             {children}
             <BackButton />
+            <AuthModal />
           </AuthProvider>
         </SettingsProvider>
       </body>

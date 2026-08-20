@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { OnboardingStatus, UserRole } from "@iwtr/shared-types";
-import { apiGet } from "./api-client";
+import { apiGet, ApiError } from "./api-client";
 
 interface SessionResponse {
   isAuthenticated: boolean;
@@ -18,6 +18,19 @@ interface AuthContextValue {
   register: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  // Which tab of AuthModal is active — lifted up here (rather than kept as
+  // AuthModal-local state) so GlobalHeader's "Login/Register" button can open
+  // straight to the right tab.
+  authMode: "login" | "register";
+  setAuthMode: (mode: "login" | "register") => void;
+  // AuthModal is mounted once globally (layout.tsx) as a dismissible dialog,
+  // not a mandatory full-page gate — the homepage renders the read-only
+  // WorkplaceBrowser by default for logged-out visitors (company
+  // browsing/detail endpoints are already public on the API), and this flag
+  // is how any page opens the login/register dialog on top of it.
+  authModalOpen: boolean;
+  openAuthModal: (mode?: "login" | "register") => void;
+  closeAuthModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -45,6 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "register">("register");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const loadStatus = useCallback(async () => {
     const status = await apiGet<OnboardingStatus>("/onboarding/status");
@@ -57,16 +72,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadSession = useCallback(async () => {
     const res = await fetch("/api/session", { cache: "no-store" });
     const session = (await res.json()) as SessionResponse;
-    setIsAuthenticated(session.isAuthenticated);
-    setRole(session.role);
-    if (session.isAuthenticated) {
-      try {
-        await loadStatus();
-      } catch {
+    if (!session.isAuthenticated) {
+      setIsAuthenticated(false);
+      setRole(null);
+      setOnboardingStatus(null);
+      return;
+    }
+    try {
+      await loadStatus();
+      setIsAuthenticated(true);
+      setRole(session.role);
+    } catch (err) {
+      // /api/session only checks the access-token cookie's signature and
+      // expiry, not whether the account it points to still exists — a
+      // session that outlives its user (deleted/banned account, or a DB
+      // restored to an earlier snapshot) gets a 401/404 here even though
+      // isAuthenticated read true above. Only treat *those* as a dead
+      // session and sign out — a transient network/5xx blip should retry on
+      // next focus, not silently log someone out mid-outage. Either way,
+      // this closes the hole where page.tsx sees isAuthenticated=true
+      // forever with no onboardingStatus, which reads as an infinite
+      // "Loading...".
+      if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
+        setIsAuthenticated(false);
+        setRole(null);
+        setOnboardingStatus(null);
+        void fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+      } else {
+        setIsAuthenticated(true);
+        setRole(session.role);
         setOnboardingStatus(null);
       }
-    } else {
-      setOnboardingStatus(null);
     }
   }, [loadStatus]);
 
@@ -99,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       await postCredentials("/api/auth/register", { email, password });
       await loadSession();
+      setAuthModalOpen(false);
     },
     [loadSession],
   );
@@ -107,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       await postCredentials("/api/auth/login", { email, password });
       await loadSession();
+      setAuthModalOpen(false);
     },
     [loadSession],
   );
@@ -117,6 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOnboardingStatus(null);
     void fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   }, []);
+
+  const openAuthModal = useCallback((mode?: "login" | "register") => {
+    if (mode) setAuthMode(mode);
+    setAuthModalOpen(true);
+  }, []);
+  const closeAuthModal = useCallback(() => setAuthModalOpen(false), []);
 
   const refreshOnboardingStatus = useCallback(async () => {
     if (isAuthenticated) await loadStatus();
@@ -133,6 +177,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         login,
         logout,
+        authMode,
+        setAuthMode,
+        authModalOpen,
+        openAuthModal,
+        closeAuthModal,
       }}
     >
       {children}

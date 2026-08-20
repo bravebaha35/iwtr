@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError } from "@/lib/api-client";
 import { Logo } from "@/components/Logo";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
@@ -15,9 +14,33 @@ import {
   validateRegistrationEmail,
 } from "@/lib/emailVerification";
 
+// Close (×) button shared by both steps' cards — top-right corner, dismisses
+// the whole dialog back to whatever page was showing underneath (the
+// homepage's WorkplaceBrowser, a company page, etc.) without logging in.
+function CloseButton({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Close"
+      className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+    >
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 6L6 18M6 6l12 12" />
+      </svg>
+    </button>
+  );
+}
+
 export function AuthModal() {
-  const { login, register } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("register");
+  const {
+    login,
+    register,
+    authMode: mode,
+    setAuthMode: setMode,
+    authModalOpen,
+    closeAuthModal,
+  } = useAuth();
   const [email, setEmail] = useState(() => loadPendingVerification()?.email ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -52,8 +75,11 @@ export function AuthModal() {
       setSubmitting(true);
       try {
         await login(email, password);
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      } catch {
+        // The only failure mode loginWithEmail ever throws is "invalid
+        // credentials" (see auth.service.ts) — deliberately not surfacing
+        // the raw backend/network error text here.
+        setError("The username or password you entered is incorrect. Please try again.");
       } finally {
         setSubmitting(false);
       }
@@ -83,10 +109,19 @@ export function AuthModal() {
     setStep("form");
   }
 
+  if (!authModalOpen) return null;
+
   if (step === "verify") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-        <div className="w-full max-w-sm rounded-xl bg-surface p-8 shadow-xl">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+        onClick={closeAuthModal}
+      >
+        <div
+          className="relative w-full max-w-sm rounded-xl bg-surface p-8 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CloseButton onClose={closeAuthModal} />
           <EmailVerificationScreen
             email={email}
             password={password}
@@ -99,8 +134,15 @@ export function AuthModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-sm rounded-xl bg-surface p-8 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      onClick={closeAuthModal}
+    >
+      <div
+        className="relative w-full max-w-sm rounded-xl bg-surface p-8 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <CloseButton onClose={closeAuthModal} />
         <div className="mb-1 flex items-center justify-center gap-2">
           <Logo />
           <h2 className="text-center text-2xl font-bold text-foreground">

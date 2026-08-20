@@ -15,7 +15,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 // homepage, which used to build this same markup locally and lose it the
 // moment you navigated anywhere else.
 export function GlobalHeader() {
-  const { isAuthenticated, role, onboardingStatus, logout } = useAuth();
+  const { isAuthenticated, role, onboardingStatus, logout, openAuthModal } = useAuth();
   const pathname = usePathname();
   const showAccountControls = isAuthenticated && onboardingStatus?.status === "ACTIVE";
 
@@ -84,6 +84,19 @@ export function GlobalHeader() {
               </svg>
             </button>
           </>
+        )}
+
+        {/* Logged-out visitor's equivalent of the avatar/edit-profile slot
+            above — there's no profile to edit without an account, so this
+            opens AuthModal (mounted globally in layout.tsx) instead. */}
+        {!isAuthenticated && (
+          <button
+            type="button"
+            onClick={() => openAuthModal()}
+            className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+          >
+            Login/Register
+          </button>
         )}
       </div>
     </header>
