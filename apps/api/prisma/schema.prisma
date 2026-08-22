@@ -166,6 +166,11 @@ model User {
   companyOwnerships  CompanyOwner[]
   ownerContactMessages OwnerContactMessage[]
   phoneOtpChallenge  PhoneOtpChallenge?
+  // Cross-schema relation (public -> pii) — safe here specifically because
+  // EmployerProfile is not an anonymity-sensitive model the way PiiVault is;
+  // see EmployerProfile's own doc comment for why it gets a direct relation
+  // when PiiVault deliberately doesn't.
+  employerProfile    EmployerProfile?
 
   @@schema("public")
 }
@@ -514,6 +519,58 @@ model PiiVault {
   tcknPurgedAt   DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  @@schema("pii")
+}
+
+// Verified-employer legal-contact profile — deliberately a SEPARATE model
+// from PiiVault, not a repurposing of it. PiiVault exists to prove a
+// reviewer's real identity while keeping that identity uncorrelatable to
+// their public activity (no Prisma relation to User, by design). An
+// employer's profile is the opposite: a real person publicly and
+// permanently vouching for a company they've been approved (CompanyOwner.
+// claimStatus === APPROVED) to represent, so a direct User relation and
+// admin-decryptable fields are the correct design here, not a bug — see
+// EmployerProfileService for the "always visible to admins" access pattern
+// this enables. Still lives in the isolated `pii` schema (not `public`)
+// because of T.C. Kimlik No, and still uses the same envelope-encryption
+// approach as PiiVault, but under its own key material (EMPLOYER_PII_
+// MASTER_KEY / EMPLOYER_TCKN_HASH_PEPPER — see crypto.util.ts in the
+// employer-profile module) rather than sharing PiiVault's keys, matching
+// this codebase's existing "every PII-adjacent module gets its own secret"
+// convention (traffic-log, phone-verification, pii-vault all do the same).
+//
+// Unlike PiiVault's T.C. Kimlik No, encTcKimlikNo here is never purged —
+// there is no anonymity to protect for a verified public business contact,
+// and the whole point of collecting it is a permanent, admin-visible legal
+// record (CLAUDE.md's "employers must transition to a strictly public,
+// legally verified profile" requirement) rather than a one-time fraud check.
+model EmployerProfile {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id])
+  // All nullable, unlike PiiVault's equivalents — this profile is filled in
+  // incrementally (PATCH-style, same pattern as ProfileService.updateProfile)
+  // rather than submitted all at once, so there's no single moment where
+  // every field is guaranteed present. EmployerProfileService.isComplete()
+  // is what actually enforces "every field present" for legal-compliance
+  // purposes, not the schema.
+  encFirstName    Bytes?
+  encLastName     Bytes?
+  encPhoneNumber  Bytes?
+  encAddress      Bytes?
+  encWorkAddress  Bytes?
+  encTcKimlikNo   Bytes?
+  // Unique when present, same duplicate-account-detection purpose as
+  // PiiVault.tcKimlikNoHash — a person shouldn't be able to register as the
+  // verified legal contact for multiple accounts using the same national ID.
+  tcKimlikNoHash  String?  @unique
+  // Company logo / employer headshot — actual upload+storage is a later
+  // step (see project notes); this column just holds wherever that file
+  // ends up living, exactly like Company.mainPhotoUrl already does.
+  profilePictureUrl String?
+  dekWrapped      Bytes
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@schema("pii")
 }

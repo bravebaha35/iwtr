@@ -12,6 +12,7 @@ import { OwnerModule } from "./modules/owner/owner.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { ProfileModule } from "./modules/profile/profile.module";
 import { TrafficLogModule } from "./modules/traffic-log/traffic-log.module";
+import { EmployerProfileModule } from "./modules/employer-profile/employer-profile.module";
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { TrafficLogModule } from "./modules/traffic-log/traffic-log.module";
     PaymentsModule,
     ProfileModule,
     TrafficLogModule,
+    EmployerProfileModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
