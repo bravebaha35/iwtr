@@ -8,12 +8,14 @@ import {
   type EducationHistoryEntry,
   type MyEmploymentEntry,
   type MyProfile,
+  type WorkplaceType,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client";
 import { avatarLabel, avatarWorkType } from "@/lib/avatars";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
+import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
 import { WorkplacePicker } from "@/components/WorkplacePicker";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
@@ -66,6 +68,12 @@ export default function ProfilePage() {
 
   // Local editable form state, seeded from the loaded profile.
   const [reviewUsername, setReviewUsername] = useState<string | null>(null);
+  // Which pool the username dropdown offers — starts from the loaded
+  // avatar's own category, but tracked separately so clicking a new "what
+  // kind of work?" pill in AvatarEditor updates the offered names right
+  // away, before the user has necessarily clicked a new avatar variant too.
+  const [usernameCategory, setUsernameCategory] = useState<WorkplaceType>("OFFICE");
+  const [alwaysRandomizeIdentity, setAlwaysRandomizeIdentity] = useState(false);
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarGradient, setAvatarGradient] = useState<string | null>(null);
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
@@ -136,6 +144,11 @@ export default function ProfilePage() {
   // employment history (add or edit) never offer years earlier than this.
   const birthYear = profile?.birthDate ? new Date(profile.birthDate).getFullYear() : undefined;
 
+  const usernameOptions: DropdownOption[] = ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE[usernameCategory].map((name) => ({
+    value: name,
+    label: name,
+  }));
+
   const load = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
@@ -146,6 +159,8 @@ export default function ProfilePage() {
       setProfile(profileData);
       setEmployment(employmentData);
       setReviewUsername(profileData.reviewUsername);
+      setUsernameCategory(avatarWorkType(profileData.avatarKey) ?? "OFFICE");
+      setAlwaysRandomizeIdentity(profileData.alwaysRandomizeIdentity);
       setAvatarKey(profileData.avatarKey);
       setAvatarGradient(profileData.avatarGradient);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
@@ -164,12 +179,13 @@ export default function ProfilePage() {
     setAvatarError(null);
     setAvatarStatus(null);
     try {
-      // Always send all three — avatarKey/avatarGradient/reviewUsername are
+      // Always send all four — avatarKey/avatarGradient/reviewUsername are
       // always set by the time this button is reachable (onboarding assigns
       // a starting reviewUsername automatically), so there's no reason to
       // make "did the value happen to be falsy" a factor in whether a field
-      // gets saved at all.
-      await apiPatch("/me/profile", { reviewUsername, avatarKey, avatarGradient });
+      // gets saved at all. alwaysRandomizeIdentity is a plain boolean, so it
+      // has no falsy-but-meaningful gap to worry about either.
+      await apiPatch("/me/profile", { reviewUsername, alwaysRandomizeIdentity, avatarKey, avatarGradient });
       await load();
       // The homepage header reads avatar/name from AuthContext's
       // onboardingStatus, not from this page's own `profile` state — without
@@ -473,28 +489,39 @@ export default function ProfilePage() {
               avatarGradient={avatarGradient}
               onChangeAvatarKey={setAvatarKey}
               onChangeGradient={setAvatarGradient}
+              onChangeWorkType={(type) => setUsernameCategory(type)}
             />
 
             <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Username</p>
             <p className="mb-2 text-xs text-muted-foreground">
               Shown on your own reviews instead of your real name — pick whichever one you like.
             </p>
-            <div className="mb-2 grid grid-cols-2 gap-2">
-              {ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE[avatarWorkType(avatarKey) ?? "OFFICE"].map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => setReviewUsername(name)}
-                  className={`rounded-lg px-3 py-2 text-left text-xs font-medium transition ${
-                    reviewUsername === name
-                      ? "bg-brand-100 ring-2 ring-brand-600 dark:bg-brand-900/60"
-                      : "bg-surface-muted text-foreground hover:brightness-95 dark:hover:brightness-110"
-                  }`}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
+            <SingleSelectDropdown
+              value={reviewUsername}
+              onChange={(v) => v && setReviewUsername(v)}
+              placeholder="Choose a username"
+              clearable={false}
+              options={usernameOptions}
+            />
+
+            <label className="mt-4 flex items-start gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={alwaysRandomizeIdentity}
+                onChange={(e) => setAlwaysRandomizeIdentity(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-brand-600"
+              />
+              <span>
+                Randomize my avatar and username on every review to protect my anonymity.
+                {alwaysRandomizeIdentity && (
+                  <span className="block text-xs text-muted-foreground">
+                    Every review you submit or edit from now on shows a one-off, made-up name and a generic icon
+                    instead of your usual avatar and username — you can still turn this off for a single review while
+                    writing it.
+                  </span>
+                )}
+              </span>
+            </label>
 
             <button
               onClick={saveCustomization}

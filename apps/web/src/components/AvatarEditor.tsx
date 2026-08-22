@@ -17,11 +17,19 @@ export function AvatarEditor({
   avatarGradient,
   onChangeAvatarKey,
   onChangeGradient,
+  onChangeWorkType,
 }: {
   avatarKey: string | null;
   avatarGradient: string | null;
   onChangeAvatarKey: (key: string) => void;
   onChangeGradient: (key: string) => void;
+  // Fired the moment a "what kind of work?" pill is clicked — before the
+  // caller's avatarKey has necessarily changed (picking a new variant below
+  // is a separate step). Optional: onboarding's AvatarPicker has nothing
+  // downstream that needs to react to the category alone, only /me's
+  // username picker does (its options must update as soon as the category
+  // changes, not only once a new avatar variant is actually clicked).
+  onChangeWorkType?: (type: WorkplaceType) => void;
 }) {
   const [browsingWorkType, setBrowsingWorkType] = useState<WorkplaceType | null>(avatarWorkType(avatarKey));
   const colorInputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +39,7 @@ export function AvatarEditor({
 
   function pickWorkType(type: WorkplaceType) {
     setBrowsingWorkType(type);
+    onChangeWorkType?.(type);
     // A variant from a different work type no longer applies once the type
     // changes — the caller keeps whatever avatarKey it had until a new one
     // is actually picked below, so this alone doesn't clear the selection.

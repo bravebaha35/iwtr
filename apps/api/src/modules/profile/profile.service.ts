@@ -72,6 +72,7 @@ export class ProfileService {
 
     return {
       reviewUsername: user.reviewUsername,
+      alwaysRandomizeIdentity: user.alwaysRandomizeIdentity,
       avatarKey: user.avatarKey,
       avatarGradient: user.avatarGradient,
       country: user.country,
@@ -108,6 +109,9 @@ export class ProfileService {
       where: { id: userId },
       data: {
         ...(input.reviewUsername !== undefined ? { reviewUsername: input.reviewUsername } : {}),
+        ...(input.alwaysRandomizeIdentity !== undefined
+          ? { alwaysRandomizeIdentity: input.alwaysRandomizeIdentity }
+          : {}),
         ...(input.avatarKey !== undefined ? { avatarKey: input.avatarKey } : {}),
         ...(input.avatarGradient !== undefined ? { avatarGradient: input.avatarGradient } : {}),
         ...(input.country !== undefined ? { country: input.country } : {}),
