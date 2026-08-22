@@ -166,17 +166,22 @@ function UpgradeToPlus({ companyId }: { companyId: string }) {
   );
 }
 
-// Every box in the 2x2 dashboard grid is the same size and shares this shell
-// so the grid reads as one system rather than four one-off cards.
-// Shared min-height so all 4 boxes read as one uniform 2x2 grid of equal
-// pieces — without it, each grid ROW only stretches its own two cells to
-// match each other (CSS grid's default per-row behavior), but row 1
-// (shorter content) and row 2 (the Contact & socials box's long form) end up
-// very different overall heights, which reads as two uneven columns rather
-// than four equal quadrants.
-function DashboardBox({ title, children }: { title: string; children: React.ReactNode }) {
+// Shared shell for all 3 dashboard boxes so the grid reads as one system
+// rather than unrelated one-off cards. `h-full` matters most on the General
+// Information box: it spans both rows of the right column's stack (see the
+// `lg:row-span-2` grid item below), and this is what makes it stretch to
+// fill that spanned height rather than shrink-wrapping its own content.
+function DashboardBox({
+  title,
+  className = "",
+  children,
+}: {
+  title: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex h-full min-h-[38rem] flex-col rounded-xl border border-border bg-surface p-5">
+    <div className={`flex h-full flex-col rounded-xl border border-border bg-surface p-5 ${className}`}>
       <h3 className="mb-3 font-semibold text-foreground">{title}</h3>
       {children}
     </div>
@@ -187,22 +192,17 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
 
-  // Box 1 — basics
+  // General Information — basics + location, one merged save action
   const [name, setName] = useState(claim.companyName);
   const [category, setCategory] = useState("");
   const [mainPhotoUrl, setMainPhotoUrl] = useState("");
-  const [box1Saving, setBox1Saving] = useState(false);
-  const [box1Status, setBox1Status] = useState<string | null>(null);
-  const [box1Error, setBox1Error] = useState<string | null>(null);
-
-  // Box 2 — company info + location
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
   const [city, setCity] = useState<string | null>(null);
   const [district, setDistrict] = useState<string | null>(null);
-  const [box2Saving, setBox2Saving] = useState(false);
-  const [box2Status, setBox2Status] = useState<string | null>(null);
-  const [box2Error, setBox2Error] = useState<string | null>(null);
+  const [generalInfoSaving, setGeneralInfoSaving] = useState(false);
+  const [generalInfoStatus, setGeneralInfoStatus] = useState<string | null>(null);
+  const [generalInfoError, setGeneralInfoError] = useState<string | null>(null);
 
   // Box 3 — contact & socials
   const [contactEmail, setContactEmail] = useState("");
@@ -249,35 +249,15 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     void loadDetail();
   }, [loadDetail]);
 
-  async function saveBox1() {
-    setBox1Saving(true);
-    setBox1Error(null);
-    setBox1Status(null);
+  async function saveGeneralInfo() {
+    setGeneralInfoSaving(true);
+    setGeneralInfoError(null);
+    setGeneralInfoStatus(null);
     try {
       const body: Record<string, string> = {};
       if (name.trim() && name.trim() !== detail?.company.name) body.name = name.trim();
       if (category.trim() && category.trim() !== detail?.company.category) body.category = category.trim();
       if (mainPhotoUrl.trim() && mainPhotoUrl.trim() !== detail?.company.mainPhotoUrl) body.mainPhotoUrl = mainPhotoUrl.trim();
-      if (Object.keys(body).length === 0) {
-        setBox1Error("Change at least one field before saving.");
-        return;
-      }
-      await apiPatch(`/my-companies/${claim.companyId}`, body);
-      await loadDetail();
-      setBox1Status("Saved.");
-    } catch (err) {
-      setBox1Error(err instanceof ApiError ? err.message : "Couldn't save changes.");
-    } finally {
-      setBox1Saving(false);
-    }
-  }
-
-  async function saveBox2() {
-    setBox2Saving(true);
-    setBox2Error(null);
-    setBox2Status(null);
-    try {
-      const body: Record<string, string> = {};
       if (city) {
         body.city = city;
         // district is z.string().min(1) server-side — omit rather than send
@@ -291,16 +271,16 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         body.website = website.trim();
       }
       if (Object.keys(body).length === 0) {
-        setBox2Error("Change at least one field before saving.");
+        setGeneralInfoError("Change at least one field before saving.");
         return;
       }
       await apiPatch(`/my-companies/${claim.companyId}`, body);
       await loadDetail();
-      setBox2Status("Saved.");
+      setGeneralInfoStatus("Saved.");
     } catch (err) {
-      setBox2Error(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setGeneralInfoError(err instanceof ApiError ? err.message : "Couldn't save changes.");
     } finally {
-      setBox2Saving(false);
+      setGeneralInfoSaving(false);
     }
   }
 
@@ -376,9 +356,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
       {detailError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{detailError}</p>}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* 1st: basics */}
-        <DashboardBox title="Company basics">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr]">
+        {/* Left, large: company basics + location, one merged save action */}
+        <DashboardBox title="General Information" className="lg:row-span-2">
           <div className="flex flex-1 flex-col gap-2">
             <label className="text-xs font-medium text-muted-foreground">
               Company name
@@ -408,22 +388,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 />
               </div>
             </div>
-          </div>
-          <button
-            onClick={saveBox1}
-            disabled={box1Saving}
-            className="mt-3 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-          >
-            Save changes
-          </button>
-          {box1Status && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{box1Status}</p>}
-          {box1Error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{box1Error}</p>}
-        </DashboardBox>
 
-        {/* 2nd: company info + location */}
-        <DashboardBox title="Information & location">
-          <div className="flex flex-1 flex-col gap-2">
-            <label className="text-xs font-medium text-muted-foreground">Location</label>
+            <label className="mt-2 text-xs font-medium text-muted-foreground">Location</label>
             <div className="grid grid-cols-2 gap-2">
               <SingleSelectDropdown
                 value={city}
@@ -476,25 +442,25 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             )}
           </div>
           <button
-            onClick={saveBox2}
-            disabled={box2Saving}
-            className="mt-3 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            onClick={saveGeneralInfo}
+            disabled={generalInfoSaving}
+            className="mt-auto self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             Save changes
           </button>
-          {box2Status && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{box2Status}</p>}
-          {box2Error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{box2Error}</p>}
+          {generalInfoStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{generalInfoStatus}</p>}
+          {generalInfoError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{generalInfoError}</p>}
         </DashboardBox>
 
-        {/* 3rd: contact & socials */}
-        <DashboardBox title="Contact & social media">
+        {/* Right, top: contact & socials */}
+        <DashboardBox title="Contact & Social Media">
           <div className="flex flex-1 flex-col gap-2">
             <div className="rounded-lg border border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-800 dark:border-brand-700 dark:bg-brand-950 dark:text-brand-300">
-              <p className="font-semibold">Notice on Contact Phone Numbers:</p>
+              <p className="font-semibold">Notice on Contact Numbers:</p>
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 <li>
                   <span className="font-medium">Sole Proprietorships (Şahıs Şirketleri):</span> If an official
-                  corporate landline is unavailable, you may register using your personal or primary contact
+                  corporate landline is unavailable, you may register using your personal or primary mobile
                   number.
                 </li>
                 <li>
@@ -569,8 +535,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           {box3Error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{box3Error}</p>}
         </DashboardBox>
 
-        {/* 4th: reviews & rating (read-only) */}
-        <DashboardBox title="Reviews & rating">
+        {/* Right, bottom: reviews & ratings (read-only) */}
+        <DashboardBox title="Reviews & Ratings">
           {detail?.aggregate && detail.aggregate.reviewCount > 0 ? (
             <p className="mb-3 text-sm text-foreground">
               <span className="text-xl font-bold">{detail.aggregate.overallAvg.toFixed(1)}</span>{" "}
