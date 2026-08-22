@@ -473,13 +473,13 @@ export default function ProfilePage() {
           {/* Avatar, real name + chosen username preview, background, username picker */}
           <div className="rounded-xl border border-border bg-surface p-5">
             <div className="mb-4 flex items-center gap-3">
-              <Avatar avatarKey={avatarKey} avatarGradient={avatarGradient} size="md" />
+              <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
               <div>
                 <p className="text-base font-bold text-foreground">
                   {profile.firstName} {profile.lastName}
                 </p>
                 <p className="text-sm font-light text-muted-foreground">
-                  {reviewUsername ?? avatarLabel(avatarKey) ?? "Anonymous"}
+                  {profile.reviewUsername ?? avatarLabel(profile.avatarKey) ?? "Anonymous"}
                 </p>
               </div>
             </div>
@@ -501,6 +501,8 @@ export default function ProfilePage() {
               onChange={(v) => v && setReviewUsername(v)}
               placeholder="Choose a username"
               clearable={false}
+              searchable={false}
+              maxHeightClassName="max-h-none"
               options={usernameOptions}
             />
 

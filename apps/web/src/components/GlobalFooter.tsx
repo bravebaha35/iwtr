@@ -39,7 +39,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Claim Profile", href: "#" },
       { label: "HR Dashboard", href: "/my/companies" },
-      { label: "Pricing", href: "#" },
+      { label: "Pricing", href: "/plans" },
     ],
   },
   {

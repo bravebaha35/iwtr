@@ -1,6 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
-  findDistrictInProvince,
   findProvinceByCityName,
   workplaceTypeSchema,
   type AdminCreateCompanyInput,
@@ -13,46 +12,11 @@ import {
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify } from "./slugify.util";
+import { resolveLocation } from "./resolve-location.util";
 
 @Injectable()
 export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
-
-  /**
-   * Resolves free-typed city/district against the real province/district
-   * list (packages/shared-types/src/geo/turkey.ts) rather than trusting them
-   * verbatim — previously nothing checked these server-side, so a typo or
-   * casing drift silently created a company no city/district filter could
-   * ever find (see WorkplaceBrowser.tsx/WorkplacePicker.tsx, which both
-   * match by exact resolved province name). Returns the CANONICAL spelling,
-   * not whatever was submitted, so every stored value matches picker output
-   * byte-for-byte and future drift becomes structurally impossible rather
-   * than just discouraged.
-   */
-  private resolveLocation(city?: string, district?: string): { city: string | null; district: string | null } {
-    if (!city) {
-      if (district) {
-        throw new BadRequestException("A district can't be set without a city");
-      }
-      return { city: null, district: null };
-    }
-
-    const province = findProvinceByCityName(city);
-    if (!province) {
-      throw new BadRequestException(`"${city}" isn't a recognized Turkish province`);
-    }
-
-    if (!district) {
-      return { city: province.name, district: null };
-    }
-
-    const canonicalDistrict = findDistrictInProvince(province, district);
-    if (!canonicalDistrict) {
-      throw new BadRequestException(`"${district}" isn't a district of ${province.name}`);
-    }
-
-    return { city: province.name, district: canonicalDistrict };
-  }
 
   async createByAdmin(adminUserId: string, input: AdminCreateCompanyInput): Promise<Company> {
     // Company names are the only thing the employment-history matching (both
@@ -82,7 +46,7 @@ export class CompaniesService {
       slug = `${baseSlug}-${suffix}`;
     }
 
-    const { city, district } = this.resolveLocation(input.city, input.district);
+    const { city, district } = resolveLocation(input.city, input.district);
 
     const company = await this.prisma.company.create({
       data: {
@@ -251,6 +215,12 @@ export class CompaniesService {
     city: string | null;
     district: string | null;
     isVerifiedBadge: boolean;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    facebookUrl: string | null;
+    instagramUrl: string | null;
+    whatsappUrl: string | null;
+    xUrl: string | null;
   }): Company {
     return {
       id: c.id,
@@ -264,6 +234,12 @@ export class CompaniesService {
       city: c.city,
       district: c.district,
       isVerifiedBadge: c.isVerifiedBadge,
+      contactEmail: c.contactEmail,
+      contactPhone: c.contactPhone,
+      facebookUrl: c.facebookUrl,
+      instagramUrl: c.instagramUrl,
+      whatsappUrl: c.whatsappUrl,
+      xUrl: c.xUrl,
     };
   }
 }

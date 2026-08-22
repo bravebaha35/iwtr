@@ -53,24 +53,32 @@ export type AdminOwnerClaim = z.infer<typeof adminOwnerClaimSchema>;
 // editing of a company's workplace-type tags is deferred to a future Plus
 // company-profile phase, not part of this pass. Only admins can set it
 // (CompaniesService.createByAdmin) until that's designed.
+// Same E.164 pattern used for user/employer-profile phone numbers
+// (user.ts, employerProfile.ts) — duplicated rather than imported since
+// those live in a different domain area of this package.
+const e164PhoneSchema = z.string().regex(/^\+[1-9]\d{7,14}$/, "Must be a phone number in E.164 format, e.g. +905551234567");
+
 export const updateCompanyInputSchema = z
   .object({
     name: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
     mainPhotoUrl: httpUrlSchema.optional(),
+    // Free tier: location and public contact/socials.
+    city: z.string().min(1).optional(),
+    district: z.string().min(1).optional(),
+    contactEmail: z.string().email().optional(),
+    contactPhone: e164PhoneSchema.optional(),
+    facebookUrl: httpUrlSchema.optional(),
+    instagramUrl: httpUrlSchema.optional(),
+    whatsappUrl: httpUrlSchema.optional(),
+    xUrl: httpUrlSchema.optional(),
     // Plus-tier only:
     description: z.string().max(2000).optional(),
     website: httpUrlSchema.optional(),
   })
-  .refine(
-    (v) =>
-      v.name !== undefined ||
-      v.category !== undefined ||
-      v.mainPhotoUrl !== undefined ||
-      v.description !== undefined ||
-      v.website !== undefined,
-    { message: "Provide at least one field to update" },
-  );
+  .refine((v) => Object.values(v).some((value) => value !== undefined), {
+    message: "Provide at least one field to update",
+  });
 export type UpdateCompanyInput = z.infer<typeof updateCompanyInputSchema>;
 
 export const contactAdminInputSchema = z.object({

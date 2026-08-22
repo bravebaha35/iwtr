@@ -18,19 +18,29 @@ export class ApiError extends Error {
 }
 
 async function handle<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    let body: unknown;
+  // Read as text first, not res.json() directly — a handler with no return
+  // value (e.g. OwnerService.updateMyCompany) sends a 200 with an empty
+  // body, and res.json() throws a SyntaxError on empty input rather than
+  // resolving to something falsy. That threw error was indistinguishable
+  // from a real failure to every caller: a successful void-returning PATCH
+  // still landed in the caller's catch block as "Couldn't save changes."
+  const text = await res.text();
+  let body: unknown = undefined;
+  if (text) {
     try {
-      body = await res.json();
+      body = JSON.parse(text);
     } catch {
       body = null;
     }
+  }
+
+  if (!res.ok) {
     const message =
       (body as { message?: string })?.message ??
       `Request failed: ${res.status} ${res.statusText}`;
     throw new ApiError(typeof message === "string" ? message : JSON.stringify(message), res.status, body);
   }
-  return res.json() as Promise<T>;
+  return body as T;
 }
 
 export async function apiGet<T>(path: string): Promise<T> {

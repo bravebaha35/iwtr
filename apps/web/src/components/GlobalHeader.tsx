@@ -58,6 +58,25 @@ export function GlobalHeader() {
           </svg>
         </Link>
 
+        {showAccountControls && role === "COMPANY_OWNER" && (
+          <Link
+            href="/my/companies"
+            aria-label="Go to your company dashboard"
+            title="Company dashboard"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+          >
+            {/* dashboard-tile-solid, svgrepo.com/show/445068 — fill swapped
+                for currentColor so it inherits this button's light/dark
+                text color instead of a color baked into the source file. */}
+            <svg viewBox="0 0 48 48" className="h-5 w-5" fill="currentColor">
+              <path d="M20,30H8a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V32a2,2,0,0,0-2-2Z" />
+              <path d="M20,4H8A2,2,0,0,0,6,6V24a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
+              <path d="M40,4H28a2,2,0,0,0-2,2V16a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
+              <path d="M40,22H28a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V24a2,2,0,0,0-2-2Z" />
+            </svg>
+          </Link>
+        )}
+
         <ThemeToggle />
 
         {showAccountControls && onboardingStatus && (

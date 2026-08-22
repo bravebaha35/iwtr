@@ -10,6 +10,7 @@ import type {
   UpdateCompanyInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { resolveLocation } from "../companies/resolve-location.util";
 
 @Injectable()
 export class OwnerService {
@@ -88,6 +89,13 @@ export class OwnerService {
       }
     }
 
+    // Same rule as admin creation: a district can't be set without a city,
+    // and both are validated/canonicalized against the real province list.
+    // Only runs when the client actually sent a city — leaves the existing
+    // stored city/district untouched otherwise (undefined fields are a
+    // Prisma no-op, same as every other field here).
+    const location = input.city !== undefined ? resolveLocation(input.city, input.district) : undefined;
+
     // Slug intentionally stays stable across a rename — it's the durable
     // identifier used in bookmarked/shared URLs and in review lookups.
     await this.prisma.company.update({
@@ -98,6 +106,14 @@ export class OwnerService {
         mainPhotoUrl: input.mainPhotoUrl,
         description: input.description,
         website: input.website,
+        city: location?.city,
+        district: location?.district,
+        contactEmail: input.contactEmail,
+        contactPhone: input.contactPhone,
+        facebookUrl: input.facebookUrl,
+        instagramUrl: input.instagramUrl,
+        whatsappUrl: input.whatsappUrl,
+        xUrl: input.xUrl,
       },
     });
   }

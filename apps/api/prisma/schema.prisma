@@ -257,6 +257,17 @@ model Company {
   createdByAdminId String?
   createdAt        DateTime @default(now())
 
+  // Public contact/socials, owner-editable from the "My companies" dashboard
+  // (OwnerService.updateMyCompany) — free tier, not Plus-gated like
+  // description/website. All nullable: most existing companies won't have
+  // these filled in until an owner claims and fills them out.
+  contactEmail  String?
+  contactPhone  String?
+  facebookUrl   String?
+  instagramUrl  String?
+  whatsappUrl   String?
+  xUrl          String?
+
   employmentHistories EmploymentHistory[]
   reviews             Review[]
   owners              CompanyOwner[]

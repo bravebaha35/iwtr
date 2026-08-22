@@ -42,12 +42,21 @@ export const companySchema = z.object({
   mainPhotoUrl: httpUrlSchema.nullable(),
   description: z.string().nullable(),
   website: httpUrlSchema.nullable(),
+  // city/district: admin-set at creation, and owner-editable from the "My
+  // companies" dashboard (OwnerService.updateMyCompany) via the same
+  // resolveLocation validation admin creation uses.
   city: z.string().nullable(),
-  // Not owner-editable (like city) — set once at admin creation time, kept
-  // consistent with how city is handled. Optional/nullable since it's new:
-  // most existing companies won't have one set until an admin backfills it.
   district: z.string().nullable(),
   isVerifiedBadge: z.boolean(),
+  // Public contact/socials — owner-editable, free tier (not Plus-gated like
+  // description/website). All nullable: most companies won't have these
+  // filled in until an owner claims and sets them.
+  contactEmail: z.string().email().nullable(),
+  contactPhone: z.string().nullable(),
+  facebookUrl: httpUrlSchema.nullable(),
+  instagramUrl: httpUrlSchema.nullable(),
+  whatsappUrl: httpUrlSchema.nullable(),
+  xUrl: httpUrlSchema.nullable(),
 });
 export type Company = z.infer<typeof companySchema>;
 
