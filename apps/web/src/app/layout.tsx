@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { BackButton } from "@/components/BackButton";
@@ -25,9 +25,14 @@ const THEME_BOOT_SCRIPT = `(function(){
   } catch (e) {}
 })();`;
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Primary typeface — chosen for brand authority plus reliable rendering of
+// Turkish workplace titles (İ/ı/Ş/ş/Ğ/ğ/Ç/ç/Ö/ö/Ü/ü) and 1-5 score digits.
+// "latin-ext" is mandatory here, not just "latin": Turkish-specific letters
+// live in the Latin Extended-A Unicode block, not the base Latin subset.
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta-sans",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -48,7 +53,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // plusJakartaSans.variable is applied on <body> below per spec, but it
+      // must ALSO be present here: globals.css's `@theme inline` declares
+      // `--font-sans: var(--font-plus-jakarta-sans)` at :root, and a CSS
+      // custom-property reference resolves against whatever's visible AT THE
+      // ELEMENT DECLARING IT — not at wherever it's later used. Since :root
+      // IS <html>, --font-plus-jakarta-sans has to be defined here too, or
+      // --font-sans resolves to nothing and every font-sans/body font-family
+      // rule silently falls back to the browser default (verified live: this
+      // exact failure happened when the variable was only on <body>).
+      className={`${geistMono.variable} ${plusJakartaSans.variable} h-full antialiased`}
       // The boot script below sets `.dark`/`data-density` synchronously,
       // before React hydrates, so the server-rendered markup never matches —
       // that's expected (it's what avoids a flash of the wrong theme), so
@@ -58,7 +72,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className={`${plusJakartaSans.variable} min-h-full flex flex-col bg-background text-foreground`}>
         <SettingsProvider>
           <AuthProvider>
             <GlobalHeader />
