@@ -11,6 +11,7 @@ import { AdminQueueModule } from "./modules/admin-queue/admin-queue.module";
 import { OwnerModule } from "./modules/owner/owner.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { ProfileModule } from "./modules/profile/profile.module";
+import { TrafficLogModule } from "./modules/traffic-log/traffic-log.module";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ProfileModule } from "./modules/profile/profile.module";
     OwnerModule,
     PaymentsModule,
     ProfileModule,
+    TrafficLogModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

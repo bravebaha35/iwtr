@@ -431,6 +431,44 @@ model RefreshToken {
   @@schema("public")
 }
 
+// Law No. 5651 ("Yer Sağlayıcı Yükümlülükleri") traffic-log record. Written
+// automatically by TrafficLogInterceptor (apps/api/src/modules/traffic-log/)
+// for a fixed allowlist of endpoints (auth register/login/google/apple,
+// review submission) — never written to from anywhere else.
+//
+// ipAddress is reversibly encrypted (not just hashed) on purpose: the law's
+// actual purpose is letting a court order trace an action back to a real IP,
+// which a one-way hash can never do. ipHash is a separate non-reversible
+// fingerprint kept alongside it purely for internal abuse-pattern lookups
+// (e.g. "same IP hit register 20 times") without ever decrypting the real
+// value. Same encrypt+hash pairing already used for TCKN/phone elsewhere in
+// this schema — but with its own key/pepper (see traffic-log/crypto.util.ts),
+// deliberately never the pii-vault or phone-verification ones.
+//
+// No Prisma relation to User, and no FK — this must survive account
+// deletion (ProfileService.deleteAccount) since the retention obligation is
+// independent of whether the account still exists. userId is best-effort
+// context only.
+//
+// Retention: the law requires keeping this for a fixed window (not less than
+// 1 year, not more than 2 — the exact figure is set by regulation, confirm
+// with counsel before relying on a number here). No automatic purge job
+// exists yet — add one once that number is confirmed.
+model TrafficLog {
+  id         String   @id @default(uuid())
+  encIp      Bytes
+  ipHash     String
+  endpoint   String
+  method     String
+  statusCode Int?
+  userId     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([ipHash])
+  @@schema("public")
+}
+
 // ===================== pii schema =====================
 // Deliberately isolated: only the pii-vault module ever gets a Prisma client
 // pointed at this schema. No Prisma relation is declared to User — userId is
