@@ -96,9 +96,14 @@ const MANUAL_KEEP_OVERRIDES = new Set([
   "UPS Türkiye Genel Müdürlüğü",
 ]);
 
-type RemovalCategory = "Government Agencies" | "Notaries" | "Political Parties" | "Public Schools" | "Public Hospitals";
+export type RemovalCategory = "Government Agencies" | "Notaries" | "Political Parties" | "Public Schools" | "Public Hospitals";
 
-function classify(name: string): { action: "delete" | "keep"; category?: RemovalCategory } {
+// Exported so other scripts (e.g. seed-turkey-companies.ts) can filter
+// public/government entities inline at seed time using this exact
+// classifier, instead of duplicating the keyword lists or running this as a
+// separate post-hoc pass. Guarded below (`require.main === module`) so
+// importing this function doesn't also trigger this file's own DB scan.
+export function classify(name: string): { action: "delete" | "keep"; category?: RemovalCategory } {
   if (MANUAL_KEEP_OVERRIDES.has(name)) return { action: "keep" };
 
   const normalized = normalizeTr(name);
@@ -168,7 +173,12 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only run the DB-scanning main() when this file is executed directly
+// (`ts-node scripts/cleanup-public-entities.ts`), not when another script
+// imports `classify` from it.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

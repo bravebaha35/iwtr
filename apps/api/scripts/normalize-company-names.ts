@@ -146,7 +146,13 @@ const SKIP_ENTIRELY = new Set([
   "UPS Türkiye Genel Müdürlüğü",
 ]);
 
-function normalizeName(originalRaw: string): string {
+// Exported so other scripts (e.g. seed-turkey-companies.ts) can run a
+// freshly-fetched OSM name through this exact normalization pass before
+// insertion, instead of duplicating the deasciify/title-case rules or
+// running this as a separate post-hoc pass. Guarded below
+// (`require.main === module`) so importing this function doesn't also
+// trigger this file's own DB scan.
+export function normalizeName(originalRaw: string): string {
   if (SKIP_ENTIRELY.has(originalRaw)) return originalRaw;
   // Turkish dotted İ can arrive as either the single precomposed codepoint or
   // as "i" + a combining dot-above mark — visually identical, but the latter
@@ -216,7 +222,12 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only run the DB-scanning main() when this file is executed directly
+// (`ts-node scripts/normalize-company-names.ts`), not when another script
+// imports `normalizeName` from it.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
