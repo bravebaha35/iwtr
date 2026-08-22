@@ -6,14 +6,14 @@ import type { WorkplaceType } from "@iwtr/shared-types";
 // at a glance. Kept separate from workplaceTypes.ts (which only owns
 // display labels) so retuning the palette later is a one-file change, same
 // principle as scoreBandColors.ts.
-export const collarColorMap: Record<WorkplaceType, { text: string; border: string }> = {
-  MANUAL_LABOUR: { text: "text-blue-600", border: "border-blue-600" },
+export const collarColorMap: Record<WorkplaceType, { text: string; border: string; borderLeft: string }> = {
+  MANUAL_LABOUR: { text: "text-blue-600", border: "border-blue-600", borderLeft: "border-l-blue-600" },
   // #fffff0 is near-white (ivory) — same hex used for both text and border
   // here, unlike the badge/border-only uses elsewhere that pair it with a
   // dark #450011 fill; there's no fill to pair against on an outline pill.
-  OFFICE: { text: "text-[#fffff0]", border: "border-[#fffff0]" },
-  HYBRID_REMOTE: { text: "text-teal-600", border: "border-teal-600" },
-  SERVICE: { text: "text-[#450011]", border: "border-[#450011]" },
+  OFFICE: { text: "text-[#fffff0]", border: "border-[#fffff0]", borderLeft: "border-l-[#fffff0]" },
+  HYBRID_REMOTE: { text: "text-teal-600", border: "border-teal-600", borderLeft: "border-l-teal-600" },
+  SERVICE: { text: "text-[#450011]", border: "border-[#450011]", borderLeft: "border-l-[#450011]" },
 };
 
 // Inactive collar pills are neutral/greyed-out by design — every type looks
@@ -23,16 +23,27 @@ export const collarColorMap: Record<WorkplaceType, { text: string; border: strin
 // is meant to be the *result* of picking a type, not a hint shown up front.
 const inactiveCollarPillClassName = "border border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground";
 
-// Active pills used to be a solid color fill (bg + white/dark text) — per
-// explicit user request, only the outline (border) and label carry the
-// color now; the inside stays the plain surface background, same as every
-// other pill in the app.
+// Active pills used to be a solid color fill (bg + white/dark text), then a
+// colored outline + colored label — per explicit user request, only the
+// outline (border) carries the color now; the label stays plain foreground
+// text like every other pill, and the inside stays the plain surface
+// background.
 export function collarPillClassName(type: WorkplaceType, active: boolean): string {
   if (!active) return inactiveCollarPillClassName;
-  const { text, border } = collarColorMap[type];
-  return `border-2 ${border} ${text} bg-surface`;
+  const { border } = collarColorMap[type];
+  return `border-2 ${border} text-foreground bg-surface`;
 }
 
+// Used for the review card's left accent border only (border-l-4 in
+// ReviewsList.tsx) — deliberately the per-side `border-l-*` utility, not the
+// all-sides `border` field above. That card also carries a plain `border
+// border-border` for its other 3 sides; two same-specificity `border-color`
+// (all-sides) utilities on one element race in Tailwind's generated
+// stylesheet with no reliable winner — verified live that `border-border`
+// was winning, silently leaving every review card's accent colorless. A
+// per-side longhand (`border-left-color`) reliably overrides the shorthand
+// regardless of class order, which is why this exists as a separate field
+// instead of reusing `border` for both purposes.
 export function collarBorderClass(type: WorkplaceType): string {
-  return collarColorMap[type].border;
+  return collarColorMap[type].borderLeft;
 }
