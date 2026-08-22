@@ -59,12 +59,16 @@
 }
 
 .dark {
-  --background: #1d2226;
-  --foreground: #eef2f4;
-  --surface: #262d32;
-  --surface-muted: #2e363c;
-  --muted-foreground: #9aa6ae;
-  --border: #38424a;
+  /* Pure neutral charcoal/obsidian palette — Tailwind's zinc scale, no blue
+     tint. --surface-muted isn't independently specced by that palette; kept
+     equal to --border (zinc-800) rather than left at the old blue-gray
+     value, which would otherwise stick out against the rest of this block. */
+  --background: #09090b; /* zinc-950 */
+  --foreground: #fafafa; /* zinc-50 */
+  --surface: #18181b; /* zinc-900 */
+  --surface-muted: #27272a; /* zinc-800 */
+  --muted-foreground: #a1a1aa; /* zinc-400 */
+  --border: #27272a; /* zinc-800 */
 }
 
 @theme inline {
