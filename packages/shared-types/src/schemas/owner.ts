@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { httpUrlSchema, ownerTierSchema, planStatusSchema } from "./company";
+import { companyContactPhoneSchema } from "./turkishPhone";
 
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export type OwnerClaimStatus = z.infer<typeof ownerClaimStatusSchema>;
@@ -53,11 +54,6 @@ export type AdminOwnerClaim = z.infer<typeof adminOwnerClaimSchema>;
 // editing of a company's workplace-type tags is deferred to a future Plus
 // company-profile phase, not part of this pass. Only admins can set it
 // (CompaniesService.createByAdmin) until that's designed.
-// Same E.164 pattern used for user/employer-profile phone numbers
-// (user.ts, employerProfile.ts) — duplicated rather than imported since
-// those live in a different domain area of this package.
-const e164PhoneSchema = z.string().regex(/^\+[1-9]\d{7,14}$/, "Must be a phone number in E.164 format, e.g. +905551234567");
-
 export const updateCompanyInputSchema = z
   .object({
     name: z.string().min(1).optional(),
@@ -67,7 +63,13 @@ export const updateCompanyInputSchema = z
     city: z.string().min(1).optional(),
     district: z.string().min(1).optional(),
     contactEmail: z.string().email().optional(),
-    contactPhone: e164PhoneSchema.optional(),
+    // Turkey-specific: a mobile number (any 05XX prefix) or a landline whose
+    // area code is a real one of the 81 provinces' — see
+    // schemas/turkishPhone.ts. Deliberately stricter than the generic E.164
+    // pattern used for personal phone numbers elsewhere (user.ts,
+    // employerProfile.ts) since this platform is Turkey-only and the
+    // dashboard's own guidance note promises area-code validation.
+    contactPhone: companyContactPhoneSchema.optional(),
     facebookUrl: httpUrlSchema.optional(),
     instagramUrl: httpUrlSchema.optional(),
     whatsappUrl: httpUrlSchema.optional(),

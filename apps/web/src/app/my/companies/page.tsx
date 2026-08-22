@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { scoreBandLabel, type CompanyDetail, type MyCompanyClaim, type PlusCheckoutResult } from "@iwtr/shared-types";
+import {
+  companyContactPhoneSchema,
+  scoreBandLabel,
+  type CompanyDetail,
+  type MyCompanyClaim,
+  type PlusCheckoutResult,
+} from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
@@ -10,7 +16,7 @@ import { CompanyLogo } from "@/components/CompanyLogo";
 import { ReviewsList } from "@/components/ReviewsList";
 import { AdSlot } from "@/components/AdSlot";
 import { SingleSelectDropdown } from "@/components/Dropdown";
-import { PhoneNumberInput } from "@/components/PhoneNumberInput";
+import { TurkishPhoneInput } from "@/components/TurkishPhoneInput";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
@@ -296,6 +302,12 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     setBox3Saving(true);
     setBox3Error(null);
     setBox3Status(null);
+    const phoneCheck = companyContactPhoneSchema.safeParse(contactPhone.trim());
+    if (!phoneCheck.success) {
+      setBox3Error(phoneCheck.error.issues[0]?.message ?? "That phone number isn't valid.");
+      setBox3Saving(false);
+      return;
+    }
     try {
       const body: Record<string, string> = {
         contactEmail: contactEmail.trim(),
@@ -472,6 +484,22 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         {/* 3rd: contact & socials */}
         <DashboardBox title="Contact & social media">
           <div className="flex flex-1 flex-col gap-2">
+            <div className="rounded-lg border border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-800 dark:border-brand-700 dark:bg-brand-950 dark:text-brand-300">
+              <p className="font-semibold">Notice on Contact Phone Numbers:</p>
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                <li>
+                  <span className="font-medium">Sole Proprietorships (Şahıs Şirketleri):</span> If an official
+                  corporate landline is unavailable, you may register using your personal or primary contact
+                  number.
+                </li>
+                <li>
+                  <span className="font-medium">Corporate Entities (A.Ş., LTD. ŞTİ., etc.):</span> You must
+                  provide an official corporate landline number accompanied by your city&apos;s official Turkish
+                  area code.
+                </li>
+              </ul>
+            </div>
+
             <label className="text-xs font-medium text-muted-foreground">
               Email <span className="text-red-600 dark:text-red-400">(required)</span>
               <input
@@ -485,7 +513,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             <label className="text-xs font-medium text-muted-foreground">
               Phone <span className="text-red-600 dark:text-red-400">(required)</span>
               <div className="mt-1">
-                <PhoneNumberInput value={contactPhone} onChange={setContactPhone} />
+                <TurkishPhoneInput value={contactPhone} onChange={setContactPhone} suggestedProvince={city} />
               </div>
             </label>
             <label className="text-xs font-medium text-muted-foreground">
