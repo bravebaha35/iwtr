@@ -149,11 +149,13 @@ export const onboardingStatusSchema = z.object({
   district: z.string().nullable(),
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
-  // Self-chosen pseudonym, shown only to the account that set it (e.g. the
-  // header). NOT identity PII — purely decorative, never surfaced on a
-  // review, vote, or any other public-facing payload. Falls back to the
-  // avatar's workplace-type label client-side when unset.
-  displayName: z.string().nullable(),
+  // Permanent, self-chosen anonymous handle (see ANONYMOUS_USERNAMES_BY_
+  // WORKPLACE_TYPE in review.ts) — auto-assigned once at onboarding (see
+  // OnboardingService.submitAvatar) and changeable later on the
+  // account-settings "Customize" page. Shown in the header (falling back to
+  // the avatar's workplace-type label when null) AND on the user's own
+  // reviews — this fully replaced the old numeric User.memberNumber system.
+  reviewUsername: z.string().nullable(),
 });
 export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
 
@@ -165,18 +167,11 @@ export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
 // either already purged or on its way to being purged, by design (see
 // CLAUDE.md's Data Model section).
 export const myProfileSchema = z.object({
-  displayName: z.string().nullable(),
-  // Null until displayName is ever actually changed; after that, the client
-  // uses it to compute the 14-day cooldown window (see updateProfileInputSchema
-  // below and ProfileService.updateProfile).
-  displayNameChangedAt: z.string().datetime().nullable(),
-  // System-generated, immutable 11-digit handle ("0" never appears) — shown
-  // read-only under "Username" on the account-settings page, and (unlike
-  // displayName) also on the user's own reviews. Never part of
-  // updateProfileInputSchema below — there is no way for a client to set or
-  // change this. Nullable only for accounts created before this field
-  // existed and not yet backfilled.
-  memberNumber: z.string().nullable(),
+  // Permanent, self-chosen anonymous handle — see reviewUsername's comment
+  // in onboardingStatusSchema above. Editable via updateProfileInputSchema
+  // below, validated server-side against ANONYMOUS_USERNAMES_BY_WORKPLACE_
+  // TYPE (never free text) — see ProfileService.updateProfile.
+  reviewUsername: z.string().nullable(),
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
   country: z.string().nullable(),
@@ -196,7 +191,11 @@ export type MyProfile = z.infer<typeof myProfileSchema>;
 
 export const updateProfileInputSchema = z
   .object({
-    displayName: z.string().trim().max(30).optional(),
+    // Must be one of ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE's 40 entries
+    // (review.ts) — checked server-side (ProfileService.updateProfile), not
+    // free text, so there's no offensive-content/identifying-name risk the
+    // way the old free-typed displayName needed moderation for.
+    reviewUsername: z.string().min(1).optional(),
     avatarKey: z.string().min(1).optional(),
     avatarGradient: z.string().min(1).optional(),
     country: z.string().min(1).optional(),
@@ -205,7 +204,7 @@ export const updateProfileInputSchema = z
   })
   .refine(
     (v) =>
-      v.displayName !== undefined ||
+      v.reviewUsername !== undefined ||
       v.avatarKey !== undefined ||
       v.avatarGradient !== undefined ||
       v.country !== undefined ||

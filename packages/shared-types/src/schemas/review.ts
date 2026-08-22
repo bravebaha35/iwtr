@@ -12,6 +12,68 @@ import { workplaceTypeSchema } from "./company";
 export const RANDOMIZED_IDENTITY_AVATAR_KEY = "randomized_identity";
 export const RANDOMIZED_IDENTITY_AVATAR_GRADIENT = "dusk";
 
+// The full pool of anonymous, humorous handles a user can pick as their
+// permanent User.reviewUsername (apps/web/src/app/me's "Customize" page —
+// filtered to whichever category matches their currently selected avatar's
+// work type), and the same pool ReviewsService.pickRandomDisplayUsername
+// draws a one-off name from when isRandomizedIdentity is on for a single
+// review. Single source of truth in shared-types so the picker UI (frontend)
+// and the membership validation + auto-assignment (backend) can never drift
+// on the exact wording. This fully replaces the old numeric User.memberNumber
+// system — every review now shows a name from here, never a number.
+export const ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE: Record<z.infer<typeof workplaceTypeSchema>, readonly string[]> = {
+  OFFICE: [
+    "Chief Happiness Officer",
+    "Spreadsheet Maestro",
+    "Coffee Machine Whisperer",
+    "Reply-All Enthusiast",
+    "Meeting Survivor",
+    "PowerPoint Picasso",
+    "Desk Plant Parent",
+    "Watercooler Diplomat",
+    "BCC Ninja",
+    "Inbox Zero Hero",
+  ],
+  HYBRID_REMOTE: [
+    "Pajama Executive",
+    "Zoom Mute Master",
+    "Wi-Fi Nomad",
+    "Sofa Surfer",
+    "Virtual Background Artist",
+    "Keyboard Cat",
+    "Timezone Traveler",
+    "Screen Share Strategist",
+    "Webcam Avoider",
+    "Router Rebooter",
+  ],
+  SERVICE: [
+    "Customer Whisperer",
+    "Smile Ambassador",
+    "Patience Practitioner",
+    "Receipt Magician",
+    "The Floor General",
+    "Karen's Nemesis",
+    "Shift Survivor",
+    "Name Tag Ninja",
+    "The Apology Artist",
+    "Small Talk Specialist",
+  ],
+  MANUAL_LABOUR: [
+    "Heavy Lifter Extraordinaire",
+    "The Toolbox Tamer",
+    "Forklift Philosopher",
+    "Callus Collector",
+    "Hard Hat Hero",
+    "Duct Tape Magician",
+    "The Blueprint Boss",
+    "Steel Toe Sprinter",
+    "WD-40 Wizard",
+    "Early Morning Engine",
+  ],
+};
+
+export const ALL_ANONYMOUS_USERNAMES: readonly string[] = Object.values(ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE).flat();
+
 export const reviewStatusSchema = z.enum([
   "PENDING_MODERATION",
   "PENDING_ADMIN_REVIEW",
@@ -77,7 +139,7 @@ export const createReviewInputSchema = z.object({
   // one and a random humorous name (picked from a list keyed by this
   // review's own workplaceType, never a client-supplied category — see
   // ReviewsService.pickRandomDisplayUsername) instead of the author's real
-  // avatarKey/avatarGradient/memberNumber. Also settable on
+  // avatarKey/avatarGradient/reviewUsername. Also settable on
   // updateReviewInputSchema below, so a reviewer can turn it on/off later.
   isRandomizedIdentity: z.boolean().optional().default(false),
 });
@@ -126,22 +188,20 @@ export const publicReviewSchema = z.object({
   // an explicit, deliberate exception, not an oversight: the product owner
   // accepted that the same avatar repeating across a reviewer's other
   // reviews narrows the anonymity set somewhat). Deliberately NOT paired
-  // with displayName, email, or any other User field — see
-  // ReviewsService.listForCompany, which selects only these two columns.
+  // with email or any other identifying User field — see
+  // ReviewsService.listForCompany, which selects only avatarKey/
+  // avatarGradient/reviewUsername.
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
-  // The author's system-generated, immutable member number (see User.
-  // memberNumber and REVIEW.md rule #8's approved-exception note) — same
-  // anonymity trade-off as avatarKey/avatarGradient above, accepted for the
-  // same explicit reason. Still never displayName/email/etc. Null whenever
-  // isRandomizedIdentity is true for this review — see displayUsername.
-  memberNumber: z.string().nullable(),
-  // Set only when this specific review was submitted/edited with "randomize
-  // my identity" on — a one-off random humorous handle (see
-  // RANDOMIZED_IDENTITY_AVATAR_KEY above) that replaces memberNumber for
-  // this review alone, so this one review can't be correlated with the same
-  // author's other reviews via a repeating avatar/number the way REVIEW.md's
-  // rule #8 already flags as a known trade-off of the normal case.
+  // The name shown for this review — either the author's own permanent,
+  // self-chosen User.reviewUsername (picked from ANONYMOUS_USERNAMES_BY_
+  // WORKPLACE_TYPE above on the account-settings "Customize" page), or, when
+  // this specific review was submitted/edited with "randomize my identity"
+  // on, a one-off random handle from that same pool that replaces it for
+  // this review alone — so that one review can't be correlated with the same
+  // author's other reviews via a repeating name (REVIEW.md rule #8's
+  // trade-off, opted out of per-review). Never a number: this fully replaces
+  // the old numeric User.memberNumber system.
   displayUsername: z.string().nullable(),
 });
 export type PublicReview = z.infer<typeof publicReviewSchema>;

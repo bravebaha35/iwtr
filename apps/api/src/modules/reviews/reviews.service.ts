@@ -452,7 +452,7 @@ export class ReviewsService {
     // instead of re-rolling one on every save, which would look like the
     // review kept changing authors. Turning it off clears the override
     // entirely, reverting to the account's real avatarKey/avatarGradient/
-    // memberNumber (see listForCompany).
+    // reviewUsername (see listForCompany).
     const isRandomizedIdentity = input.isRandomizedIdentity ?? review.isRandomizedIdentity;
     const displayUsername = isRandomizedIdentity
       ? (review.isRandomizedIdentity ? review.displayUsername : pickRandomDisplayUsername(review.workplaceType))
@@ -609,18 +609,18 @@ export class ReviewsService {
       return null;
     };
 
-    // The author's own self-chosen anonymous avatar and system-generated
-    // member number (see REVIEW.md rule #8 — an explicit, approved
+    // The author's own self-chosen anonymous avatar and permanent
+    // reviewUsername (see REVIEW.md rule #8 — an explicit, approved
     // exception for exactly these three columns). Explicit `select`, never
-    // `include: { user: true }` — that would also pull back
-    // email/displayName/city/etc. on a review-shaped query, which is
-    // exactly the leak pattern REVIEW.md's red flag #1 warns about.
+    // `include: { user: true }` — that would also pull back email/city/etc.
+    // on a review-shaped query, which is exactly the leak pattern
+    // REVIEW.md's red flag #1 warns about.
     const authors = await this.prisma.user.findMany({
       where: { id: { in: authorIds } },
-      select: { id: true, avatarKey: true, avatarGradient: true, memberNumber: true },
+      select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
     });
     const avatarByAuthor = new Map(
-      authors.map((a) => [a.id, { avatarKey: a.avatarKey, avatarGradient: a.avatarGradient, memberNumber: a.memberNumber }]),
+      authors.map((a) => [a.id, { avatarKey: a.avatarKey, avatarGradient: a.avatarGradient, reviewUsername: a.reviewUsername }]),
     );
 
     return reviews.map((r) => ({
@@ -641,16 +641,15 @@ export class ReviewsService {
       contributorBadge: contributorBadge(r.userId),
       // A review submitted/edited with "randomize my identity" on displays a
       // fixed generic avatar and its own one-off displayUsername instead of
-      // the author's real avatarKey/avatarGradient/memberNumber — this is
-      // the one place those two identities ever get swapped, so a randomized
-      // review can never be correlated back to the same author's other
-      // reviews via a repeating avatar/number (see REVIEW.md rule #8).
+      // the author's real avatarKey/avatarGradient/reviewUsername — this is
+      // the one place those get swapped, so a randomized review can never be
+      // correlated back to the same author's other reviews via a repeating
+      // avatar/name (see REVIEW.md rule #8).
       avatarKey: r.isRandomizedIdentity ? RANDOMIZED_IDENTITY_AVATAR_KEY : (avatarByAuthor.get(r.userId)?.avatarKey ?? null),
       avatarGradient: r.isRandomizedIdentity
         ? RANDOMIZED_IDENTITY_AVATAR_GRADIENT
         : (avatarByAuthor.get(r.userId)?.avatarGradient ?? null),
-      memberNumber: r.isRandomizedIdentity ? null : (avatarByAuthor.get(r.userId)?.memberNumber ?? null),
-      displayUsername: r.displayUsername,
+      displayUsername: r.isRandomizedIdentity ? r.displayUsername : (avatarByAuthor.get(r.userId)?.reviewUsername ?? null),
     }));
   }
 

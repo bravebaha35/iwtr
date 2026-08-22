@@ -115,19 +115,19 @@ model User {
   // avatarKey (not a Prisma/zod enum) so the palette can grow without a
   // migration; an unrecognized key just falls back to the first gradient.
   avatarGradient  String?
-  // Self-chosen pseudonym, editable from the account-settings page (rate-
-  // limited to once per 14 days — see displayNameChangedAt below — and
-  // checked against the user's real first/last name — see
-  // ModerationService.checkDisplayName). Deliberately NOT part of PiiVault —
-  // it's a decorative label the user picks for their own header, never
-  // returned in any public/review-facing payload; the name-block rule exists
-  // only so a reviewer can't casually undermine their own anonymity by
-  // picking their real name as this label, not because the field is public.
-  displayName     String?
-  // Set to now() whenever displayName actually changes value (not on a save
-  // that leaves it the same) — ProfileService.updateProfile reads this to
-  // enforce the 14-day cooldown above.
-  displayNameChangedAt DateTime?
+  // Permanent, self-chosen anonymous handle — picked from a fixed pool of
+  // ~10 humorous names per work-type category (ANONYMOUS_USERNAMES_BY_
+  // WORKPLACE_TYPE in shared-types/review.ts), never free text, so there's
+  // no offensive-content/identifying-name risk to moderate the way the old
+  // free-typed displayName needed. Auto-assigned once at onboarding (see
+  // OnboardingService.submitAvatar), changeable any time afterward from the
+  // account-settings "Customize" page (ProfileService.updateProfile).
+  // Deliberately NOT part of PiiVault — shown in the header AND (unlike the
+  // old displayName it replaced) on the user's own published reviews (see
+  // ReviewsService.listForCompany and REVIEW.md rule #8's approved-exception
+  // note) — this fully replaced the old numeric memberNumber system, which
+  // is why there's no separate "number" field anymore at all.
+  reviewUsername  String?
   country         String?
   city            String?
   district        String?
@@ -145,17 +145,6 @@ model User {
   // self-view case, never for anything else.
   encPhoneNumber  Bytes?
   phoneVerifiedAt DateTime?
-  // System-generated, immutable 11-digit handle (digits 1-9 only, never "0")
-  // shown on the user's own profile ("Username" section — see
-  // apps/web/src/app/me/page.tsx) and, unlike displayName above, ALSO on
-  // their own published reviews (see ReviewsService.listForCompany and
-  // REVIEW.md rule #8's approved-exception note) — a deliberate product
-  // decision, not an oversight. Never user-settable: not part of
-  // UpdateProfileInput, generated once at registration
-  // (auth/member-number.util.ts) and never written to again. Nullable only
-  // so accounts created before this field existed can be backfilled by
-  // scripts/backfill-member-numbers.ts rather than requiring a data wipe.
-  memberNumber    String?      @unique
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -347,7 +336,7 @@ model Review {
   // When true, ReviewsService.listForCompany/getMyReview substitute a fixed
   // generic avatarKey/avatarGradient (RANDOMIZED_IDENTITY_AVATAR_KEY/
   // _GRADIENT in shared-types) and displayUsername for this review's own
-  // avatarKey/avatarGradient/memberNumber lookup — not stored per-row since
+  // avatarKey/avatarGradient/reviewUsername lookup — not stored per-row since
   // the generic avatar is a single fixed pair, always derivable from this
   // one boolean; only the flag and the randomly-picked name need to persist.
   isRandomizedIdentity Boolean @default(false)

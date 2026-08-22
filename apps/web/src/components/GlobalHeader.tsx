@@ -68,7 +68,7 @@ export function GlobalHeader() {
             >
               <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
               <span className="text-sm font-medium text-foreground">
-                {onboardingStatus.displayName || avatarLabel(onboardingStatus.avatarKey) || "Anonymous"}
+                {onboardingStatus.reviewUsername || avatarLabel(onboardingStatus.avatarKey) || "Anonymous"}
               </span>
             </Link>
             <button

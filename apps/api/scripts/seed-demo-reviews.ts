@@ -27,7 +27,7 @@ import { ReviewsService } from "../src/modules/reviews/reviews.service";
 import { ModerationService } from "../src/modules/moderation/moderation.service";
 import { PiiVaultService } from "../src/modules/pii-vault/pii-vault.service";
 import { getQuestionsFor } from "../src/modules/reviews/survey-questions.data";
-import { generateUniqueMemberNumber } from "../src/modules/auth/member-number.util";
+import { pickRandomDisplayUsername } from "../src/modules/reviews/randomized-identity.util";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -81,7 +81,6 @@ interface DemoReview {
   // (ReviewsService.submitReview re-validates this).
   workplaceType: WorkplaceType;
   reviewerEmail: string;
-  reviewerDisplayName: string;
   missCounts: Record<CategoryKey, number>;
   generalThoughts: string;
 }
@@ -91,7 +90,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Demo Teknoloji A.Ş.",
     workplaceType: "OFFICE",
     reviewerEmail: "demo-reviewer-1@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 1",
     missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 0, workLifeBalance: 2, stability: 1 },
     generalThoughts: "Sample review content for design purposes — good team, occasionally long hours.",
   },
@@ -99,7 +97,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Örnek Kargo ve Lojistik",
     workplaceType: "MANUAL_LABOUR",
     reviewerEmail: "demo-reviewer-2@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 2",
     missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 2, workLifeBalance: 2, stability: 2 },
     generalThoughts: "Sample review content for design purposes — physically demanding but steady work.",
   },
@@ -107,7 +104,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Test Cafe & Restoran",
     workplaceType: "SERVICE",
     reviewerEmail: "demo-reviewer-3@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 3",
     missCounts: { corporateCulture: 0, leadership: 1, infrastructure: 1, workLifeBalance: 2, stability: 1 },
     generalThoughts: "Sample review content for design purposes — friendly place, tips were fair.",
   },
@@ -115,7 +111,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Placeholder Danışmanlık",
     workplaceType: "HYBRID_REMOTE",
     reviewerEmail: "demo-reviewer-4@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 4",
     missCounts: { corporateCulture: 1, leadership: 0, infrastructure: 1, workLifeBalance: 1, stability: 2 },
     generalThoughts: "Sample review content for design purposes — fully remote, great flexibility.",
   },
@@ -123,7 +118,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Numune İnşaat",
     workplaceType: "MANUAL_LABOUR",
     reviewerEmail: "demo-reviewer-5@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 5",
     missCounts: { corporateCulture: 3, leadership: 3, infrastructure: 2, workLifeBalance: 3, stability: 2 },
     generalThoughts: "Sample review content for design purposes — safety gear was inconsistent.",
   },
@@ -131,7 +125,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Demo Finans Holding",
     workplaceType: "OFFICE",
     reviewerEmail: "demo-reviewer-6@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 6",
     missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 0, workLifeBalance: 2, stability: 0 },
     generalThoughts: "Sample review content for design purposes — very stable, formal culture.",
   },
@@ -139,7 +132,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Örnek Perakende Mağazacılık",
     workplaceType: "SERVICE",
     reviewerEmail: "demo-reviewer-7@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 7",
     missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 2, workLifeBalance: 2, stability: 2 },
     generalThoughts: "Sample review content for design purposes — pretty average all around.",
   },
@@ -147,7 +139,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Test Yazılım Stüdyosu",
     workplaceType: "HYBRID_REMOTE",
     reviewerEmail: "demo-reviewer-8@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 8",
     missCounts: { corporateCulture: 0, leadership: 0, infrastructure: 1, workLifeBalance: 2, stability: 1 },
     generalThoughts: "Sample review content for design purposes — small team, lots of ownership.",
   },
@@ -156,7 +147,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Placeholder Sağlık Hizmetleri",
     workplaceType: "SERVICE",
     reviewerEmail: "demo-reviewer-9@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 9",
     missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 1, workLifeBalance: 3, stability: 1 },
     generalThoughts: "Sample review content for design purposes — rewarding but exhausting shifts.",
   },
@@ -164,7 +154,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Numune Eğitim Kurumları",
     workplaceType: "OFFICE",
     reviewerEmail: "demo-reviewer-10@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 10",
     missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 2, workLifeBalance: 1, stability: 1 },
     generalThoughts: "Sample review content for design purposes — supportive colleagues.",
   },
@@ -175,7 +164,6 @@ const DEMO_REVIEWS: DemoReview[] = [
     companyName: "Placeholder Sağlık Hizmetleri",
     workplaceType: "OFFICE",
     reviewerEmail: "demo-reviewer-11@iwtr.local",
-    reviewerDisplayName: "Demo Reviewer 11",
     missCounts: { corporateCulture: 2, leadership: 1, infrastructure: 0, workLifeBalance: 1, stability: 2 },
     generalThoughts: "Sample review content for design purposes — back-office side is much calmer than the floor.",
   },
@@ -213,7 +201,6 @@ async function main() {
         email: demo.reviewerEmail,
         authProvider: "EMAIL",
         status: "ACTIVE",
-        displayName: demo.reviewerDisplayName,
         createdAt: backdatedCreatedAt,
         avatarKey: avatar.avatarKey,
         avatarGradient: avatar.avatarGradient,
@@ -224,13 +211,13 @@ async function main() {
     });
 
     // Generated once, never overwritten on re-run — same immutability
-    // guarantee as a real registration (see AuthService.registerWithEmail).
+    // guarantee as real onboarding (see OnboardingService.submitAvatar).
     // Existing demo accounts already got theirs from
-    // scripts/backfill-member-numbers.ts; this only covers a brand new
+    // scripts/backfill-review-usernames.ts; this only covers a brand new
     // demo reviewer added to DEMO_REVIEWS in the future.
-    if (!user.memberNumber) {
-      const memberNumber = await generateUniqueMemberNumber(prisma);
-      await prisma.user.update({ where: { id: user.id }, data: { memberNumber } });
+    if (!user.reviewUsername) {
+      const reviewUsername = pickRandomDisplayUsername(demo.workplaceType);
+      await prisma.user.update({ where: { id: user.id }, data: { reviewUsername } });
     }
 
     let employment = await prisma.employmentHistory.findFirst({

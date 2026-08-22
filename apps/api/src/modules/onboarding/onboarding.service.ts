@@ -10,6 +10,7 @@ import type {
 import { PrismaService } from "../../prisma/prisma.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
 import { PhoneVerificationService } from "../phone-verification/phone-verification.service";
+import { pickRandomDisplayUsername, workTypeFromAvatarKey } from "../reviews/randomized-identity.util";
 
 @Injectable()
 export class OnboardingService {
@@ -28,7 +29,7 @@ export class OnboardingService {
       district: user.district,
       avatarKey: user.avatarKey,
       avatarGradient: user.avatarGradient,
-      displayName: user.displayName,
+      reviewUsername: user.reviewUsername,
     };
   }
 
@@ -134,9 +135,14 @@ export class OnboardingService {
   }
 
   async submitAvatar(userId: string, input: AvatarSelection): Promise<void> {
+    // Auto-assigns a starting reviewUsername from the same work-type
+    // category as the avatar just picked — the user can change it later
+    // from the account-settings "Customize" page, but shouldn't land on
+    // ACTIVE with no name at all for their first review.
+    const reviewUsername = pickRandomDisplayUsername(workTypeFromAvatarKey(input.avatarKey));
     const claimed = await this.prisma.user.updateMany({
       where: { id: userId, status: "PENDING_AVATAR" },
-      data: { avatarKey: input.avatarKey, avatarGradient: input.avatarGradient, status: "ACTIVE" },
+      data: { avatarKey: input.avatarKey, avatarGradient: input.avatarGradient, reviewUsername, status: "ACTIVE" },
     });
     if (claimed.count === 0) {
       throw new BadRequestException("Avatar has already been set for this account");

@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import type {
-  EduLevel,
-  EducationHistoryEntry,
-  MyEmploymentEntry,
-  MyProfile,
+import {
+  ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE,
+  type EduLevel,
+  type EducationHistoryEntry,
+  type MyEmploymentEntry,
+  type MyProfile,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client";
-import { avatarLabel } from "@/lib/avatars";
+import { avatarLabel, avatarWorkType } from "@/lib/avatars";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
@@ -64,7 +65,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabKey>("customize");
 
   // Local editable form state, seeded from the loaded profile.
-  const [displayName, setDisplayName] = useState("");
+  const [reviewUsername, setReviewUsername] = useState<string | null>(null);
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarGradient, setAvatarGradient] = useState<string | null>(null);
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
@@ -135,18 +136,6 @@ export default function ProfilePage() {
   // employment history (add or edit) never offer years earlier than this.
   const birthYear = profile?.birthDate ? new Date(profile.birthDate).getFullYear() : undefined;
 
-  // Mirrors ProfileService.updateProfile's 14-day cooldown so the input can
-  // be disabled client-side instead of just failing on save — 0 means no
-  // cooldown (either never changed, or the window's already elapsed).
-  const DISPLAY_NAME_COOLDOWN_DAYS = 14;
-  const displayNameCooldownDaysLeft = (() => {
-    if (!profile?.displayNameChangedAt) return 0;
-    const elapsedMs = Date.now() - new Date(profile.displayNameChangedAt).getTime();
-    const cooldownMs = DISPLAY_NAME_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
-    if (elapsedMs >= cooldownMs) return 0;
-    return Math.ceil((cooldownMs - elapsedMs) / (24 * 60 * 60 * 1000));
-  })();
-
   const load = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
@@ -156,7 +145,7 @@ export default function ProfilePage() {
       ]);
       setProfile(profileData);
       setEmployment(employmentData);
-      setDisplayName(profileData.displayName ?? "");
+      setReviewUsername(profileData.reviewUsername);
       setAvatarKey(profileData.avatarKey);
       setAvatarGradient(profileData.avatarGradient);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
@@ -170,17 +159,17 @@ export default function ProfilePage() {
     void load();
   }, [load]);
 
-  async function saveAvatarAndName() {
+  async function saveCustomization() {
     setAvatarSaving(true);
     setAvatarError(null);
     setAvatarStatus(null);
     try {
-      // Always send all three — no truthy-check omission here. displayName
-      // can legitimately be an empty string (clears it back to the default),
-      // and avatarKey/avatarGradient are always set by the time this button
-      // is reachable, but there's no reason to make "did the value happen to
-      // be falsy" a factor in whether a field gets saved at all.
-      await apiPatch("/me/profile", { displayName, avatarKey, avatarGradient });
+      // Always send all three — avatarKey/avatarGradient/reviewUsername are
+      // always set by the time this button is reachable (onboarding assigns
+      // a starting reviewUsername automatically), so there's no reason to
+      // make "did the value happen to be falsy" a factor in whether a field
+      // gets saved at all.
+      await apiPatch("/me/profile", { reviewUsername, avatarKey, avatarGradient });
       await load();
       // The homepage header reads avatar/name from AuthContext's
       // onboardingStatus, not from this page's own `profile` state — without
@@ -465,27 +454,18 @@ export default function ProfilePage() {
         <div className="flex flex-col gap-6">
           {activeTab === "customize" && (
           <>
-          {/* Avatar, display name, background */}
+          {/* Avatar, real name + chosen username preview, background, username picker */}
           <div className="rounded-xl border border-border bg-surface p-5">
             <div className="mb-4 flex items-center gap-3">
               <Avatar avatarKey={avatarKey} avatarGradient={avatarGradient} size="md" />
-              <label className="flex-1 text-xs font-medium text-muted-foreground">
-                Display name — only you see this; pick anything, but not your own name (no offensive content)
-                <input
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  maxLength={30}
-                  disabled={displayNameCooldownDaysLeft > 0}
-                  placeholder={avatarLabel(avatarKey) ?? "Anonymous"}
-                  className="mt-1 w-full rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                />
-                {displayNameCooldownDaysLeft > 0 && (
-                  <span className="mt-1 block text-muted-foreground">
-                    You can change this again in {displayNameCooldownDaysLeft} day
-                    {displayNameCooldownDaysLeft === 1 ? "" : "s"}.
-                  </span>
-                )}
-              </label>
+              <div>
+                <p className="text-base font-bold text-foreground">
+                  {profile.firstName} {profile.lastName}
+                </p>
+                <p className="text-sm font-light text-muted-foreground">
+                  {reviewUsername ?? avatarLabel(avatarKey) ?? "Anonymous"}
+                </p>
+              </div>
             </div>
 
             <AvatarEditor
@@ -495,8 +475,29 @@ export default function ProfilePage() {
               onChangeGradient={setAvatarGradient}
             />
 
+            <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Username</p>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Shown on your own reviews instead of your real name — pick whichever one you like.
+            </p>
+            <div className="mb-2 grid grid-cols-2 gap-2">
+              {ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE[avatarWorkType(avatarKey) ?? "OFFICE"].map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setReviewUsername(name)}
+                  className={`rounded-lg px-3 py-2 text-left text-xs font-medium transition ${
+                    reviewUsername === name
+                      ? "bg-brand-100 ring-2 ring-brand-600 dark:bg-brand-900/60"
+                      : "bg-surface-muted text-foreground hover:brightness-95 dark:hover:brightness-110"
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+
             <button
-              onClick={saveAvatarAndName}
+              onClick={saveCustomization}
               disabled={avatarSaving}
               className="mt-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
@@ -564,13 +565,6 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="mt-4 border-t border-border pt-4 text-sm">
-              <p className="text-xs font-medium text-muted-foreground">Username</p>
-              <p className="font-mono text-foreground">{profile.memberNumber ?? "—"}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Assigned automatically and shown on your own reviews — this can&apos;t be changed.
-              </p>
-            </div>
 
             <div className="mt-4 border-t border-border pt-4 text-sm">
               <p className="mb-1 text-xs font-medium text-muted-foreground">Birth date</p>

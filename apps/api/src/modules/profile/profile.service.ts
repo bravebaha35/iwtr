@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import bcrypt from "bcryptjs";
 import {
+  ALL_ANONYMOUS_USERNAMES,
   eduLevelSchema,
   type ChangePasswordInput,
   type EducationHistoryEntry,
@@ -10,12 +11,10 @@ import {
   type UpdateProfileInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
-import { ModerationService } from "../moderation/moderation.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
 import { PhoneVerificationService } from "../phone-verification/phone-verification.service";
 import { ReviewsService } from "../reviews/reviews.service";
 
-const DISPLAY_NAME_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
 const PASSWORD_SALT_ROUNDS = 12;
 
 // Elementary -> High School -> College, always — regardless of the order
@@ -31,8 +30,9 @@ function byEduLevel<T extends { level: string }>(a: T, b: T): number {
 }
 
 /**
- * Post-onboarding account settings ("/me" page): avatar, self-chosen display
- * name, city/district, education history, and a self-view of the
+ * Post-onboarding account settings ("/me" page): avatar, self-chosen
+ * reviewUsername (picked from a fixed pool — see ALL_ANONYMOUS_USERNAMES),
+ * city/district, education history, and a self-view of the
  * name/birth date/phone number submitted once during onboarding (decrypted
  * via PiiVaultService/PhoneVerificationService's self-view-only methods —
  * see their doc comments). T.C. Kimlik No is never included here at all.
@@ -48,7 +48,6 @@ function byEduLevel<T extends { level: string }>(a: T, b: T): number {
 export class ProfileService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly moderation: ModerationService,
     private readonly piiVault: PiiVaultService,
     private readonly phoneVerification: PhoneVerificationService,
     private readonly reviews: ReviewsService,
@@ -72,9 +71,7 @@ export class ProfileService {
     const education = [...educationRaw].sort(byEduLevel);
 
     return {
-      displayName: user.displayName,
-      displayNameChangedAt: user.displayNameChangedAt?.toISOString() ?? null,
-      memberNumber: user.memberNumber,
+      reviewUsername: user.reviewUsername,
       avatarKey: user.avatarKey,
       avatarGradient: user.avatarGradient,
       country: user.country,
@@ -97,42 +94,20 @@ export class ProfileService {
   }
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
-    const user = await this.requireActiveUser(userId);
+    await this.requireActiveUser(userId);
 
-    // Only an actual value change consumes the cooldown / needs re-checking
-    // against the user's real name — a save that touches avatar/location but
-    // leaves displayName as-is (the common case: the field just round-trips
-    // through the form unchanged) must not trip either.
-    const nextDisplayName = input.displayName !== undefined ? input.displayName || null : undefined;
-    const displayNameChanged = nextDisplayName !== undefined && nextDisplayName !== user.displayName;
-
-    if (displayNameChanged) {
-      if (user.displayNameChangedAt) {
-        const elapsedMs = Date.now() - user.displayNameChangedAt.getTime();
-        if (elapsedMs < DISPLAY_NAME_COOLDOWN_MS) {
-          const daysLeft = Math.ceil((DISPLAY_NAME_COOLDOWN_MS - elapsedMs) / (24 * 60 * 60 * 1000));
-          throw new BadRequestException(
-            `You can change your display name again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`,
-          );
-        }
-      }
-
-      if (nextDisplayName) {
-        const identity = await this.piiVault.getMyIdentity(userId);
-        if (this.moderation.checkDisplayName(nextDisplayName, identity)) {
-          throw new BadRequestException("That display name isn't allowed — try something else.");
-        }
-      }
+    // Must be one of the fixed pool, never free text — see
+    // updateProfileInputSchema's comment. No moderation check needed (unlike
+    // the old free-typed displayName) since every entry in the pool is
+    // already pre-vetted.
+    if (input.reviewUsername !== undefined && !ALL_ANONYMOUS_USERNAMES.includes(input.reviewUsername)) {
+      throw new BadRequestException("That username isn't one of the available choices.");
     }
 
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        // Empty string means "clear it back to the default" for a field
-        // that's allowed to be blank (displayName); the others are non-empty
-        // per their zod min(1), so no such ambiguity there.
-        ...(input.displayName !== undefined ? { displayName: input.displayName || null } : {}),
-        ...(displayNameChanged ? { displayNameChangedAt: new Date() } : {}),
+        ...(input.reviewUsername !== undefined ? { reviewUsername: input.reviewUsername } : {}),
         ...(input.avatarKey !== undefined ? { avatarKey: input.avatarKey } : {}),
         ...(input.avatarGradient !== undefined ? { avatarGradient: input.avatarGradient } : {}),
         ...(input.country !== undefined ? { country: input.country } : {}),

@@ -8,7 +8,6 @@ import bcrypt from "bcryptjs";
 import type { AuthTokensResponse, LoginEmailInput, RegisterEmailInput } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { TokenService } from "./token.service";
-import { generateUniqueMemberNumber } from "./member-number.util";
 
 const PASSWORD_SALT_ROUNDS = 12;
 
@@ -32,13 +31,14 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(input.password, PASSWORD_SALT_ROUNDS);
-    const memberNumber = await generateUniqueMemberNumber(this.prisma);
+    // reviewUsername isn't assigned here — it needs a work-type category,
+    // which isn't known until the avatar-selection onboarding step (see
+    // OnboardingService.submitAvatar, which auto-assigns one then).
     const user = await this.prisma.user.create({
       data: {
         email: input.email,
         authProvider: "EMAIL",
         passwordHash,
-        memberNumber,
       },
     });
 
