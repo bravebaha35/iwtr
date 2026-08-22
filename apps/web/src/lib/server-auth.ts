@@ -35,9 +35,22 @@ export function refreshCookieOptions() {
 // Concurrent requests that all present the same stale (pre-rotation) refresh
 // token must share a single upstream refresh call: apps/api revokes the
 // entire session chain if it ever sees an already-rotated refresh token
-// replayed, which would otherwise happen the moment two proxied requests hit
-// a 401 at the same time (e.g. a page firing several fetches at once right
-// after the access token expires).
+// replayed (see AuthService.refresh), which would otherwise happen the
+// moment two proxied requests hit a 401 around the same time — e.g. a page
+// firing several fetches at once right after the access token expires.
+//
+// A plain "delete on settle" cache isn't enough: a page load routinely fires
+// several parallel authenticated fetches (employment-history, survey-stats,
+// reviews, company-claims, ...), and even though they all start together,
+// they don't arrive at this server in the exact same tick. The first one to
+// land resolves and evicts itself from the map almost immediately, so a
+// sibling request arriving even a few milliseconds later finds the cache
+// empty, presents the SAME (already-rotated) refresh token, and gets treated
+// by apps/api as a replay — nuking the whole session out from under a
+// perfectly legitimate page load. Keeping the settled result cached for a
+// short grace window (instead of evicting it the instant it resolves) means
+// every request in that burst shares the one rotated token pair.
+const REFRESH_REUSE_GRACE_MS = 30_000;
 const inFlightRefreshes = new Map<string, Promise<AuthTokensResponse | null>>();
 
 export function refreshTokens(refreshToken: string): Promise<AuthTokensResponse | null> {
@@ -58,12 +71,13 @@ export function refreshTokens(refreshToken: string): Promise<AuthTokensResponse 
       return data;
     } catch {
       return null;
-    } finally {
-      inFlightRefreshes.delete(refreshToken);
     }
   })();
 
   inFlightRefreshes.set(refreshToken, attempt);
+  void attempt.finally(() => {
+    setTimeout(() => inFlightRefreshes.delete(refreshToken), REFRESH_REUSE_GRACE_MS);
+  });
   return attempt;
 }
 

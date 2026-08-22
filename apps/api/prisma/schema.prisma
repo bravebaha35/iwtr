@@ -421,10 +421,11 @@ model RefreshToken {
   user        User      @relation(fields: [userId], references: [id])
   // Looked up by this value on every single refresh (AuthService.refresh)
   // and logout — the single hottest query in this whole schema for any
-  // logged-in session (auth-context.tsx proactively refreshes ~14 minutes
-  // before each access token expires) — and it had no unique constraint or
-  // index at all before this. @@unique rather than a plain @@index since a
-  // collision genuinely should never happen (SHA-256 of 48 random bytes).
+  // logged-in session (refresh is reactive only, triggered by the web
+  // proxy's 401 handler in apps/web/src/lib/server-auth.ts — there is no
+  // proactive refresh timer) — and it had no unique constraint or index at
+  // all before this. @@unique rather than a plain @@index since a collision
+  // genuinely should never happen (SHA-256 of 48 random bytes).
   tokenHash   String    @unique
   deviceLabel String?
   expiresAt   DateTime
