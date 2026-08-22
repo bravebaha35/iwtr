@@ -4,7 +4,7 @@ import { z } from "zod";
 export const contentCheckResultSchema = z.object({
   violates: z.boolean(),
   violationTypes: z.array(
-    z.enum(["NAME_OR_SURNAME", "JOB_TITLE", "PROFANITY", "ABUSE_OR_INSULT"]),
+    z.enum(["NAME_OR_SURNAME", "JOB_TITLE", "PROFANITY", "ABUSE_OR_INSULT", "PII_PHONE_NUMBER"]),
   ),
   confidence: z.number().min(0).max(1),
   sanitizedSuggestion: z.string().optional(),
