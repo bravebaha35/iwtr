@@ -218,6 +218,11 @@ model EmploymentHistory {
   companyId      String?
   company        Company?  @relation(fields: [companyId], references: [id])
   rawCompanyName String
+  // What the reviewer actually did there (e.g. "Software Engineer") —
+  // free text, optional (nullable so existing rows before this column don't
+  // need a backfill), never shown as part of a review's byline elsewhere;
+  // it's just context on the employment entry itself.
+  jobTitle       String?
   startDate      DateTime?
   endDate        DateTime?
   createdAt      DateTime  @default(now())

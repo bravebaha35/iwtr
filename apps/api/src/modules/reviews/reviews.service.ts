@@ -63,6 +63,7 @@ export class ReviewsService {
       rawCompanyName: e.rawCompanyName,
       companyId: e.companyId,
       companySlug: e.company?.slug ?? null,
+      jobTitle: e.jobTitle,
       startDate: toDateOnly(e.startDate),
       endDate: toDateOnly(e.endDate),
       hasReview: e.reviews.length > 0,
@@ -92,6 +93,7 @@ export class ReviewsService {
         userId,
         rawCompanyName: company.name,
         companyId: company.id,
+        jobTitle: input.jobTitle ?? null,
         startDate: input.startDate ? new Date(input.startDate) : null,
         endDate: input.endDate ? new Date(input.endDate) : null,
       },
@@ -102,6 +104,7 @@ export class ReviewsService {
       rawCompanyName: created.rawCompanyName,
       companyId: created.companyId,
       companySlug: company.slug,
+      jobTitle: created.jobTitle,
       startDate: toDateOnly(created.startDate),
       endDate: toDateOnly(created.endDate),
       hasReview: false,
@@ -125,10 +128,11 @@ export class ReviewsService {
   }
 
   /**
-   * Dates only — changing which company an entry points to isn't supported
-   * here (that's a delete + re-add, since it's really a different entry).
-   * Blocked once a review exists for the same reason delete is: the review's
-   * dates were part of what got moderated/trust-scored at submission time.
+   * Dates and job title only — changing which company an entry points to
+   * isn't supported here (that's a delete + re-add, since it's really a
+   * different entry). Blocked once a review exists for the same reason
+   * delete is: the review's dates were part of what got moderated/
+   * trust-scored at submission time.
    */
   async updateEmploymentHistory(
     userId: string,
@@ -143,6 +147,7 @@ export class ReviewsService {
     const updated = await this.prisma.employmentHistory.update({
       where: { id: entryId },
       data: {
+        ...(input.jobTitle !== undefined ? { jobTitle: input.jobTitle } : {}),
         ...(input.startDate !== undefined ? { startDate: input.startDate ? new Date(input.startDate) : null } : {}),
         ...(input.endDate !== undefined ? { endDate: input.endDate ? new Date(input.endDate) : null } : {}),
       },
@@ -153,6 +158,7 @@ export class ReviewsService {
       rawCompanyName: updated.rawCompanyName,
       companyId: updated.companyId,
       companySlug: entry.company?.slug ?? null,
+      jobTitle: updated.jobTitle,
       startDate: toDateOnly(updated.startDate),
       endDate: toDateOnly(updated.endDate),
       hasReview: false,

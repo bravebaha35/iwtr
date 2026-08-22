@@ -124,6 +124,7 @@ export class OnboardingService {
             userId,
             rawCompanyName: entry.rawCompanyName,
             companyId: matchedCompany?.id ?? null,
+            jobTitle: entry.jobTitle ?? null,
             startDate: entry.startDate ? new Date(entry.startDate) : null,
             endDate: entry.endDate ? new Date(entry.endDate) : null,
           },

@@ -82,10 +82,11 @@ type JobRow = {
   // stores it as a plain rawCompanyName either way and backfills the link
   // later if/when a matching Company is seeded.
   company: { companyId: string | null; name: string; slug: string | null } | null;
+  jobTitle: string;
   startDate: string | null;
   endDate: string | null;
 };
-const emptyJob: JobRow = { company: null, startDate: null, endDate: null };
+const emptyJob: JobRow = { company: null, jobTitle: "", startDate: null, endDate: null };
 
 export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
   const [edu, setEdu] = useState(emptyEduRows);
@@ -150,6 +151,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         .map((j) => ({
           rawCompanyName: j.company!.name,
           companyId: j.company!.companyId ?? undefined,
+          jobTitle: j.jobTitle.trim() || undefined,
           startDate: j.startDate ?? undefined,
           endDate: j.endDate ?? undefined,
         }));
@@ -292,6 +294,15 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                   Selected: <span className="font-medium text-foreground">{job.company.name}</span>
                 </p>
               )}
+              <div>
+                <p className="mb-1 text-[11px] font-medium text-muted-foreground">Job title (optional)</p>
+                <input
+                  placeholder="e.g. Software Engineer"
+                  value={job.jobTitle}
+                  onChange={(e) => updateJob(i, { jobTitle: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="mb-1 text-[11px] font-medium text-muted-foreground">Start date</p>

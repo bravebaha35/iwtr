@@ -121,11 +121,13 @@ export default function ProfilePage() {
   const [newJobCompany, setNewJobCompany] = useState<{ companyId: string | null; name: string; slug: string | null } | null>(
     null,
   );
+  const [newJobTitle, setNewJobTitle] = useState("");
   const [newJobStart, setNewJobStart] = useState<string | null>(null);
   const [newJobEnd, setNewJobEnd] = useState<string | null>(null);
   const [addingJob, setAddingJob] = useState(false);
   const [jobError, setJobError] = useState<string | null>(null);
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [editJobTitle, setEditJobTitle] = useState("");
   const [editJobStart, setEditJobStart] = useState<string | null>(null);
   const [editJobEnd, setEditJobEnd] = useState<string | null>(null);
 
@@ -356,11 +358,13 @@ export default function ProfilePage() {
     try {
       const created = await apiPost<MyEmploymentEntry>("/me/employment-history", {
         companyId: newJobCompany.companyId,
+        jobTitle: newJobTitle.trim() || undefined,
         startDate: newJobStart,
         endDate: newJobEnd,
       });
       setEmployment((prev) => (prev ? [...prev, created] : [created]));
       setNewJobCompany(null);
+      setNewJobTitle("");
       setNewJobStart(null);
       setNewJobEnd(null);
       setShowAddJob(false);
@@ -373,6 +377,7 @@ export default function ProfilePage() {
 
   function startEditEmployment(entry: MyEmploymentEntry) {
     setEditingJobId(entry.id);
+    setEditJobTitle(entry.jobTitle ?? "");
     setEditJobStart(entry.startDate);
     setEditJobEnd(entry.endDate);
     setJobError(null);
@@ -383,6 +388,7 @@ export default function ProfilePage() {
     setJobError(null);
     try {
       const updated = await apiPatch<MyEmploymentEntry>(`/me/employment-history/${editingJobId}`, {
+        jobTitle: editJobTitle.trim() || null,
         startDate: editJobStart,
         endDate: editJobEnd,
       });
@@ -900,6 +906,15 @@ export default function ProfilePage() {
                 editingJobId === e.id ? (
                   <li key={e.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
                     <p className="text-sm font-medium text-foreground">{e.rawCompanyName}</p>
+                    <div>
+                      <p className="mb-1 text-[11px] font-medium text-muted-foreground">Job title (optional)</p>
+                      <input
+                        placeholder="e.g. Software Engineer"
+                        value={editJobTitle}
+                        onChange={(ev) => setEditJobTitle(ev.target.value)}
+                        className="w-full rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
+                      />
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <p className="mb-1 text-[11px] font-medium text-muted-foreground">Start date</p>
@@ -953,6 +968,7 @@ export default function ProfilePage() {
                       ) : (
                         <span className="text-foreground">{e.rawCompanyName}</span>
                       )}
+                      {e.jobTitle && <span className="text-muted-foreground"> &middot; {e.jobTitle}</span>}
                       {(e.startDate || e.endDate) && (
                         <span className="ml-2 text-xs text-muted-foreground">
                           {e.startDate ?? "?"} &ndash; {e.endDate ?? "present"}
@@ -989,6 +1005,15 @@ export default function ProfilePage() {
                     Selected: <span className="font-medium text-foreground">{newJobCompany.name}</span>
                   </p>
                 )}
+                <div>
+                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">Job title (optional)</p>
+                  <input
+                    placeholder="e.g. Software Engineer"
+                    value={newJobTitle}
+                    onChange={(e) => setNewJobTitle(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+                  />
+                </div>
                 <div>
                   <p className="mb-1 text-[11px] font-medium text-muted-foreground">Start date</p>
                   <DateDropdownPicker

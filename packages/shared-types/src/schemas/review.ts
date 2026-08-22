@@ -162,6 +162,7 @@ export const myEmploymentEntrySchema = z.object({
   rawCompanyName: z.string(),
   companyId: z.string().uuid().nullable(),
   companySlug: z.string().nullable(),
+  jobTitle: z.string().nullable(),
   startDate: z.string().date().nullable(),
   endDate: z.string().date().nullable(),
   hasReview: z.boolean(),
@@ -196,19 +197,22 @@ export type MyReview = z.infer<typeof myReviewSchema>;
 // Company row the user picked from a list (no free-text matching needed).
 export const addEmploymentHistoryInputSchema = z.object({
   companyId: z.string().uuid(),
+  jobTitle: z.string().min(1).max(200).nullable().optional(),
   startDate: z.string().date().nullable().optional(),
   endDate: z.string().date().nullable().optional(),
 });
 export type AddEmploymentHistoryInput = z.infer<typeof addEmploymentHistoryInputSchema>;
 
-// Editing dates on an existing entry — blocked server-side once a review
-// exists for it (see ReviewsService.updateEmploymentHistory), same as delete.
+// Editing dates (or job title) on an existing entry — blocked server-side
+// once a review exists for it (see ReviewsService.updateEmploymentHistory),
+// same as delete.
 export const updateEmploymentHistoryInputSchema = z
   .object({
+    jobTitle: z.string().min(1).max(200).nullable().optional(),
     startDate: z.string().date().nullable().optional(),
     endDate: z.string().date().nullable().optional(),
   })
-  .refine((v) => v.startDate !== undefined || v.endDate !== undefined, {
+  .refine((v) => v.jobTitle !== undefined || v.startDate !== undefined || v.endDate !== undefined, {
     message: "Provide at least one field to update",
   });
 export type UpdateEmploymentHistoryInput = z.infer<typeof updateEmploymentHistoryInputSchema>;

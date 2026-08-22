@@ -129,7 +129,19 @@ export function SingleSelectDropdown({
         <>
           <div className="fixed inset-0 z-[65]" onClick={close} />
           <div
-            className={`absolute left-0 z-[70] mt-1 rounded-lg border border-border bg-surface p-1 shadow-lg ${fitContent ? "w-max min-w-full" : "right-0"}`}
+            // Non-fitContent lists used to pin the open panel's width to the
+            // closed box's width (`right-0`) — fine for short labels, but a
+            // narrow trigger (e.g. one of three columns in a Country/City/
+            // District row) truncated any longer option ("Turkmenistan",
+            // "Turks and Caicos Islands") to an unreadable "Turkmenist...".
+            // `w-max` lets the panel grow past the trigger to fit its
+            // content, `min-w-full` keeps it at least as wide as the
+            // trigger, and `max-w-72` caps how far it can grow for the
+            // handful of genuinely long labels (e.g. some country names run
+            // 40+ characters) — those wrap across lines (see the option
+            // label's whitespace-normal below) instead of blowing out the
+            // layout or truncating.
+            className={`absolute left-0 z-[70] mt-1 rounded-lg border border-border bg-surface p-1 shadow-lg ${fitContent ? "w-max min-w-full" : "w-max min-w-full max-w-72"}`}
             onClick={(e) => e.stopPropagation()}
           >
             {searchable && (
@@ -173,7 +185,7 @@ export function SingleSelectDropdown({
                   }`}
                 >
                   {o.icon}
-                  <span className={fitContent ? "whitespace-nowrap" : "truncate"}>{o.label}</span>
+                  <span className={fitContent ? "whitespace-nowrap" : "whitespace-normal break-words"}>{o.label}</span>
                 </button>
               ))}
             </div>

@@ -116,6 +116,7 @@ export type EducationHistoryEntry = z.infer<typeof educationHistorySchema>;
 export const employmentHistoryInputSchema = z.object({
   rawCompanyName: z.string().min(1),
   companyId: z.string().uuid().nullable().optional(),
+  jobTitle: z.string().min(1).max(200).nullable().optional(),
   startDate: z.string().date().nullable().optional(),
   endDate: z.string().date().nullable().optional(),
 });
