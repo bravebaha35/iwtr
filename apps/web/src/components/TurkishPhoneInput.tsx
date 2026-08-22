@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ALL_TURKEY_AREA_CODES, areaCodesForProvince } from "@iwtr/shared-types";
+import { TURKEY_AREA_CODES_BY_PLATE, areaCodesForProvince, provinceForAreaCode, TURKEY_PROVINCES } from "@iwtr/shared-types";
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
+
+const PROVINCE_OPTIONS: DropdownOption[] = TURKEY_PROVINCES.map((p) => ({
+  value: p.plate,
+  label: `${p.plate} ${p.name}`,
+}));
 
 type PhoneKind = "LANDLINE" | "MOBILE";
 
@@ -22,12 +27,16 @@ function pillClass(active: boolean): string {
 /**
  * Turkish company contact-phone entry: a Landline/Mobile toggle. Mobile
  * reuses the existing generic `PhoneNumberInput` (already "+90" + free
- * digits). Landline is a province area-code dropdown (narrowed to
- * `suggestedProvince`'s own code(s) when known, falling back to the full
- * 81-province list otherwise) plus a 7-digit local-number field. Both modes
- * write the same "+90" + 10-digit shape `TurkishPhoneInput`'s value/onChange
- * contract shares with `PhoneNumberInput` — validated against the real area
- * code table server-side by `companyContactPhoneSchema`
+ * digits). Landline picks a PROVINCE ("63 Şanlıurfa"), not a raw area code —
+ * the area code itself is then derived and locked (a plain read-only
+ * display, not editable), leaving only the 7-digit local number to type.
+ * The one real exception is İstanbul, which genuinely has two working area
+ * codes (0212/0216) — that case shows a small 2-way pick between exactly
+ * those two rather than a free-form dropdown, still nothing else is
+ * selectable. Both modes write the same "+90" + 10-digit shape
+ * `TurkishPhoneInput`'s value/onChange contract shares with
+ * `PhoneNumberInput` — validated against the real area code table
+ * server-side by `companyContactPhoneSchema`
  * (packages/shared-types/src/schemas/turkishPhone.ts).
  */
 export function TurkishPhoneInput({
@@ -51,12 +60,11 @@ export function TurkishPhoneInput({
   const kind: PhoneKind = kindOverride ?? (digits[0] === "5" ? "MOBILE" : "LANDLINE");
 
   const suggestedCodes = areaCodesForProvince(suggestedProvince) ?? [];
-  const areaCodeOptions: DropdownOption[] = (suggestedCodes.length > 0 ? suggestedCodes : ALL_TURKEY_AREA_CODES).map(
-    (code) => ({ value: code, label: `0${code}` }),
-  );
 
   const areaCode = kind === "LANDLINE" ? digits.slice(0, 3) : "";
   const localDigits = kind === "LANDLINE" ? digits.slice(3, 10) : "";
+  const selectedProvince = areaCode ? provinceForAreaCode(areaCode) : null;
+  const codesForSelectedProvince = selectedProvince ? TURKEY_AREA_CODES_BY_PLATE[selectedProvince.plate] : [];
 
   // The moment a suggested province resolves and no area code has been
   // picked yet, default the dropdown to its first code — still fully
@@ -87,17 +95,48 @@ export function TurkishPhoneInput({
       </div>
 
       {kind === "LANDLINE" ? (
-        <div className="flex gap-2">
-          <div className="w-28 shrink-0">
-            <SingleSelectDropdown
-              value={areaCode || null}
-              options={areaCodeOptions}
-              placeholder="Area code"
-              searchable={areaCodeOptions.length > 8}
-              clearable={false}
-              onChange={(code) => code && onChange(`+90${code}${localDigits}`)}
-            />
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <div className="w-40 shrink-0">
+              <SingleSelectDropdown
+                value={selectedProvince?.plate ?? null}
+                options={PROVINCE_OPTIONS}
+                placeholder="Province"
+                searchable
+                clearable={false}
+                onChange={(plate) => {
+                  const codes = plate ? TURKEY_AREA_CODES_BY_PLATE[plate] : undefined;
+                  if (codes) onChange(`+90${codes[0]}${localDigits}`);
+                }}
+              />
+            </div>
+
+            {codesForSelectedProvince.length > 1 ? (
+              // İstanbul's the one real case: two working area codes for the
+              // same province — a small pick between exactly those two,
+              // still nothing free-form.
+              <div className="flex shrink-0 gap-1">
+                {codesForSelectedProvince.map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => onChange(`+90${code}${localDigits}`)}
+                    className={pillClass(code === areaCode)}
+                  >
+                    0{code}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div
+                aria-label="Area code (fixed by province)"
+                className="flex w-20 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-muted px-2 py-2 text-sm text-muted-foreground"
+              >
+                {areaCode ? `0${areaCode}` : "—"}
+              </div>
+            )}
           </div>
+
           <input
             type="tel"
             inputMode="numeric"
@@ -105,7 +144,7 @@ export function TurkishPhoneInput({
             value={localDigits}
             onChange={(e) => onChange(`+90${areaCode}${e.target.value.replace(/\D/g, "").slice(0, 7)}`)}
             disabled={!areaCode}
-            className="flex-1 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
       ) : (

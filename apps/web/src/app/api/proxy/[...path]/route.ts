@@ -22,13 +22,21 @@ async function proxy(req: NextRequest, path: string[]) {
   const targetUrl = `${API_BASE_URL}/${path.join("/")}${req.nextUrl.search}`;
   const method = req.method;
   const hasBody = method !== "GET" && method !== "HEAD" && method !== "DELETE";
-  const body = hasBody ? await req.text() : undefined;
+  // arrayBuffer, not text() — a multipart/form-data upload (e.g. the company
+  // logo endpoint) carries raw binary bytes that text() would corrupt.
+  // Forwarding the request's own content-type verbatim (rather than always
+  // forcing "application/json") is what makes that work: a browser `fetch`
+  // call with a FormData body sets its own multipart content-type including
+  // the boundary token, which has to reach apps/api unchanged for it to
+  // parse the body at all.
+  const body = hasBody ? await req.arrayBuffer() : undefined;
+  const contentType = req.headers.get("content-type");
 
   const send = (accessToken: string | undefined) =>
     fetch(targetUrl, {
       method,
       headers: {
-        ...(hasBody ? { "Content-Type": "application/json" } : {}),
+        ...(hasBody && contentType ? { "Content-Type": contentType } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body,

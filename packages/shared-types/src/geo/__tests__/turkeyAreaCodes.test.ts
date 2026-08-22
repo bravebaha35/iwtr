@@ -1,5 +1,10 @@
 import { TURKEY_PROVINCES } from "../turkey";
-import { TURKEY_AREA_CODES_BY_PLATE, ALL_TURKEY_AREA_CODES, areaCodesForProvince } from "../turkeyAreaCodes";
+import {
+  TURKEY_AREA_CODES_BY_PLATE,
+  ALL_TURKEY_AREA_CODES,
+  areaCodesForProvince,
+  provinceForAreaCode,
+} from "../turkeyAreaCodes";
 
 describe("areaCodesForProvince", () => {
   test("returns Ankara's single area code", () => {
@@ -22,6 +27,21 @@ describe("areaCodesForProvince", () => {
   test("returns null for a null/undefined input", () => {
     expect(areaCodesForProvince(null)).toBeNull();
     expect(areaCodesForProvince(undefined)).toBeNull();
+  });
+});
+
+describe("provinceForAreaCode", () => {
+  test("resolves Ankara's code back to Ankara", () => {
+    expect(provinceForAreaCode("312")?.name).toBe("Ankara");
+  });
+
+  test("resolves both of İstanbul's codes back to İstanbul", () => {
+    expect(provinceForAreaCode("212")?.name).toBe("İstanbul");
+    expect(provinceForAreaCode("216")?.name).toBe("İstanbul");
+  });
+
+  test("returns null for a code that isn't a real area code", () => {
+    expect(provinceForAreaCode("399")).toBeNull();
   });
 });
 

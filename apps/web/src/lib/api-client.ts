@@ -68,6 +68,19 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return handle<T>(res);
 }
 
+// Multipart upload (e.g. company logo) — no Content-Type header set here on
+// purpose: the browser generates the multipart boundary itself only when
+// left to set the header, and the proxy route now forwards whatever
+// content-type the browser actually sent instead of forcing JSON.
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${PROXY_BASE_URL}${path}`, {
+    method: "POST",
+    cache: "no-store",
+    body: formData,
+  });
+  return handle<T>(res);
+}
+
 export async function apiDelete<T>(path: string): Promise<T> {
   const res = await fetch(`${PROXY_BASE_URL}${path}`, { method: "DELETE", cache: "no-store" });
   return handle<T>(res);

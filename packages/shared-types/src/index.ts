@@ -7,5 +7,6 @@ export * from "./schemas/owner";
 export * from "./schemas/payment";
 export * from "./schemas/employerProfile";
 export * from "./schemas/turkishPhone";
+export * from "./schemas/companyLogo";
 export * from "./geo/turkey";
 export * from "./geo/turkeyAreaCodes";

@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import { join } from "path";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { imageSize } from "image-size";
+import { validateLogoFile, type LogoUploadResult } from "@iwtr/shared-types";
 import type {
   AdminOwnerClaim,
   ClaimCompanyInput,
@@ -11,6 +16,8 @@ import type {
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { resolveLocation } from "../companies/resolve-location.util";
+
+const UPLOADS_DIR = join(process.cwd(), "uploads", "company-logos");
 
 @Injectable()
 export class OwnerService {
@@ -116,6 +123,36 @@ export class OwnerService {
         xUrl: input.xUrl,
       },
     });
+  }
+
+  // Local disk, dev-safe default — see main.ts's useStaticAssets comment.
+  // Dimensions are read from the uploaded buffer (never trusted from the
+  // client) via `image-size`, then checked against the exact same
+  // validateLogoFile rule the client runs for instant feedback — this call
+  // is the one that's actually authoritative.
+  async uploadLogo(userId: string, companyId: string, file: Express.Multer.File | undefined): Promise<LogoUploadResult> {
+    await this.requireApprovedOwnership(userId, companyId);
+    if (!file) {
+      throw new BadRequestException("No file uploaded.");
+    }
+
+    const { width, height } = imageSize(file.buffer);
+    const check = validateLogoFile({
+      mimeType: file.mimetype,
+      sizeBytes: file.buffer.length,
+      width: width ?? 0,
+      height: height ?? 0,
+    });
+    if (!check.valid) {
+      throw new BadRequestException(check.error);
+    }
+
+    await mkdir(UPLOADS_DIR, { recursive: true });
+    const filename = `${randomUUID()}.png`;
+    await writeFile(join(UPLOADS_DIR, filename), file.buffer);
+
+    const origin = process.env.API_PUBLIC_ORIGIN ?? `http://localhost:${process.env.PORT ?? 3001}`;
+    return { url: `${origin}/uploads/company-logos/${filename}` };
   }
 
   async contactAdmin(userId: string, companyId: string, input: ContactAdminInput): Promise<void> {

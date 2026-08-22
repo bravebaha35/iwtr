@@ -1,4 +1,17 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   claimCompanyInputSchema,
   contactAdminInputSchema,
@@ -48,6 +61,16 @@ export class OwnerController {
     @Body(new ZodValidationPipe(updateCompanyInputSchema)) body: UpdateCompanyInput,
   ) {
     return this.owner.updateMyCompany(user.id, companyId, body);
+  }
+
+  @Post("my-companies/:companyId/logo")
+  @UseInterceptors(FileInterceptor("file"))
+  uploadLogo(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("companyId", new ParseUUIDPipe()) companyId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.owner.uploadLogo(user.id, companyId, file);
   }
 
   @Post("my-companies/:companyId/contact-admin")

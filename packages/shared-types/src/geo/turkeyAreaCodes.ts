@@ -1,4 +1,4 @@
-import { TURKEY_PROVINCES, normalizeCityName } from "./turkey";
+import { TURKEY_PROVINCES, normalizeCityName, type TurkeyProvince } from "./turkey";
 
 // Official PSTN (landline) area codes for all 81 Turkish provinces, keyed by
 // the same `plate` (license-plate) number TURKEY_PROVINCES uses — plate is a
@@ -39,6 +39,22 @@ export const ALL_TURKEY_AREA_CODES: readonly string[] = Array.from(
 const PLATE_BY_NORMALIZED_PROVINCE_NAME = new Map(
   TURKEY_PROVINCES.map((p) => [normalizeCityName(p.name), p.plate]),
 );
+
+const PLATE_BY_AREA_CODE = new Map(
+  Object.entries(TURKEY_AREA_CODES_BY_PLATE).flatMap(([plate, codes]) => codes.map((code) => [code, plate])),
+);
+const PROVINCE_BY_PLATE = new Map(TURKEY_PROVINCES.map((p) => [p.plate, p]));
+
+// Reverse lookup: which province does this landline area code belong to?
+// Used by the "pick a province, the area code follows and is locked" phone
+// picker (TurkishPhoneInput) to figure out which province is currently
+// selected from a phone number's own digits, without keeping a separate
+// province field on the form.
+export function provinceForAreaCode(areaCode: string): TurkeyProvince | null {
+  const plate = PLATE_BY_AREA_CODE.get(areaCode);
+  if (!plate) return null;
+  return PROVINCE_BY_PLATE.get(plate) ?? null;
+}
 
 // Landline area code(s) for a province, resolved the same
 // case/diacritic-insensitive way findProvinceByCityName already does — so a

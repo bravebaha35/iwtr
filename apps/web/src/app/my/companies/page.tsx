@@ -12,7 +12,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
-import { CompanyLogo } from "@/components/CompanyLogo";
+import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
 import { ReviewsList } from "@/components/ReviewsList";
 import { AdSlot } from "@/components/AdSlot";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -168,9 +168,15 @@ function UpgradeToPlus({ companyId }: { companyId: string }) {
 
 // Every box in the 2x2 dashboard grid is the same size and shares this shell
 // so the grid reads as one system rather than four one-off cards.
+// Shared min-height so all 4 boxes read as one uniform 2x2 grid of equal
+// pieces — without it, each grid ROW only stretches its own two cells to
+// match each other (CSS grid's default per-row behavior), but row 1
+// (shorter content) and row 2 (the Contact & socials box's long form) end up
+// very different overall heights, which reads as two uneven columns rather
+// than four equal quadrants.
 function DashboardBox({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-surface p-5">
+    <div className="flex h-full min-h-[38rem] flex-col rounded-xl border border-border bg-surface p-5">
       <h3 className="mb-3 font-semibold text-foreground">{title}</h3>
       {children}
     </div>
@@ -391,18 +397,17 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
               />
             </label>
-            <label className="text-xs font-medium text-muted-foreground">
-              Photo URL
-              <div className="mt-1 flex items-center gap-2">
-                <CompanyLogo name={claim.companyName} mainPhotoUrl={mainPhotoUrl.trim() || null} size="sm" />
-                <input
+            <div className="text-xs font-medium text-muted-foreground">
+              Company Logo
+              <div className="mt-1">
+                <CompanyLogoUploader
+                  companyId={claim.companyId}
+                  companyName={claim.companyName}
                   value={mainPhotoUrl}
-                  onChange={(e) => setMainPhotoUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+                  onChange={setMainPhotoUrl}
                 />
               </div>
-            </label>
+            </div>
           </div>
           <button
             onClick={saveBox1}

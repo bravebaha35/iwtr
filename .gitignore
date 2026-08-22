@@ -9,4 +9,5 @@ dist/
 !.env.example
 coverage/
 .DS_Store
+apps/api/uploads/
 .claude/settings.local.json
