@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { TURKEY_AREA_CODES_BY_PLATE, areaCodesForProvince, provinceForAreaCode, TURKEY_PROVINCES } from "@iwtr/shared-types";
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
+import { formatGroupedDigits } from "@/lib/phoneFormat";
 
 const PROVINCE_OPTIONS: DropdownOption[] = TURKEY_PROVINCES.map((p) => ({
   value: p.plate,
@@ -140,15 +141,15 @@ export function TurkishPhoneInput({
           <input
             type="tel"
             inputMode="numeric"
-            placeholder="XXX XX XX"
-            value={localDigits}
+            placeholder="XXX-XX-XX"
+            value={formatGroupedDigits(localDigits, [3, 2, 2])}
             onChange={(e) => onChange(`+90${areaCode}${e.target.value.replace(/\D/g, "").slice(0, 7)}`)}
             disabled={!areaCode}
             className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
       ) : (
-        <PhoneNumberInput value={value} onChange={onChange} />
+        <PhoneNumberInput value={value} onChange={onChange} groupSizes={[3, 3, 2, 2]} />
       )}
     </div>
   );

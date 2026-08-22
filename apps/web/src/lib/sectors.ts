@@ -63,3 +63,15 @@ export const SECTORS: { value: string; label: string; workplaceTypes: WorkplaceT
   { value: "Welding & Cutting Equipment", label: "Welding & Cutting Equipment", workplaceTypes: ["MANUAL_LABOUR"] },
   { value: "Other", label: "Other", workplaceTypes: ["OFFICE", "HYBRID_REMOTE", "SERVICE", "MANUAL_LABOUR"] },
 ];
+
+// Narrows SECTORS to whichever sectors are tagged with at least one of the
+// given workplace type(s) — shared by the browse-page Sector filter
+// (WorkplaceBrowser.tsx) and the owner dashboard's Sector picker
+// (my/companies/page.tsx), which both need the exact same rule. An empty
+// `workplaceTypes` means no filter is active yet, so every sector shows.
+export function sectorsForWorkplaceTypes(
+  workplaceTypes: WorkplaceType[],
+): { value: string; label: string; workplaceTypes: WorkplaceType[] }[] {
+  if (workplaceTypes.length === 0) return SECTORS;
+  return SECTORS.filter((s) => s.workplaceTypes.some((t) => workplaceTypes.includes(t)));
+}

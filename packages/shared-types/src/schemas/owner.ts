@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { httpUrlSchema, ownerTierSchema, planStatusSchema } from "./company";
+import { companyWorkplaceTypesSchema, httpUrlSchema, ownerTierSchema, planStatusSchema } from "./company";
 import { companyContactPhoneSchema } from "./turkishPhone";
 
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
@@ -49,15 +49,18 @@ export type AdminOwnerClaim = z.infer<typeof adminOwnerClaimSchema>;
 // planStatus=ACTIVE. Keeping one schema (rather than Free/Plus variants)
 // means the allowlist lives in exactly one place: the service layer.
 //
-// workplaceTypes is deliberately NOT owner-editable here (even though it was
-// before Company.workplaceType became a multi-value array) — self-service
-// editing of a company's workplace-type tags is deferred to a future Plus
-// company-profile phase, not part of this pass. Only admins can set it
-// (CompaniesService.createByAdmin) until that's designed.
+// workplaceTypes became owner-editable (free tier) so the dashboard's
+// General Information box can replace the old free-text Category field with
+// a pick-up-to-2 Office/Hybrid-Remote/Service/Manual-Labour selector —
+// superseding the earlier "deferred to a future Plus phase, admin-only"
+// note this schema used to carry. `companyWorkplaceTypesSchema` already
+// enforces the 1-2 length cap; admin creation (CompaniesService.createByAdmin)
+// still sets the initial value the same way.
 export const updateCompanyInputSchema = z
   .object({
     name: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
+    workplaceTypes: companyWorkplaceTypesSchema.optional(),
     mainPhotoUrl: httpUrlSchema.optional(),
     // Free tier: location and public contact/socials.
     city: z.string().min(1).optional(),

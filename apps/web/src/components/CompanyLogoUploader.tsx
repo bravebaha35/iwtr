@@ -1,15 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  validateLogoFile,
-  LOGO_RECOMMENDED_DIMENSION_PX,
-  LOGO_MIN_DIMENSION_PX,
-  LOGO_MAX_FILE_SIZE_BYTES,
-  type LogoUploadResult,
-} from "@iwtr/shared-types";
+import { validateSourceImageForCrop, LOGO_MAX_FILE_SIZE_BYTES, type LogoUploadResult } from "@iwtr/shared-types";
 import { apiUpload, ApiError } from "@/lib/api-client";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { LogoCropper } from "@/components/LogoCropper";
 
 type LogoMode = "upload" | "url";
 
@@ -40,10 +35,15 @@ function readImageDimensions(file: File): Promise<{ width: number; height: numbe
 /**
  * "Company Logo" field for the owner dashboard: upload a PNG file, or paste
  * a URL — two icon-labeled modes rather than one field trying to do both.
- * File uploads are checked client-side first (square, PNG, size) for instant
- * feedback via the same `validateLogoFile` rule the server re-checks
- * authoritatively (OwnerService.uploadLogo) — the server never trusts this
- * client-side pass alone. A pasted URL isn't run through that same PNG/1:1
+ * A picked file isn't uploaded immediately — it first opens `LogoCropper` so
+ * the owner can crop any aspect-ratio photo down to the square logo, rather
+ * than this component rejecting non-square photos outright. The raw picked
+ * file is checked client-side first (`validateSourceImageForCrop` — PNG,
+ * size, and enough resolution for a good crop, deliberately NOT square) for
+ * instant feedback before the crop UI opens; the cropped square export is
+ * then what's actually uploaded, checked authoritatively server-side
+ * (OwnerService.uploadLogo) via `validateLogoFile` — the server never trusts
+ * either client-side pass alone. A pasted URL isn't run through either
  * check: doing so would mean the API fetching an arbitrary user-supplied URL
  * itself, which is a real SSRF risk this deliberately avoids — pasted URLs
  * just go through the existing httpUrlSchema check, same as before.
@@ -62,6 +62,7 @@ export function CompanyLogoUploader({
   const [mode, setMode] = useState<LogoMode>("url");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFilePicked(file: File | undefined) {
@@ -69,18 +70,28 @@ export function CompanyLogoUploader({
     setError(null);
     try {
       const { width, height } = await readImageDimensions(file);
-      const check = validateLogoFile({ mimeType: file.type, sizeBytes: file.size, width, height });
+      const check = validateSourceImageForCrop({ mimeType: file.type, sizeBytes: file.size, width, height });
       if (!check.valid) {
         setError(check.error);
         return;
       }
-      setUploading(true);
+      setPendingCropFile(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't read that image.");
+    }
+  }
+
+  async function handleCropConfirmed(blob: Blob) {
+    setPendingCropFile(null);
+    setError(null);
+    setUploading(true);
+    try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", blob, "logo.png");
       const result = await apiUpload<LogoUploadResult>(`/my-companies/${companyId}/logo`, formData);
       onChange(result.url);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Couldn't upload that file.");
+      setError(err instanceof ApiError ? err.message : "Couldn't upload that file.");
     } finally {
       setUploading(false);
     }
@@ -145,10 +156,17 @@ export function CompanyLogoUploader({
       {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
 
       <p className="text-[11px] text-muted-foreground">
-        Square PNG, {LOGO_RECOMMENDED_DIMENSION_PX}×{LOGO_RECOMMENDED_DIMENSION_PX}px recommended (minimum{" "}
-        {LOGO_MIN_DIMENSION_PX}×{LOGO_MIN_DIMENSION_PX}px), under {LOGO_MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB —
-        matches LinkedIn&apos;s own company-logo guidance, so it stays sharp and loads fast.
+        PNG, under {LOGO_MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB. You&apos;ll be able to crop it to a square after
+        choosing a file.
       </p>
+
+      {pendingCropFile && (
+        <LogoCropper
+          file={pendingCropFile}
+          onConfirm={(blob) => void handleCropConfirmed(blob)}
+          onCancel={() => setPendingCropFile(null)}
+        />
+      )}
     </div>
   );
 }

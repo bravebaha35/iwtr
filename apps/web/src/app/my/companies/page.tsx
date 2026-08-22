@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   companyContactPhoneSchema,
@@ -8,6 +8,7 @@ import {
   type CompanyDetail,
   type MyCompanyClaim,
   type PlusCheckoutResult,
+  type WorkplaceType,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
@@ -16,8 +17,11 @@ import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
 import { ReviewsList } from "@/components/ReviewsList";
 import { AdSlot } from "@/components/AdSlot";
 import { SingleSelectDropdown } from "@/components/Dropdown";
+import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { TurkishPhoneInput } from "@/components/TurkishPhoneInput";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
+import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
+import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -188,13 +192,21 @@ function DashboardBox({
   );
 }
 
+function sameWorkplaceTypes(a: WorkplaceType[], b: WorkplaceType[]): boolean {
+  return a.length === b.length && a.every((v) => b.includes(v));
+}
+
 function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
 
   // General Information — basics + location, one merged save action
   const [name, setName] = useState(claim.companyName);
-  const [category, setCategory] = useState("");
+  const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
+  // Sector is optional and, like the browse-page filter it shares a list
+  // with, is really just a controlled-vocabulary value for Company.category
+  // — see sectorsForWorkplaceTypes.
+  const [category, setCategory] = useState<string | null>(null);
   const [mainPhotoUrl, setMainPhotoUrl] = useState("");
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
@@ -222,41 +234,76 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
   const isPlusActive = claim.tier === "PLUS" && claim.planStatus === "ACTIVE";
 
-  const loadDetail = useCallback(async () => {
-    try {
-      const data = await apiGet<CompanyDetail>(`/companies/${claim.companySlug}`);
-      setDetail(data);
-      const c = data.company;
-      setName(c.name);
-      setCategory(c.category);
-      setMainPhotoUrl(c.mainPhotoUrl ?? "");
-      setDescription(c.description ?? "");
-      setWebsite(c.website ?? "");
-      setCity(c.city);
-      setDistrict(c.district);
-      setContactEmail(c.contactEmail ?? "");
-      setContactPhone(c.contactPhone ?? "+90");
-      setFacebookUrl(c.facebookUrl ?? "");
-      setInstagramUrl(c.instagramUrl ?? "");
-      setWhatsappUrl(c.whatsappUrl ?? "");
-      setXUrl(c.xUrl ?? "");
-    } catch (err) {
-      setDetailError(err instanceof ApiError ? err.message : "Couldn't load this company's details.");
-    }
-  }, [claim.companySlug]);
+  // `scope` limits which box's local field state gets overwritten by the
+  // fresh server response. Each box saves independently — without a scope,
+  // reloading after ANY box's save would reset every field from every box,
+  // silently discarding whatever unsaved edits were sitting in the OTHER
+  // box (e.g. picking a new City in General Information, then saving
+  // Contact & Social Media, used to snap City back to its last-saved
+  // value). `detail` itself always refreshes fully — it's read-only display
+  // data (aggregate score, etc.), not editable form state.
+  const loadDetail = useCallback(
+    async (scope?: "general" | "contact") => {
+      try {
+        const data = await apiGet<CompanyDetail>(`/companies/${claim.companySlug}`);
+        setDetail(data);
+        const c = data.company;
+        if (!scope || scope === "general") {
+          setName(c.name);
+          setWorkplaceTypes(c.workplaceTypes);
+          setCategory(c.category);
+          setMainPhotoUrl(c.mainPhotoUrl ?? "");
+          setDescription(c.description ?? "");
+          setWebsite(c.website ?? "");
+          setCity(c.city);
+          setDistrict(c.district);
+        }
+        if (!scope || scope === "contact") {
+          setContactEmail(c.contactEmail ?? "");
+          setContactPhone(c.contactPhone ?? "+90");
+          setFacebookUrl(c.facebookUrl ?? "");
+          setInstagramUrl(c.instagramUrl ?? "");
+          setWhatsappUrl(c.whatsappUrl ?? "");
+          setXUrl(c.xUrl ?? "");
+        }
+      } catch (err) {
+        setDetailError(err instanceof ApiError ? err.message : "Couldn't load this company's details.");
+      }
+    },
+    [claim.companySlug],
+  );
 
   useEffect(() => {
     void loadDetail();
   }, [loadDetail]);
+
+  // Picking a 3rd, distinct type doesn't add to the selection — it starts a
+  // fresh selection with just that type, as if the two previous picks were
+  // cleared first (same rule as the browse-page Workplace filter). Any
+  // change resets Sector, since the previously-picked one might not belong
+  // to any of the newly-selected type(s) any more.
+  function toggleWorkplaceType(value: WorkplaceType) {
+    setWorkplaceTypes((prev) => {
+      if (prev.includes(value)) return prev.filter((v) => v !== value);
+      if (prev.length >= 2) return [value];
+      return [...prev, value];
+    });
+    setCategory(null);
+  }
+
+  const sectorOptions = useMemo(() => sectorsForWorkplaceTypes(workplaceTypes), [workplaceTypes]);
 
   async function saveGeneralInfo() {
     setGeneralInfoSaving(true);
     setGeneralInfoError(null);
     setGeneralInfoStatus(null);
     try {
-      const body: Record<string, string> = {};
+      const body: Record<string, unknown> = {};
       if (name.trim() && name.trim() !== detail?.company.name) body.name = name.trim();
-      if (category.trim() && category.trim() !== detail?.company.category) body.category = category.trim();
+      if (workplaceTypes.length > 0 && !sameWorkplaceTypes(workplaceTypes, detail?.company.workplaceTypes ?? [])) {
+        body.workplaceTypes = workplaceTypes;
+      }
+      if (category && category !== detail?.company.category) body.category = category;
       if (mainPhotoUrl.trim() && mainPhotoUrl.trim() !== detail?.company.mainPhotoUrl) body.mainPhotoUrl = mainPhotoUrl.trim();
       if (city) {
         body.city = city;
@@ -275,7 +322,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         return;
       }
       await apiPatch(`/my-companies/${claim.companyId}`, body);
-      await loadDetail();
+      await loadDetail("general");
       setGeneralInfoStatus("Saved.");
     } catch (err) {
       setGeneralInfoError(err instanceof ApiError ? err.message : "Couldn't save changes.");
@@ -304,7 +351,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       if (whatsappUrl.trim()) body.whatsappUrl = whatsappUrl.trim();
       if (xUrl.trim()) body.xUrl = xUrl.trim();
       await apiPatch(`/my-companies/${claim.companyId}`, body);
-      await loadDetail();
+      await loadDetail("contact");
       setBox3Status("Saved.");
     } catch (err) {
       setBox3Error(err instanceof ApiError ? err.message : "Couldn't save changes.");
@@ -368,14 +415,22 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
               />
             </label>
-            <label className="text-xs font-medium text-muted-foreground">
-              Category
-              <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Retail, Cafe, Software"
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-              />
+            <MultiFilterPillGroup
+              heading="Workplace types (up to 2)"
+              options={WORKPLACE_TYPES}
+              selected={workplaceTypes}
+              onToggle={toggleWorkplaceType}
+              onReset={() => {
+                setWorkplaceTypes([]);
+                setCategory(null);
+              }}
+              direction="grid"
+            />
+            <label className="mt-2 text-xs font-medium text-muted-foreground">
+              Sector <span className="text-muted-foreground/70">(optional)</span>
+              <div className="mt-1">
+                <SingleSelectDropdown value={category} options={sectorOptions} placeholder="Sector" onChange={setCategory} />
+              </div>
             </label>
             <div className="text-xs font-medium text-muted-foreground">
               Company Logo
@@ -455,8 +510,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         {/* Right, top: contact & socials */}
         <DashboardBox title="Contact & Social Media">
           <div className="flex flex-1 flex-col gap-2">
-            <div className="rounded-lg border border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-800 dark:border-brand-700 dark:bg-brand-950 dark:text-brand-300">
-              <p className="font-semibold">Notice on Contact Numbers:</p>
+            <div className="text-xs text-muted-foreground">
+              <p className="font-semibold text-foreground">Notice on Contact Numbers:</p>
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 <li>
                   <span className="font-medium">Sole Proprietorships (Şahıs Şirketleri):</span> If an official

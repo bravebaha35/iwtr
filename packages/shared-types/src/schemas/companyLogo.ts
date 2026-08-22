@@ -46,5 +46,34 @@ export function validateLogoFile(meta: LogoFileMeta): { valid: true } | { valid:
   return { valid: true };
 }
 
+// Checked on the RAW picked file, before the owner crops it — deliberately
+// does NOT require square here (that's the whole point of letting them crop
+// afterward instead of rejecting a rectangular photo outright). Still
+// enforces a minimum resolution on the shorter side, since the crop step
+// exports a fixed LOGO_RECOMMENDED_DIMENSION_PX square regardless of source
+// size — cropping a too-small source would just silently upscale into a
+// blurry logo rather than failing loudly here. `validateLogoFile` above
+// stays the authoritative check on the final cropped (always-square)
+// output, both client- and server-side.
+export function validateSourceImageForCrop(meta: LogoFileMeta): { valid: true } | { valid: false; error: string } {
+  if (meta.mimeType !== "image/png") {
+    return { valid: false, error: "Logo must be a PNG file." };
+  }
+  if (meta.sizeBytes > LOGO_MAX_FILE_SIZE_BYTES) {
+    return {
+      valid: false,
+      error: `Logo file is too large — keep it under ${LOGO_MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB.`,
+    };
+  }
+  const shorterSide = Math.min(meta.width, meta.height);
+  if (shorterSide < LOGO_MIN_DIMENSION_PX) {
+    return {
+      valid: false,
+      error: `Image is too small to crop a good logo from — its shorter side must be at least ${LOGO_MIN_DIMENSION_PX}px (got ${meta.width}x${meta.height}px).`,
+    };
+  }
+  return { valid: true };
+}
+
 export const logoUploadResultSchema = z.object({ url: httpUrlSchema });
 export type LogoUploadResult = z.infer<typeof logoUploadResultSchema>;

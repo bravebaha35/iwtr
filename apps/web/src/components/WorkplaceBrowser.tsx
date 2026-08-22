@@ -7,7 +7,7 @@ import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarPillClassName } from "@/lib/collarColors";
-import { SECTORS } from "@/lib/sectors";
+import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -296,10 +296,7 @@ export function WorkplaceBrowser() {
   // — e.g. selecting "Office" hides purely-manual sectors like
   // "Construction" but keeps "Healthcare" (tagged Office + Service). With no
   // workplace type selected ("All"), every sector is shown.
-  const sectorOptions = useMemo(() => {
-    if (workplaceTypes.length === 0) return SECTORS;
-    return SECTORS.filter((s) => s.workplaceTypes.some((t) => workplaceTypes.includes(t)));
-  }, [workplaceTypes]);
+  const sectorOptions = useMemo(() => sectorsForWorkplaceTypes(workplaceTypes), [workplaceTypes]);
 
   const visibleCompanies = useMemo(() => {
     if (!companies) return null;

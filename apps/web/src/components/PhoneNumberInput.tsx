@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { COUNTRIES, findCountryByCode } from "@/lib/countries";
+import { formatGroupedDigits } from "@/lib/phoneFormat";
 
 /**
  * E.164 phone entry: a flag + dial-code button (opens a searchable country
@@ -12,10 +13,18 @@ export function PhoneNumberInput({
   value,
   onChange,
   defaultCountryCode = "TR",
+  groupSizes,
 }: {
   value: string;
   onChange: (value: string) => void;
   defaultCountryCode?: string;
+  // Optional visual digit grouping (e.g. [3,3,2,2] -> "555-123-45-67") for a
+  // caller that knows its numbers are a fixed shape (e.g. Turkish mobile).
+  // Purely presentational — onChange still reports plain digits. Omitted by
+  // every other caller, which keeps their plain unformatted digits box
+  // unchanged (a number's shape varies too much across countries to format
+  // by default here).
+  groupSizes?: number[];
 }) {
   const [countryCode, setCountryCode] = useState(defaultCountryCode);
   const [open, setOpen] = useState(false);
@@ -56,7 +65,7 @@ export function PhoneNumberInput({
         type="tel"
         inputMode="numeric"
         placeholder="5XX XXX XX XX"
-        value={numberPart}
+        value={groupSizes ? formatGroupedDigits(numberPart, groupSizes) : numberPart}
         onChange={(e) => setDigits(e.target.value.replace(/\D/g, ""))}
         className="flex-1 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
       />
