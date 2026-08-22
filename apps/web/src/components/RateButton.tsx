@@ -143,6 +143,7 @@ export function RateButton({
   const [questions, setQuestions] = useState<SurveyQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
   const [generalThoughts, setGeneralThoughts] = useState("");
+  const [isRandomizedIdentity, setIsRandomizedIdentity] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SubmitReviewResult | null>(null);
@@ -179,6 +180,7 @@ export function RateButton({
     setStep(0);
     setAnswers({});
     setGeneralThoughts("");
+    setIsRandomizedIdentity(false);
     setError(null);
     setResult(null);
     setSelectedWorkplaceType(null);
@@ -190,6 +192,7 @@ export function RateButton({
         const review = await apiGet<MyReview>(`/reviews/${matchingEntry.reviewId}`);
         setAnswers(review.surveyAnswers);
         setGeneralThoughts(review.generalThoughts ?? "");
+        setIsRandomizedIdentity(review.isRandomizedIdentity);
         setSelectedWorkplaceType(review.workplaceType);
         await loadQuestionsFor(review.workplaceType);
       } else if (workplaceTypes.length === 1) {
@@ -237,7 +240,11 @@ export function RateButton({
     setSubmitting(true);
     try {
       const answerList = questions.map((q) => ({ questionId: q.id, answer: answers[q.id] }));
-      const content = { answers: answerList, generalThoughts: generalThoughts.trim() || undefined };
+      const content = {
+        answers: answerList,
+        generalThoughts: generalThoughts.trim() || undefined,
+        isRandomizedIdentity,
+      };
       const res = matchingEntry.reviewId
         ? await apiPatch<SubmitReviewResult>(`/reviews/${matchingEntry.reviewId}`, content satisfies UpdateReviewInput)
         : await apiPost<SubmitReviewResult>("/reviews", {
@@ -377,6 +384,23 @@ export function RateButton({
                       rows={4}
                       className="w-full rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
                     />
+                    <label className="mt-3 flex items-start gap-2 text-sm text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={isRandomizedIdentity}
+                        onChange={(e) => setIsRandomizedIdentity(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-brand-600"
+                      />
+                      <span>
+                        Randomize my avatar and username for this review to prevent employer profiling.
+                        {isRandomizedIdentity && (
+                          <span className="block text-xs text-muted-foreground">
+                            You&apos;ll appear under a one-off, made-up name and a generic icon on this review only —
+                            your account&apos;s usual avatar and member number won&apos;t be shown here.
+                          </span>
+                        )}
+                      </span>
+                    </label>
                   </div>
                 )}
 

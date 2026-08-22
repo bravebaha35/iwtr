@@ -1,5 +1,11 @@
-import type { WorkplaceType } from "@iwtr/shared-types";
+import { RANDOMIZED_IDENTITY_AVATAR_KEY, type WorkplaceType } from "@iwtr/shared-types";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+
+// Shown only for a review submitted with "randomize my identity" on
+// (RateButton.tsx) — deliberately outside WORK_TYPE_AVATARS below so it can
+// never appear as a choice in the normal avatar picker, only assigned by
+// the server (see ReviewsService.listForCompany).
+const RANDOMIZED_IDENTITY_EMOJI = "🎭";
 
 export interface AvatarVariant {
   key: string;
@@ -65,6 +71,7 @@ function findVariant(avatarKey: string | null | undefined): { group: WorkTypeAva
 }
 
 export function avatarEmoji(avatarKey: string | null | undefined): string | null {
+  if (avatarKey === RANDOMIZED_IDENTITY_AVATAR_KEY) return RANDOMIZED_IDENTITY_EMOJI;
   return findVariant(avatarKey)?.variant.emoji ?? null;
 }
 

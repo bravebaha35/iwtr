@@ -1,6 +1,17 @@
 import { z } from "zod";
 import { workplaceTypeSchema } from "./company";
 
+// The reserved avatarKey/avatarGradient pair a review displays instead of
+// its author's real ones when "randomize my identity" (isRandomizedIdentity)
+// is on — see ReviewsService.submitReview/updateReview and
+// apps/web/src/lib/avatars.ts's avatarEmoji. Single source of truth so the
+// two apps can't drift on the exact string. RANDOMIZED_IDENTITY_AVATAR_KEY
+// is deliberately outside the normal WORK_TYPE_AVATARS picker set — it can
+// never be chosen as a real account's own avatar, only assigned by the
+// server for this one purpose.
+export const RANDOMIZED_IDENTITY_AVATAR_KEY = "randomized_identity";
+export const RANDOMIZED_IDENTITY_AVATAR_GRADIENT = "dusk";
+
 export const reviewStatusSchema = z.enum([
   "PENDING_MODERATION",
   "PENDING_ADMIN_REVIEW",
@@ -61,6 +72,14 @@ export const createReviewInputSchema = z.object({
   // the server re-validates this too (see ReviewsService.scoreAnswers).
   answers: z.array(surveyResponseSchema).length(25),
   generalThoughts: z.string().max(4000).optional(),
+  // "Randomize my avatar and username for this review" — when true, the
+  // server replaces this review's displayed avatar/handle with a generic
+  // one and a random humorous name (picked from a list keyed by this
+  // review's own workplaceType, never a client-supplied category — see
+  // ReviewsService.pickRandomDisplayUsername) instead of the author's real
+  // avatarKey/avatarGradient/memberNumber. Also settable on
+  // updateReviewInputSchema below, so a reviewer can turn it on/off later.
+  isRandomizedIdentity: z.boolean().optional().default(false),
 });
 export type CreateReviewInput = z.infer<typeof createReviewInputSchema>;
 
@@ -114,8 +133,16 @@ export const publicReviewSchema = z.object({
   // The author's system-generated, immutable member number (see User.
   // memberNumber and REVIEW.md rule #8's approved-exception note) — same
   // anonymity trade-off as avatarKey/avatarGradient above, accepted for the
-  // same explicit reason. Still never displayName/email/etc.
+  // same explicit reason. Still never displayName/email/etc. Null whenever
+  // isRandomizedIdentity is true for this review — see displayUsername.
   memberNumber: z.string().nullable(),
+  // Set only when this specific review was submitted/edited with "randomize
+  // my identity" on — a one-off random humorous handle (see
+  // RANDOMIZED_IDENTITY_AVATAR_KEY above) that replaces memberNumber for
+  // this review alone, so this one review can't be correlated with the same
+  // author's other reviews via a repeating avatar/number the way REVIEW.md's
+  // rule #8 already flags as a known trade-off of the normal case.
+  displayUsername: z.string().nullable(),
 });
 export type PublicReview = z.infer<typeof publicReviewSchema>;
 
@@ -189,6 +216,8 @@ export const myReviewSchema = z.object({
   surveyAnswers: z.record(z.string(), surveyAnswerSchema),
   generalThoughts: z.string().nullable(),
   status: reviewStatusSchema,
+  isRandomizedIdentity: z.boolean(),
+  displayUsername: z.string().nullable(),
 });
 export type MyReview = z.infer<typeof myReviewSchema>;
 

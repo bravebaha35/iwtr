@@ -126,8 +126,12 @@ export function ReviewsList({
         >
           <div className="mb-3 compact:mb-1.5 flex items-center gap-2">
             <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />
-            {review.memberNumber && (
-              <span className="shrink-0 font-mono text-xs text-muted-foreground">#{review.memberNumber}</span>
+            {review.displayUsername ? (
+              <span className="shrink-0 text-xs font-medium italic text-muted-foreground">{review.displayUsername}</span>
+            ) : (
+              review.memberNumber && (
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">#{review.memberNumber}</span>
+              )
             )}
             <div className="flex flex-wrap items-center gap-2">
               {/* Which of the company's (up to 2) workplaceTypes this review

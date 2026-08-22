@@ -343,6 +343,16 @@ model Review {
   aiTrustScore      Float?
   moderationDetails Json?
 
+  // "Randomize my avatar and username for this review" (RateButton.tsx).
+  // When true, ReviewsService.listForCompany/getMyReview substitute a fixed
+  // generic avatarKey/avatarGradient (RANDOMIZED_IDENTITY_AVATAR_KEY/
+  // _GRADIENT in shared-types) and displayUsername for this review's own
+  // avatarKey/avatarGradient/memberNumber lookup — not stored per-row since
+  // the generic avatar is a single fixed pair, always derivable from this
+  // one boolean; only the flag and the randomly-picked name need to persist.
+  isRandomizedIdentity Boolean @default(false)
+  displayUsername      String?
+
   createdAt   DateTime  @default(now())
   publishedAt DateTime?
 
