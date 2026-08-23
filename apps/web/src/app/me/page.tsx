@@ -484,6 +484,14 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            {alwaysRandomizeIdentity && (
+              <p className="mb-4 rounded-lg border border-dashed border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-700 dark:border-brand-700 dark:bg-brand-950 dark:text-brand-300">
+                &quot;Randomize my avatar and username&quot; is on (see the checkbox below) — the avatar,
+                background, and username you pick here are saved to your account, but every review you post or
+                edit shows a made-up name and generic icon instead, until you turn that off.
+              </p>
+            )}
+
             <AvatarEditor
               avatarKey={avatarKey}
               avatarGradient={avatarGradient}
