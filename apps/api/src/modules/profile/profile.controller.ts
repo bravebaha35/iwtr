@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   changePasswordInputSchema,
   educationHistoryInputSchema,
@@ -49,6 +50,10 @@ export class ProfileController {
     return { success: true };
   }
 
+  // Same reasoning as onboarding's phone/request-otp — a real, paid SMS per
+  // call, so this gets its own IP-scoped ceiling on top of the per-account
+  // resend cooldown in phone-verification.service.ts.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("me/phone/request-otp")
   requestPhoneChangeOtp(
     @CurrentUser() user: AuthenticatedUser,

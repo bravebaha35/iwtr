@@ -213,7 +213,18 @@ export class ProfileService {
       throw new BadRequestException("Current password is incorrect");
     }
     const passwordHash = await bcrypt.hash(input.newPassword, PASSWORD_SALT_ROUNDS);
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    // A stolen refresh token must not survive a password change — same
+    // reasoning as freezeAccount's revocation below: without this, a session
+    // someone else is riding stays alive until its own 30-day expiry instead
+    // of being cut the moment the real owner locks them out.
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+      this.prisma.auditLog.create({
+        data: { actorUserId: userId, action: "PASSWORD_CHANGED", targetType: "User", targetId: userId },
+      }),
+    ]);
   }
 
   // Self-service freeze — logging back in (AuthService.loginWithEmail) is

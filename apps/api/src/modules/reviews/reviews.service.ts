@@ -274,28 +274,41 @@ export class ReviewsService {
     const isRandomizedIdentity = (input.isRandomizedIdentity ?? false) || user.alwaysRandomizeIdentity;
     const displayUsername = isRandomizedIdentity ? pickRandomDisplayUsername(input.workplaceType) : null;
 
-    const review = await this.prisma.review.create({
-      data: {
-        userId,
-        companyId: input.companyId,
-        employmentHistoryId: input.employmentHistoryId,
-        workplaceType: input.workplaceType,
-        corporateCultureScore: scores.corporateCulture,
-        leadershipScore: scores.leadership,
-        infrastructureScore: scores.infrastructure,
-        workLifeBalanceScore: scores.workLifeBalance,
-        stabilityScore: scores.stability,
-        surveyAnswers,
-        generalThoughts: input.generalThoughts,
-        status,
-        aiModerationScore: contentCheck.confidence,
-        aiTrustScore: trustScore.score,
-        moderationDetails: { contentCheck, trustScore } as object,
-        publishedAt: status === "PUBLISHED" ? new Date() : null,
-        isRandomizedIdentity,
-        displayUsername,
-      },
-    });
+    let review;
+    try {
+      review = await this.prisma.review.create({
+        data: {
+          userId,
+          companyId: input.companyId,
+          employmentHistoryId: input.employmentHistoryId,
+          workplaceType: input.workplaceType,
+          corporateCultureScore: scores.corporateCulture,
+          leadershipScore: scores.leadership,
+          infrastructureScore: scores.infrastructure,
+          workLifeBalanceScore: scores.workLifeBalance,
+          stabilityScore: scores.stability,
+          surveyAnswers,
+          generalThoughts: input.generalThoughts,
+          status,
+          aiModerationScore: contentCheck.confidence,
+          aiTrustScore: trustScore.score,
+          moderationDetails: { contentCheck, trustScore } as object,
+          publishedAt: status === "PUBLISHED" ? new Date() : null,
+          isRandomizedIdentity,
+          displayUsername,
+        },
+      });
+    } catch (err) {
+      // Two concurrent submissions for the same user+company can both pass
+      // the existing-review check above before either write lands —
+      // @@unique([userId, companyId]) is the real guard; this just turns the
+      // loser's raw constraint violation into the same friendly error the
+      // upfront check already gives (same benign-race pattern as castVote).
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new ConflictException("You have already reviewed this company");
+      }
+      throw err;
+    }
 
     if (queueReason) {
       await this.prisma.moderationQueueItem.create({

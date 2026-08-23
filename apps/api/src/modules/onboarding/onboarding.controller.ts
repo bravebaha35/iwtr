@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   avatarSelectionSchema,
   historySubmissionSchema,
@@ -27,6 +28,12 @@ export class OnboardingController {
     return this.onboarding.getStatus(user.id);
   }
 
+  // Each call sends a real, paid SMS via Twilio — tighter than the global
+  // default (100/min) so a scripted register-then-spam-OTP loop can't drain
+  // the SMS budget. The per-account 60s resend cooldown (see
+  // phone-verification.service.ts) limits one account's rate; this caps
+  // total volume from one IP across many accounts.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("phone/request-otp")
   async requestPhoneOtp(
     @CurrentUser() user: AuthenticatedUser,

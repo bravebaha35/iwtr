@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import type { AuthTokensResponse, LoginEmailInput, RegisterEmailInput } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { TokenService } from "./token.service";
@@ -34,13 +35,24 @@ export class AuthService {
     // reviewUsername isn't assigned here — it needs a work-type category,
     // which isn't known until the avatar-selection onboarding step (see
     // OnboardingService.submitAvatar, which auto-assigns one then).
-    const user = await this.prisma.user.create({
-      data: {
-        email: input.email,
-        authProvider: "EMAIL",
-        passwordHash,
-      },
-    });
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          email: input.email,
+          authProvider: "EMAIL",
+          passwordHash,
+        },
+      });
+    } catch (err) {
+      // Two concurrent registrations with the same email can both pass the
+      // findUnique check above before either write lands — User.email is
+      // @unique, so the loser hits this instead of a raw 500.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new ConflictException("An account with this email already exists");
+      }
+      throw err;
+    }
 
     return this.issueTokenPair(user.id, user.role, user.status, deviceLabel);
   }
