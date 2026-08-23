@@ -73,7 +73,6 @@ export default function ProfilePage() {
   // kind of work?" pill in AvatarEditor updates the offered names right
   // away, before the user has necessarily clicked a new avatar variant too.
   const [usernameCategory, setUsernameCategory] = useState<WorkplaceType>("OFFICE");
-  const [alwaysRandomizeIdentity, setAlwaysRandomizeIdentity] = useState(false);
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarGradient, setAvatarGradient] = useState<string | null>(null);
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
@@ -160,7 +159,6 @@ export default function ProfilePage() {
       setEmployment(employmentData);
       setReviewUsername(profileData.reviewUsername);
       setUsernameCategory(avatarWorkType(profileData.avatarKey) ?? "OFFICE");
-      setAlwaysRandomizeIdentity(profileData.alwaysRandomizeIdentity);
       setAvatarKey(profileData.avatarKey);
       setAvatarGradient(profileData.avatarGradient);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
@@ -179,13 +177,12 @@ export default function ProfilePage() {
     setAvatarError(null);
     setAvatarStatus(null);
     try {
-      // Always send all four — avatarKey/avatarGradient/reviewUsername are
+      // Always send all three — avatarKey/avatarGradient/reviewUsername are
       // always set by the time this button is reachable (onboarding assigns
       // a starting reviewUsername automatically), so there's no reason to
       // make "did the value happen to be falsy" a factor in whether a field
-      // gets saved at all. alwaysRandomizeIdentity is a plain boolean, so it
-      // has no falsy-but-meaningful gap to worry about either.
-      await apiPatch("/me/profile", { reviewUsername, alwaysRandomizeIdentity, avatarKey, avatarGradient });
+      // gets saved at all.
+      await apiPatch("/me/profile", { reviewUsername, avatarKey, avatarGradient });
       await load();
       // The homepage header reads avatar/name from AuthContext's
       // onboardingStatus, not from this page's own `profile` state — without
@@ -484,14 +481,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {alwaysRandomizeIdentity && (
-              <p className="mb-4 rounded-lg border border-dashed border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-700 dark:border-brand-700 dark:bg-brand-950 dark:text-brand-300">
-                &quot;Randomize my avatar and username&quot; is on (see the checkbox below) — the avatar,
-                background, and username you pick here are saved to your account, but every review you post or
-                edit shows a made-up name and generic icon instead, until you turn that off.
-              </p>
-            )}
-
             <AvatarEditor
               avatarKey={avatarKey}
               avatarGradient={avatarGradient}
@@ -513,25 +502,10 @@ export default function ProfilePage() {
               maxHeightClassName="max-h-none"
               options={usernameOptions}
             />
-
-            <label className="mt-4 flex items-start gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={alwaysRandomizeIdentity}
-                onChange={(e) => setAlwaysRandomizeIdentity(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-brand-600"
-              />
-              <span>
-                Randomize my avatar and username on every review to protect my anonymity.
-                {alwaysRandomizeIdentity && (
-                  <span className="block text-xs text-muted-foreground">
-                    Every review you submit or edit from now on shows a one-off, made-up name and a generic icon
-                    instead of your usual avatar and username — you can still turn this off for a single review while
-                    writing it.
-                  </span>
-                )}
-              </span>
-            </label>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Want a one-off random name instead, for a single review? You can turn that on at the end of the review
+              itself, when you submit or edit it.
+            </p>
 
             <button
               onClick={saveCustomization}

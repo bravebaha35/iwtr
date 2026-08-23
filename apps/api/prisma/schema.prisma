@@ -128,15 +128,6 @@ model User {
   // note) — this fully replaced the old numeric memberNumber system, which
   // is why there's no separate "number" field anymore at all.
   reviewUsername  String?
-  // Account-wide anonymity preference, set from the Customize page. When
-  // true, ReviewsService.submitReview/updateReview OR this into the same
-  // per-review isRandomizedIdentity flag the review-submission checkbox
-  // already sets (see Review.isRandomizedIdentity below) — so every review
-  // from this point forward is randomized automatically, without the
-  // reviewer needing to remember to check the box each time. Deliberately
-  // NOT retroactive: it only affects reviews submitted/edited after it's
-  // turned on, the same way the per-review checkbox always has.
-  alwaysRandomizeIdentity Boolean @default(false)
   country         String?
   city            String?
   district        String?

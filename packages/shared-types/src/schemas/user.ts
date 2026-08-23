@@ -172,11 +172,6 @@ export const myProfileSchema = z.object({
   // below, validated server-side against ANONYMOUS_USERNAMES_BY_WORKPLACE_
   // TYPE (never free text) — see ProfileService.updateProfile.
   reviewUsername: z.string().nullable(),
-  // Account-wide "randomize my identity on every review" preference — see
-  // updateProfileInputSchema below. Distinct from a single review's own
-  // one-off isRandomizedIdentity flag (review.ts): this is the persistent
-  // setting, that's the per-review override.
-  alwaysRandomizeIdentity: z.boolean(),
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
   country: z.string().nullable(),
@@ -201,7 +196,6 @@ export const updateProfileInputSchema = z
     // free text, so there's no offensive-content/identifying-name risk the
     // way the old free-typed displayName needed moderation for.
     reviewUsername: z.string().min(1).optional(),
-    alwaysRandomizeIdentity: z.boolean().optional(),
     avatarKey: z.string().min(1).optional(),
     avatarGradient: z.string().min(1).optional(),
     country: z.string().min(1).optional(),
@@ -211,7 +205,6 @@ export const updateProfileInputSchema = z
   .refine(
     (v) =>
       v.reviewUsername !== undefined ||
-      v.alwaysRandomizeIdentity !== undefined ||
       v.avatarKey !== undefined ||
       v.avatarGradient !== undefined ||
       v.country !== undefined ||

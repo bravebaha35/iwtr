@@ -26,7 +26,6 @@ describe("ReviewsService.submitReview", () => {
           id: userId,
           status: "ACTIVE",
           createdAt: new Date(),
-          alwaysRandomizeIdentity: false,
         }),
       },
       employmentHistory: {
@@ -60,5 +59,55 @@ describe("ReviewsService.submitReview", () => {
       new ConflictException("You have already reviewed this company"),
     );
     expect(piiVault.purgeTcKimlikNoIfPresent).not.toHaveBeenCalled();
+  });
+
+  it("sets isRandomizedIdentity strictly from the per-review checkbox, with no account-level override", async () => {
+    const userId = "user-1";
+    const companyId = "company-1";
+    const employmentHistoryId = "emp-1";
+    const questions = getQuestionsFor("OFFICE");
+    const answers = questions.map((q) => ({ questionId: q.id, answer: q.correctAnswer }));
+
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: userId,
+          status: "ACTIVE",
+          createdAt: new Date(),
+        }),
+      },
+      employmentHistory: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: employmentHistoryId,
+          userId,
+          companyId,
+          company: { workplaceTypes: ["OFFICE"] },
+        }),
+      },
+      review: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "review-1" }),
+      },
+      moderationQueueItem: { create: jest.fn() },
+      companyAggregateScore: { upsert: jest.fn() },
+    };
+    const piiVault = { purgeTcKimlikNoIfPresent: jest.fn() };
+    const service = new ReviewsService(prisma as any, new ModerationService(), piiVault as any);
+
+    const input: CreateReviewInput = {
+      companyId,
+      employmentHistoryId,
+      workplaceType: "OFFICE",
+      answers,
+      generalThoughts: "",
+      isRandomizedIdentity: false,
+    };
+
+    await service.submitReview(userId, input);
+
+    expect(prisma.review.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ isRandomizedIdentity: false }) }),
+    );
   });
 });

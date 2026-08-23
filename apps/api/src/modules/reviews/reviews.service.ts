@@ -268,10 +268,7 @@ export class ReviewsService {
     // validated workplaceType (never a client-supplied category) — the same
     // "server derives it, never trusts the client for it" rule this method
     // already applies to workplaceType itself a few lines up.
-    // OR'd with the account-wide "always randomize" preference (Customize
-    // page) so a reviewer who's turned that on gets it applied automatically
-    // without needing to also check the per-review box every time.
-    const isRandomizedIdentity = (input.isRandomizedIdentity ?? false) || user.alwaysRandomizeIdentity;
+    const isRandomizedIdentity = input.isRandomizedIdentity ?? false;
     const displayUsername = isRandomizedIdentity ? pickRandomDisplayUsername(input.workplaceType) : null;
 
     let review;
@@ -469,8 +466,7 @@ export class ReviewsService {
     // review kept changing authors. Turning it off clears the override
     // entirely, reverting to the account's real avatarKey/avatarGradient/
     // reviewUsername (see listForCompany).
-    const isRandomizedIdentity =
-      (input.isRandomizedIdentity ?? review.isRandomizedIdentity) || user.alwaysRandomizeIdentity;
+    const isRandomizedIdentity = input.isRandomizedIdentity ?? review.isRandomizedIdentity;
     const displayUsername = isRandomizedIdentity
       ? (review.isRandomizedIdentity ? review.displayUsername : pickRandomDisplayUsername(review.workplaceType))
       : null;
