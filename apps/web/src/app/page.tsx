@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth-context";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
+import { IntroHeroSection } from "@/components/IntroHeroSection";
 
 export default function Home() {
   const { isLoading, isAuthenticated, onboardingStatus } = useAuth();
@@ -38,10 +39,22 @@ export default function Home() {
     }
   }
 
-  // No account, or fully onboarded — either way the homepage is the company
-  // browser. A logged-out visitor gets it read-only (no Rate button, voting
-  // disabled): GlobalHeader shows "Login/Register" (opens AuthModal, mounted
-  // globally in layout.tsx) instead of forcing an auth screen before they can
-  // see anything.
+  // No account: marketing hero (search/location preview, contributor CTA)
+  // above the same company browser everyone gets, read-only for a visitor
+  // (no Rate button, voting disabled) — GlobalHeader shows "Login/Register"
+  // (opens AuthModal, mounted globally in layout.tsx) instead of forcing an
+  // auth screen before they can see anything.
+  if (!isAuthenticated) {
+    return (
+      <>
+        <IntroHeroSection />
+        <div id="browse-workplaces">
+          <WorkplaceBrowser />
+        </div>
+      </>
+    );
+  }
+
+  // Fully onboarded — the homepage is just the company browser.
   return <WorkplaceBrowser />;
 }

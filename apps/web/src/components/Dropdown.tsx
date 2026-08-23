@@ -14,7 +14,7 @@ export interface DropdownOption {
 // enough for a search box to earn its space (e.g. the ~4-option Sort menu) —
 // above it (country/city lists running into the hundreds), typing to filter
 // beats scrolling with the mouse wheel.
-const SEARCH_THRESHOLD = 8;
+export const SEARCH_THRESHOLD = 8;
 
 /**
  * Generic single-select dropdown: a box showing the current selection (or a
@@ -188,6 +188,118 @@ export function SingleSelectDropdown({
                   <span className={fitContent ? "whitespace-nowrap" : "whitespace-normal break-words"}>{o.label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Generic multi-select dropdown: same closed-by-default box + overlay panel
+ * as SingleSelectDropdown, but ticking an option doesn't close the panel —
+ * it stays open so several options can be picked in one go (e.g. districts
+ * within a city), closing only on an outside click or Escape.
+ */
+export function MultiSelectDropdown({
+  values,
+  options,
+  placeholder,
+  onToggle,
+  maxHeightClassName = "max-h-64",
+  disabled = false,
+  searchable: searchableOverride,
+}: {
+  values: string[];
+  options: DropdownOption[];
+  placeholder: string;
+  onToggle: (value: string) => void;
+  maxHeightClassName?: string;
+  disabled?: boolean;
+  searchable?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const searchable = searchableOverride ?? options.length > SEARCH_THRESHOLD;
+  const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
+  const visibleOptions =
+    searchable && normalizedQuery
+      ? options.filter((o) => o.label.toLocaleLowerCase("tr-TR").includes(normalizedQuery))
+      : options;
+
+  function close() {
+    setOpen(false);
+    setQuery("");
+  }
+
+  const summary =
+    values.length === 0
+      ? placeholder
+      : values.length === 1
+        ? (options.find((o) => o.value === values[0])?.label ?? placeholder)
+        : `${values.length} selected`;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:border-border/50 disabled:bg-surface-muted disabled:text-muted-foreground disabled:opacity-60 disabled:hover:bg-surface-muted"
+      >
+        <span className={`min-w-0 truncate ${values.length > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+          {summary}
+        </span>
+        <span className={`shrink-0 text-[10px] text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}>
+          ▾
+        </span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[65]" onClick={close} />
+          <div
+            className="absolute left-0 z-[70] mt-1 w-max min-w-full max-w-72 rounded-lg border border-border bg-surface p-1 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {searchable && (
+              <input
+                type="search"
+                autoFocus
+                placeholder="Search..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="mb-1 w-full rounded-md border border-border bg-surface-muted px-2 py-1 text-xs text-foreground"
+              />
+            )}
+            <div className={`thin-scrollbar overflow-y-auto py-0.5 ${maxHeightClassName}`}>
+              {searchable && visibleOptions.length === 0 && (
+                <p className="px-2 py-1.5 text-xs text-muted-foreground">No matches.</p>
+              )}
+              {visibleOptions.map((o) => {
+                const checked = values.includes(o.value);
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => onToggle(o.value)}
+                    className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs ${
+                      checked ? "font-semibold text-brand-600 dark:text-brand-400" : "text-foreground hover:bg-surface-muted"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border text-[9px] leading-none ${
+                        checked ? "border-brand-600 bg-brand-600 text-white dark:border-brand-400 dark:bg-brand-400" : "border-border"
+                      }`}
+                    >
+                      {checked ? "✓" : ""}
+                    </span>
+                    {o.icon}
+                    <span className="whitespace-normal break-words">{o.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </>

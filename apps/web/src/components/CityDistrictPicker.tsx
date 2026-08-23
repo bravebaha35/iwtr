@@ -30,8 +30,11 @@ export function districtKey(province: string, district: string): string {
  * Kept deliberately plain (a scrollable list, not a custom slider/carousel
  * widget) — 81 provinces and ~970 districts don't compress into anything
  * fancier without hurting usability, so search + scroll is the whole design.
- * Multi-select: picking a province selects every workplace in it; picking a
- * specific district narrows to just that district.
+ * City is single-select (picking one replaces whichever was picked before —
+ * enforced by the parent's toggleCity, this component just calls it) and
+ * selects every workplace in that province; district stays multi-select,
+ * narrowing further to specific districts, including across other cities'
+ * individually-picked districts.
  */
 export function CityDistrictPicker({
   selectedCities,

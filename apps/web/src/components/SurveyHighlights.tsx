@@ -41,9 +41,9 @@ function QuestionRow({ q, showCategory = true }: { q: SurveyQuestionStats; showC
 }
 
 // Every category header shows by default; its questions are never inline —
-// clicking a topic opens a popup card floating to its right (not a
-// below-the-row dropdown), closed again either by clicking the topic a
-// second time or by clicking anywhere outside the popup.
+// clicking a topic opens a centered modal (not a below-the-row dropdown or
+// a side-anchored popup), closed via the top-right "X", the Escape key, or
+// clicking the backdrop.
 function CategorySection({
   category,
   questions,
@@ -55,8 +55,17 @@ function CategorySection({
   open: boolean;
   onToggle: () => void;
 }) {
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onToggle();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onToggle]);
+
   return (
-    <div className="relative border-t border-border pt-3 first:border-t-0 first:pt-0">
+    <div className="border-t border-border pt-3 first:border-t-0 first:pt-0">
       <button
         type="button"
         onClick={onToggle}
@@ -71,19 +80,31 @@ function CategorySection({
       </button>
 
       {open && (
-        <>
-          {/* Invisible full-screen backdrop — click anywhere outside the
-              popup to close it, same as a native popover's light-dismiss. */}
-          <button type="button" aria-label="Close" onClick={onToggle} className="fixed inset-0 z-10 cursor-default" />
-          <div className="absolute left-full top-0 z-20 ml-3 w-80 max-w-[90vw] rounded-xl border border-border bg-surface p-4 shadow-xl">
-            <h4 className="mb-3 text-sm font-semibold text-foreground">{CATEGORY_LABELS[category]}</h4>
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          {/* Backdrop — click anywhere outside the modal card to close it. */}
+          <button type="button" aria-label="Close" onClick={onToggle} className="absolute inset-0 cursor-default bg-black/40" />
+          <div className="relative z-10 w-80 max-w-[90vw] rounded-xl border border-border bg-surface p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-foreground">{CATEGORY_LABELS[category]}</h4>
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-label="Close"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
             <div className="flex max-h-96 flex-col gap-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {questions.map((q) => (
                 <QuestionRow key={q.questionId} q={q} showCategory={false} />
               ))}
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

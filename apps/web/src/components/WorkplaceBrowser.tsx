@@ -350,8 +350,10 @@ export function WorkplaceBrowser() {
     setWorkplaceTypes([]);
   }
 
+  // Single-select: picking a different city replaces whichever one was
+  // chosen before, rather than adding to a set of cities.
   function toggleCity(city: string) {
-    setSelectedCities((prev) => (prev.includes(city) ? prev.filter((v) => v !== city) : [...prev, city]));
+    setSelectedCities((prev) => (prev.includes(city) ? [] : [city]));
   }
 
   function toggleDistrict(key: string) {
@@ -372,7 +374,7 @@ export function WorkplaceBrowser() {
           <aside className="flex shrink-0 flex-col gap-6 sm:w-56">
             <div>
               <MultiFilterPillGroup
-                heading="Workplace"
+                heading="Work-Type"
                 options={WORKPLACE_TYPES}
                 selected={workplaceTypes}
                 onToggle={toggleWorkplaceType}

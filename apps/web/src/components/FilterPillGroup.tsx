@@ -86,6 +86,11 @@ export function MultiFilterPillGroup<T extends string>({
   onReset,
   direction = "wrap",
   pillColorClassName,
+  // Hides the heading/reset row entirely — for a consumer that just wants a
+  // bare, centered row of pills (e.g. a marketing hero preview) rather than
+  // the sidebar-style labeled filter group. Also centers the pill row itself
+  // in that case, since there's no heading to balance it against.
+  showHeading = true,
 }: {
   heading: string;
   options: { value: T; label: string }[];
@@ -103,19 +108,22 @@ export function MultiFilterPillGroup<T extends string>({
   // the shared default brand color. Omit to keep every other consumer's
   // plain look unchanged.
   pillColorClassName?: (value: T, active: boolean) => string;
+  showHeading?: boolean;
 }) {
   const layoutClassName =
     direction === "column"
       ? "flex flex-row flex-wrap gap-1.5 sm:flex-col"
       : direction === "grid"
         ? "grid grid-cols-2 gap-1.5"
-        : "flex flex-wrap gap-1.5";
+        : `flex flex-wrap gap-1.5${showHeading ? "" : " justify-center"}`;
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
-        <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} />
-      </div>
+      {showHeading && (
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
+          <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} />
+        </div>
+      )}
       <div className={layoutClassName}>
         {options.map((o) => {
           const active = selected.includes(o.value);
