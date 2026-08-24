@@ -40,6 +40,18 @@ const DEMO_COMPANIES: AdminCreateCompanyInput[] = [
   // has something real to show.
   { name: "Placeholder Sağlık Hizmetleri", category: "Healthcare", workplaceTypes: ["SERVICE", "OFFICE"], city: "İstanbul", district: "Beşiktaş" },
   { name: "Numune Eğitim Kurumları", category: "Education", workplaceTypes: ["OFFICE"], city: "Ankara", district: "Yenimahalle" },
+  // Spread further west/south/east/inland so the browse map isn't
+  // İstanbul/Ankara/İzmir-only — one demo company per province below.
+  { name: "Örnek Turizm ve Otelcilik", category: "Tourism", workplaceTypes: ["SERVICE"], city: "Antalya", district: "Muratpaşa" },
+  { name: "Numune Tekstil Sanayi", category: "Textile", workplaceTypes: ["MANUAL_LABOUR"], city: "Gaziantep", district: "Şehitkamil" },
+  { name: "Demo Liman İşletmeleri", category: "Logistics", workplaceTypes: ["MANUAL_LABOUR"], city: "Trabzon", district: "Ortahisar" },
+  { name: "Test Otomotiv Yedek Parça", category: "Automotive", workplaceTypes: ["OFFICE"], city: "Konya", district: "Selçuklu" },
+  { name: "Placeholder Havacılık Mühendislik", category: "Aerospace", workplaceTypes: ["HYBRID_REMOTE"], city: "Eskişehir", district: "Odunpazarı" },
+  { name: "Örnek Tarım Ürünleri", category: "Agriculture", workplaceTypes: ["SERVICE"], city: "Adana", district: "Seyhan" },
+  { name: "Numune Mobilya Üretim", category: "Manufacturing", workplaceTypes: ["MANUAL_LABOUR"], city: "Kayseri", district: "Melikgazi" },
+  { name: "Demo Enerji Dağıtım", category: "Energy", workplaceTypes: ["OFFICE"], city: "Diyarbakır", district: "Kayapınar" },
+  { name: "Test Balıkçılık ve Gıda", category: "Food & Beverage", workplaceTypes: ["SERVICE"], city: "Samsun", district: "İlkadım" },
+  { name: "Placeholder Kimya Sanayi", category: "Chemical", workplaceTypes: ["MANUAL_LABOUR"], city: "Mersin", district: "Akdeniz" },
 ];
 
 async function main() {

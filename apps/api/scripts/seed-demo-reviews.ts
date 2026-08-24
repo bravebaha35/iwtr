@@ -167,6 +167,76 @@ const DEMO_REVIEWS: DemoReview[] = [
     missCounts: { corporateCulture: 2, leadership: 1, infrastructure: 0, workLifeBalance: 1, stability: 2 },
     generalThoughts: "Sample review content for design purposes — back-office side is much calmer than the floor.",
   },
+  {
+    companyName: "Örnek Turizm ve Otelcilik",
+    workplaceType: "SERVICE",
+    reviewerEmail: "demo-reviewer-12@iwtr.local",
+    missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 1, workLifeBalance: 3, stability: 2 },
+    generalThoughts: "Sample review content for design purposes — busy season is rough but tips help.",
+  },
+  {
+    companyName: "Numune Tekstil Sanayi",
+    workplaceType: "MANUAL_LABOUR",
+    reviewerEmail: "demo-reviewer-13@iwtr.local",
+    missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 3, workLifeBalance: 2, stability: 1 },
+    generalThoughts: "Sample review content for design purposes — factory floor is loud, management is fair.",
+  },
+  {
+    companyName: "Demo Liman İşletmeleri",
+    workplaceType: "MANUAL_LABOUR",
+    reviewerEmail: "demo-reviewer-14@iwtr.local",
+    missCounts: { corporateCulture: 1, leadership: 2, infrastructure: 1, workLifeBalance: 2, stability: 0 },
+    generalThoughts: "Sample review content for design purposes — steady shifts, decent equipment.",
+  },
+  {
+    companyName: "Test Otomotiv Yedek Parça",
+    workplaceType: "OFFICE",
+    reviewerEmail: "demo-reviewer-15@iwtr.local",
+    missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 0, workLifeBalance: 1, stability: 1 },
+    generalThoughts: "Sample review content for design purposes — solid mid-size company, predictable hours.",
+  },
+  {
+    companyName: "Placeholder Havacılık Mühendislik",
+    workplaceType: "HYBRID_REMOTE",
+    reviewerEmail: "demo-reviewer-16@iwtr.local",
+    missCounts: { corporateCulture: 0, leadership: 1, infrastructure: 0, workLifeBalance: 1, stability: 1 },
+    generalThoughts: "Sample review content for design purposes — engineering-heavy culture, good tooling.",
+  },
+  {
+    companyName: "Örnek Tarım Ürünleri",
+    workplaceType: "SERVICE",
+    reviewerEmail: "demo-reviewer-17@iwtr.local",
+    missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 2, workLifeBalance: 2, stability: 3 },
+    generalThoughts: "Sample review content for design purposes — seasonal work, pay is inconsistent.",
+  },
+  {
+    companyName: "Numune Mobilya Üretim",
+    workplaceType: "MANUAL_LABOUR",
+    reviewerEmail: "demo-reviewer-18@iwtr.local",
+    missCounts: { corporateCulture: 1, leadership: 1, infrastructure: 1, workLifeBalance: 1, stability: 0 },
+    generalThoughts: "Sample review content for design purposes — well-run workshop, safety takes seriously.",
+  },
+  {
+    companyName: "Demo Enerji Dağıtım",
+    workplaceType: "OFFICE",
+    reviewerEmail: "demo-reviewer-19@iwtr.local",
+    missCounts: { corporateCulture: 0, leadership: 0, infrastructure: 1, workLifeBalance: 1, stability: 0 },
+    generalThoughts: "Sample review content for design purposes — big stable employer, slow to change.",
+  },
+  {
+    companyName: "Test Balıkçılık ve Gıda",
+    workplaceType: "SERVICE",
+    reviewerEmail: "demo-reviewer-20@iwtr.local",
+    missCounts: { corporateCulture: 2, leadership: 2, infrastructure: 3, workLifeBalance: 2, stability: 2 },
+    generalThoughts: "Sample review content for design purposes — early mornings, coworkers make it worth it.",
+  },
+  {
+    companyName: "Placeholder Kimya Sanayi",
+    workplaceType: "MANUAL_LABOUR",
+    reviewerEmail: "demo-reviewer-21@iwtr.local",
+    missCounts: { corporateCulture: 2, leadership: 3, infrastructure: 2, workLifeBalance: 2, stability: 1 },
+    generalThoughts: "Sample review content for design purposes — safety protocols are strict, which is a good thing.",
+  },
 ];
 
 function oppositeAnswer(correct: "YES" | "NO"): "YES" | "NO" {
@@ -260,6 +330,7 @@ async function main() {
         employmentHistoryId: employment.id,
         workplaceType: demo.workplaceType,
         answers,
+        isRandomizedIdentity: false,
         generalThoughts: demo.generalThoughts,
       });
       console.log(`  ${demo.companyName}: ${result.status} (${demo.reviewerEmail})`);

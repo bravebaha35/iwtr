@@ -369,7 +369,7 @@ export function WorkplaceBrowser() {
     <div className="flex w-full items-start justify-center gap-6 px-4 py-8">
       <AdSlot />
 
-      <div className="w-full max-w-7xl">
+      <div className="w-full max-w-[1600px]">
         <div className="flex flex-col gap-6 sm:flex-row">
           <aside className="flex shrink-0 flex-col gap-6 sm:w-56">
             <div>
@@ -530,7 +530,7 @@ export function WorkplaceBrowser() {
             {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
               <p className="text-sm text-muted-foreground">No workplaces match these filters yet.</p>
             )}
-            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 compact:lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 compact:lg:grid-cols-4 compact:xl:grid-cols-5">
               {pageCompanies?.map((c) => (
                 <CompanyCard key={c.id} company={c} />
               ))}
