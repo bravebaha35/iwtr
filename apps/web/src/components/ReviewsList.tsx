@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { PublicReview, VoteValue, WorkplaceType } from "@iwtr/shared-types";
+import type { CompanyReply, PublicReview, VoteValue, WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
-import { apiGet, apiPost, ApiError } from "@/lib/api-client";
+import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { workplaceTypeLabel, WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarBorderClass, collarPillClassName } from "@/lib/collarColors";
 import { Avatar } from "@/components/Avatar";
@@ -20,6 +20,8 @@ const CATEGORY_FIELDS: { score: keyof PublicReview; label: string }[] = [
 export function ReviewsList({
   companySlug,
   workplaceTypes,
+  companyName,
+  canReply = false,
 }: {
   companySlug: string;
   // The company's own (up to 2) workplace-type tags, passed down from the
@@ -27,6 +29,14 @@ export function ReviewsList({
   // the review list. Optional so existing callers that predate this filter
   // still compile; the tabs simply don't render without it.
   workplaceTypes?: WorkplaceType[];
+  // Used only to label a company's reply ("Response from {companyName}") —
+  // falls back to a generic label when omitted.
+  companyName?: string;
+  // True only when rendered for the company's own approved owner (see
+  // apps/web/src/app/my/companies/page.tsx) — lets them post/edit the one
+  // public reply a review can have. Everyone else sees an existing reply
+  // read-only; false renders exactly the old public-page behavior.
+  canReply?: boolean;
 }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
@@ -39,6 +49,12 @@ export function ReviewsList({
   const [votingId, setVotingId] = useState<string | null>(null);
   // null = "All" collar tab selected (no filtering).
   const [activeCollar, setActiveCollar] = useState<WorkplaceType | null>(null);
+  // Which review's reply composer is open (post-new or edit-existing) — at
+  // most one at a time, keyed by reviewId.
+  const [replyDraftFor, setReplyDraftFor] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [replySubmitting, setReplySubmitting] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoadFailed(false);
@@ -75,6 +91,28 @@ export function ReviewsList({
     },
     [isAuthenticated, reviews],
   );
+
+  function openReplyComposer(review: PublicReview) {
+    setReplyError(null);
+    setReplyText(review.reply?.content ?? "");
+    setReplyDraftFor(review.id);
+  }
+
+  async function submitReply(reviewId: string, isEdit: boolean) {
+    setReplyError(null);
+    setReplySubmitting(true);
+    try {
+      const reply = isEdit
+        ? await apiPatch<CompanyReply>(`/reviews/${reviewId}/reply`, { content: replyText })
+        : await apiPost<CompanyReply>(`/reviews/${reviewId}/reply`, { content: replyText });
+      setReviews((prev) => (prev ?? []).map((r) => (r.id === reviewId ? { ...r, reply } : r)));
+      setReplyDraftFor(null);
+    } catch (err) {
+      setReplyError(err instanceof ApiError ? err.message : "Couldn't post that reply.");
+    } finally {
+      setReplySubmitting(false);
+    }
+  }
 
   if (reviews === null) {
     return <p className="text-sm text-muted-foreground">Loading reviews...</p>;
@@ -189,7 +227,65 @@ export function ReviewsList({
             >
               Not helpful ({review.dislikeCount})
             </button>
+            {canReply && !review.reply && replyDraftFor !== review.id && (
+              <button
+                type="button"
+                onClick={() => openReplyComposer(review)}
+                className="ml-auto text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+              >
+                Reply as {companyName ?? "the company"}
+              </button>
+            )}
           </div>
+
+          {review.reply && replyDraftFor !== review.id && (
+            <div className="mt-3 rounded-lg bg-surface-muted p-3 text-sm">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-foreground">Response from {companyName ?? "the employer"}</p>
+                {canReply && (
+                  <button
+                    type="button"
+                    onClick={() => openReplyComposer(review)}
+                    className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+              <p className="text-muted-foreground">{review.reply.content}</p>
+            </div>
+          )}
+
+          {canReply && replyDraftFor === review.id && (
+            <div className="mt-3 rounded-lg border border-border bg-surface-muted p-3">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                maxLength={2000}
+                rows={3}
+                placeholder={`Reply as ${companyName ?? "the company"} — this is public, everyone sees it.`}
+                className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-foreground"
+              />
+              {replyError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{replyError}</p>}
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={replySubmitting || replyText.trim().length === 0}
+                  onClick={() => submitReply(review.id, review.reply !== null)}
+                  className="rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {replySubmitting ? "Posting..." : review.reply ? "Save" : "Post reply"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReplyDraftFor(null)}
+                  className="text-xs font-medium text-muted-foreground hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>

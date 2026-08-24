@@ -142,7 +142,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             the actual review text people are here to read, so it gets the
             most room. */}
         <div className="mt-8">
-          <ReviewsList companySlug={slug} workplaceTypes={company.workplaceTypes} />
+          <ReviewsList companySlug={slug} workplaceTypes={company.workplaceTypes} companyName={company.name} />
         </div>
 
         <div className="mt-8">

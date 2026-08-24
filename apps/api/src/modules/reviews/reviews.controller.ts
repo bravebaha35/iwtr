@@ -15,12 +15,14 @@ import {
   addEmploymentHistoryInputSchema,
   castVoteInputSchema,
   createReviewInputSchema,
+  replyToReviewInputSchema,
   updateEmploymentHistoryInputSchema,
   updateReviewInputSchema,
   workplaceTypeSchema,
   type AddEmploymentHistoryInput,
   type CastVoteInput,
   type CreateReviewInput,
+  type ReplyToReviewInput,
   type UpdateEmploymentHistoryInput,
   type UpdateReviewInput,
 } from "@iwtr/shared-types";
@@ -39,6 +41,11 @@ export class ReviewsController {
   @Get("me/employment-history")
   myEmploymentHistory(@CurrentUser() user: AuthenticatedUser) {
     return this.reviews.myEmploymentHistory(user.id);
+  }
+
+  @Get("me/reviews")
+  listMyReviews(@CurrentUser() user: AuthenticatedUser) {
+    return this.reviews.listMine(user.id);
   }
 
   @Post("me/employment-history")
@@ -117,5 +124,27 @@ export class ReviewsController {
     @Body(new ZodValidationPipe(castVoteInputSchema.omit({ reviewId: true }))) body: Omit<CastVoteInput, "reviewId">,
   ) {
     return this.reviews.castVote(user.id, { reviewId: id, value: body.value });
+  }
+
+  // A company owner posting/editing their one public reply is a low-rate
+  // action same as reviewing — no need for vote's higher throttle tier.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post("reviews/:id/reply")
+  replyToReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(replyToReviewInputSchema)) body: ReplyToReviewInput,
+  ) {
+    return this.reviews.replyToReview(user.id, id, body);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Patch("reviews/:id/reply")
+  updateReply(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(replyToReviewInputSchema)) body: ReplyToReviewInput,
+  ) {
+    return this.reviews.updateReply(user.id, id, body);
   }
 }

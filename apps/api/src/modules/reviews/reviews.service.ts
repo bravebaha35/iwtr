@@ -13,11 +13,14 @@ import {
   type CastVoteInput,
   type CastVoteResult,
   type CategoryScores,
+  type CompanyReply,
   type CompanySurveyStats,
   type CreateReviewInput,
   type MyEmploymentEntry,
   type MyReview,
+  type MyReviewListItem,
   type PublicReview,
+  type ReplyToReviewInput,
   type SubmitReviewResult,
   type SurveyAnswer,
   type SurveyResponse,
@@ -36,6 +39,10 @@ const MID_THRESHOLD = 0.5;
 
 function toDateOnly(d: Date | null): string | null {
   return d ? d.toISOString().slice(0, 10) : null;
+}
+
+function toPublicReply(r: { id: string; content: string; createdAt: Date } | undefined): CompanyReply | null {
+  return r ? { id: r.id, content: r.content, createdAt: r.createdAt.toISOString() } : null;
 }
 
 // Distinct-company-count thresholds for the CONTRIBUTOR/TOP_CONTRIBUTOR
@@ -602,6 +609,13 @@ export class ReviewsService {
       (row.value === 1 ? likeByReview : dislikeByReview).set(row.reviewId, row._count._all);
     }
 
+    // At most one per review (CompanyReply.reviewId is @unique) — see
+    // replyToReview.
+    const replies = await this.prisma.companyReply.findMany({
+      where: { reviewId: { in: reviews.map((r) => r.id) } },
+    });
+    const replyByReview = new Map(replies.map((r) => [r.reviewId, r]));
+
     // Contributor badge: derived from how many distinct companies each
     // review's author has PUBLISHED elsewhere — a trust signal for readers,
     // computed without ever exposing who the author is. One batched query
@@ -652,6 +666,7 @@ export class ReviewsService {
       dislikeCount: dislikeByReview.get(r.id) ?? 0,
       myVote: viewerUserId ? ((r.votes?.[0]?.value as 1 | -1 | undefined) ?? null) : null,
       contributorBadge: contributorBadge(r.userId),
+      reply: toPublicReply(replyByReview.get(r.id)),
       // A review submitted/edited with "randomize my identity" on displays a
       // fixed generic avatar and its own one-off displayUsername instead of
       // the author's real avatarKey/avatarGradient/reviewUsername — this is
@@ -791,5 +806,136 @@ export class ReviewsService {
       dislikeCount,
       myVote: (myVote?.value as 1 | -1 | undefined) ?? null,
     };
+  }
+
+  /**
+   * The "My Ratings" page — every review the caller has ever submitted,
+   * newest first, including non-published ones (same reasoning as
+   * getMyReview: this is never shown to anyone but the author).
+   */
+  async listMine(userId: string): Promise<MyReviewListItem[]> {
+    const reviews = await this.prisma.review.findMany({
+      where: { userId },
+      include: { company: { select: { name: true, slug: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    const reviewIds = reviews.map((r) => r.id);
+
+    const [voteCounts, replies] = await Promise.all([
+      this.prisma.reviewVote.groupBy({
+        by: ["reviewId", "value"],
+        where: { reviewId: { in: reviewIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.companyReply.findMany({ where: { reviewId: { in: reviewIds } } }),
+    ]);
+    const likeByReview = new Map<string, number>();
+    const dislikeByReview = new Map<string, number>();
+    for (const row of voteCounts) {
+      (row.value === 1 ? likeByReview : dislikeByReview).set(row.reviewId, row._count._all);
+    }
+    const replyByReview = new Map(replies.map((r) => [r.reviewId, r]));
+
+    return reviews.map((r) => ({
+      id: r.id,
+      companyId: r.companyId,
+      companyName: r.company?.name ?? "",
+      companySlug: r.company?.slug ?? null,
+      workplaceType: r.workplaceType,
+      corporateCultureScore: r.corporateCultureScore,
+      leadershipScore: r.leadershipScore,
+      infrastructureScore: r.infrastructureScore,
+      workLifeBalanceScore: r.workLifeBalanceScore,
+      stabilityScore: r.stabilityScore,
+      surveyAnswers: r.surveyAnswers as Record<string, SurveyAnswer>,
+      generalThoughts: r.generalThoughts,
+      status: r.status,
+      isRandomizedIdentity: r.isRandomizedIdentity,
+      displayUsername: r.displayUsername,
+      createdAt: r.createdAt.toISOString(),
+      publishedAt: r.publishedAt?.toISOString() ?? null,
+      likeCount: likeByReview.get(r.id) ?? 0,
+      dislikeCount: dislikeByReview.get(r.id) ?? 0,
+      reply: toPublicReply(replyByReview.get(r.id)),
+    }));
+  }
+
+  /**
+   * Same ownership check owner.service.ts's requireApprovedOwnership does —
+   * duplicated rather than imported across module boundaries (see this
+   * project's module-per-feature layout in CLAUDE.md), since it's a 3-line
+   * query and reviews.service.ts otherwise has no reason to depend on the
+   * owner module.
+   */
+  private async requireApprovedCompanyOwnership(userId: string, companyId: string): Promise<void> {
+    const ownership = await this.prisma.companyOwner.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+    });
+    if (!ownership || ownership.claimStatus !== "APPROVED") {
+      throw new ForbiddenException("You don't have an approved claim on this company");
+    }
+  }
+
+  /**
+   * A company's one public reply to a review — see CompanyReply in
+   * schema.prisma for why this is public rather than a DM to the reviewer,
+   * and why it's run through the same content-moderation check reviews get:
+   * the one real risk is a reply trying to name or out the anonymous
+   * reviewer, which checkContent's name-pattern rule catches same as it does
+   * for review text.
+   */
+  async replyToReview(userId: string, reviewId: string, input: ReplyToReviewInput): Promise<CompanyReply> {
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review || review.status !== "PUBLISHED") {
+      throw new NotFoundException("Review not found");
+    }
+    await this.requireApprovedCompanyOwnership(userId, review.companyId);
+
+    const contentCheck = this.moderation.checkContent([input.content]);
+    if (contentCheck.violates) {
+      throw new BadRequestException({
+        message: `Your reply couldn't be published: ${contentCheck.violationTypes.join(", ")}. Please remove any names or identifying details and try again.`,
+        violationTypes: contentCheck.violationTypes,
+      });
+    }
+
+    try {
+      const created = await this.prisma.companyReply.create({
+        data: { reviewId, companyId: review.companyId, authorUserId: userId, content: input.content },
+      });
+      return toPublicReply(created)!;
+    } catch (err) {
+      // Same benign-race pattern as submitReview/castVote — reviewId is
+      // @unique on CompanyReply, so a double-submit just means the loser
+      // should be told to edit the reply that already landed.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new ConflictException("This review already has a reply — edit it instead of posting a new one");
+      }
+      throw err;
+    }
+  }
+
+  async updateReply(userId: string, reviewId: string, input: ReplyToReviewInput): Promise<CompanyReply> {
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review) {
+      throw new NotFoundException("Review not found");
+    }
+    await this.requireApprovedCompanyOwnership(userId, review.companyId);
+
+    const existing = await this.prisma.companyReply.findUnique({ where: { reviewId } });
+    if (!existing) {
+      throw new NotFoundException("No reply to edit yet — post one first");
+    }
+
+    const contentCheck = this.moderation.checkContent([input.content]);
+    if (contentCheck.violates) {
+      throw new BadRequestException({
+        message: `Your reply couldn't be published: ${contentCheck.violationTypes.join(", ")}. Please remove any names or identifying details and try again.`,
+        violationTypes: contentCheck.violationTypes,
+      });
+    }
+
+    const updated = await this.prisma.companyReply.update({ where: { reviewId }, data: { content: input.content } });
+    return toPublicReply(updated)!;
   }
 }

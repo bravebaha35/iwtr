@@ -590,7 +590,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           {box3Error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{box3Error}</p>}
         </DashboardBox>
 
-        {/* Right, bottom: reviews & ratings (read-only) */}
+        {/* Right, bottom: reviews & ratings — owner can post one public
+            reply per review here (ReviewsList's canReply), everything else
+            about the review itself is still read-only. */}
         <DashboardBox title="Reviews & Ratings">
           {detail?.aggregate && detail.aggregate.reviewCount > 0 ? (
             <p className="mb-3 text-sm text-foreground">
@@ -602,7 +604,12 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             <p className="mb-3 text-sm text-muted-foreground">No reviews yet.</p>
           )}
           <div className="max-h-80 overflow-y-auto thin-scrollbar">
-            <ReviewsList companySlug={claim.companySlug} workplaceTypes={detail?.company.workplaceTypes} />
+            <ReviewsList
+              companySlug={claim.companySlug}
+              workplaceTypes={detail?.company.workplaceTypes}
+              companyName={detail?.company.name ?? claim.companyName}
+              canReply
+            />
           </div>
         </DashboardBox>
       </div>

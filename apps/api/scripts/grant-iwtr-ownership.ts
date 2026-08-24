@@ -1,3 +1,5 @@
+import { existsSync, copyFileSync, mkdirSync } from "fs";
+import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { slugify } from "../src/modules/companies/slugify.util";
 
@@ -11,6 +13,24 @@ async function main() {
   if (!user) {
     throw new Error(`No registered user found with email ${email}. Register the account first.`);
   }
+
+  // Served straight from apps/api's own /uploads static route, same as a
+  // real owner-uploaded logo — this file is just the site's own logo.svg
+  // copied in ahead of time, not routed through the multipart upload
+  // endpoint since there's no browser session driving this script.
+  // apps/api/uploads/ is gitignored (same as every other owner-uploaded
+  // logo), so the copy has to happen here on every run rather than being a
+  // one-off file committed to the repo — otherwise a fresh clone would set
+  // mainPhotoUrl to a file that was never actually created.
+  const logoDir = join(__dirname, "..", "uploads", "company-logos");
+  const logoDest = join(logoDir, "iworkedthere.svg");
+  if (!existsSync(logoDest)) {
+    mkdirSync(logoDir, { recursive: true });
+    copyFileSync(join(__dirname, "..", "..", "web", "public", "logo.svg"), logoDest);
+  }
+
+  const API_ORIGIN = process.env.API_PUBLIC_ORIGIN ?? "http://localhost:3001";
+  const mainPhotoUrl = `${API_ORIGIN}/uploads/company-logos/iworkedthere.svg`;
 
   let company = await prisma.company.findFirst({
     where: { name: { equals: companyName, mode: "insensitive" } },
@@ -31,10 +51,14 @@ async function main() {
         category: "OTHER",
         workplaceTypes: ["OFFICE"],
         createdByAdminId: user.id,
+        mainPhotoUrl,
       },
     });
     console.log(`Created company "${company.name}" (slug: ${company.slug})`);
   } else {
+    if (company.mainPhotoUrl !== mainPhotoUrl) {
+      company = await prisma.company.update({ where: { id: company.id }, data: { mainPhotoUrl } });
+    }
     console.log(`Company "${company.name}" already exists (slug: ${company.slug})`);
   }
 

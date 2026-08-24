@@ -409,7 +409,7 @@ export function WorkplaceBrowser() {
                   half outside the box on the left and the rightmost one half
                   outside on the right, so the two ends anchor inward instead
                   and only the middle tick stays centered. */}
-              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-3 py-3 select-none overflow-hidden">
+              <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none overflow-hidden">
                 <div className="relative pt-7">
                   {RATING_TICKS.map((tick) => (
                     <span

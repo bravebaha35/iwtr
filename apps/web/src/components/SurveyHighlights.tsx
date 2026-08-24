@@ -83,7 +83,7 @@ function CategorySection({
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
           {/* Backdrop — click anywhere outside the modal card to close it. */}
           <button type="button" aria-label="Close" onClick={onToggle} className="absolute inset-0 cursor-default bg-black/40" />
-          <div className="relative z-10 w-80 max-w-[90vw] rounded-xl border border-border bg-surface p-4 shadow-xl">
+          <div className="relative z-10 w-[40rem] max-w-[90vw] rounded-xl border border-border bg-surface p-4 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-foreground">{CATEGORY_LABELS[category]}</h4>
               <button
@@ -98,7 +98,7 @@ function CategorySection({
                 </svg>
               </button>
             </div>
-            <div className="flex max-h-96 flex-col gap-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex max-h-[80vh] flex-col gap-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {questions.map((q) => (
                 <QuestionRow key={q.questionId} q={q} showCategory={false} />
               ))}

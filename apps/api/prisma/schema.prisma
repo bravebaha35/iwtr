@@ -152,6 +152,7 @@ model User {
   employmentHistory  EmploymentHistory[]
   reviews            Review[]
   reviewVotes        ReviewVote[]
+  companyReplies     CompanyReply[]
   refreshTokens      RefreshToken[]
   auditLogEntries    AuditLog[]
   companyOwnerships  CompanyOwner[]
@@ -264,6 +265,7 @@ model Company {
   owners              CompanyOwner[]
   aggregate           CompanyAggregateScore?
   ownerContactMessages OwnerContactMessage[]
+  replies             CompanyReply[]
 
   // name: helps the case-insensitive exact-match duplicate check
   // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
@@ -363,6 +365,7 @@ model Review {
 
   votes ReviewVote[]
   moderationQueueItem ModerationQueueItem?
+  companyReply CompanyReply?
 
   // The @@unique below already indexes userId as its leading column, which
   // covers userId-alone lookups (e.g. counting a reviewer's prior published
@@ -384,6 +387,35 @@ model ReviewVote {
   createdAt DateTime @default(now())
 
   @@unique([reviewId, userId])
+  @@schema("public")
+}
+
+// A company's single public response to one of its reviews — always visible
+// to everyone alongside the review, never a private message to the reviewer
+// (see the "no reply/messaging path back to reviewers" note on Review above:
+// a PUBLIC reply doesn't reopen that path, since the company still never
+// learns who the reviewer is — it's replying to the review's content, not
+// contacting a person). One reply per review (@@unique([reviewId]), not a
+// thread) — checked through the same ModerationService.checkContent
+// profanity/name-pattern pipeline reviews use before it's ever persisted,
+// since the one real risk here is a reply trying to name or out the
+// reviewer. authorUserId is kept for audit only and is never exposed on the
+// public read shape (see ReviewsService.listForCompany) — a reply is
+// attributed to the company, not to whichever individual owner account wrote
+// it.
+model CompanyReply {
+  id           String   @id @default(uuid())
+  reviewId     String   @unique
+  review       Review   @relation(fields: [reviewId], references: [id])
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  authorUserId String
+  authorUser   User     @relation(fields: [authorUserId], references: [id])
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
   @@schema("public")
 }
 

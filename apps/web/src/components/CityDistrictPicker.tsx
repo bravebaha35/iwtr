@@ -204,30 +204,22 @@ export function CityDistrictPicker({
                 <div className="ml-5 mt-0.5 flex flex-wrap gap-1">
                   {matchingDistricts.map((d) => {
                     const key = districtKey(p.name, d);
-                    // Selecting the whole city lights up every one of its
-                    // districts too (the API already matches every district
-                    // when the parent city is selected — see
-                    // companies.service.ts) — and since this is derived from
-                    // selectedCities rather than stored per-district,
-                    // deselecting the city un-lights them all again with no
-                    // extra bookkeeping.
-                    const active = selectedDistrictKeys.includes(key) || wholeCitySelected;
-                    // Clicking a district that's only lit because the whole
-                    // city is selected carves it out: drop the coarse city
-                    // flag and individually re-select every OTHER district,
-                    // so the net effect is "this city, minus the one just
-                    // clicked" rather than an all-or-nothing city toggle.
-                    // Once the city is no longer selected wholesale, this is
-                    // just the normal single-district toggle.
+                    // Picking a city shows every company in it (still true —
+                    // see companies.service.ts) but no longer visually
+                    // pre-selects every district pill; district stays an
+                    // explicit opt-in narrowing, not an implied "everything's
+                    // already chosen" state.
+                    const active = selectedDistrictKeys.includes(key);
+                    // Clicking a district while the whole city is selected
+                    // narrows straight to just that one: drop the coarse city
+                    // flag and select only the clicked district (not "every
+                    // other one" — the city pill no longer implied they were
+                    // all individually chosen). Once the city is no longer
+                    // selected wholesale, this is just the normal
+                    // single-district toggle.
                     function handleClick() {
-                      if (wholeCitySelected) {
-                        onToggleCity(p.name);
-                        p.districts
-                          .filter((other) => other !== d)
-                          .forEach((other) => onToggleDistrict(districtKey(p.name, other)));
-                      } else {
-                        onToggleDistrict(key);
-                      }
+                      if (wholeCitySelected) onToggleCity(p.name);
+                      onToggleDistrict(key);
                     }
                     return (
                       <button

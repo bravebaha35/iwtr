@@ -159,6 +159,23 @@ export const updateReviewInputSchema = createReviewInputSchema.omit({
 });
 export type UpdateReviewInput = z.infer<typeof updateReviewInputSchema>;
 
+// A company's single public response to one of its reviews — see
+// CompanyReply in apps/api/prisma/schema.prisma for why this is public
+// (not a DM to the reviewer) and capped at one per review. Deliberately no
+// author field: a reply is attributed to the company, not to whichever
+// individual owner account wrote it.
+export const companyReplySchema = z.object({
+  id: z.string().uuid(),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+});
+export type CompanyReply = z.infer<typeof companyReplySchema>;
+
+export const replyToReviewInputSchema = z.object({
+  content: z.string().min(1).max(2000),
+});
+export type ReplyToReviewInput = z.infer<typeof replyToReviewInputSchema>;
+
 // What's ever returned publicly for a review — no userId, no employment history
 // details beyond what's needed, nothing that could re-identify the reviewer.
 export const publicReviewSchema = z.object({
@@ -184,6 +201,9 @@ export const publicReviewSchema = z.object({
   // (anonymous) author has published reviews for elsewhere — never reveals
   // who the author is, just a contribution tier.
   contributorBadge: z.enum(["CONTRIBUTOR", "TOP_CONTRIBUTOR"]).nullable(),
+  // Null until the company posts its one public response — see
+  // companyReplySchema above.
+  reply: companyReplySchema.nullable(),
   // The author's own self-chosen anonymous avatar (see REVIEW.md rule #8 —
   // an explicit, deliberate exception, not an oversight: the product owner
   // accepted that the same avatar repeating across a reviewer's other
@@ -280,6 +300,21 @@ export const myReviewSchema = z.object({
   displayUsername: z.string().nullable(),
 });
 export type MyReview = z.infer<typeof myReviewSchema>;
+
+// One row of the "My Ratings" page (GET /me/reviews) — same as MyReview plus
+// the company context and vote/reply counts that page's list view needs,
+// none of which the single-review edit-form fetch (myReviewSchema) cares
+// about.
+export const myReviewListItemSchema = myReviewSchema.extend({
+  companyName: z.string(),
+  companySlug: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  publishedAt: z.string().datetime().nullable(),
+  likeCount: z.number().int().min(0),
+  dislikeCount: z.number().int().min(0),
+  reply: companyReplySchema.nullable(),
+});
+export type MyReviewListItem = z.infer<typeof myReviewListItemSchema>;
 
 // Adding a post-onboarding employment entry from the account-settings page —
 // unlike onboarding's free-text rawCompanyName, this always references a real

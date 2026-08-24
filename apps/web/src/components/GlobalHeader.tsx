@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -7,6 +8,50 @@ import { Logo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
 import { avatarLabel } from "@/lib/avatars";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationsMenu } from "@/components/NotificationsMenu";
+
+// Icon + label nav item, the shape every slot in the header's main nav group
+// uses (Home, Dashboard/My Ratings, Job, IWT Social — Notifications is its
+// own component since it also owns a dropdown). `disabled` is for Job/IWT
+// Social: present and visible, but inert until those features exist.
+function NavIconLink({
+  href,
+  label,
+  title,
+  disabled,
+  children,
+}: {
+  href: string;
+  label: string;
+  title?: string;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  const className =
+    "flex flex-col items-center gap-1 rounded-lg px-2 py-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground";
+  const inner = (
+    <>
+      <span className="flex h-8 w-8 items-center justify-center">{children}</span>
+      <span className="text-[11px] font-medium leading-none">{label}</span>
+    </>
+  );
+  if (disabled) {
+    return (
+      <span
+        aria-disabled="true"
+        title={title ?? `${label} — coming soon`}
+        className={`${className} cursor-default opacity-50`}
+      >
+        {inner}
+      </span>
+    );
+  }
+  return (
+    <Link href={href} title={title ?? label} className={className}>
+      {inner}
+    </Link>
+  );
+}
 
 // Sticky (not fixed) so it reserves its own space in normal flow and never
 // needs a compensating top-padding hack on every page — it just stays
@@ -45,37 +90,56 @@ export function GlobalHeader() {
           </nav>
         )}
 
-        {/* Placeholder icon — swap for the real mark later. */}
-        <Link
-          href="/"
-          aria-label="Go to homepage"
-          title="Home"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
-        >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
-        </Link>
-
-        {showAccountControls && role === "COMPANY_OWNER" && (
-          <Link
-            href="/my/companies"
-            aria-label="Go to your company dashboard"
-            title="Company dashboard"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
-          >
-            {/* dashboard-tile-solid, svgrepo.com/show/445068 — fill swapped
-                for currentColor so it inherits this button's light/dark
-                text color instead of a color baked into the source file. */}
-            <svg viewBox="0 0 48 48" className="h-5 w-5" fill="currentColor">
-              <path d="M20,30H8a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V32a2,2,0,0,0-2-2Z" />
-              <path d="M20,4H8A2,2,0,0,0,6,6V24a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
-              <path d="M40,4H28a2,2,0,0,0-2,2V16a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
-              <path d="M40,22H28a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V24a2,2,0,0,0-2-2Z" />
+        <div className="flex items-center gap-1">
+          <NavIconLink href="/" label="Home" title="Home">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
-          </Link>
-        )}
+          </NavIconLink>
+
+          {showAccountControls &&
+            (role === "COMPANY_OWNER" ? (
+              <NavIconLink href="/my/companies" label="Dashboard" title="Company dashboard">
+                {/* dashboard-tile-solid, svgrepo.com/show/445068 — fill
+                    swapped for currentColor so it inherits this link's
+                    light/dark text color instead of a color baked into the
+                    source file. */}
+                <svg viewBox="0 0 48 48" className="h-5 w-5" fill="currentColor">
+                  <path d="M20,30H8a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V32a2,2,0,0,0-2-2Z" />
+                  <path d="M20,4H8A2,2,0,0,0,6,6V24a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
+                  <path d="M40,4H28a2,2,0,0,0-2,2V16a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
+                  <path d="M40,22H28a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V24a2,2,0,0,0-2-2Z" />
+                </svg>
+              </NavIconLink>
+            ) : (
+              <NavIconLink href="/me/reviews" label="My Ratings" title="The reviews you've submitted">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </NavIconLink>
+            ))}
+
+          {showAccountControls && <NotificationsMenu />}
+
+          {showAccountControls && (
+            <NavIconLink href="/job" label="Job" title="Job — coming soon" disabled>
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+              </svg>
+            </NavIconLink>
+          )}
+
+          {showAccountControls && (
+            <NavIconLink href="/social" label="IWT Social" title="IWT Social — coming soon" disabled>
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+            </NavIconLink>
+          )}
+        </div>
 
         <ThemeToggle />
 
