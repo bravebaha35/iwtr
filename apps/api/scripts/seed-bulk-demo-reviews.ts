@@ -120,6 +120,24 @@ function jitteredMissCounts(baseline: Record<CategoryKey, number>, rand: () => n
   return result;
 }
 
+// Randomly picks `count` distinct question ids out of `questions` (Fisher-
+// Yates-style sampling without replacement) — this is what actually makes
+// reviewers disagree with each other on *different* specific questions
+// instead of every reviewer sharing one category's miss-count always
+// landing on that category's first N questions verbatim. Ten "different
+// people" who all happen to dislike Work-Life Balance shouldn't all be
+// unhappy about the exact same 2 out of 5 questions in it.
+function pickMissedQuestionIds(questions: { id: string }[], count: number, rand: () => number): Set<string> {
+  const pool = [...questions];
+  const missed = new Set<string>();
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    const idx = Math.floor(rand() * pool.length);
+    missed.add(pool[idx].id);
+    pool.splice(idx, 1);
+  }
+  return missed;
+}
+
 async function main() {
   const prisma = new PrismaService();
   await prisma.$connect();
@@ -201,22 +219,18 @@ async function main() {
       }
 
       const missCounts = jitteredMissCounts(baseline.missCounts, rand);
-      const missSeenByCategory: Record<CategoryKey, number> = {
-        corporateCulture: 0,
-        leadership: 0,
-        infrastructure: 0,
-        workLifeBalance: 0,
-        stability: 0,
-      };
-      const answers = getQuestionsFor(baseline.workplaceType).map((question) => {
-        const alreadyMissed = missSeenByCategory[question.category];
-        const shouldMiss = alreadyMissed < missCounts[question.category];
-        if (shouldMiss) missSeenByCategory[question.category] += 1;
-        return {
-          questionId: question.id,
-          answer: shouldMiss ? oppositeAnswer(question.correctAnswer) : question.correctAnswer,
-        };
-      });
+      const allQuestions = getQuestionsFor(baseline.workplaceType);
+      const missedQuestionIds = new Set<string>();
+      for (const category of CATEGORIES) {
+        const categoryQuestions = allQuestions.filter((q) => q.category === category);
+        for (const id of pickMissedQuestionIds(categoryQuestions, missCounts[category], rand)) {
+          missedQuestionIds.add(id);
+        }
+      }
+      const answers = allQuestions.map((question) => ({
+        questionId: question.id,
+        answer: missedQuestionIds.has(question.id) ? oppositeAnswer(question.correctAnswer) : question.correctAnswer,
+      }));
 
       try {
         const result = await reviews.submitReview(user.id, {
