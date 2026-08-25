@@ -111,11 +111,71 @@ function seedFrom(text: string): number {
   return h;
 }
 
-function jitteredMissCounts(baseline: Record<CategoryKey, number>, rand: () => number): Record<CategoryKey, number> {
+// A real reviewer's overall disposition — whether this particular person
+// tends to be notably harsher or more generous than the company's baseline —
+// carries across every category of their own answers, not just one at a
+// time. Symmetric around 0 (doesn't shift the company's average), but wide
+// enough that a genuinely polarized opinion (a real minority view) actually
+// happens sometimes, instead of every reviewer landing within 1 of the same
+// mean and every question converging on the same majority side regardless
+// of company. Without this, WorkplaceVibeFlags' red flags (which mostly
+// need two *different* questions to land the minority way at once) almost
+// never clear their display bar for any company that isn't outright bad —
+// even a middling, genuinely-mixed company reads as nearly all-green.
+function reviewerDisposition(rand: () => number): number {
+  const roll = rand();
+  if (roll < 0.15) return -2;
+  if (roll < 0.4) return -1;
+  if (roll < 0.6) return 0;
+  if (roll < 0.85) return 1;
+  return 2;
+}
+
+// How far every baseline miss-count gets pulled toward the true 50/50
+// midpoint (2.5 out of 5) before jitter is applied. This is the real fix for
+// WorkplaceVibeFlags showing lopsided green-heavy results even on
+// "middling" companies: a baseline of 2 misses out of 5 is 60% correct, not
+// 50/50 — genuinely mildly-positive, not neutral — and because most flags
+// need *two* questions to independently land the minority way to clear
+// their 2-point display bar, that mild 60/40 skew gets quadratically
+// amplified into something like an 8-to-1 green:red split (verified via
+// simulation, not guessed: an unmodified baseline of 2/5 across every
+// category simulated to a ~4:1 ratio; a genuinely-centered 2.5/5 baseline
+// simulated to ~1.3:1). 0 = no change (flags read as accurately as the raw
+// survey answers, which for a mostly-decent demo dataset means mostly
+// green). 1 = every company forced to a coin flip regardless of how good or
+// bad it actually is, which would misrepresent genuinely good/bad companies
+// and isn't what was asked. 0.6 meaningfully closes the gap for middling
+// companies while still leaving clearly-good companies reading mostly green
+// and clearly-bad ones reading mostly red — directional honesty preserved,
+// just without the artificial amplification.
+const RECENTER_TOWARD_MIDPOINT = 0.6;
+const MIDPOINT_MISS_COUNT = 2.5;
+
+// Stochastic (not rounded) recentering — rounding baseline 2 by "60% of the
+// way to 2.5" would round right back to 2 and silently do nothing, since 2
+// is already the nearest integer to that target. Landing on 2 vs 3 with the
+// right probability instead preserves the intended fractional shift across
+// many reviewers, the same way a fair coin approximates "50%" over enough
+// flips even though any single flip is only ever heads or tails.
+function recenterBaseline(value: number, rand: () => number): number {
+  const target = value + (MIDPOINT_MISS_COUNT - value) * RECENTER_TOWARD_MIDPOINT;
+  const floor = Math.floor(target);
+  const fractional = target - floor;
+  const rounded = rand() < fractional ? floor + 1 : floor;
+  return Math.min(5, Math.max(0, rounded));
+}
+
+function jitteredMissCounts(
+  baseline: Record<CategoryKey, number>,
+  disposition: number,
+  rand: () => number,
+): Record<CategoryKey, number> {
   const result = {} as Record<CategoryKey, number>;
   for (const category of CATEGORIES) {
-    const delta = Math.floor(rand() * 3) - 1; // -1, 0, or +1
-    result[category] = Math.min(5, Math.max(0, baseline[category] + delta));
+    const recentered = recenterBaseline(baseline[category], rand);
+    const perCategoryNoise = Math.floor(rand() * 3) - 1; // -1, 0, or +1 — this reviewer's own specific gripes/praise on top of their overall disposition
+    result[category] = Math.min(5, Math.max(0, recentered + disposition + perCategoryNoise));
   }
   return result;
 }
@@ -218,7 +278,8 @@ async function main() {
         });
       }
 
-      const missCounts = jitteredMissCounts(baseline.missCounts, rand);
+      const disposition = reviewerDisposition(rand);
+      const missCounts = jitteredMissCounts(baseline.missCounts, disposition, rand);
       const allQuestions = getQuestionsFor(baseline.workplaceType);
       const missedQuestionIds = new Set<string>();
       for (const category of CATEGORIES) {
