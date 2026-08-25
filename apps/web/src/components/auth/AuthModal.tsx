@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Logo } from "@/components/Logo";
 import { PasswordInput } from "@/components/auth/PasswordInput";
@@ -41,7 +41,15 @@ export function AuthModal() {
     authModalOpen,
     closeAuthModal,
   } = useAuth();
-  const [email, setEmail] = useState(() => loadPendingVerification()?.email ?? "");
+  // "" / "form" are just the pre-hydration placeholders — sessionStorage
+  // isn't available during server rendering, so reading it in a lazy
+  // useState initializer would make the server's markup ("form", empty
+  // email) disagree with the client's first render (possibly "verify", a
+  // saved email) the moment a pending verification exists, which is exactly
+  // the kind of hydration mismatch React warns about. The effect below
+  // reconciles it immediately after mount instead, same pattern as the
+  // theme placeholder in lib/settings-context.tsx.
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -51,7 +59,17 @@ export function AuthModal() {
   // moved past the form step — most likely the page was refreshed while
   // "Verify your email" was showing. Password is never persisted (see
   // lib/emailVerification.ts), so EmailVerificationScreen re-asks for it.
-  const [step, setStep] = useState<"form" | "verify">(() => (loadPendingVerification() ? "verify" : "form"));
+  const [step, setStep] = useState<"form" | "verify">("form");
+
+  useEffect(() => {
+    const pending = loadPendingVerification();
+    if (pending) {
+      setEmail(pending.email);
+      setStep("verify");
+    }
+    // Intentionally runs once on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function switchMode(next: "login" | "register") {
     setMode(next);

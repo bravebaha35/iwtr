@@ -25,10 +25,19 @@ export function EmailConfirmGate({
   onCancel: () => void;
 }) {
   const [code, setCode] = useState("");
-  const [expectedCode, setExpectedCode] = useState(() => generateMockOtp());
+  // "" is just the pre-hydration placeholder — see the matching comment in
+  // EmailVerificationScreen.tsx for why this can't be a Math.random() lazy
+  // initializer.
+  const [expectedCode, setExpectedCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+
+  useEffect(() => {
+    setExpectedCode(generateMockOtp());
+    // Intentionally runs once on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;

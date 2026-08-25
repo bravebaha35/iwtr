@@ -23,11 +23,22 @@ export function EmailVerificationScreen({
   onBack: () => void;
 }) {
   const [code, setCode] = useState("");
-  const [expectedCode, setExpectedCode] = useState(() => generateMockOtp());
+  // "" is just the pre-hydration placeholder — generating the code with
+  // Math.random() inside a lazy useState initializer would run once on the
+  // server and again on the client's first render, producing two different
+  // codes and a hydration mismatch on the dev-only display below. Generated
+  // for real in the mount effect instead, client-side only.
+  const [expectedCode, setExpectedCode] = useState("");
   const [recoveredPassword, setRecoveredPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+
+  useEffect(() => {
+    setExpectedCode(generateMockOtp());
+    // Intentionally runs once on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
