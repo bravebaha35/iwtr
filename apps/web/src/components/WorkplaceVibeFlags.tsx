@@ -21,8 +21,13 @@ function FlagColumn({
   emptyLabel: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+    <div className="flex min-w-0 flex-col rounded-lg border border-dashed border-border p-3">
+      {/* Reserved 1:1 slot for a future green/red-flag badge graphic — same
+          "placeholder now, swap the contents later" treatment as AdSlot. */}
+      <div className="mx-auto mb-3 flex aspect-square w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-2xl">
+        <span aria-hidden="true">{emoji}</span>
+      </div>
+      <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
       <div className={`thin-scrollbar flex-1 overflow-y-auto rounded-lg border border-border bg-background ${COLUMN_HEIGHT_CLASS}`}>
         {flags.length === 0 ? (
           <p className="p-3 text-sm text-muted-foreground">{emptyLabel}</p>
@@ -43,11 +48,11 @@ function FlagColumn({
 
 /**
  * Company-wide "vibe check" derived from the 25-question survey's aggregate
- * consensus (see utils/flagMapper.ts) — up to 10 green flags and up to 10
- * red flags per work-type, ranked strongest-first. Fetches the same
- * GET /companies/:slug/survey-stats endpoint SurveyHighlights already uses,
- * so no backend change is needed; this is purely a different lens on the
- * same per-question agree/disagree tallies.
+ * consensus (see utils/flagMapper.ts) — every green/red flag that's reached
+ * two-question-strength agreement, ranked strongest-first, no fixed count.
+ * Fetches the same GET /companies/:slug/survey-stats endpoint SurveyHighlights
+ * already uses, so no backend change is needed; this is purely a different
+ * lens on the same per-question agree/disagree tallies.
  */
 export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
   const [stats, setStats] = useState<CompanySurveyStats | null>(null);

@@ -37,7 +37,14 @@ export interface WorkplaceVibeFlags {
   red: TriggeredFlag[];
 }
 
-const MAX_FLAGS_PER_SIDE = 10;
+// A flag earned from just one 1-point question is too weak a signal to
+// surface on its own — with only a handful of reviews, nearly every question
+// clears its own majority one way, which used to flood both columns with
+// almost the entire 10-flag pool. Only a flag that's reached two-question
+// agreement (or comes from a question explicitly worth two points alone) is
+// notable enough to show. No fixed display cap either — however many clear
+// the bar, in strength order.
+const MIN_POINTS_TO_DISPLAY = 2;
 
 const OFFICE_RULES: FlagRule[] = [
   // Corporate Culture
@@ -230,7 +237,9 @@ const RULES_BY_WORKPLACE_TYPE: Record<WorkplaceType, FlagRule[]> = {
 };
 
 function sortTriggered(flags: TriggeredFlag[]): TriggeredFlag[] {
-  return [...flags].sort((a, b) => b.points - a.points || a.flag.localeCompare(b.flag)).slice(0, MAX_FLAGS_PER_SIDE);
+  return flags
+    .filter((f) => f.points >= MIN_POINTS_TO_DISPLAY)
+    .sort((a, b) => b.points - a.points || a.flag.localeCompare(b.flag));
 }
 
 /**
