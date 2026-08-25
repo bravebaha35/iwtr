@@ -62,7 +62,7 @@ const AVATAR_GRADIENT_KEYS = [
 // PublicReview.avatarKey/avatarGradient now come from the review author's
 // actual User row (see ReviewsService.listForCompany), so demo companies
 // need real demo avatars to show the feature working, not a UI-only mock.
-function demoAvatarFor(index: number, workplaceType: WorkplaceType): { avatarKey: string; avatarGradient: string } {
+export function demoAvatarFor(index: number, workplaceType: WorkplaceType): { avatarKey: string; avatarGradient: string } {
   const variants = AVATAR_VARIANTS_BY_TYPE[workplaceType];
   return {
     avatarKey: variants[index % variants.length],
@@ -74,7 +74,7 @@ function demoAvatarFor(index: number, workplaceType: WorkplaceType): { avatarKey
 // opposite of the question's correct answer) — the rest are answered
 // correctly. Chosen to land each company's overall average in roughly the
 // same 2.4-4.2 spread the original hand-picked star demo data had.
-interface DemoReview {
+export interface DemoReview {
   companyName: string;
   // Which of the company's (up to 2) workplaceTypes this reviewer is
   // answering as — must be one of Company.workplaceTypes at submission time
@@ -85,7 +85,11 @@ interface DemoReview {
   generalThoughts: string;
 }
 
-const DEMO_REVIEWS: DemoReview[] = [
+// Also the per-(company, workplaceType) baseline scripts/seed-bulk-demo-
+// reviews.ts jitters around when generating each pair's 9 additional
+// reviewers — keeps the two scripts' data in obvious agreement rather than
+// letting a hand-tuned baseline here drift from a second copy elsewhere.
+export const DEMO_REVIEWS: DemoReview[] = [
   {
     companyName: "Demo Teknoloji A.Ş.",
     workplaceType: "OFFICE",
@@ -239,7 +243,7 @@ const DEMO_REVIEWS: DemoReview[] = [
   },
 ];
 
-function oppositeAnswer(correct: "YES" | "NO"): "YES" | "NO" {
+export function oppositeAnswer(correct: "YES" | "NO"): "YES" | "NO" {
   return correct === "YES" ? "NO" : "YES";
 }
 
@@ -349,7 +353,12 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Guarded so scripts/seed-bulk-demo-reviews.ts can import DEMO_REVIEWS/
+// demoAvatarFor/oppositeAnswer above without also re-running this file's own
+// 21-review seed as an import side effect.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
