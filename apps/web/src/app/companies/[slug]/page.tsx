@@ -3,6 +3,7 @@ import { scoreBandLabel, type CompanyDetail } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
 import { SurveyHighlights } from "@/components/SurveyHighlights";
+import { WorkplaceVibeFlags } from "@/components/WorkplaceVibeFlags";
 import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { RateButton } from "@/components/RateButton";
@@ -136,6 +137,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
           </div>
 
           <SurveyHighlights companySlug={slug} />
+        </div>
+
+        {/* Directly below the score/Information card and "What reviewers
+            said" row — full width, its own section, ahead of the review
+            list itself. General Information above is untouched. */}
+        <div className="mt-8">
+          <WorkplaceVibeFlags companySlug={slug} />
         </div>
 
         {/* Full column width, not squeezed into the grid above — this is
