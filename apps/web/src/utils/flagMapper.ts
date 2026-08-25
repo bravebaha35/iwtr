@@ -236,6 +236,31 @@ const RULES_BY_WORKPLACE_TYPE: Record<WorkplaceType, FlagRule[]> = {
   MANUAL_LABOUR: MANUAL_LABOUR_RULES,
 };
 
+// A handful of green/red flag pairs are literally opposite readings of the
+// exact same pair of questions (e.g. OFFICE's "Uncontacted PTO." and
+// "After-hours replies expected." both come from nothing but
+// workLifeBalance.1 + .3, on opposite majority sides) — showing both at once
+// reads as a contradiction ("this company respects PTO AND expects
+// after-hours replies?"). For these specific pairs only, keep whichever side
+// actually scored higher and drop the other; an exact tie drops both, since
+// neither reading is more true than the other. Every other flag in the
+// system draws from its own distinct question(s) and isn't touched by this.
+// Derived by grouping every rule above by its (kind, flag) and finding
+// green/red pairs whose contributing questionId sets are identical.
+const OPPOSITE_FLAG_PAIRS: Partial<Record<WorkplaceType, [green: string, red: string][]>> = {
+  OFFICE: [
+    ["Leaders take blame.", "Unprotected from workload."],
+    ["Uncontacted PTO.", "After-hours replies expected."],
+    ["Funded career growth", "High turnover"],
+  ],
+  HYBRID_REMOTE: [["High-quality hardware stipend", "Chaotic digital tools"]],
+  SERVICE: [
+    ["Consistent rule enforcement", "Shift favoritism"],
+    ["Stocked product inventory", "Crashing POS systems"],
+    ["Accurate tip payouts", "Wage theft"],
+  ],
+};
+
 function sortTriggered(flags: TriggeredFlag[]): TriggeredFlag[] {
   return flags
     .filter((f) => f.points >= MIN_POINTS_TO_DISPLAY)
@@ -267,6 +292,20 @@ export function computeWorkplaceVibeFlags(
     const key = `${rule.kind}:${rule.flag}`;
     const existing = totals.get(key);
     totals.set(key, { kind: rule.kind, flag: rule.flag, points: (existing?.points ?? 0) + rule.points });
+  }
+
+  for (const [greenFlag, redFlag] of OPPOSITE_FLAG_PAIRS[workplaceType] ?? []) {
+    const g = totals.get(`green:${greenFlag}`);
+    const r = totals.get(`red:${redFlag}`);
+    if (!g || !r) continue;
+    if (g.points === r.points) {
+      totals.delete(`green:${greenFlag}`);
+      totals.delete(`red:${redFlag}`);
+    } else if (g.points > r.points) {
+      totals.delete(`red:${redFlag}`);
+    } else {
+      totals.delete(`green:${greenFlag}`);
+    }
   }
 
   const green: TriggeredFlag[] = [];
