@@ -1,95 +1,108 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { CompanySurveyStats, WorkplaceType } from "@iwtr/shared-types";
+import type { CategoryKey, CompanyVibeFlags, FlagColor, VibeFlag, WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarPillClassName } from "@/lib/collarColors";
-import { computeWorkplaceVibeFlags, type TriggeredFlag } from "@/utils/flagMapper";
 
-const COLUMN_HEIGHT_CLASS = "h-96";
+// Row order/titles match the Master Dual-Opposite Flag Chart's own short
+// category names verbatim (Culture/Leadership/Infrastructure/Work-Life/
+// Stability) rather than the longer labels used elsewhere on the company
+// page (e.g. "Organizational Stability") — this component is that chart's
+// direct on-site rendering, so its section titles stay in sync with it.
+const ROW_ORDER: CategoryKey[] = ["corporateCulture", "leadership", "infrastructure", "workLifeBalance", "stability"];
+const ROW_TITLES: Record<CategoryKey, string> = {
+  corporateCulture: "Culture",
+  leadership: "Leadership",
+  infrastructure: "Infrastructure",
+  workLifeBalance: "Work-Life",
+  stability: "Stability",
+};
 
-function FlagColumn({
-  title,
-  emoji,
-  flags,
-  emptyLabel,
-}: {
-  title: string;
-  emoji: string;
-  flags: TriggeredFlag[];
-  emptyLabel: string;
-}) {
+const FLAG_CHIP_CLASSES: Record<FlagColor, string> = {
+  GREEN: "border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300",
+  RED: "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300",
+};
+
+function FlagChip({ flag }: { flag: VibeFlag }) {
   return (
-    <div className="flex min-w-0 flex-col rounded-lg border border-dashed border-border p-3">
-      {/* Reserved 1:1 slot for a future green/red-flag badge graphic — same
-          "placeholder now, swap the contents later" treatment as AdSlot. */}
-      <div className="mx-auto mb-3 flex aspect-square w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-2xl">
-        <span aria-hidden="true">{emoji}</span>
-      </div>
-      <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
-      <div className={`thin-scrollbar flex-1 overflow-y-auto rounded-lg border border-border bg-background ${COLUMN_HEIGHT_CLASS}`}>
-        {flags.length === 0 ? (
-          <p className="p-3 text-sm text-muted-foreground">{emptyLabel}</p>
-        ) : (
-          <ul className="flex flex-col divide-y divide-border">
-            {flags.map((f) => (
-              <li key={f.flag} className="flex items-start gap-2 px-3 py-2 text-sm text-foreground">
-                <span aria-hidden="true">{emoji}</span>
-                <span className="min-w-0 break-words">{f.flag}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+    <span
+      className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium ${FLAG_CHIP_CLASSES[flag.color]}`}
+    >
+      <span aria-hidden="true">{flag.color === "GREEN" ? "✅" : "🚩"}</span>
+      {flag.label}
+    </span>
+  );
+}
+
+function FlagRow({ category, flags }: { category: CategoryKey; flags: VibeFlag[] }) {
+  const green = flags.filter((f) => f.color === "GREEN");
+  const red = flags.filter((f) => f.color === "RED");
+
+  return (
+    <div className="border-b border-zinc-200 py-6 last:border-b-0 dark:border-zinc-800">
+      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{ROW_TITLES[category]}</h3>
+      <div className="grid grid-cols-2 gap-8">
+        <div className="flex flex-col items-start gap-2">
+          {green.map((f) => (
+            <FlagChip key={`${f.category}-${f.cluster}`} flag={f} />
+          ))}
+        </div>
+        <div className="flex flex-col items-start gap-2">
+          {red.map((f) => (
+            <FlagChip key={`${f.category}-${f.cluster}`} flag={f} />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
 /**
- * Company-wide "vibe check" derived from the 25-question survey's aggregate
- * consensus (see utils/flagMapper.ts) — every green/red flag that's reached
- * two-question-strength agreement, ranked strongest-first, no fixed count.
- * Fetches the same GET /companies/:slug/survey-stats endpoint SurveyHighlights
- * already uses, so no backend change is needed; this is purely a different
- * lens on the same per-question agree/disagree tallies.
+ * Frontend rendering of the Dual-Opposite Flag Aggregation Engine
+ * (apps/api/src/modules/flags/flag-calculator.service.ts, exposed via
+ * GET /companies/:slug/vibe-flags). Every flag chip shown here is one the
+ * backend already resolved to a single color — this component only ever
+ * places it in the matching Green/Red column per category row, never
+ * recomputes anything from raw survey data itself.
  */
 export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
-  const [stats, setStats] = useState<CompanySurveyStats | null>(null);
+  const [data, setData] = useState<CompanyVibeFlags | null>(null);
+  const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [manualActiveType, setManualActiveType] = useState<WorkplaceType | null>(null);
 
   useEffect(() => {
-    apiGet<CompanySurveyStats>(`/companies/${companySlug}/survey-stats`)
-      .then((data) => {
-        setStats(data);
+    apiGet<CompanyVibeFlags>(`/companies/${companySlug}/vibe-flags`)
+      .then((result) => {
+        setData(result);
         setLoadFailed(false);
       })
       .catch(() => {
-        setStats(null);
+        setData(null);
         setLoadFailed(true);
-      });
+      })
+      .finally(() => setLoading(false));
   }, [companySlug]);
 
   if (loadFailed) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-6">
+      <div className="rounded-xl border border-border bg-surface p-6 font-sans">
         <p className="text-sm text-red-600 dark:text-red-400">Couldn&apos;t load workplace flags right now.</p>
       </div>
     );
   }
 
-  const populated = stats?.byWorkplaceType.filter((s) => s.totalReviews > 0) ?? [];
+  const populated = data?.byWorkplaceType.filter((s) => s.totalReviews > 0) ?? [];
   const activeType =
     (manualActiveType && populated.some((s) => s.workplaceType === manualActiveType)
       ? manualActiveType
       : populated[0]?.workplaceType) ?? null;
-  const activeStats = populated.find((s) => s.workplaceType === activeType) ?? null;
-
-  const { green, red } = activeStats ? computeWorkplaceVibeFlags(activeStats.workplaceType, activeStats.questions) : { green: [], red: [] };
+  const activeSection = populated.find((s) => s.workplaceType === activeType) ?? null;
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-6">
+    <div className="rounded-xl border border-border bg-surface p-6 font-sans">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">
           Workplace Vibe Flags
@@ -116,16 +129,20 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
         )}
       </div>
 
-      {activeStats ? (
-        <div className="grid grid-cols-2 gap-4">
-          <FlagColumn title="Green Flags" emoji="✅" flags={green} emptyLabel="No green flags surfaced yet." />
-          <FlagColumn title="Red Flags" emoji="🚩" flags={red} emptyLabel="No red flags surfaced yet." />
+      {activeSection ? (
+        <div>
+          {ROW_ORDER.map((category) => (
+            <FlagRow key={category} category={category} flags={activeSection.flags.filter((f) => f.category === category)} />
+          ))}
         </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          No reviews yet — flags will appear once this workplace has published reviews.
-        </p>
-      )}
+      ) : !loading ? (
+        <div className="flex flex-col items-center gap-1 py-6 text-center text-sm text-muted-foreground">
+          <span className="text-3xl" aria-hidden="true">
+            😔
+          </span>
+          <span>No reviews yet — flags will appear once this workplace has published reviews.</span>
+        </div>
+      ) : null}
     </div>
   );
 }

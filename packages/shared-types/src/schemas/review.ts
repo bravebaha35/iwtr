@@ -377,3 +377,35 @@ export const companySurveyStatsSchema = z.object({
   byWorkplaceType: z.array(companyWorkplaceSurveyStatsSchema),
 });
 export type CompanySurveyStats = z.infer<typeof companySurveyStatsSchema>;
+
+// GET /companies/:slug/vibe-flags — the Dual-Opposite Flag Aggregation
+// Engine's response (see apps/api/src/modules/flags/flag-calculator.service.ts).
+// Each category always contributes exactly 2 flags (one per question
+// cluster), never both a green and its opposite red for the same cluster —
+// only the color/label the engine actually resolved to. Deliberately never
+// carries agreeCount/disagreeCount or any other per-question detail; that
+// stays on companySurveyStatsSchema above.
+export const flagColorSchema = z.enum(["GREEN", "RED"]);
+export type FlagColor = z.infer<typeof flagColorSchema>;
+
+export const vibeFlagSchema = z.object({
+  category: categoryKeySchema,
+  cluster: z.union([z.literal(1), z.literal(2)]),
+  color: flagColorSchema,
+  label: z.string(),
+});
+export type VibeFlag = z.infer<typeof vibeFlagSchema>;
+
+export const companyWorkplaceVibeFlagsSchema = z.object({
+  workplaceType: workplaceTypeSchema,
+  totalReviews: z.number().int().min(0),
+  // Empty when totalReviews is 0 — a workplace type nobody has reviewed yet
+  // gets no flags rather than 10 default-red ones.
+  flags: z.array(vibeFlagSchema),
+});
+export type CompanyWorkplaceVibeFlags = z.infer<typeof companyWorkplaceVibeFlagsSchema>;
+
+export const companyVibeFlagsSchema = z.object({
+  byWorkplaceType: z.array(companyWorkplaceVibeFlagsSchema),
+});
+export type CompanyVibeFlags = z.infer<typeof companyVibeFlagsSchema>;
