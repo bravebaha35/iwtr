@@ -33,6 +33,7 @@ import { ModerationService } from "../moderation/moderation.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
 import { getQuestionsFor } from "./survey-questions.data";
 import { pickRandomDisplayUsername } from "./randomized-identity.util";
+import { tallyQuestions } from "./survey-tally.util";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
 const MID_THRESHOLD = 0.5;
@@ -716,35 +717,11 @@ export class ReviewsService {
     const byWorkplaceType = company.workplaceTypes.map((workplaceType) => {
       const reviewsForType = published.filter((r) => r.workplaceType === workplaceType);
       const questions = getQuestionsFor(workplaceType);
-      const tallies = new Map(
-        questions.map((q) => [q.id, { agreeCount: 0, disagreeCount: 0, preferNotCount: 0 }]),
-      );
-
-      for (const review of reviewsForType) {
-        const answers = review.surveyAnswers as Record<string, SurveyAnswer>;
-        for (const question of questions) {
-          const answer = answers[question.id];
-          const tally = tallies.get(question.id);
-          if (!tally || answer === undefined) continue;
-          if (answer === question.correctAnswer) {
-            tally.agreeCount += 1;
-          } else if (answer === "PREFER_NOT_TO_ANSWER") {
-            tally.preferNotCount += 1;
-          } else {
-            tally.disagreeCount += 1;
-          }
-        }
-      }
 
       return {
         workplaceType,
         totalReviews: reviewsForType.length,
-        questions: questions.map((q) => ({
-          questionId: q.id,
-          category: q.category,
-          text: q.text,
-          ...tallies.get(q.id)!,
-        })),
+        questions: tallyQuestions(reviewsForType, questions),
       };
     });
 

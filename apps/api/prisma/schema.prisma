@@ -53,6 +53,26 @@ enum OwnerTier {
   @@schema("public")
 }
 
+// A deliberately separate axis from OwnerTier above — OwnerTier gates the
+// existing company-listing Plus features (description/website editing,
+// verified badge); this gates the new Rival Analytics add-on only. The
+// project's real unified 4-tier pricing model is still an open, undecided
+// item (see project memory) — this exists so Rival Analytics access
+// control has something concrete to check now rather than blocking on
+// that larger decision. Nullable on CompanyOwner: unset means "no Rival
+// Analytics subscription", which behaves identically to STARTER/PRO for
+// gating purposes (always pays per pull) until a real self-serve upgrade
+// flow exists — for now this is admin-settable only, matching how
+// OwnerTier/planStatus are only ever set for real via the (also-stubbed)
+// payments flow.
+enum RivalAnalyticsTier {
+  STARTER
+  PRO
+  ENTERPRISE
+
+  @@schema("public")
+}
+
 enum PlanStatus {
   NONE
   ACTIVE
@@ -294,6 +314,12 @@ model CompanyOwner {
   createdAt             DateTime         @default(now())
   resolvedAt            DateTime?
 
+  // Rival Analytics add-on (see RivalAnalyticsTier above) — independent of
+  // tier/planStatus above, which govern the unrelated Plus company-listing
+  // features.
+  rivalAnalyticsTier          RivalAnalyticsTier?
+  rivalAnalyticsFreeRequestUsed Boolean            @default(false)
+
   @@unique([userId, companyId])
   @@schema("public")
 }
@@ -460,6 +486,24 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   @@index([actorUserId])
+  @@schema("public")
+}
+
+// A key issued to a paying "Market Investor API" subscriber — a third-party
+// actor, not a MEMBER or a Company owner, so this deliberately has no
+// relation to User. Same hash-only-at-rest pattern as RefreshToken below
+// (keyHash, never the raw key) so a DB read alone can never leak a usable
+// credential. Issued/revoked admin-only (see InvestorApiModule) — there is
+// no self-serve signup for this tier yet.
+model InvestorApiKey {
+  id             String    @id @default(uuid())
+  keyHash        String    @unique
+  organizationName String
+  contactEmail   String
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  revokedAt      DateTime?
+
   @@schema("public")
 }
 

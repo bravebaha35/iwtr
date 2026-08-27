@@ -122,3 +122,21 @@ export const plusCheckoutResultSchema = z.object({
   token: z.string(),
 });
 export type PlusCheckoutResult = z.infer<typeof plusCheckoutResultSchema>;
+
+// Rival Analytics add-on — a separate axis from OwnerTier/PlanStatus above
+// (see RivalAnalyticsTier's own comment in schema.prisma). Only Enterprise
+// gets a one-time free pull; every other tier (including no tier at all)
+// always pays, gated by apps/api's decideRivalAnalyticsAccess.
+export const rivalAnalyticsTierSchema = z.enum(["STARTER", "PRO", "ENTERPRISE"]);
+export type RivalAnalyticsTier = z.infer<typeof rivalAnalyticsTierSchema>;
+
+export const rivalAnalyticsRequestInputSchema = z.object({
+  requestingCompanyId: z.string().uuid(),
+});
+export type RivalAnalyticsRequestInput = z.infer<typeof rivalAnalyticsRequestInputSchema>;
+
+export const rivalAnalyticsRequestResultSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("SENT"), recipientEmail: z.string(), usedFreeCredit: z.boolean() }),
+  z.object({ status: z.literal("PAYMENT_REQUIRED"), priceNote: z.string() }),
+]);
+export type RivalAnalyticsRequestResult = z.infer<typeof rivalAnalyticsRequestResultSchema>;
