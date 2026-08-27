@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { scoreBandLabel, type CompanyDetail } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
-import { SurveyHighlights } from "@/components/SurveyHighlights";
 import { WorkplaceVibeFlags } from "@/components/WorkplaceVibeFlags";
 import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 import { CompanyLogo } from "@/components/CompanyLogo";
@@ -62,10 +61,14 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
           <RateButton companyId={company.id} companyName={company.name} workplaceTypes={company.workplaceTypes} />
         </div>
 
-        {/* Score breakdown + Information (left) and "What reviewers said"
+        {/* Score breakdown + Information (left) and Workplace Vibe Flags
             (right) sit side by side on wide screens instead of stacking —
             they're both summary/at-a-glance content, not competing for the
-            same reading column the way the full review list below does. */}
+            same reading column the way the full review list below does.
+            "What reviewers said" (SurveyHighlights, the old Q&A detail box)
+            is intentionally not rendered on this page any more — the
+            component itself is untouched and still available to reuse
+            elsewhere later, it's just not shown here. */}
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="h-full rounded-xl border border-border bg-surface p-6">
             {aggregate && aggregate.reviewCount > 0 ? (
@@ -136,13 +139,6 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
 
-          <SurveyHighlights companySlug={slug} />
-        </div>
-
-        {/* Directly below the score/Information card and "What reviewers
-            said" row — full width, its own section, ahead of the review
-            list itself. General Information above is untouched. */}
-        <div className="mt-8">
           <WorkplaceVibeFlags companySlug={slug} />
         </div>
 

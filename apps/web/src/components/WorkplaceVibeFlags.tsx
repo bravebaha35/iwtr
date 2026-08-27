@@ -6,19 +6,12 @@ import { apiGet } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarPillClassName } from "@/lib/collarColors";
 
-// Row order/titles match the Master Dual-Opposite Flag Chart's own short
-// category names verbatim (Culture/Leadership/Infrastructure/Work-Life/
-// Stability) rather than the longer labels used elsewhere on the company
-// page (e.g. "Organizational Stability") — this component is that chart's
-// direct on-site rendering, so its section titles stay in sync with it.
+// Category ordering only (no visible headers any more — per explicit user
+// request, the per-category grouping/dividers were removed so every flag
+// from every category pools into one flat green/red list). Kept purely so
+// that pooled order stays stable and matches the chart's own category
+// sequence rather than whatever order the API happened to return.
 const ROW_ORDER: CategoryKey[] = ["corporateCulture", "leadership", "infrastructure", "workLifeBalance", "stability"];
-const ROW_TITLES: Record<CategoryKey, string> = {
-  corporateCulture: "Culture",
-  leadership: "Leadership",
-  infrastructure: "Infrastructure",
-  workLifeBalance: "Work-Life",
-  stability: "Stability",
-};
 
 const FLAG_CHIP_CLASSES: Record<FlagColor, string> = {
   GREEN: "border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300",
@@ -33,29 +26,6 @@ function FlagChip({ flag }: { flag: VibeFlag }) {
       <span aria-hidden="true">{flag.color === "GREEN" ? "✅" : "🚩"}</span>
       {flag.label}
     </span>
-  );
-}
-
-function FlagRow({ category, flags }: { category: CategoryKey; flags: VibeFlag[] }) {
-  const green = flags.filter((f) => f.color === "GREEN");
-  const red = flags.filter((f) => f.color === "RED");
-
-  return (
-    <div className="border-b border-zinc-200 py-6 last:border-b-0 dark:border-zinc-800">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{ROW_TITLES[category]}</h3>
-      <div className="grid grid-cols-2 gap-8">
-        <div className="flex flex-col items-start gap-2">
-          {green.map((f) => (
-            <FlagChip key={`${f.category}-${f.cluster}`} flag={f} />
-          ))}
-        </div>
-        <div className="flex flex-col items-start gap-2">
-          {red.map((f) => (
-            <FlagChip key={`${f.category}-${f.cluster}`} flag={f} />
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -101,6 +71,13 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
       : populated[0]?.workplaceType) ?? null;
   const activeSection = populated.find((s) => s.workplaceType === activeType) ?? null;
 
+  // Flat pool across every category, ordered by ROW_ORDER, then split
+  // purely by the color the backend already resolved — no per-category
+  // grouping shown any more.
+  const pooled = activeSection ? ROW_ORDER.flatMap((category) => activeSection.flags.filter((f) => f.category === category)) : [];
+  const green = pooled.filter((f) => f.color === "GREEN");
+  const red = pooled.filter((f) => f.color === "RED");
+
   return (
     <div className="rounded-xl border border-border bg-surface p-6 font-sans">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -130,10 +107,17 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
       </div>
 
       {activeSection ? (
-        <div>
-          {ROW_ORDER.map((category) => (
-            <FlagRow key={category} category={category} flags={activeSection.flags.filter((f) => f.category === category)} />
-          ))}
+        <div className="grid grid-cols-2 gap-8">
+          <div className="flex flex-col items-start gap-2.5">
+            {green.map((f) => (
+              <FlagChip key={`${f.category}-${f.cluster}`} flag={f} />
+            ))}
+          </div>
+          <div className="flex flex-col items-start gap-2.5">
+            {red.map((f) => (
+              <FlagChip key={`${f.category}-${f.cluster}`} flag={f} />
+            ))}
+          </div>
         </div>
       ) : !loading ? (
         <div className="flex flex-col items-center gap-1 py-6 text-center text-sm text-muted-foreground">
