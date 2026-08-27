@@ -15,12 +15,14 @@ import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { CompaniesService } from "./companies.service";
 import { ReviewsService } from "../reviews/reviews.service";
+import { FlagCalculatorService } from "../flags/flag-calculator.service";
 
 @Controller()
 export class CompaniesController {
   constructor(
     private readonly companies: CompaniesService,
     private readonly reviews: ReviewsService,
+    private readonly flagCalculator: FlagCalculatorService,
   ) {}
 
   @Post("admin/companies")
@@ -59,5 +61,22 @@ export class CompaniesController {
   @Get("companies/:slug/survey-stats")
   surveyStats(@Param("slug") slug: string) {
     return this.reviews.getSurveyStats(slug);
+  }
+
+  // Dual-Opposite Flag Aggregation Engine (CEO-mandated, replaces the old
+  // points-based WorkplaceVibeFlags system). Only ever returns the final
+  // GREEN/RED flag + its chart label per category cluster — never the
+  // agree/disagree counts (see survey-stats above) or any individual
+  // employee's answers, which FlagCalculatorService never even receives.
+  @Get("companies/:slug/vibe-flags")
+  async vibeFlags(@Param("slug") slug: string) {
+    const stats = await this.reviews.getSurveyStats(slug);
+    return {
+      byWorkplaceType: stats.byWorkplaceType.map((entry) => ({
+        workplaceType: entry.workplaceType,
+        totalReviews: entry.totalReviews,
+        flags: this.flagCalculator.computeVibeFlags(entry),
+      })),
+    };
   }
 }
