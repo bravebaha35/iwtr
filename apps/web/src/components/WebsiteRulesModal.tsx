@@ -24,7 +24,7 @@ export function WebsiteRulesModal({ onClose, onRegister }: { onClose: () => void
         </div>
         <h2 className="mb-2 text-center text-xl font-bold text-foreground">How I Worked There works</h2>
         <p className="mb-4 text-sm leading-6 text-muted-foreground">
-          You confirm your identity once during registration (including your T.C. Kimlik No), purely to stop
+          You confirm your identity once during registration, purely to stop
           duplicate and fake accounts. That identity data is encrypted separately from everything you post and is
           never shown to anyone — not other users, not employers, not even us in day-to-day use.
         </p>

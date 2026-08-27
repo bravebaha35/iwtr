@@ -11,7 +11,7 @@ export function AnonymityModal({ onContinue }: { onContinue: () => void }) {
           You are always anonymous
         </h2>
         <p className="mb-6 text-sm leading-6 text-muted-foreground">
-          Your name, T.C. Kimlik No, birth date, and phone number are encrypted and never shown
+          Your name, birth date, and phone number are encrypted and never shown
           to anyone &mdash; not other users, not employers, not even us in day-to-day use. They exist
           only to confirm you&apos;re a real person and to prevent someone from creating duplicate
           accounts. Every review and comment you post is completely anonymous.
