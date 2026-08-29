@@ -5,10 +5,12 @@ import {
   oauthLoginInputSchema,
   refreshRequestSchema,
   registerEmailInputSchema,
+  verifyAdminOtpInputSchema,
   type LoginEmailInput,
   type OAuthLoginInput,
   type RefreshRequest,
   type RegisterEmailInput,
+  type VerifyAdminOtpInput,
 } from "@iwtr/shared-types";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { AuthService } from "./auth.service";
@@ -30,6 +32,17 @@ export class AuthController {
   @Post("login")
   login(@Body(new ZodValidationPipe(loginEmailInputSchema)) body: LoginEmailInput) {
     return this.auth.loginWithEmail(body, "web");
+  }
+
+  // Tighter still than login/register — this is the one endpoint that lets
+  // someone repeatedly guess a 6-digit code, so it gets the lowest ceiling
+  // of any auth route (AdminLoginOtpService's own 5-attempts-per-challenge
+  // limit is the real backstop; this just slows down someone burning through
+  // challenges to reset that counter).
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post("login/verify-otp")
+  verifyLoginOtp(@Body(new ZodValidationPipe(verifyAdminOtpInputSchema)) body: VerifyAdminOtpInput) {
+    return this.auth.verifyAdminLoginOtp(body, "web");
   }
 
   @Post("refresh")

@@ -168,21 +168,22 @@ model User {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  educationHistory   EducationHistory[]
-  employmentHistory  EmploymentHistory[]
-  reviews            Review[]
-  reviewVotes        ReviewVote[]
-  companyReplies     CompanyReply[]
-  refreshTokens      RefreshToken[]
-  auditLogEntries    AuditLog[]
-  companyOwnerships  CompanyOwner[]
-  ownerContactMessages OwnerContactMessage[]
-  phoneOtpChallenge  PhoneOtpChallenge?
+  educationHistory        EducationHistory[]
+  employmentHistory       EmploymentHistory[]
+  reviews                 Review[]
+  reviewVotes             ReviewVote[]
+  companyReplies          CompanyReply[]
+  refreshTokens           RefreshToken[]
+  auditLogEntries         AuditLog[]
+  companyOwnerships       CompanyOwner[]
+  ownerContactMessages    OwnerContactMessage[]
+  phoneOtpChallenge       PhoneOtpChallenge?
+  adminLoginOtpChallenges AdminLoginOtpChallenge[]
   // Cross-schema relation (public -> pii) — safe here specifically because
   // EmployerProfile is not an anonymity-sensitive model the way PiiVault is;
   // see EmployerProfile's own doc comment for why it gets a direct relation
   // when PiiVault deliberately doesn't.
-  employerProfile    EmployerProfile?
+  employerProfile         EmployerProfile?
 
   @@schema("public")
 }
@@ -203,6 +204,46 @@ model PhoneOtpChallenge {
   expiresAt       DateTime
   lastSentAt      DateTime @default(now())
   createdAt       DateTime @default(now())
+
+  @@schema("public")
+}
+
+// Second-factor challenge for the admin-login OTP step (AuthService /
+// AdminLoginOtpService) — deliberately its own model rather than reusing
+// PhoneOtpChallenge: different lifecycle (one fresh row per login attempt,
+// not upserted per-user), different secret material (its own
+// ADMIN_OTP_PEPPER — see admin-otp.util.ts — so a compromised phone-OTP
+// pepper can't also forge an admin login code, same isolation reasoning as
+// the separate phone/PII encryption keys), and no phone number involved.
+// Never stores the raw code, only its hash. Rows are deleted once
+// consumed (or left to expire) — nothing here needs to outlive the login
+// attempt it belongs to.
+model AdminLoginOtpChallenge {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@schema("public")
+}
+
+// One admin's decision to dismiss a "pending company suggestion" — a
+// worker-typed EmploymentHistory.rawCompanyName that doesn't match a real
+// Company yet (companyId is null). Dismissing one of these is deliberately
+// NOT a delete of anything worker-owned: every affected worker keeps their
+// own employment-history entry exactly as they typed it, this just hides
+// that name from the admin queue going forward (AdminCompaniesService).
+// nameKey is the normalized (trimmed+lowercased) rawCompanyName so
+// "A101", "a101 ", and "A101" all dismiss as the same suggestion.
+model CompanySuggestionDismissal {
+  id                 String   @id @default(uuid())
+  nameKey            String   @unique
+  dismissedByAdminId String?
+  dismissedAt        DateTime @default(now())
 
   @@schema("public")
 }
@@ -250,8 +291,8 @@ model EmploymentHistory {
 }
 
 model Company {
-  id               String        @id @default(uuid())
-  slug             String        @unique
+  id               String          @id @default(uuid())
+  slug             String          @unique
   name             String
   category         String
   // Up to 2 tags — a company can genuinely span more than one kind of work
@@ -265,27 +306,40 @@ model Company {
   website          String?
   city             String?
   district         String?
-  isVerifiedBadge  Boolean  @default(false)
+  isVerifiedBadge  Boolean         @default(false)
   createdByAdminId String?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime        @default(now())
+
+  // Turkish trade-registry business identifier (Vergi Numarası / VKN) —
+  // public business info, not personal data, so it lives here rather than
+  // in the PII vault (contrast with a reviewer's own T.C. Kimlik No, which
+  // is exactly the kind of personal identifier PiiVault exists to isolate).
+  // Admin-only field (AdminCompaniesService), nullable since the existing
+  // directory was seeded without it.
+  taxNumber    String?
+  // Yes/No "Chain Store" flag from the admin create/edit form — purely
+  // informational for now (e.g. distinguishing "A101" the chain from one
+  // specific branch); nothing yet reads this to change search/matching
+  // behavior.
+  isChainStore Boolean @default(false)
 
   // Public contact/socials, owner-editable from the "My companies" dashboard
   // (OwnerService.updateMyCompany) — free tier, not Plus-gated like
   // description/website. All nullable: most existing companies won't have
   // these filled in until an owner claims and fills them out.
-  contactEmail  String?
-  contactPhone  String?
-  facebookUrl   String?
-  instagramUrl  String?
-  whatsappUrl   String?
-  xUrl          String?
+  contactEmail String?
+  contactPhone String?
+  facebookUrl  String?
+  instagramUrl String?
+  whatsappUrl  String?
+  xUrl         String?
 
-  employmentHistories EmploymentHistory[]
-  reviews             Review[]
-  owners              CompanyOwner[]
-  aggregate           CompanyAggregateScore?
+  employmentHistories  EmploymentHistory[]
+  reviews              Review[]
+  owners               CompanyOwner[]
+  aggregate            CompanyAggregateScore?
   ownerContactMessages OwnerContactMessage[]
-  replies             CompanyReply[]
+  replies              CompanyReply[]
 
   // name: helps the case-insensitive exact-match duplicate check
   // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
@@ -317,8 +371,8 @@ model CompanyOwner {
   // Rival Analytics add-on (see RivalAnalyticsTier above) — independent of
   // tier/planStatus above, which govern the unrelated Plus company-listing
   // features.
-  rivalAnalyticsTier          RivalAnalyticsTier?
-  rivalAnalyticsFreeRequestUsed Boolean            @default(false)
+  rivalAnalyticsTier            RivalAnalyticsTier?
+  rivalAnalyticsFreeRequestUsed Boolean             @default(false)
 
   @@unique([userId, companyId])
   @@schema("public")
@@ -342,11 +396,11 @@ model OwnerContactMessage {
 }
 
 model Review {
-  id                  String   @id @default(uuid())
+  id                  String            @id @default(uuid())
   userId              String
-  user                User     @relation(fields: [userId], references: [id])
+  user                User              @relation(fields: [userId], references: [id])
   companyId           String
-  company             Company  @relation(fields: [companyId], references: [id])
+  company             Company           @relation(fields: [companyId], references: [id])
   employmentHistoryId String
   employmentHistory   EmploymentHistory @relation(fields: [employmentHistoryId], references: [id])
 
@@ -368,8 +422,8 @@ model Review {
   // Raw { [questionId]: "YES" | "NO" | "PREFER_NOT_TO_ANSWER" } the reviewer
   // submitted, keyed by the stable ids in survey-questions.data.ts. Kept so
   // an edit can reload prior answers and so scores are always re-derivable.
-  surveyAnswers Json
-  generalThoughts String?
+  surveyAnswers         Json
+  generalThoughts       String?
 
   status            ReviewStatus @default(PENDING_MODERATION)
   aiModerationScore Float?
@@ -389,17 +443,17 @@ model Review {
   createdAt   DateTime  @default(now())
   publishedAt DateTime?
 
-  votes ReviewVote[]
+  votes               ReviewVote[]
   moderationQueueItem ModerationQueueItem?
-  companyReply CompanyReply?
+  companyReply        CompanyReply?
 
+  @@unique([userId, companyId])
   // The @@unique below already indexes userId as its leading column, which
   // covers userId-alone lookups (e.g. counting a reviewer's prior published
   // reviews) — but every companyId-alone lookup (listing a company's
   // reviews, recomputing its aggregate, survey stats) had nothing to use
   // until this explicit index.
   @@index([companyId])
-  @@unique([userId, companyId])
   @@schema("public")
 }
 
@@ -447,15 +501,15 @@ model CompanyReply {
 
 model CompanyAggregateScore {
   companyId           String   @id
-  company              Company @relation(fields: [companyId], references: [id])
-  overallAvg           Float   @default(0)
-  corporateCultureAvg  Float   @default(0)
-  leadershipAvg        Float   @default(0)
-  infrastructureAvg    Float   @default(0)
-  workLifeBalanceAvg   Float   @default(0)
-  stabilityAvg         Float   @default(0)
-  reviewCount          Int     @default(0)
-  updatedAt            DateTime @updatedAt
+  company             Company  @relation(fields: [companyId], references: [id])
+  overallAvg          Float    @default(0)
+  corporateCultureAvg Float    @default(0)
+  leadershipAvg       Float    @default(0)
+  infrastructureAvg   Float    @default(0)
+  workLifeBalanceAvg  Float    @default(0)
+  stabilityAvg        Float    @default(0)
+  reviewCount         Int      @default(0)
+  updatedAt           DateTime @updatedAt
 
   @@schema("public")
 }
@@ -526,13 +580,13 @@ model RivalAnalyticsPurchase {
 // credential. Issued/revoked admin-only (see InvestorApiModule) — there is
 // no self-serve signup for this tier yet.
 model InvestorApiKey {
-  id             String    @id @default(uuid())
-  keyHash        String    @unique
+  id               String    @id @default(uuid())
+  keyHash          String    @unique
   organizationName String
-  contactEmail   String
-  active         Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  revokedAt      DateTime?
+  contactEmail     String
+  active           Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  revokedAt        DateTime?
 
   @@schema("public")
 }
@@ -654,31 +708,31 @@ model PiiVault {
 // record (CLAUDE.md's "employers must transition to a strictly public,
 // legally verified profile" requirement) rather than a one-time fraud check.
 model EmployerProfile {
-  userId          String   @id
-  user            User     @relation(fields: [userId], references: [id])
+  userId            String   @id
+  user              User     @relation(fields: [userId], references: [id])
   // All nullable, unlike PiiVault's equivalents — this profile is filled in
   // incrementally (PATCH-style, same pattern as ProfileService.updateProfile)
   // rather than submitted all at once, so there's no single moment where
   // every field is guaranteed present. EmployerProfileService.isComplete()
   // is what actually enforces "every field present" for legal-compliance
   // purposes, not the schema.
-  encFirstName    Bytes?
-  encLastName     Bytes?
-  encPhoneNumber  Bytes?
-  encAddress      Bytes?
-  encWorkAddress  Bytes?
-  encTcKimlikNo   Bytes?
+  encFirstName      Bytes?
+  encLastName       Bytes?
+  encPhoneNumber    Bytes?
+  encAddress        Bytes?
+  encWorkAddress    Bytes?
+  encTcKimlikNo     Bytes?
   // Unique when present, same duplicate-account-detection purpose as
   // PiiVault.tcKimlikNoHash — a person shouldn't be able to register as the
   // verified legal contact for multiple accounts using the same national ID.
-  tcKimlikNoHash  String?  @unique
+  tcKimlikNoHash    String?  @unique
   // Company logo / employer headshot — actual upload+storage is a later
   // step (see project notes); this column just holds wherever that file
   // ends up living, exactly like Company.mainPhotoUrl already does.
   profilePictureUrl String?
-  dekWrapped      Bytes
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  dekWrapped        Bytes
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@schema("pii")
 }

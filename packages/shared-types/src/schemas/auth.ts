@@ -80,3 +80,20 @@ export const authTokensResponseSchema = z.object({
   expiresInSeconds: z.number(),
 });
 export type AuthTokensResponse = z.infer<typeof authTokensResponseSchema>;
+
+// POST /auth/login's actual response shape — a plain AuthTokensResponse for
+// every account except the hardcoded ADMIN email, which instead gets sent
+// an OTP and must follow up with POST /auth/login/verify-otp (see
+// AuthService.loginWithEmail / verifyAdminLoginOtp). Tagged with `status`
+// rather than just being AuthTokensResponse-or-null so a client can't
+// mistake "no tokens yet, OTP pending" for a malformed success response.
+export const loginResultSchema = z.discriminatedUnion("status", [
+  authTokensResponseSchema.extend({ status: z.literal("OK") }),
+  z.object({ status: z.literal("OTP_REQUIRED"), email: z.string() }),
+]);
+export type LoginResult = z.infer<typeof loginResultSchema>;
+
+export const verifyAdminOtpInputSchema = loginEmailInputSchema.pick({ email: true }).extend({
+  code: z.string().regex(/^\d{6}$/, "Must be a 6-digit code"),
+});
+export type VerifyAdminOtpInput = z.infer<typeof verifyAdminOtpInputSchema>;

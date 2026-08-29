@@ -6,9 +6,16 @@ import {
 } from "@nestjs/common";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
-import type { AuthTokensResponse, LoginEmailInput, RegisterEmailInput } from "@iwtr/shared-types";
+import type {
+  AuthTokensResponse,
+  LoginEmailInput,
+  LoginResult,
+  RegisterEmailInput,
+  VerifyAdminOtpInput,
+} from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { TokenService } from "./token.service";
+import { AdminLoginOtpService } from "./admin-login-otp.service";
 
 const PASSWORD_SALT_ROUNDS = 12;
 
@@ -23,6 +30,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
+    private readonly adminLoginOtp: AdminLoginOtpService,
   ) {}
 
   async registerWithEmail(input: RegisterEmailInput, deviceLabel?: string): Promise<AuthTokensResponse> {
@@ -57,7 +65,7 @@ export class AuthService {
     return this.issueTokenPair(user.id, user.role, user.status, deviceLabel);
   }
 
-  async loginWithEmail(input: LoginEmailInput, deviceLabel?: string): Promise<AuthTokensResponse> {
+  async loginWithEmail(input: LoginEmailInput, deviceLabel?: string): Promise<LoginResult> {
     const user = await this.prisma.user.findUnique({ where: { email: input.email } });
 
     // Always run a bcrypt compare, even when there's no account (or no
@@ -79,7 +87,31 @@ export class AuthService {
       status = reactivated.status;
     }
 
-    return this.issueTokenPair(user.id, user.role, status, deviceLabel);
+    // The password step alone is never enough to reach the ADMIN role's
+    // session — a correct password here only earns the right to be sent a
+    // one-time code; issueTokenPair for this account only ever happens from
+    // verifyAdminLoginOtp below, once that code is confirmed.
+    if (user.role === "ADMIN") {
+      await this.adminLoginOtp.issueChallenge(user.id, user.email!);
+      return { status: "OTP_REQUIRED", email: user.email! };
+    }
+
+    const tokens = await this.issueTokenPair(user.id, user.role, status, deviceLabel);
+    return { status: "OK", ...tokens };
+  }
+
+  async verifyAdminLoginOtp(input: VerifyAdminOtpInput, deviceLabel?: string): Promise<AuthTokensResponse> {
+    const user = await this.prisma.user.findUnique({ where: { email: input.email } });
+    // Deliberately the same generic failure for "no such user", "not an
+    // admin", and "wrong/expired code" — same anti-enumeration reasoning as
+    // loginWithEmail's dummy-hash compare: this endpoint must never let a
+    // caller distinguish "that email isn't an admin" from "that email is an
+    // admin but the code was wrong."
+    if (!user || user.role !== "ADMIN") {
+      throw new UnauthorizedException("Invalid code");
+    }
+    await this.adminLoginOtp.verifyChallenge(user.id, input.code);
+    return this.issueTokenPair(user.id, user.role, user.status, deviceLabel);
   }
 
   async refresh(refreshToken: string): Promise<AuthTokensResponse> {

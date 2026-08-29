@@ -6,6 +6,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { CompaniesModule } from "./modules/companies/companies.module";
+import { AdminCompaniesModule } from "./modules/admin-companies/admin-companies.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { AdminQueueModule } from "./modules/admin-queue/admin-queue.module";
 import { OwnerModule } from "./modules/owner/owner.module";
@@ -30,6 +31,7 @@ import { InvestorApiModule } from "./modules/investor-api/investor-api.module";
     AuthModule,
     OnboardingModule,
     CompaniesModule,
+    AdminCompaniesModule,
     ReviewsModule,
     AdminQueueModule,
     OwnerModule,

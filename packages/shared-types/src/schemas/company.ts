@@ -48,6 +48,10 @@ export const companySchema = z.object({
   city: z.string().nullable(),
   district: z.string().nullable(),
   isVerifiedBadge: z.boolean(),
+  // Admin-only fields (AdminCompaniesService) — see Prisma schema comments.
+  // taxNumber is public trade-registry info, not personal PII.
+  taxNumber: z.string().nullable(),
+  isChainStore: z.boolean(),
   // Public contact/socials — owner-editable, free tier (not Plus-gated like
   // description/website). All nullable: most companies won't have these
   // filled in until an owner claims and sets them.
@@ -111,8 +115,86 @@ export const adminCreateCompanyInputSchema = z.object({
   city: z.string().min(1).optional(),
   district: z.string().min(1).optional(),
   mainPhotoUrl: httpUrlSchema.optional(),
+  taxNumber: z.string().trim().min(1).optional(),
+  isChainStore: z.boolean().optional(),
+  // Set by the admin dashboard's "Pending Review Queue" when this create
+  // call is approving a worker-suggested name rather than starting from
+  // scratch — purely so AdminCompaniesController can log AuditLog's
+  // actionType as APPROVE instead of CREATE (AdminCompaniesService.create
+  // still runs the exact same logic either way).
+  fromSuggestion: z.boolean().optional(),
 });
 export type AdminCreateCompanyInput = z.infer<typeof adminCreateCompanyInputSchema>;
+
+// Admin edit ("Edit Company Data" dashboard module) — deliberately the same
+// field set an owner can already touch (updateCompanyInputSchema in
+// owner.ts) plus the two admin-only fields above, rather than a
+// hand-duplicated shape. See AdminCompaniesService.update.
+export const adminUpdateCompanyInputSchema = z.object({
+  name: z.string().min(1).optional(),
+  category: z.string().min(1).optional(),
+  workplaceTypes: companyWorkplaceTypesSchema.optional(),
+  mainPhotoUrl: httpUrlSchema.optional(),
+  description: z.string().optional(),
+  website: httpUrlSchema.optional(),
+  city: z.string().min(1).optional(),
+  district: z.string().min(1).optional(),
+  contactEmail: z.string().email().optional(),
+  contactPhone: z.string().optional(),
+  facebookUrl: httpUrlSchema.optional(),
+  instagramUrl: httpUrlSchema.optional(),
+  whatsappUrl: httpUrlSchema.optional(),
+  xUrl: httpUrlSchema.optional(),
+  taxNumber: z.string().trim().min(1).optional(),
+  isChainStore: z.boolean().optional(),
+});
+export type AdminUpdateCompanyInput = z.infer<typeof adminUpdateCompanyInputSchema>;
+
+// A lightweight row for the admin dashboard's search-and-edit list and the
+// two "Merge Duplicates" dropdowns — not the full public Company shape,
+// just enough to identify one in a list.
+export const adminCompanySummarySchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  name: z.string(),
+  city: z.string().nullable(),
+  district: z.string().nullable(),
+});
+export type AdminCompanySummary = z.infer<typeof adminCompanySummarySchema>;
+
+// One distinct worker-suggested employer name waiting in the "Pending
+// Review Queue" — see EmploymentHistory.rawCompanyName / companyId(null)
+// and CompanySuggestionDismissal.
+export const companySuggestionSchema = z.object({
+  nameKey: z.string(),
+  rawCompanyName: z.string(),
+  workerCount: z.number().int().min(1),
+});
+export type CompanySuggestion = z.infer<typeof companySuggestionSchema>;
+
+// rawCompanyName only, not nameKey — the server derives the same normalized
+// key from it (AdminCompaniesService.dismissSuggestion), so there's exactly
+// one place that ever computes it.
+export const dismissCompanySuggestionInputSchema = z.object({
+  rawCompanyName: z.string().min(1),
+});
+export type DismissCompanySuggestionInput = z.infer<typeof dismissCompanySuggestionInputSchema>;
+
+// "Merge Duplicates": duplicateId gets folded into masterId and deleted.
+export const mergeCompaniesInputSchema = z
+  .object({
+    masterId: z.string().uuid(),
+    duplicateId: z.string().uuid(),
+  })
+  .refine((v) => v.masterId !== v.duplicateId, { message: "Pick two different companies to merge." });
+export type MergeCompaniesInput = z.infer<typeof mergeCompaniesInputSchema>;
+
+export const mergeCompaniesResultSchema = z.object({
+  mergedReviewCount: z.number().int().min(0),
+  droppedReviewCount: z.number().int().min(0),
+  droppedOwnerCount: z.number().int().min(0),
+});
+export type MergeCompaniesResult = z.infer<typeof mergeCompaniesResultSchema>;
 
 // 1.0-5.0 average maps to a fixed label band shown on every company page.
 // Exemplary is reserved for a literal perfect 5.0 average (2026-08-02

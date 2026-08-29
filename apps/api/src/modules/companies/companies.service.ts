@@ -57,6 +57,8 @@ export class CompaniesService {
         city,
         district,
         mainPhotoUrl: input.mainPhotoUrl,
+        taxNumber: input.taxNumber,
+        isChainStore: input.isChainStore ?? false,
         createdByAdminId: adminUserId,
       },
     });
@@ -68,6 +70,21 @@ export class CompaniesService {
     await this.prisma.employmentHistory.updateMany({
       where: { companyId: null, rawCompanyName: { equals: input.name, mode: "insensitive" } },
       data: { companyId: company.id },
+    });
+
+    // fromSuggestion distinguishes "approved a worker-suggested name out of
+    // the admin dashboard's Pending Review Queue" from "created a brand-new
+    // listing from scratch" — both run this exact same method (approving a
+    // suggestion IS just creating a company with that name), only the
+    // AuditLog actionType differs.
+    await this.prisma.auditLog.create({
+      data: {
+        actorUserId: adminUserId,
+        action: input.fromSuggestion ? "APPROVE" : "CREATE",
+        targetType: "Company",
+        targetId: company.id,
+        metadata: { name: company.name },
+      },
     });
 
     return this.toPublicCompany(company);
@@ -215,6 +232,8 @@ export class CompaniesService {
     city: string | null;
     district: string | null;
     isVerifiedBadge: boolean;
+    taxNumber: string | null;
+    isChainStore: boolean;
     contactEmail: string | null;
     contactPhone: string | null;
     facebookUrl: string | null;
@@ -234,6 +253,8 @@ export class CompaniesService {
       city: c.city,
       district: c.district,
       isVerifiedBadge: c.isVerifiedBadge,
+      taxNumber: c.taxNumber,
+      isChainStore: c.isChainStore,
       contactEmail: c.contactEmail,
       contactPhone: c.contactPhone,
       facebookUrl: c.facebookUrl,
