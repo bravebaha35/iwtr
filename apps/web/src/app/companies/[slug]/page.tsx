@@ -20,12 +20,19 @@ const CATEGORIES = [
 ];
 
 // Dynamic image + descriptive text, picked from the company's live overall
-// score and its primary (first-tag) work-type — see ratingNarrative.ts.
-// "Vertically flexible container that expands to fit its content" means no
-// fixed/aspect-ratio height here: plain flexbox, so a longer text block just
-// grows the box rather than clipping or scrolling. Flex-col on mobile (image
-// stacked above text) / flex-row on larger screens (image left, text
-// vertically centered beside it), per the explicit mobile-readability ask.
+// score, its primary (first-tag) work-type, and its real Workplace Vibe
+// Flags for that type — see ratingNarrative.ts. "Vertically flexible
+// container that expands to fit its content" means no fixed/aspect-ratio
+// height here: plain flexbox, so a longer text block just grows the box
+// rather than clipping or scrolling. Flex-col on mobile (image stacked
+// above text) / flex-row on larger screens (image left, text vertically
+// centered beside it), per the explicit mobile-readability ask.
+//
+// Sized to sit almost flush against the Rating Breakdown box beside it:
+// lg:max-w-2xl (up from lg:max-w-lg) plus the row's own tightened lg:gap-3
+// close most of the remaining daylight between the two, and the artwork
+// itself is bumped from h-40/w-40 to h-56/w-56 to fill the taller box
+// instead of floating small inside it.
 function RatingNarrativeBox({
   score,
   workplaceType,
@@ -37,15 +44,15 @@ function RatingNarrativeBox({
 }) {
   const { imageSrc, text } = ratingNarrative(score, workplaceType, flags);
   return (
-    <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:max-w-lg lg:shrink-0">
+    <div className="flex flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:max-w-2xl lg:shrink-0">
       {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element -- a small
         // fixed set of local /public illustrations, not a remote/arbitrary
         // URL next/image's loader config would need to know about.
-        <img src={imageSrc} alt="" className="h-40 w-40 shrink-0 object-contain" />
+        <img src={imageSrc} alt="" className="h-56 w-56 shrink-0 object-contain" />
       ) : (
         <div
-          className="flex h-40 w-40 shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground"
+          className="flex h-56 w-56 shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground"
           aria-hidden="true"
         >
           Image coming soon
@@ -210,7 +217,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             Q&A detail box) is intentionally not rendered on this page any
             more — the component itself is untouched and still available to
             reuse elsewhere later, it's just not shown here. */}
-        <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-stretch">
+        <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3">
           {aggregate && aggregate.reviewCount > 0 && (
             <RatingNarrativeBox
               score={aggregate.overallAvg}
