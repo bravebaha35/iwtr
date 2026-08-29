@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
+import { RivalAnalyticsRequestModal } from "@/components/RivalAnalyticsRequestModal";
 import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
 import { ReviewsList } from "@/components/ReviewsList";
 import { AdSlot } from "@/components/AdSlot";
@@ -231,6 +232,17 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [contactStatus, setContactStatus] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+
+  const [showRivalAnalytics, setShowRivalAnalytics] = useState(false);
+  // `claim` is a static prop from the parent's one-time claims fetch — it
+  // never updates on its own after a successful free pull. Tracking the
+  // "just used it" fact here and folding it into every read (badge AND the
+  // modal's own props below) keeps both in sync; patching only the badge
+  // would leave a freshly-reopened modal still trusting the stale prop and
+  // offering a free report a second time.
+  const [freeRivalAnalyticsRequestJustUsed, setFreeRivalAnalyticsRequestJustUsed] = useState(false);
+  const rivalAnalyticsFreeRequestUsed = claim.rivalAnalyticsFreeRequestUsed || freeRivalAnalyticsRequestJustUsed;
+  const hasFreeRivalAnalyticsRequest = claim.rivalAnalyticsTier === "ENTERPRISE" && !rivalAnalyticsFreeRequestUsed;
 
   const isPlusActive = claim.tier === "PLUS" && claim.planStatus === "ACTIVE";
 
@@ -612,6 +624,37 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             />
           </div>
         </DashboardBox>
+      </div>
+
+      <div className="mt-5 border-t border-border pt-4">
+        <h3 className="mb-1 font-semibold text-foreground">Rival Analytics</h3>
+        <p className="mb-3 text-sm text-muted-foreground">
+          See how another company compares — overall rating, most agreed/disputed questions, and workplace vibe
+          flags, delivered as a PDF to your inbox. Individual reviewer comments are never included.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowRivalAnalytics(true)}
+            className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
+          >
+            Request Rival Analytics
+          </button>
+          {hasFreeRivalAnalyticsRequest && (
+            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
+              1 Free Request available
+            </span>
+          )}
+        </div>
+        {showRivalAnalytics && (
+          <RivalAnalyticsRequestModal
+            requestingCompanyId={claim.companyId}
+            rivalAnalyticsTier={claim.rivalAnalyticsTier}
+            rivalAnalyticsFreeRequestUsed={rivalAnalyticsFreeRequestUsed}
+            onClose={() => setShowRivalAnalytics(false)}
+            onFreeCreditUsed={() => setFreeRivalAnalyticsRequestJustUsed(true)}
+          />
+        )}
       </div>
 
       <div className="mt-5 border-t border-border pt-4">
