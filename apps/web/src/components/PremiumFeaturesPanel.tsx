@@ -237,7 +237,7 @@ export function PremiumFeaturesPanel({
       <p className="mb-3 text-sm text-muted-foreground">
         What&apos;s available on your plan, and what unlocks on a higher one.
       </p>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]">
         <nav className="flex flex-col gap-1">
           {MENU_ITEMS.map((item) => {
             const itemLocked = (item.lockedBelowRank ?? 0) > rank;
@@ -247,18 +247,18 @@ export function PremiumFeaturesPanel({
                 key={item.id}
                 type="button"
                 onClick={() => setActiveId(item.id)}
-                className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
+                className={`flex flex-col items-start gap-1 rounded-lg px-3 py-2 text-left text-sm transition ${
                   isActive
                     ? "bg-brand-100 font-medium text-brand-800 dark:bg-brand-900 dark:text-brand-200"
                     : "text-foreground hover:bg-surface-muted"
                 } ${itemLocked ? "opacity-60" : ""}`}
               >
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
                   {itemLocked && <span aria-hidden>🔒</span>}
                   {item.label}
                 </span>
                 {itemLocked && (
-                  <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                     For {PRICING_TIERS.find((t) => t.rank === item.lockedBelowRank)?.label}+ Members
                   </span>
                 )}
@@ -266,7 +266,7 @@ export function PremiumFeaturesPanel({
             );
           })}
         </nav>
-        <div className="rounded-xl border border-border bg-surface-muted p-5">
+        <div className="rounded-xl border border-border p-5">
           {activeLocked ? (
             <LockedFeature label={active.label} lockedBelowRank={active.lockedBelowRank ?? 0} onOpenPricing={onOpenPricing} />
           ) : (

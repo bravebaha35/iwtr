@@ -127,7 +127,7 @@ const TIER_HEADERS: { key: keyof TierValue; label: string }[] = [
 export function PricingComparisonTable({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
-      <div className="relative flex w-full max-w-6xl flex-col rounded-xl border border-border bg-surface shadow-xl">
+      <div className="relative flex w-full max-w-[1600px] flex-col rounded-xl border border-border bg-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-6 py-5">
           <div>
             <h2 className="text-xl font-bold text-foreground">Pricing</h2>

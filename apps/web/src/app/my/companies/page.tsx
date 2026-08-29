@@ -729,7 +729,7 @@ export default function MyCompaniesPage() {
     <div className="flex w-full items-start justify-center gap-6 px-4 py-8">
       <AdSlot />
 
-      <div className="w-full max-w-6xl">
+      <div className="w-full max-w-7xl">
         <h1 className="mb-1 text-2xl font-bold text-foreground">My companies</h1>
         <p className="mb-6 text-sm text-muted-foreground">
           Companies you&apos;ve claimed, and their approval status. Search a workplace and use &ldquo;Claim this
