@@ -29,15 +29,15 @@ const CATEGORIES = [
 function RatingNarrativeBox({ score, workplaceType }: { score: number; workplaceType: Company["workplaceTypes"][number] }) {
   const { imageSrc, text } = ratingNarrative(score, workplaceType);
   return (
-    <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:max-w-sm lg:shrink-0">
+    <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:max-w-lg lg:shrink-0">
       {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element -- a small
         // fixed set of local /public illustrations, not a remote/arbitrary
         // URL next/image's loader config would need to know about.
-        <img src={imageSrc} alt="" className="h-28 w-28 shrink-0 object-contain" />
+        <img src={imageSrc} alt="" className="h-40 w-40 shrink-0 object-contain" />
       ) : (
         <div
-          className="flex h-28 w-28 shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground"
+          className="flex h-40 w-40 shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground"
           aria-hidden="true"
         >
           Image coming soon
@@ -191,9 +191,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                 {CATEGORIES.map((c) => (
                   <div key={c.key} className="flex items-center gap-3">
                     <span className="w-40 shrink-0 text-sm text-muted-foreground sm:w-56">{c.label}</span>
-                    <div className="h-2 flex-1 rounded-full bg-surface-muted">
+                    <div className="h-1.5 flex-1 rounded-full bg-surface-muted">
                       <div
-                        className={`h-2 rounded-full ${scoreBarColor(aggregate[c.key])}`}
+                        className={`h-1.5 rounded-full ${scoreBarColor(aggregate[c.key])}`}
                         style={{ width: `${(aggregate[c.key] / 5) * 100}%` }}
                       />
                     </div>
