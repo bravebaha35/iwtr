@@ -50,6 +50,7 @@ const detail: CompanyDetail = {
     isVerifiedBadge: false,
     taxNumber: null,
     isChainStore: false,
+    isHiring: false,
     contactEmail: "contact@acme.test",
     contactPhone: "+902121234567",
     facebookUrl: null,

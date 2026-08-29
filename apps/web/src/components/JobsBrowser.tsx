@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
+import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
-import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarPillClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
@@ -13,30 +12,30 @@ import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
-import { AdSlot } from "@/components/AdSlot";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
+
+// This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
+// rather than a shared-internals refactor of it — the brief asked for the
+// main rating homepage to stay entirely untouched, and this page's own
+// filter/sort/search behavior needs to keep evolving independently of it
+// (e.g. it always sends includeJobTitles and only ever shows isHiring
+// companies). Same reasoning the codebase already uses elsewhere for two
+// small, stable, independently-evolving copies of one thing (see
+// classifyJobRole.ts's matchesAsWord/foldTr comment) rather than an
+// extraction that isn't worth it yet.
 
 type Geo = { lat: number; lng: number } | "denied" | null;
 
-// Placeholder emojis for the 0/2.5/5 rating-slider ticks — swap for real
-// icons once they're picked.
 const RATING_TICKS: { value: number; emoji: string }[] = [
   { value: 0, emoji: "😠" },
   { value: 2.5, emoji: "😐" },
   { value: 5, emoji: "😄" },
 ];
 
-// "ratingAsc"/"ratingDesc" are two separate states (not one "rating" value
-// the Rating button just flips) because the button cycles through three
-// distinct looks — neutral, red-outlined (worst first), green-outlined
-// (best first) — and each needs its own stored state to read back on
-// re-render.
 type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "ratingDesc";
 
 const RESULTS_PAGE_SIZE = 24;
 
-// Google-style page list: always show the first and last page, a small
-// window around the current page, and "…" for whatever's skipped in between.
 function pageNumbers(current: number, total: number): (number | "...")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const pages: (number | "...")[] = [1];
@@ -102,38 +101,140 @@ function PaginationBar({
   );
 }
 
-function CompanyCard({ company }: { company: CompanyListItem }) {
+// One job card: 4:5 aspect main box (logo+name header, address/sector,
+// job titles + apply actions, rating + future-flag "i" menu) plus a
+// General Information footer strip below the box — see the layout notes
+// in the PR description for why the footer sits outside the aspect box.
+function JobCard({ company }: { company: CompanyListItem }) {
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const location = [company.district, company.city].filter(Boolean).join(", ");
+
   return (
-    <Link
-      href={`/companies/${company.slug}`}
-      className="flex items-center gap-3 compact:gap-2 rounded-xl border border-border bg-surface p-4 compact:p-2.5 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
-    >
-      <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-foreground compact:text-sm">{company.name}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
-          {company.city ? ` · ${company.city}` : ""}
-          {company.district ? `, ${company.district}` : ""}
+    // No overflow-hidden here (unlike a typical image-topped card) — the "i"
+    // button's flag dropdown is absolutely positioned to spill outside this
+    // box on the right, and clipping it would make it invisible.
+    <div className="flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700">
+      <div className="flex aspect-[4/5] flex-col p-4 compact:p-3">
+        {/* Top row: logo + name (top-left) ... spacer + rating + info button (top-right) */}
+        <div className="flex items-start justify-between gap-2">
+          <Link href={`/companies/${company.slug}`} className="flex min-w-0 items-center gap-2">
+            <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
+            <span className="truncate font-semibold text-foreground">{company.name}</span>
+          </Link>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            {/* Reserved, deliberately empty space to the left of the rating
+                number for a future element (e.g. a trend indicator) — not
+                loaded yet, just held open so adding it later isn't a
+                relayout. */}
+            <span className="h-4 w-4" aria-hidden="true" />
+            <span className="text-sm font-bold text-foreground" title="User rating">
+              {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
+            </span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setInfoOpen((v) => !v)}
+                aria-label="Workplace flags"
+                aria-expanded={infoOpen}
+                className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-[11px] font-bold leading-none text-muted-foreground transition hover:bg-surface-muted"
+              >
+                i
+              </button>
+              {infoOpen && (
+                // Intentionally empty — reserved for the future green/red
+                // flag integration (see FlagCalculatorService), not wired up
+                // yet.
+                <div className="absolute left-full top-0 z-10 ml-1 w-40 rounded-lg border border-border bg-surface p-2 text-xs text-muted-foreground shadow-lg">
+                  No flags yet.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Address + sector, light weight */}
+        <p className="mt-1.5 truncate text-xs font-light text-muted-foreground">
+          {location || "Location not set"} · {company.category}
         </p>
+
+        {/* Job titles (bold) + Apply actions, side by side */}
+        <div className="mt-3 flex flex-1 items-start justify-between gap-2 overflow-hidden">
+          <div className="flex min-w-0 flex-wrap content-start gap-1">
+            {company.jobTitles.length > 0 ? (
+              company.jobTitles.map((title) => (
+                <span
+                  key={title}
+                  className="truncate rounded-full bg-brand-50 px-2 py-1 text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300"
+                >
+                  {title}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs font-bold text-muted-foreground">No open roles listed yet</span>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={() => setNotice("Applications aren't open yet — check back soon.")}
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={() => setNotice("Anonymous applications aren't open yet — check back soon.")}
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-surface-muted"
+            >
+              Apply Anonymously
+            </button>
+          </div>
+        </div>
+
+        {notice && <p className="mt-2 text-[11px] text-muted-foreground">{notice}</p>}
       </div>
 
-      {company.overallAvg !== null ? (
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="text-lg compact:text-base font-bold text-foreground">
-            {company.overallAvg.toFixed(1)}
-          </span>
-          <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-            {scoreBandLabel(company.overallAvg)}
-          </span>
-          <span className="text-xs text-muted-foreground compact:hidden">
-            ({company.reviewCount} review{company.reviewCount === 1 ? "" : "s"})
-          </span>
-        </div>
-      ) : (
-        <p className="shrink-0 text-xs text-muted-foreground">No reviews yet</p>
-      )}
-    </Link>
+      {/* Card footer, below the main content box */}
+      <div className="border-t border-border p-3 compact:p-2">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          General Information
+        </h4>
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")}
+          {company.isVerifiedBadge ? " · Verified" : ""}
+          {company.isChainStore ? " · Chain store" : ""}
+          {" · "}
+          {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Compact list beside the main grid — company names and plain rating
+// numbers only, nothing else, per the brief.
+function HiringRatingSidebar({ companies }: { companies: CompanyListItem[] }) {
+  return (
+    <aside className="hidden w-56 shrink-0 flex-col gap-2 xl:flex">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Companies Hiring</h3>
+      <div className="thin-scrollbar flex max-h-[75vh] flex-col gap-0.5 overflow-y-auto rounded-xl border border-border bg-surface p-2">
+        {companies.map((c) => (
+          <Link
+            key={c.id}
+            href={`/companies/${c.slug}`}
+            className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-surface-muted"
+          >
+            <span className="truncate text-foreground">{c.name}</span>
+            <span className="shrink-0 font-semibold text-foreground">
+              {c.overallAvg !== null ? c.overallAvg.toFixed(1) : "—"}
+            </span>
+          </Link>
+        ))}
+        {companies.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">No companies yet.</p>}
+      </div>
+    </aside>
   );
 }
 
@@ -143,7 +244,7 @@ function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number })
   return distanceKm(geo.lat, geo.lng, province.lat, province.lng);
 }
 
-export function WorkplaceBrowser() {
+export function JobsBrowser() {
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [minRating, setMinRating] = useState(0);
@@ -151,16 +252,7 @@ export function WorkplaceBrowser() {
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
-  // Distinguishes "the request failed" from "genuinely zero matches" — both
-  // used to collapse into the same empty `companies` state and render the
-  // same "No workplaces match these filters yet" message, which made a
-  // backend/network outage indistinguishable from a real empty result.
   const [loadError, setLoadError] = useState(false);
-  // null = never asked (the resting/default state — "All" stays "All" until
-  // the visitor deliberately clicks "Near Me"). Geolocation is NEVER
-  // requested automatically and NEVER falls back to the visitor's own
-  // profile city — both used to happen silently on page load, which quietly
-  // narrowed "All" down to their onboarding city with no action from them.
   const [geo, setGeo] = useState<Geo>(null);
   const [geoRequesting, setGeoRequesting] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("default");
@@ -172,10 +264,6 @@ export function WorkplaceBrowser() {
     setMinRating((prev) => Math.min(5, Math.max(0, Math.round((prev + delta) * 10) / 10)));
   }
 
-  // React registers the root `wheel` listener as passive, so `preventDefault`
-  // inside a React onWheel prop is silently ignored and the page scrolls
-  // underneath instead of the rating changing. Attaching the listener
-  // natively with passive:false is the only way to actually block the scroll.
   useEffect(() => {
     const el = sliderTrackRef.current;
     if (!el) return;
@@ -187,22 +275,6 @@ export function WorkplaceBrowser() {
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  // Press-and-hold scrub: mouse position across the track maps directly to a
-  // 0-5 value, so a single click sets a point and holding + dragging sweeps
-  // through every 0.1 step in between. Uses Pointer Capture rather than
-  // window-level mousemove/mouseup listeners: capturing the pointer on the
-  // track guarantees onPointerMove/Up keep firing on this element even if the
-  // cursor leaves it (or the button is released outside the browser window
-  // entirely). A window-listener version can't detect a release outside the
-  // window, leaking a permanent mousemove listener that fires setMinRating on
-  // every future mouse move anywhere on the page — which starves re-renders
-  // and makes unrelated clicks (e.g. Cities & Districts) look "disabled".
-  // Maps cursor position directly onto the 0-5 range every time — the thumb
-  // is drawn at `(minRating / 5) * 100%` (see below), so this is the only
-  // formula that keeps the thumb glued exactly under the cursor. An earlier
-  // version damped pointermove by scaling the drag *delta*, which felt
-  // smoother but desynced the thumb from the actual cursor position the
-  // moment you started dragging — don't reintroduce delta-based tracking here.
   function applyRatingFromClientX(el: HTMLDivElement, clientX: number) {
     const rect = el.getBoundingClientRect();
     const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
@@ -221,9 +293,6 @@ export function WorkplaceBrowser() {
     applyRatingFromClientX(e.currentTarget, e.clientX);
   }
 
-  // "Near Me" button only: geolocation is never requested until the visitor
-  // clicks it, and success only ever reorders results by proximity — it
-  // never touches selectedCities/selectedDistrictKeys, so "All" stays "All".
   function requestNearMe() {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
       setGeo("denied");
@@ -243,17 +312,10 @@ export function WorkplaceBrowser() {
     );
   }
 
-  // Sends everything except `category` to the server — q, workplaceTypes,
-  // cities/districtKeys, and minRating are real Prisma WHERE clauses now
-  // (see CompaniesService.search), rather than fetching the whole directory
-  // and filtering it in the browser. `category` stays client-side (applied
-  // in visibleCompanies below) for one reason: the category dropdown's own
-  // option list needs to reflect what's available for the current
-  // workplaceTypes selection regardless of which category happens to be
-  // picked — filtering it server-side too would make picking a category
-  // collapse the dropdown down to just that one option. Debounced 250ms so
-  // dragging the rating slider or toggling several pills in a row doesn't
-  // fire a request per intermediate value.
+  // Same GET /companies endpoint the rating homepage uses (WorkplaceBrowser),
+  // plus includeJobTitles=1 — the one addition that scopes results to
+  // isHiring companies and attaches each one's classified job titles. No
+  // separate/isolated jobs endpoint.
   useEffect(() => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
@@ -261,6 +323,7 @@ export function WorkplaceBrowser() {
     if (selectedCities.length > 0) params.set("cities", selectedCities.join(","));
     if (selectedDistrictKeys.length > 0) params.set("districtKeys", selectedDistrictKeys.join(","));
     if (minRating > 0) params.set("minRating", String(minRating));
+    params.set("includeJobTitles", "1");
 
     let cancelled = false;
     setLoadError(false);
@@ -282,19 +345,10 @@ export function WorkplaceBrowser() {
     };
   }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating]);
 
-  // Changing which workplace type(s) are active can make the current
-  // category selection unavailable (or just irrelevant) — reset it rather
-  // than silently filtering against a category the visible dropdown no
-  // longer offers.
   useEffect(() => {
     setSelectedCategory(null);
   }, [workplaceTypes]);
 
-  // Narrows the Sector dropdown to whichever sectors are tagged with at
-  // least one of the currently selected workplace type(s) (see sectors.ts)
-  // — e.g. selecting "Office" hides purely-manual sectors like
-  // "Construction" but keeps "Healthcare" (tagged Office + Service). With no
-  // workplace type selected ("All"), every sector is shown.
   const sectorOptions = useMemo(() => sectorsForWorkplaceTypes(workplaceTypes), [workplaceTypes]);
 
   const visibleCompanies = useMemo(() => {
@@ -306,14 +360,8 @@ export function WorkplaceBrowser() {
     } else if (sortBy === "ratingDesc") {
       list = [...list].sort((a, b) => (b.overallAvg ?? -1) - (a.overallAvg ?? -1));
     } else if (sortBy === "ratingAsc") {
-      // Unrated companies (no overallAvg) fall back to +Infinity on both
-      // sides here, same as the -1 fallback above for the descending case
-      // — either way they sink to the bottom instead of contaminating the
-      // "least rated" or "best rated" end of the list.
       list = [...list].sort((a, b) => (a.overallAvg ?? Infinity) - (b.overallAvg ?? Infinity));
     } else if (sortBy === "workplace") {
-      // Sorts by each company's first (primary) tag only — not a full
-      // multi-key sort — since a company can carry up to 2 workplaceTypes.
       const order = WORKPLACE_TYPES.map((t) => t.value);
       list = [...list].sort((a, b) => order.indexOf(a.workplaceTypes[0]) - order.indexOf(b.workplaceTypes[0]));
     } else if (geo && geo !== "denied") {
@@ -322,8 +370,6 @@ export function WorkplaceBrowser() {
     return list;
   }, [companies, selectedCategory, geo, sortBy]);
 
-  // Any change to what's being shown should land back on page 1 — otherwise
-  // narrowing a filter can strand you on a now-nonexistent page 12 of 2.
   useEffect(() => {
     setPage(1);
   }, [workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
@@ -336,10 +382,6 @@ export function WorkplaceBrowser() {
     resultsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // Mirrors the "a company can carry at most 2 workplaceTypes" rule (see
-  // CLAUDE.md) on the filter side too: picking a 3rd, distinct type doesn't
-  // add to the selection — it starts a fresh selection with just that type,
-  // as if the two previous picks were cleared first.
   function toggleWorkplaceType(value: WorkplaceType) {
     setWorkplaceTypes((prev) => {
       if (prev.includes(value)) return prev.filter((v) => v !== value);
@@ -348,15 +390,10 @@ export function WorkplaceBrowser() {
     });
   }
 
-  // Clears back to no workplace-type filter — which, since the server only
-  // filters by workplaceTypes when the list is non-empty, is the same thing
-  // as "show every workplace type".
   function resetWorkplaceTypes() {
     setWorkplaceTypes([]);
   }
 
-  // Single-select: picking a different city replaces whichever one was
-  // chosen before, rather than adding to a set of cities.
   function toggleCity(city: string) {
     setSelectedCities((prev) => (prev.includes(city) ? [] : [city]));
   }
@@ -372,9 +409,14 @@ export function WorkplaceBrowser() {
 
   return (
     <div className="flex w-full items-start justify-center gap-6 px-4 py-8">
-      <AdSlot />
-
       <div className="w-full max-w-[1600px]">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground">Jobs</h1>
+          <p className="text-sm text-muted-foreground">
+            Open roles at companies currently looking for people — same ratings and reviews as the homepage.
+          </p>
+        </div>
+
         <div className="flex flex-col gap-6 sm:flex-row">
           <aside className="flex shrink-0 flex-col gap-6 sm:w-56">
             <div>
@@ -402,18 +444,6 @@ export function WorkplaceBrowser() {
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h3>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
-              {/* Red-to-green slider, no stars. Shows companies at or BELOW
-                  the chosen value (not "X and up"), so dragging left tightens
-                  toward the worst-rated end. Emojis at 0/2.5/5 are
-                  placeholders — swap for real artwork later. Click-and-drag
-                  on the track (or scroll) sets the value; avoids a native
-                  <input type="range">, which never fully themes across
-                  browsers and can't take a gradient track everywhere.
-                  Each tick's horizontal translate is edge-aware — centering
-                  every emoji (-translate-x-1/2) would push the leftmost one
-                  half outside the box on the left and the rightmost one half
-                  outside on the right, so the two ends anchor inward instead
-                  and only the middle tick stays centered. */}
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none overflow-hidden">
                 <div className="relative pt-7">
                   {RATING_TICKS.map((tick) => (
@@ -469,7 +499,7 @@ export function WorkplaceBrowser() {
           </aside>
 
           {/* Results */}
-          <div ref={resultsTopRef} className="flex-1">
+          <div ref={resultsTopRef} className="min-w-0 flex-1">
             <div className="mb-4 flex items-center gap-2">
               <input
                 type="search"
@@ -478,13 +508,6 @@ export function WorkplaceBrowser() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
               />
-              {/* Standalone toggle buttons instead of a "Sort by" dropdown —
-                  every option is visible and clickable directly. A-Z and
-                  Workplace are plain on/off toggles (click again to go
-                  back to the default order); Rating instead cycles
-                  through three states on each click — neutral, red
-                  outline (least-rated first), green outline (best-rated
-                  first), then back to neutral. */}
               <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
@@ -552,28 +575,30 @@ export function WorkplaceBrowser() {
               </p>
             )}
             {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
-              <p className="text-sm text-muted-foreground">No workplaces match these filters yet.</p>
+              <p className="text-sm text-muted-foreground">
+                No companies are looking for people under these filters yet.
+              </p>
             )}
-            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 compact:lg:grid-cols-4 compact:xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {pageCompanies?.map((c) => (
-                <CompanyCard key={c.id} company={c} />
+                <JobCard key={c.id} company={c} />
               ))}
             </div>
 
             {visibleCompanies !== null && visibleCompanies.length > 0 && (
               <>
                 <p className="mt-4 text-center text-xs text-muted-foreground">
-                  Page {page} of {totalPages} — {visibleCompanies.length} workplace
-                  {visibleCompanies.length === 1 ? "" : "s"}
+                  Page {page} of {totalPages} — {visibleCompanies.length} compan
+                  {visibleCompanies.length === 1 ? "y" : "ies"} hiring
                 </p>
                 <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
               </>
             )}
           </div>
+
+          <HiringRatingSidebar companies={visibleCompanies ?? []} />
         </div>
       </div>
-
-      <AdSlot />
     </div>
   );
 }

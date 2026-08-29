@@ -216,6 +216,10 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [website, setWebsite] = useState("");
   const [city, setCity] = useState<string | null>(null);
   const [district, setDistrict] = useState<string | null>(null);
+  // "We're hiring" toggle for the /jobs page (Company.isHiring) — free tier,
+  // saved as part of the same General Information action as the rest of
+  // this box.
+  const [isHiring, setIsHiring] = useState(false);
   const [generalInfoSaving, setGeneralInfoSaving] = useState(false);
   const [generalInfoStatus, setGeneralInfoStatus] = useState<string | null>(null);
   const [generalInfoError, setGeneralInfoError] = useState<string | null>(null);
@@ -273,6 +277,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           setWebsite(c.website ?? "");
           setCity(c.city);
           setDistrict(c.district);
+          setIsHiring(c.isHiring);
         }
         if (!scope || scope === "contact") {
           setContactEmail(c.contactEmail ?? "");
@@ -332,6 +337,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       }
       if (isPlusActive && website.trim() && website.trim() !== detail?.company.website) {
         body.website = website.trim();
+      }
+      if (isHiring !== (detail?.company.isHiring ?? false)) {
+        body.isHiring = isHiring;
       }
       if (Object.keys(body).length === 0) {
         setGeneralInfoError("Change at least one field before saving.");
@@ -486,6 +494,16 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 onChange={setDistrict}
               />
             </div>
+
+            <label className="mt-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={isHiring}
+                onChange={(e) => setIsHiring(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              We&apos;re currently hiring (show this company on the Jobs page)
+            </label>
 
             {isPlusActive ? (
               <>
