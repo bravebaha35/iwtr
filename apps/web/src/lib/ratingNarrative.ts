@@ -1,13 +1,21 @@
-import type { WorkplaceType } from "@iwtr/shared-types";
+import type { CategoryKey, VibeFlag, WorkplaceType } from "@iwtr/shared-types";
 
-// Pure score/work-type -> {image, text} mapping for the company page's
-// "Dynamic Rating Visuals" box. Deliberately its own small tier scheme (not
-// scoreBandLabel/scoreBands from shared-types) even though the numeric
-// boundaries are the same 0/2.0/3.0/4.0/5.0 cut points that file already
-// uses — the label text here is a longer, prescriptive paragraph unique to
-// this box, not the short badge word shown next to the score elsewhere, so
-// reusing that type would just be a same-shape coincidence, not a shared
-// concept worth coupling to.
+// Score/work-type/flags -> {image, text} mapping for the company page's
+// "Dynamic Rating Visuals" box. Text is no longer fixed prose per tier —
+// hand-written copy read the same for every company at a given score/type,
+// which the CEO flagged as inaccurate (a 4.2-star office with great
+// leadership but bad infrastructure got the exact same paragraph as one with
+// the opposite problem). Instead this generates the paragraph from the
+// company's own real Workplace Vibe Flags (WorkplaceVibeFlags.tsx / GET
+// /companies/:slug/vibe-flags): one clause per category, picked from
+// whether that category's 2 flags actually came back GREEN or RED for THIS
+// company, plus a tier-framed opening sentence for the overall star level.
+// "Pattern" = the per-category/per-state sentence templates below; the
+// actual chart flag labels (already work-type-specific, e.g. "Toxic
+// Backstabbing" for OFFICE vs "Toxic Machismo & Hazing" for MANUAL_LABOUR —
+// see flag-calculator.service.ts's MASTER_FLAG_CHART) get slotted in, so the
+// text is automatically flavored per work-type without needing separate
+// hand-written paragraphs per type.
 type ScoreTier = "unsatisfactory" | "developing" | "effective" | "highlyEffective" | "exemplary";
 
 const WORKPLACE_IMAGE_PREFIX: Record<WorkplaceType, string> = {
@@ -15,61 +23,6 @@ const WORKPLACE_IMAGE_PREFIX: Record<WorkplaceType, string> = {
   HYBRID_REMOTE: "hybrid",
   SERVICE: "service",
   MANUAL_LABOUR: "manuallabour",
-};
-
-// Per-work-type copy (user-supplied verbatim) — unlike the old single
-// flat TIER_TEXT, "Office" staff and "Manual-Labour" crew at the same
-// numeric score read entirely different paragraphs, since what "1 star"
-// actually looks like on the ground differs by the kind of work.
-const WORKPLACE_TIER_TEXT: Record<WorkplaceType, Record<ScoreTier, string>> = {
-  OFFICE: {
-    unsatisfactory:
-      "This office is plagued by toxic politics, mandatory uncompensated overtime, and management that values seat-time over actual output. High turnover, neglected equipment, and rampant micromanagement make this a highly stressful environment for employees.",
-    developing:
-      "While there are some attempts at balance, employees still struggle with outdated hardware and occasional pressure to reply to messages after hours. Leadership communication is inconsistent, and workers may face unpredictable workload spikes without manager protection.",
-    effective:
-      "The company provides a generally quiet workspace, functional IT support, and managers who offer constructive feedback rather than placing blame for failures. Employees can take their approved PTO without being bothered, and salary reviews follow a fairly predictable schedule.",
-    highlyEffective:
-      "Leadership actively practices their stated values, encourages open criticism without retaliation, and ensures the office infrastructure supports deep focus. Employees enjoy genuine flexibility for personal appointments and feel confident in the company's funded career growth paths.",
-    exemplary:
-      "This workplace offers an exceptionally healthy culture where promotions are strictly merit-based and credit-stealing is virtually non-existent. Managers fiercely protect their teams from unreasonable executive workloads while providing top-tier resources, ensuring absolute job stability and a perfect work-life balance.",
-  },
-  HYBRID_REMOTE: {
-    unsatisfactory:
-      "Remote workers face severe disadvantages here, enduring digital surveillance, constant return-to-office threats, and obvious favoritism toward in-office staff. Unresponsive managers and chaotic digital tools lead to heavily blurred lines between personal time and unpaid working hours.",
-    developing:
-      "The company offers remote work but struggles with maintaining clear documentation and running structured virtual meetings. Employees might feel pressured to attend optional social events and often worry about sudden offshoring or job elimination.",
-    effective:
-      "Management generally evaluates performance based on outcomes rather than online activity dots, and basic cloud tools are adequately reliable. Time zones are mostly respected for scheduling, and employees receive equal pay regardless of their physical working location.",
-    highlyEffective:
-      "The company provides excellent hardware stipends and actively respects asynchronous communication, allowing workers to confidently disconnect after their shift. Leadership proactively steps in to prevent burnout and ensures remote staff have equal access to mentorship and career advancement.",
-    exemplary:
-      "This remote environment operates on absolute trust without surveillance, featuring flawless digital collaboration tools and complete financial transparency from leadership. Hybrid workers are never forced into pointless mandatory in-office days, ensuring workloads remain highly manageable within a strictly protected standard week.",
-  },
-  SERVICE: {
-    unsatisfactory:
-      "Floor staff endure toxic environments characterized by crashing POS systems, unfair shift scheduling, and rampant wage theft. Management prioritizes dangerous speed targets over employee well-being and frequently assigns exhausting clopening shifts or forced overtime.",
-    developing:
-      "Break areas are occasionally neglected, and workers might struggle with inconsistent product inventory during busy periods. While overt harassment is addressed, supervisors may still show slight favoritism, and understaffing remains a frequent operational issue.",
-    effective:
-      "Management consistently grants mandatory rest breaks and ensures physical safety protocols are reliably maintained on site. Schedules are posted comfortably in advance, and tips or bonuses are paid out transparently and accurately.",
-    highlyEffective:
-      "Shift supervisors actively step onto the floor to help during peak hours and enforce company policies fairly across all employees without double standards. The floor environment is highly supportive, and operational feedback from front-line workers is genuinely listened to and implemented.",
-    exemplary:
-      "Management aggressively defends workers against abusive customers and guarantees clear, realistic paths for floor staff to advance into supervisor roles. Workers are perfectly shielded from off-day coverage pressure, enjoying pristine break areas and total confidence in the business's long-term financial stability.",
-  },
-  MANUAL_LABOUR: {
-    unsatisfactory:
-      "This site forces grueling work under toxic machismo conditions, routinely ignoring labor rights and utilizing wildly unsafe heavy machinery. Workers face severe retaliation for reporting injuries, endure chaotic hire-and-fire cycles, and are threatened with termination for declining mandatory overtime.",
-    developing:
-      "While some safety gear is provided, workers occasionally suffer from delayed raw materials that encourage dangerous workarounds. Shift lengths can sometimes push workers to physical exhaustion, and site amenities like clean water or toilets are inconsistently maintained.",
-    effective:
-      "The employer supplies all required personal protective equipment free of charge and enforces clear, realistic daily safety briefings. Paychecks are consistently accurate, and mandatory hydration and rest breaks are strictly enforced throughout every single shift.",
-    highlyEffective:
-      "Site foremen possess extensive hands-on experience and strictly follow the exact same safety rules they enforce on the crew. Dangerous assignments are distributed fairly among the team, and any reported hazards or broken gear are fixed immediately.",
-    exemplary:
-      "Physical health is elevated completely above production deadlines, ensuring workers can safely sustain their careers for years without bodily ruin. The company fully funds trade training, heavily compensates travel time, and maintains rock-solid workers' compensation, fostering a deeply supportive crew environment.",
-  },
 };
 
 // Same [min, max) boundaries as shared-types/company.ts's scoreBands (0-2.0
@@ -91,6 +44,71 @@ const TIER_IMAGE_NUMBER: Record<Exclude<ScoreTier, "exemplary">, number> = {
   highlyEffective: 4,
 };
 
+// Overall framing sentence, picked purely by the aggregate score tier (same
+// tier the image uses) — the one place star-level still speaks directly,
+// since a category-by-category paragraph alone never says how the workplace
+// reads as a whole. {group} is filled from WORKPLACE_GROUP_NOUN so the same
+// 5 sentences still read as work-type-appropriate.
+const TIER_OPENING: Record<ScoreTier, string> = {
+  unsatisfactory: "This {group} is struggling badly, according to what reviewers report across the board.",
+  developing: "This {group} is inconsistent — real strengths are undercut by ongoing weak spots.",
+  effective: "This {group} performs solidly across the board, according to reviewers.",
+  highlyEffective: "This {group} performs strongly across nearly every area reviewers assessed.",
+  exemplary: "This {group} is rated exemplary, excelling across every area reviewers assessed.",
+};
+
+const WORKPLACE_GROUP_NOUN: Record<WorkplaceType, string> = {
+  OFFICE: "office",
+  HYBRID_REMOTE: "remote/hybrid team",
+  SERVICE: "service floor",
+  MANUAL_LABOUR: "job site",
+};
+
+// Category order matches WorkplaceVibeFlags.tsx's ROW_ORDER, so the
+// paragraph's clause order matches the flag chips' own display order.
+const CATEGORY_ORDER: CategoryKey[] = ["corporateCulture", "leadership", "infrastructure", "workLifeBalance", "stability"];
+
+const CATEGORY_LABELS: Record<CategoryKey, string> = {
+  corporateCulture: "Corporate culture",
+  leadership: "Leadership",
+  infrastructure: "Infrastructure and resources",
+  workLifeBalance: "Work-life balance",
+  stability: "Organizational stability",
+};
+
+// The pattern: one template per category per resolved state, filled with
+// that category's actual 2 flag labels. A category is GREEN only when both
+// its clusters came back GREEN, RED only when both came back RED, otherwise
+// MIXED (one of each) — mirroring how the flag chips themselves render
+// (2 flags per category, independently resolved).
+function categoryClause(categoryLabel: string, flags: VibeFlag[]): string | null {
+  const byCluster = [...flags].sort((a, b) => a.cluster - b.cluster);
+  if (byCluster.length < 2) return null;
+  const [c1, c2] = byCluster;
+
+  if (c1.color === "GREEN" && c2.color === "GREEN") {
+    return `${categoryLabel} is a genuine strength here, driven by ${c1.label} and ${c2.label}.`;
+  }
+  if (c1.color === "RED" && c2.color === "RED") {
+    return `${categoryLabel} is a serious weak point, marked by ${c1.label} and ${c2.label}.`;
+  }
+  const green = c1.color === "GREEN" ? c1 : c2;
+  const red = c1.color === "RED" ? c1 : c2;
+  return `${categoryLabel} is mixed here: ${green.label} is a real plus, but ${red.label} still holds it back.`;
+}
+
+function generateText(tier: ScoreTier, workplaceType: WorkplaceType, flags: VibeFlag[]): string {
+  const opening = TIER_OPENING[tier].replace("{group}", WORKPLACE_GROUP_NOUN[workplaceType]);
+  const clauses = CATEGORY_ORDER.map((category) =>
+    categoryClause(
+      CATEGORY_LABELS[category],
+      flags.filter((f) => f.category === category),
+    ),
+  ).filter((c): c is string => c !== null);
+
+  return [opening, ...clauses].join(" ");
+}
+
 export interface RatingNarrative {
   // null only for the exemplary (perfect 5.0) tier — no artwork exists for
   // it yet, a placeholder is shown in its place until one is added.
@@ -98,9 +116,13 @@ export interface RatingNarrative {
   text: string;
 }
 
-export function ratingNarrative(score: number, workplaceType: WorkplaceType): RatingNarrative {
+// flags: this company's real vibe flags for `workplaceType` (empty when it
+// has no published reviews yet under that type) — see page.tsx, which
+// fetches GET /companies/:slug/vibe-flags server-side and passes the
+// matching workplaceType's section in.
+export function ratingNarrative(score: number, workplaceType: WorkplaceType, flags: VibeFlag[]): RatingNarrative {
   const tier = scoreTier(score);
-  const text = WORKPLACE_TIER_TEXT[workplaceType][tier];
+  const text = generateText(tier, workplaceType, flags);
   if (tier === "exemplary") return { imageSrc: null, text };
 
   const prefix = WORKPLACE_IMAGE_PREFIX[workplaceType];

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import type { Company, CompanyDetail } from "@iwtr/shared-types";
+import type { Company, CompanyDetail, CompanyVibeFlags, VibeFlag } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
 import { WorkplaceVibeFlags } from "@/components/WorkplaceVibeFlags";
@@ -26,8 +26,16 @@ const CATEGORIES = [
 // grows the box rather than clipping or scrolling. Flex-col on mobile (image
 // stacked above text) / flex-row on larger screens (image left, text
 // vertically centered beside it), per the explicit mobile-readability ask.
-function RatingNarrativeBox({ score, workplaceType }: { score: number; workplaceType: Company["workplaceTypes"][number] }) {
-  const { imageSrc, text } = ratingNarrative(score, workplaceType);
+function RatingNarrativeBox({
+  score,
+  workplaceType,
+  flags,
+}: {
+  score: number;
+  workplaceType: Company["workplaceTypes"][number];
+  flags: VibeFlag[];
+}) {
+  const { imageSrc, text } = ratingNarrative(score, workplaceType, flags);
   return (
     <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:max-w-lg lg:shrink-0">
       {imageSrc ? (
@@ -146,6 +154,24 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
 
   const { company, aggregate } = detail;
 
+  // Fetched server-side (public endpoint, no auth needed) purely to drive
+  // RatingNarrativeBox's flag-pattern text — see ratingNarrative.ts. Kept
+  // separate from WorkplaceVibeFlags' own client-side fetch of the same
+  // endpoint (that one needs to stay a client component for its work-type
+  // toggle buttons); a fetch failure here just falls back to an empty flag
+  // list rather than breaking the page.
+  let vibeFlags: CompanyVibeFlags | null = null;
+  try {
+    vibeFlags = await apiGetPublic<CompanyVibeFlags>(`/companies/${slug}/vibe-flags`);
+  } catch {
+    vibeFlags = null;
+  }
+  const narrativeWorkplaceType = company.workplaceTypes[0];
+  const narrativeFlags: VibeFlag[] =
+    vibeFlags?.byWorkplaceType.find((s) => s.workplaceType === narrativeWorkplaceType && s.totalReviews > 0)?.flags ??
+    vibeFlags?.byWorkplaceType.find((s) => s.totalReviews > 0)?.flags ??
+    [];
+
   return (
     // Same 3-column shell as the homepage (ad rail / content / ad rail) —
     // this page used to be a narrow, centered max-w-3xl column regardless
@@ -186,7 +212,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             reuse elsewhere later, it's just not shown here. */}
         <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-stretch">
           {aggregate && aggregate.reviewCount > 0 && (
-            <RatingNarrativeBox score={aggregate.overallAvg} workplaceType={company.workplaceTypes[0]} />
+            <RatingNarrativeBox
+              score={aggregate.overallAvg}
+              workplaceType={narrativeWorkplaceType}
+              flags={narrativeFlags}
+            />
           )}
 
           <div className="flex-1 rounded-xl border border-border bg-surface p-6 font-sans">
