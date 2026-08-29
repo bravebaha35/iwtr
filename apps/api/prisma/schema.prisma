@@ -322,6 +322,14 @@ model Company {
   // specific branch); nothing yet reads this to change search/matching
   // behavior.
   isChainStore Boolean @default(false)
+  // Owner-editable "we're currently hiring" toggle (My Companies dashboard,
+  // free tier — same as the other owner-set fields below). Gates whether
+  // this company appears on the /jobs page (CompaniesService.search's
+  // includeJobTitles path) — the Jobs page reuses the exact same
+  // Company/EmploymentHistory data as the rating homepage rather than a
+  // separate job-listing table, so this is the only new bit of state
+  // required to know "does this company want job data shown".
+  isHiring     Boolean @default(false)
 
   // Public contact/socials, owner-editable from the "My companies" dashboard
   // (OwnerService.updateMyCompany) — free tier, not Plus-gated like

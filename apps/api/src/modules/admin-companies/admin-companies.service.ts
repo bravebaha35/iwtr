@@ -38,6 +38,7 @@ const PUBLIC_COMPANY_SELECT = {
   isVerifiedBadge: true,
   taxNumber: true,
   isChainStore: true,
+  isHiring: true,
   contactEmail: true,
   contactPhone: true,
   facebookUrl: true,

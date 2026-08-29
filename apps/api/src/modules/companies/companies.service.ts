@@ -13,6 +13,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify } from "./slugify.util";
 import { resolveLocation } from "./resolve-location.util";
+import { classifyJobRole } from "./workplace-classifier/classifyJobRole";
 
 @Injectable()
 export class CompaniesService {
@@ -163,6 +164,11 @@ export class CompaniesService {
         // `c.overallAvg === null` check did — an inner-join-style relation
         // filter excludes them rather than needing an explicit null check.
         ...(query.minRating !== undefined ? { aggregate: { is: { overallAvg: { lte: query.minRating } } } } : {}),
+        // Only the /jobs page sends includeJobTitles, and only it should be
+        // scoped to isHiring companies — the rating homepage's plain
+        // GET /companies (no flag) keeps returning every company regardless
+        // of this toggle, exactly as before this field existed.
+        ...(query.includeJobTitles ? { isHiring: true } : {}),
         ...locationFilter,
       },
       include: { aggregate: true },
@@ -172,11 +178,58 @@ export class CompaniesService {
       // real pagination (not just a higher ceiling) is the next step.
       take: 5000,
     });
+
+    const jobTitlesByCompanyId = query.includeJobTitles
+      ? await this.jobTitlesByCompanyId(companies.map((c) => c.id))
+      : new Map<string, string[]>();
+
     return companies.map((c) => ({
       ...this.toPublicCompany(c),
       overallAvg: c.aggregate?.overallAvg ?? null,
       reviewCount: c.aggregate?.reviewCount ?? 0,
+      jobTitles: jobTitlesByCompanyId.get(c.id) ?? [],
     }));
+  }
+
+  // Only ever called for the /jobs page (query.includeJobTitles), never on
+  // the rating homepage's plain search — this is real per-row aggregation
+  // work (a groupBy plus a classifyJobRole call per distinct title) that the
+  // homepage's request shape has no reason to pay for. Reuses
+  // EmploymentHistory.jobTitle — the same free-text field a reviewer's own
+  // employment entry already carries (see schema.prisma) — rather than a
+  // separate job-listing table, per the product decision that a company's
+  // job data is never an isolated dataset.
+  private async jobTitlesByCompanyId(companyIds: string[]): Promise<Map<string, string[]>> {
+    if (companyIds.length === 0) return new Map();
+
+    const rows = await this.prisma.employmentHistory.groupBy({
+      by: ["companyId", "jobTitle"],
+      where: { companyId: { in: companyIds }, jobTitle: { not: null } },
+      _count: { jobTitle: true },
+    });
+
+    const byCompany = new Map<string, { title: string; count: number }[]>();
+    for (const row of rows) {
+      if (!row.companyId || !row.jobTitle) continue;
+      // Only "categorized" titles surface here — classifyJobRole returning
+      // null (confidenceScore 0, i.e. an unrecognized keyword) means the raw
+      // text is too noisy/ambiguous to show as a job title card, same
+      // fallback semantics that function already documents.
+      if (classifyJobRole(row.jobTitle) === null) continue;
+      const list = byCompany.get(row.companyId) ?? [];
+      list.push({ title: row.jobTitle, count: row._count.jobTitle });
+      byCompany.set(row.companyId, list);
+    }
+
+    const result = new Map<string, string[]>();
+    for (const [companyId, titles] of byCompany) {
+      const topTitles = titles
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 4)
+        .map((t) => t.title);
+      result.set(companyId, topTitles);
+    }
+    return result;
   }
 
   // Distinct city values currently in use, to drive the location picker
@@ -234,6 +287,7 @@ export class CompaniesService {
     isVerifiedBadge: boolean;
     taxNumber: string | null;
     isChainStore: boolean;
+    isHiring: boolean;
     contactEmail: string | null;
     contactPhone: string | null;
     facebookUrl: string | null;
@@ -255,6 +309,7 @@ export class CompaniesService {
       isVerifiedBadge: c.isVerifiedBadge,
       taxNumber: c.taxNumber,
       isChainStore: c.isChainStore,
+      isHiring: c.isHiring,
       contactEmail: c.contactEmail,
       contactPhone: c.contactPhone,
       facebookUrl: c.facebookUrl,

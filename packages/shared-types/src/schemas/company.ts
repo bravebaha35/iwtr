@@ -52,6 +52,10 @@ export const companySchema = z.object({
   // taxNumber is public trade-registry info, not personal PII.
   taxNumber: z.string().nullable(),
   isChainStore: z.boolean(),
+  // Owner-editable "currently hiring" toggle — see schema.prisma's comment.
+  // Gates visibility on the /jobs page only; the company itself is otherwise
+  // unaffected (still shows on the rating homepage regardless of this flag).
+  isHiring: z.boolean(),
   // Public contact/socials — owner-editable, free tier (not Plus-gated like
   // description/website). All nullable: most companies won't have these
   // filled in until an owner claims and sets them.
@@ -87,6 +91,13 @@ export const companySearchQuerySchema = z.object({
   // 3.5 the same way the rest of this schema's callers already expect a
   // parsed value out the other end.
   minRating: z.coerce.number().min(0).max(5).optional(),
+  // The /jobs page's one addition to the exact same GET /companies search
+  // used by the rating homepage (see CLAUDE.md's monorepo-boundary note and
+  // CompaniesService.search) — never sent by WorkplaceBrowser. When true,
+  // the server also scopes results to isHiring companies and attaches each
+  // one's classified jobTitles; when omitted, behavior (and cost) is
+  // unchanged for every existing caller.
+  includeJobTitles: z.coerce.boolean().optional(),
 });
 export type CompanySearchQuery = z.infer<typeof companySearchQuerySchema>;
 
@@ -96,6 +107,11 @@ export type CompanySearchQuery = z.infer<typeof companySearchQuerySchema>;
 export const companyListItemSchema = companySchema.extend({
   overallAvg: z.number().min(0).max(5).nullable(),
   reviewCount: z.number().int().min(0),
+  // Distinct, classified job titles drawn from this company's own
+  // EmploymentHistory rows (see classifyJobRole) — only ever populated when
+  // the request set includeJobTitles; otherwise always [], never omitted, so
+  // every CompanyListItem consumer can rely on the field existing.
+  jobTitles: z.array(z.string()),
 });
 export type CompanyListItem = z.infer<typeof companyListItemSchema>;
 

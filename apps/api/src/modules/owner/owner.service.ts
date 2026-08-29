@@ -122,6 +122,7 @@ export class OwnerService {
         instagramUrl: input.instagramUrl,
         whatsappUrl: input.whatsappUrl,
         xUrl: input.xUrl,
+        isHiring: input.isHiring,
       },
     });
   }

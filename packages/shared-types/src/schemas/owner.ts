@@ -89,6 +89,9 @@ export const updateCompanyInputSchema = z
     instagramUrl: httpUrlSchema.optional(),
     whatsappUrl: httpUrlSchema.optional(),
     xUrl: httpUrlSchema.optional(),
+    // "We're hiring" toggle for the /jobs page — free tier, same as the
+    // fields above (see Company.isHiring's schema.prisma comment).
+    isHiring: z.boolean().optional(),
     // Plus-tier only:
     description: z.string().max(2000).optional(),
     website: httpUrlSchema.optional(),
