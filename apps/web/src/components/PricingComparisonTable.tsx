@@ -1,5 +1,7 @@
 "use client";
 
+import { pricingFeature } from "@/lib/pricingTiers";
+
 // B2B corporate pricing comparison — Free/Starter/Pro/Enterprise. All copy
 // below is mapped verbatim from the CEO-finalized 4-tier matrix; nothing
 // here is invented. Frontend-only: no Prisma/API/billing logic lives here,
@@ -60,98 +62,58 @@ const ROWS: PricingRow[] = [
     },
   },
   {
-    label: "Target Company Scale",
+    label: pricingFeature("target-scale").label,
+    values: pricingFeature("target-scale").values,
+  },
+  {
+    label: pricingFeature("verified-badge").label,
     values: {
-      free: "Micro and Small Businesses",
-      starter: "Small and Medium-Sized Enterprises",
-      pro: "Medium-Sized Enterprises",
-      enterprise: "Holdings and Multinational Corporations and Franchises",
+      free: <BadgeCell value={pricingFeature("verified-badge").values.free} />,
+      starter: <BadgeCell value={pricingFeature("verified-badge").values.starter} />,
+      pro: <BadgeCell value={pricingFeature("verified-badge").values.pro} />,
+      enterprise: <BadgeCell value={pricingFeature("verified-badge").values.enterprise} />,
     },
   },
   {
-    label: "Verified Employer Badge",
-    values: {
-      free: <BadgeCell value="No" />,
-      starter: <BadgeCell value="Blue" />,
-      pro: <BadgeCell value="Blue+" />,
-      enterprise: <BadgeCell value="Gold" />,
-    },
+    label: pricingFeature("comment-response").label,
+    values: pricingFeature("comment-response").values,
   },
   {
-    label: "Monthly Comment Response Count",
-    values: {
-      free: "Max. 2 comments",
-      starter: "Max. 6 comments",
-      pro: "Max. 10 comments",
-      enterprise: "Unlimited",
-    },
+    label: pricingFeature("hr-analytics").label,
+    values: pricingFeature("hr-analytics").values,
   },
   {
-    label: "HR Analytics Dashboard Access",
-    values: {
-      free: `Only see company's "Questions and Answers", change logo, add contact information.`,
-      starter: `See "Questions and Answers", Green Flags & Redflags, add logo, general information, contact information.`,
-      pro: `See "Questions and Answers", Green Flags & Redflags, Most "Yes" answered question, Most "No" answered question (both in top 5 form), add logo and banner, general information, contact information.`,
-      enterprise: `See "Questions and Answers", Green Flags & Redflags, Most "Yes" answered question, Most "No" answered question (both in top 5 form), suggestions about company below top 5, add logo and banner, general information, contact information.`,
-    },
+    label: pricingFeature("benchmarking").label,
+    values: pricingFeature("benchmarking").values,
   },
   {
-    label: "Industry and Competitor Benchmarking",
-    values: {
-      free: "No",
-      starter: "Only the industry average.",
-      pro: "Monthly single competitor comparison, Industry and Competitor Benchmarking",
-      enterprise: "Monthly Competitor & Regional Benchmarking Report",
-    },
-  },
-  {
-    label: "Posting Featured Job Ads",
+    label: pricingFeature("job-ads").label,
     values: {
       free: (
         <span>
           No<sup className="ml-0.5 text-brand-600 dark:text-brand-400">*</sup>
         </span>
       ),
-      starter: "2 Ads Monthly",
-      pro: "5 Ads Monthly",
-      enterprise: "10 Ads Monthly",
+      starter: pricingFeature("job-ads").values.starter,
+      pro: pricingFeature("job-ads").values.pro,
+      enterprise: pricingFeature("job-ads").values.enterprise,
     },
   },
   {
-    label: "Candidate Tracking & Talent Pool Access",
-    values: {
-      free: `Only see who applied for them and message them in "Job" section.`,
-      starter: `Only see who applied for them and message them in "Job" section.`,
-      pro: `Advanced HR Filtering, only see who applied for them and message them in "Job" section.`,
-      enterprise: `Advanced HR Filtering, only see who applied for them and message them in "Job" section.`,
-    },
+    label: pricingFeature("candidate-tracking").label,
+    values: pricingFeature("candidate-tracking").values,
   },
   {
-    label: "Exporting HR Data (PDF / Excel Report)",
-    values: {
-      free: "No",
-      starter: "No",
-      pro: "Monthly Reports",
-      enterprise: "Unlimited Reports",
-    },
+    label: pricingFeature("export-data").label,
+    values: pricingFeature("export-data").values,
   },
   {
-    label: "HR Manager License (User Account)",
-    values: {
-      free: "Single user",
-      starter: "2 users",
-      pro: "5 users",
-      enterprise: "10 users and sub-users",
-    },
+    label: pricingFeature("hr-seats").label,
+    values: pricingFeature("hr-seats").values,
   },
   {
-    label: "Customer Support & Service Level (SLA)",
-    values: {
-      free: "Standard mail",
-      starter: "Standard mail",
-      pro: "Prioritized Mail Support (4 Hours)",
-      enterprise: "Prioritized Mail Support (4 Hours) and Chat option",
-    },
+    label: pricingFeature("support").label,
+    values: pricingFeature("support").values,
   },
 ];
 

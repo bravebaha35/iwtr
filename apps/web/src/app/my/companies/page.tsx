@@ -15,6 +15,8 @@ import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { RivalAnalyticsRequestModal } from "@/components/RivalAnalyticsRequestModal";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
+import { PremiumFeaturesPanel } from "@/components/PremiumFeaturesPanel";
+import { tierKeyFromRivalAnalyticsTier } from "@/lib/pricingTiers";
 import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
 import { ReviewsList } from "@/components/ReviewsList";
 import { AdSlot } from "@/components/AdSlot";
@@ -663,6 +665,11 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           />
         )}
       </div>
+
+      <PremiumFeaturesPanel
+        tierKey={tierKeyFromRivalAnalyticsTier(claim.rivalAnalyticsTier)}
+        onOpenPricing={() => setShowPricing(true)}
+      />
 
       <div className="mt-5 border-t border-border pt-4">
         <label className="text-xs font-medium text-muted-foreground">
