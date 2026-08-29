@@ -48,6 +48,8 @@ const detail: CompanyDetail = {
     city: "Istanbul",
     district: "Kadikoy",
     isVerifiedBadge: false,
+    taxNumber: null,
+    isChainStore: false,
     contactEmail: "contact@acme.test",
     contactPhone: "+902121234567",
     facebookUrl: null,

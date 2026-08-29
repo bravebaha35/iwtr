@@ -49,12 +49,16 @@ function readImageDimensions(file: File): Promise<{ width: number; height: numbe
  * just go through the existing httpUrlSchema check, same as before.
  */
 export function CompanyLogoUploader({
-  companyId,
+  uploadPath,
   companyName,
   value,
   onChange,
 }: {
-  companyId: string;
+  // Where the cropped PNG gets POSTed — e.g. `/my-companies/${companyId}/logo`
+  // for an owner editing a company they already own, or `/admin/companies/logo`
+  // for the admin dashboard (which has no companyId yet when creating a new
+  // company, and no ownership check to apply either way).
+  uploadPath: string;
   companyName: string;
   value: string;
   onChange: (url: string) => void;
@@ -88,7 +92,7 @@ export function CompanyLogoUploader({
     try {
       const formData = new FormData();
       formData.append("file", blob, "logo.png");
-      const result = await apiUpload<LogoUploadResult>(`/my-companies/${companyId}/logo`, formData);
+      const result = await apiUpload<LogoUploadResult>(uploadPath, formData);
       onChange(result.url);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't upload that file.");

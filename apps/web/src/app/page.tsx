@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth-context";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
+import { ForbiddenBanner } from "@/components/ForbiddenBanner";
 
 export default function Home() {
   const { isLoading, isAuthenticated, onboardingStatus } = useAuth();
@@ -10,6 +11,7 @@ export default function Home() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
+        <ForbiddenBanner />
         <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     );
@@ -43,5 +45,10 @@ export default function Home() {
   // disabled): GlobalHeader shows "Login/Register" (opens AuthModal, mounted
   // globally in layout.tsx) instead of forcing an auth screen before they can
   // see anything.
-  return <WorkplaceBrowser />;
+  return (
+    <>
+      <ForbiddenBanner />
+      <WorkplaceBrowser />
+    </>
+  );
 }

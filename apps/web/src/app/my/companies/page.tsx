@@ -457,7 +457,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
               Company Logo
               <div className="mt-1">
                 <CompanyLogoUploader
-                  companyId={claim.companyId}
+                  uploadPath={`/my-companies/${claim.companyId}/logo`}
                   companyName={claim.companyName}
                   value={mainPhotoUrl}
                   onChange={setMainPhotoUrl}

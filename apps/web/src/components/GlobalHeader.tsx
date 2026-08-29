@@ -81,6 +81,9 @@ export function GlobalHeader() {
       <div className="ml-auto flex items-center gap-4">
         {showAccountControls && role === "ADMIN" && (
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+            <Link href="/admin/dashboard" className="hover:text-brand-600 dark:hover:text-brand-400">
+              Admin Portal
+            </Link>
             <Link href="/admin/moderation" className="hover:text-brand-600 dark:hover:text-brand-400">
               Moderation Queue
             </Link>
