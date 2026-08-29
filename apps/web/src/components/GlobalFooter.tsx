@@ -66,17 +66,30 @@ export function GlobalFooter() {
 
   return (
     <footer className="relative mt-auto border-t border-zinc-800 bg-zinc-950">
-      {/* Large, positioned in the margin outside the centered column rather
-          than sharing its grid — keeps the PLATFORM/EMPLOYERS/LEGAL columns
-          at their original position and width. Only shown once there's
-          actually room for it beside that centered content. Width-only
-          sizing (no fixed height, no object-cover) — the image renders at
-          its own aspect ratio in full, never cropped. */}
+      {/* Positioned in the margin outside the centered column rather than
+          sharing its grid — keeps the PLATFORM/EMPLOYERS/LEGAL columns at
+          their original position and width. `left` reproduces the exact
+          horizontal position of the homepage's left AdSlot rail (see
+          AdSlot.tsx / WorkplaceBrowser.tsx: `flex justify-center gap-6
+          px-4` row holding a fixed 160px rail + a max-w-[1600px] content
+          column + a matching 160px rail) — below a ~2000px viewport that
+          content column fills all remaining space so the rail sits at a
+          flat 16px (px-4) inset; past ~2000px the row's total width is
+          capped and centered, splitting the leftover margin evenly, so
+          the inset grows by half of whatever's left over 2000px. Same
+          formula here keeps this image in that same column at any width.
+          Height-only sizing (top-0 + h-full, width auto) stretches the
+          image edge-to-edge between the footer's own top and bottom
+          border — its "outline" — while width is left for the browser to
+          derive from the image's own aspect ratio, so it's never cropped
+          or stretched out of proportion. Only shown once there's actually
+          room for it beside the centered content. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- static footer art, not a Next/Image candidate */}
       <img
         src="/IWT%20Intro%20Real.png"
         alt="I Worked There"
-        className="absolute left-12 top-1/2 hidden w-64 -translate-y-1/2 rounded-xl 2xl:block"
+        className="absolute top-0 hidden h-full w-auto rounded-xl 2xl:block"
+        style={{ left: "calc(1rem + max(0px, (100vw - 2000px) / 2))" }}
       />
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
         {FOOTER_COLUMNS.map((column) => (
