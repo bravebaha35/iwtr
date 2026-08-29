@@ -1,5 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { PricingComparisonTable } from "@/components/PricingComparisonTable";
+
+// Sentinel href, not a real route — caught below and opened as the pricing
+// popup instead of navigated to. Pricing is deliberately not a page (see
+// PricingComparisonTable's own comment).
+const PRICING_HREF = "#pricing";
 
 interface FooterLink {
   label: string;
@@ -39,7 +48,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Claim Profile", href: "#" },
       { label: "HR Dashboard", href: "/my/companies" },
-      { label: "Pricing", href: "/plans" },
+      { label: "Pricing", href: PRICING_HREF },
     ],
   },
   {
@@ -53,20 +62,42 @@ const FOOTER_COLUMNS: FooterColumn[] = [
 ];
 
 export function GlobalFooter() {
+  const [showPricing, setShowPricing] = useState(false);
+
   return (
     <footer className="mt-auto border-t border-zinc-800 bg-zinc-950">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-4">
+        <div className="overflow-hidden rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static footer art, not a Next/Image candidate */}
+          <img
+            src="/IWT%20Intro%20Real.png"
+            alt="I Worked There"
+            className="h-full w-full object-cover"
+          />
+        </div>
         {FOOTER_COLUMNS.map((column) => (
           <div key={column.title}>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-50">{column.title}</h3>
             <ul className="mt-4 space-y-3">
-              {column.links.map((link) => (
-                <li key={link.label}>
-                  <Link href={link.href} className="text-sm text-zinc-400 transition hover:text-zinc-50">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
+              {column.links.map((link) =>
+                link.href === PRICING_HREF ? (
+                  <li key={link.label}>
+                    <button
+                      type="button"
+                      onClick={() => setShowPricing(true)}
+                      className="text-sm text-zinc-400 transition hover:text-zinc-50"
+                    >
+                      {link.label}
+                    </button>
+                  </li>
+                ) : (
+                  <li key={link.label}>
+                    <Link href={link.href} className="text-sm text-zinc-400 transition hover:text-zinc-50">
+                      {link.label}
+                    </Link>
+                  </li>
+                ),
+              )}
             </ul>
           </div>
         ))}
@@ -79,6 +110,8 @@ export function GlobalFooter() {
         </div>
         <p className="text-sm text-zinc-400">&copy; 2026 iworkedthere.com. All rights reserved.</p>
       </div>
+
+      {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}
     </footer>
   );
 }

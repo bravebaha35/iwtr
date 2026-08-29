@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { RivalAnalyticsRequestModal } from "@/components/RivalAnalyticsRequestModal";
+import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
 import { ReviewsList } from "@/components/ReviewsList";
 import { AdSlot } from "@/components/AdSlot";
@@ -233,6 +234,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [contactError, setContactError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
+  const [showPricing, setShowPricing] = useState(false);
   const [showRivalAnalytics, setShowRivalAnalytics] = useState(false);
   // `claim` is a static prop from the parent's one-time claims fetch — it
   // never updates on its own after a successful free pull. Tracking the
@@ -394,6 +396,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
   return (
     <div className="rounded-xl border border-border bg-surface p-5">
+      {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}
       <div className="mb-4 flex items-center justify-between">
         <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-foreground hover:underline">
           {claim.companyName}
@@ -407,9 +410,13 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
             {claim.tier === "PLUS" ? "Plus Tier" : "Free Tier"}
           </span>
-          <Link href="/plans" className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
+          <button
+            type="button"
+            onClick={() => setShowPricing(true)}
+            className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+          >
             See plans
-          </Link>
+          </button>
         </div>
       </div>
 
