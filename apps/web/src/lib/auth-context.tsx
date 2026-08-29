@@ -16,7 +16,11 @@ interface AuthContextValue {
   onboardingStatus: OnboardingStatus | null;
   refreshOnboardingStatus: () => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  // Resolves to { otpRequired: true } for the one hardcoded ADMIN account
+  // instead of completing the session — AuthModal shows a 6-digit code step
+  // and calls verifyAdminOtp to actually finish logging in from there.
+  login: (email: string, password: string) => Promise<{ otpRequired: boolean }>;
+  verifyAdminOtp: (email: string, code: string) => Promise<void>;
   logout: () => void;
   // Which tab of AuthModal is active — lifted up here (rather than kept as
   // AuthModal-local state) so GlobalHeader's "Login/Register" button can open
@@ -35,7 +39,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function postCredentials(path: string, body: unknown): Promise<void> {
+async function postCredentials<T = unknown>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -51,6 +55,7 @@ async function postCredentials(path: string, body: unknown): Promise<void> {
     }
     throw new Error(message);
   }
+  return (await res.json()) as T;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -142,7 +147,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      await postCredentials("/api/auth/login", { email, password });
+      const result = await postCredentials<{ status: "OK" | "OTP_REQUIRED" }>("/api/auth/login", {
+        email,
+        password,
+      });
+      if (result.status === "OTP_REQUIRED") {
+        return { otpRequired: true };
+      }
+      await loadSession();
+      setAuthModalOpen(false);
+      return { otpRequired: false };
+    },
+    [loadSession],
+  );
+
+  const verifyAdminOtp = useCallback(
+    async (email: string, code: string) => {
+      await postCredentials("/api/auth/verify-admin-otp", { email, code });
       await loadSession();
       setAuthModalOpen(false);
     },
@@ -176,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshOnboardingStatus,
         register,
         login,
+        verifyAdminOtp,
         logout,
         authMode,
         setAuthMode,

@@ -6,6 +6,7 @@ import { Logo } from "@/components/Logo";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { EmailVerificationScreen } from "@/components/auth/EmailVerificationScreen";
+import { AdminOtpScreen } from "@/components/auth/AdminOtpScreen";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/passwordValidation";
 import {
   clearPendingVerification,
@@ -35,6 +36,7 @@ function CloseButton({ onClose }: { onClose: () => void }) {
 export function AuthModal() {
   const {
     login,
+    verifyAdminOtp,
     register,
     authMode: mode,
     setAuthMode: setMode,
@@ -59,7 +61,7 @@ export function AuthModal() {
   // moved past the form step — most likely the page was refreshed while
   // "Verify your email" was showing. Password is never persisted (see
   // lib/emailVerification.ts), so EmailVerificationScreen re-asks for it.
-  const [step, setStep] = useState<"form" | "verify">("form");
+  const [step, setStep] = useState<"form" | "verify" | "admin-otp">("form");
 
   useEffect(() => {
     const pending = loadPendingVerification();
@@ -92,7 +94,10 @@ export function AuthModal() {
     if (mode === "login") {
       setSubmitting(true);
       try {
-        await login(email, password);
+        const result = await login(email, password);
+        if (result.otpRequired) {
+          setStep("admin-otp");
+        }
       } catch {
         // The only failure mode loginWithEmail ever throws is "invalid
         // credentials" (see auth.service.ts) — deliberately not surfacing
@@ -145,6 +150,27 @@ export function AuthModal() {
             password={password}
             onVerified={handleVerified}
             onBack={handleBackFromVerify}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "admin-otp") {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+        onClick={closeAuthModal}
+      >
+        <div
+          className="relative w-full max-w-sm rounded-xl bg-surface p-8 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CloseButton onClose={closeAuthModal} />
+          <AdminOtpScreen
+            email={email}
+            onVerify={(code) => verifyAdminOtp(email, code)}
+            onBack={() => setStep("form")}
           />
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { exchangeCredentialsForSession } from "@/lib/server-auth";
+import { exchangeLoginForSession } from "@/lib/server-auth";
 
 export async function POST(req: NextRequest) {
-  return exchangeCredentialsForSession("auth/login", await req.text());
+  return exchangeLoginForSession(await req.text());
 }

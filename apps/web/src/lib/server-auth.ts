@@ -2,7 +2,7 @@
 // src/app/api/**). Never import this from a "use client" file — next/headers
 // throws outside a server context, which is the safety net if that happens.
 import { NextResponse } from "next/server";
-import type { AuthTokensResponse } from "@iwtr/shared-types";
+import type { AuthTokensResponse, LoginResult } from "@iwtr/shared-types";
 
 export const ACCESS_COOKIE = "iwtr_access";
 export const REFRESH_COOKIE = "iwtr_refresh";
@@ -81,10 +81,16 @@ export function refreshTokens(refreshToken: string): Promise<AuthTokensResponse 
   return attempt;
 }
 
-// Shared by /api/auth/login and /api/auth/register: exchange credentials
-// with apps/api and turn the token pair it returns into httpOnly cookies,
-// instead of ever handing raw tokens back to browser JS.
-export async function exchangeCredentialsForSession(upstreamPath: "auth/login" | "auth/register", body: string): Promise<NextResponse> {
+// Shared by /api/auth/register and /api/auth/verify-admin-otp: both always
+// get back a plain AuthTokensResponse on success, so both exchange it for
+// httpOnly cookies the exact same way, instead of ever handing raw tokens
+// back to browser JS. /api/auth/login is different (see exchangeLoginForSession
+// below) — its upstream response can also be an OTP_REQUIRED placeholder
+// with no tokens at all yet.
+export async function exchangeCredentialsForSession(
+  upstreamPath: "auth/register" | "auth/login/verify-otp",
+  body: string,
+): Promise<NextResponse> {
   const upstream = await fetch(`${API_BASE_URL}/${upstreamPath}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -106,6 +112,43 @@ export async function exchangeCredentialsForSession(upstreamPath: "auth/login" |
   }
 
   const res = NextResponse.json({ success: true });
+  res.cookies.set(ACCESS_COOKIE, data.accessToken, accessCookieOptions(data.expiresInSeconds));
+  res.cookies.set(REFRESH_COOKIE, data.refreshToken, refreshCookieOptions());
+  return res;
+}
+
+// /api/auth/login's upstream response is a LoginResult, not a plain
+// AuthTokensResponse: every account except the hardcoded ADMIN email gets
+// status "OK" (tokens, handled exactly like exchangeCredentialsForSession
+// above); the ADMIN email instead gets "OTP_REQUIRED" with no tokens at
+// all yet — that gets passed straight through to the browser as-is (no
+// cookies to set), so AuthModal can show the 6-digit code step and then
+// call /api/auth/verify-admin-otp once it has one.
+export async function exchangeLoginForSession(body: string): Promise<NextResponse> {
+  const upstream = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    cache: "no-store",
+  });
+
+  if (!upstream.ok) {
+    const errorBody = await upstream.text();
+    return new NextResponse(errorBody, {
+      status: upstream.status,
+      headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
+    });
+  }
+
+  const data = (await upstream.json()) as LoginResult;
+  if (data.status === "OTP_REQUIRED") {
+    return NextResponse.json(data);
+  }
+  if (!data.refreshToken) {
+    return NextResponse.json({ message: "Login did not return a refresh token" }, { status: 502 });
+  }
+
+  const res = NextResponse.json({ status: "OK" as const });
   res.cookies.set(ACCESS_COOKIE, data.accessToken, accessCookieOptions(data.expiresInSeconds));
   res.cookies.set(REFRESH_COOKIE, data.refreshToken, refreshCookieOptions());
   return res;
