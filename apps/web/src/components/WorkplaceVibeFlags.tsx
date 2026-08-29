@@ -58,7 +58,7 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
 
   if (loadFailed) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-6 font-sans">
+      <div className="h-[525px] overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans">
         <p className="text-sm text-red-600 dark:text-red-400">Couldn&apos;t load workplace flags right now.</p>
       </div>
     );
@@ -78,8 +78,14 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
   const green = pooled.filter((f) => f.color === "GREEN");
   const red = pooled.filter((f) => f.color === "RED");
 
+  // Fixed height (matching CompanyDetailsBox, page.tsx) rather than
+  // content-driven — a company with only 2 flags or the full 10 (5 green +
+  // 5 red, its worst case) must render at the exact same box size, never a
+  // shorter or taller card; 525px is that worst case's measured height
+  // (10 real flags, live-measured at 516.67px) plus a small buffer, with
+  // overflow-y-auto as a safety net for anything that still doesn't fit.
   return (
-    <div className="rounded-xl border border-border bg-surface p-6 font-sans">
+    <div className="h-[525px] overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">
           Workplace Vibe Flags

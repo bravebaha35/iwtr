@@ -64,8 +64,13 @@ function CompanyDetailsBox({ company }: { company: Company }) {
     company.xUrl ? { label: "X (Twitter)", href: company.xUrl, external: true } : null,
   ].filter((v): v is { label: string; href: string; external: boolean } => v !== null);
 
+  // Fixed height (matching WorkplaceVibeFlags), not content-driven — see
+  // that component's comment. 525px matches the Vibe Flags box's worst-case
+  // height (10 flags) plus a small buffer; overflow-y-auto handles whatever
+  // doesn't fit (e.g. an unusually long description) without ever growing
+  // the box itself.
   return (
-    <div className="rounded-xl border border-border bg-surface p-6 font-sans">
+    <div className="h-[525px] overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans">
       <h2 className="mb-4 text-lg font-semibold text-foreground">Company Details</h2>
       <div className="flex flex-col gap-4 text-sm">
         <div>
