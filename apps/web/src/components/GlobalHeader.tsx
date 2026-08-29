@@ -11,8 +11,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
-// uses (Home, Dashboard/My Ratings, Job, IWT Social — Notifications is its
-// own component since it also owns a dropdown). `disabled` is for Job/IWT
+// uses (Home, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
+// own component since it also owns a dropdown). `disabled` is for Jobs/IWT
 // Social: present and visible, but inert until those features exist.
 function NavIconLink({
   href,
@@ -126,7 +126,7 @@ export function GlobalHeader() {
           {showAccountControls && <NotificationsMenu />}
 
           {showAccountControls && (
-            <NavIconLink href="/job" label="Job" title="Job — coming soon" disabled>
+            <NavIconLink href="/job" label="Jobs" title="Jobs — coming soon" disabled>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
               </svg>

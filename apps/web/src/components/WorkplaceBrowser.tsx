@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
+import type { CompanyListItem, WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
-import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarPillClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
@@ -12,9 +11,11 @@ import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { CompanyFlagsButton } from "@/components/CompanyFlagsButton";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
+import { sampleJobTitles } from "@/lib/mockJobTitles";
 
 type Geo = { lat: number; lng: number } | "denied" | null;
 
@@ -102,38 +103,97 @@ function PaginationBar({
   );
 }
 
+// Card anatomy is a fixed 4:5 box (logo/name top-left, address+sector below
+// in a light weight, sample job titles in bold anchored toward the bottom
+// next to stacked Apply/Apply Anonymously buttons, rating + flags-summary
+// button top-right) plus a "General Information" strip immediately below it
+// — both read from the exact same CompanyListItem the old row layout used,
+// so nothing about the unified /companies data source changed, only the
+// presentation. Apply/Apply Anonymously are deliberately inert (a "coming
+// soon" popover, same spirit as GlobalHeader's disabled Job/IWT Social nav
+// items) — there's no job-application backend yet; see mockJobTitles.ts for
+// the same caveat on the sample titles themselves.
 function CompanyCard({ company }: { company: CompanyListItem }) {
+  const [applyNotice, setApplyNotice] = useState<"apply" | "anonymous" | null>(null);
+  const jobTitles = useMemo(() => sampleJobTitles(company), [company]);
+
+  function showApplyNotice(kind: "apply" | "anonymous") {
+    return (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setApplyNotice(kind);
+    };
+  }
+
   return (
-    <Link
-      href={`/companies/${company.slug}`}
-      className="flex items-center gap-3 compact:gap-2 rounded-xl border border-border bg-surface p-4 compact:p-2.5 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
-    >
-      <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-foreground compact:text-sm">{company.name}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
-          {company.city ? ` · ${company.city}` : ""}
-          {company.district ? `, ${company.district}` : ""}
+    <div className="flex flex-col">
+      <div className="relative flex aspect-[4/5] flex-col overflow-hidden rounded-xl border border-border bg-surface p-4 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700">
+        {/* Top-right corner: empty spacer (reserved for future use), then
+            the plain rating number, then the flags-summary "i" button. */}
+        <div className="absolute right-3 top-3 flex shrink-0 items-center gap-1.5">
+          <span className="w-4" aria-hidden="true" />
+          <span className="text-sm font-bold text-foreground" title="Average rating">
+            {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
+          </span>
+          <CompanyFlagsButton companySlug={company.slug} />
+        </div>
+
+        <Link href={`/companies/${company.slug}`} className="flex min-w-0 items-start gap-2 pr-20">
+          <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
+          <span className="min-w-0 line-clamp-2 font-semibold text-foreground">{company.name}</span>
+        </Link>
+
+        <p className="mt-2 line-clamp-2 text-xs font-light text-muted-foreground">
+          {company.city ?? "Location not set"}
+          {company.district ? `, ${company.district}` : ""} · {company.category}
         </p>
+
+        <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+          <p className="min-w-0 flex-1 line-clamp-2 text-sm font-bold text-foreground">{jobTitles.join(" · ")}</p>
+          <div className="relative flex shrink-0 flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={showApplyNotice("apply")}
+              className="rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-brand-700"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={showApplyNotice("anonymous")}
+              className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground transition hover:bg-surface-muted"
+            >
+              Apply Anonymously
+            </button>
+            {applyNotice && (
+              <>
+                <div className="fixed inset-0 z-[65]" onClick={() => setApplyNotice(null)} />
+                <div
+                  className="absolute bottom-full right-0 z-[70] mb-1 w-40 rounded-lg border border-border bg-surface p-2 text-center text-[11px] text-muted-foreground shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Applications aren&apos;t open yet — coming soon.
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {company.overallAvg !== null ? (
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="text-lg compact:text-base font-bold text-foreground">
-            {company.overallAvg.toFixed(1)}
-          </span>
-          <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-            {scoreBandLabel(company.overallAvg)}
-          </span>
-          <span className="text-xs text-muted-foreground compact:hidden">
-            ({company.reviewCount} review{company.reviewCount === 1 ? "" : "s"})
-          </span>
-        </div>
-      ) : (
-        <p className="shrink-0 text-xs text-muted-foreground">No reviews yet</p>
-      )}
-    </Link>
+      <div className="mt-2 rounded-lg border border-border/60 px-3 py-2">
+        <h4 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          General Information
+        </h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")}
+          {company.city ? ` · ${company.city}${company.district ? `, ${company.district}` : ""}` : ""}
+          {" · "}
+          {company.overallAvg !== null
+            ? `${company.reviewCount} review${company.reviewCount === 1 ? "" : "s"}`
+            : "No reviews yet"}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -554,7 +614,7 @@ export function WorkplaceBrowser() {
             {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
               <p className="text-sm text-muted-foreground">No workplaces match these filters yet.</p>
             )}
-            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 compact:lg:grid-cols-4 compact:xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {pageCompanies?.map((c) => (
                 <CompanyCard key={c.id} company={c} />
               ))}
