@@ -26,12 +26,12 @@ const RATING_TICKS: { value: number; emoji: string }[] = [
   { value: 5, emoji: "😄" },
 ];
 
-type SortOption = "default" | "alphabetical" | "rating" | "workplace";
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "alphabetical", label: "A-Z" },
-  { value: "rating", label: "Rating" },
-  { value: "workplace", label: "Workplace" },
-];
+// "ratingAsc"/"ratingDesc" are two separate states (not one "rating" value
+// the Rating button just flips) because the button cycles through three
+// distinct looks — neutral, red-outlined (worst first), green-outlined
+// (best first) — and each needs its own stored state to read back on
+// re-render.
+type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "ratingDesc";
 
 const RESULTS_PAGE_SIZE = 24;
 
@@ -164,7 +164,6 @@ export function WorkplaceBrowser() {
   const [geo, setGeo] = useState<Geo>(null);
   const [geoRequesting, setGeoRequesting] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("default");
-  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [page, setPage] = useState(1);
   const sliderTrackRef = useRef<HTMLDivElement>(null);
   const resultsTopRef = useRef<HTMLDivElement>(null);
@@ -304,8 +303,14 @@ export function WorkplaceBrowser() {
 
     if (sortBy === "alphabetical") {
       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === "rating") {
+    } else if (sortBy === "ratingDesc") {
       list = [...list].sort((a, b) => (b.overallAvg ?? -1) - (a.overallAvg ?? -1));
+    } else if (sortBy === "ratingAsc") {
+      // Unrated companies (no overallAvg) fall back to +Infinity on both
+      // sides here, same as the -1 fallback above for the descending case
+      // — either way they sink to the bottom instead of contaminating the
+      // "least rated" or "best rated" end of the list.
+      list = [...list].sort((a, b) => (a.overallAvg ?? Infinity) - (b.overallAvg ?? Infinity));
     } else if (sortBy === "workplace") {
       // Sorts by each company's first (primary) tag only — not a full
       // multi-key sort — since a company can carry up to 2 workplaceTypes.
@@ -473,42 +478,61 @@ export function WorkplaceBrowser() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
               />
-              <div className="relative ml-auto">
+              {/* Standalone toggle buttons instead of a "Sort by" dropdown —
+                  every option is visible and clickable directly. A-Z and
+                  Workplace are plain on/off toggles (click again to go
+                  back to the default order); Rating instead cycles
+                  through three states on each click — neutral, red
+                  outline (least-rated first), green outline (best-rated
+                  first), then back to neutral. */}
+              <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSortMenuOpen((o) => !o)}
-                  aria-label="Sort"
-                  title="Sort"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                  onClick={() => setSortBy((s) => (s === "alphabetical" ? "default" : "alphabetical"))}
+                  aria-pressed={sortBy === "alphabetical"}
+                  className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
+                    sortBy === "alphabetical"
+                      ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+                      : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                  }`}
                 >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 6h18M6 12h12M10 18h4" />
-                  </svg>
+                  A-Z
                 </button>
-                {sortMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-[65]" onClick={() => setSortMenuOpen(false)} />
-                    <div className="absolute right-full top-0 z-[70] mr-2 w-40 rounded-lg border border-border bg-surface py-1 shadow-lg">
-                      {SORT_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            setSortBy(opt.value);
-                            setSortMenuOpen(false);
-                          }}
-                          className={`block w-full px-3 py-2 text-left text-sm ${
-                            sortBy === opt.value
-                              ? "font-semibold text-brand-600 dark:text-brand-400"
-                              : "text-foreground hover:bg-surface-muted"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setSortBy((s) => (s === "workplace" ? "default" : "workplace"))}
+                  aria-pressed={sortBy === "workplace"}
+                  className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
+                    sortBy === "workplace"
+                      ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+                      : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  Workplace
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSortBy((s) => (s === "ratingAsc" ? "ratingDesc" : s === "ratingDesc" ? "default" : "ratingAsc"))
+                  }
+                  aria-pressed={sortBy === "ratingAsc" || sortBy === "ratingDesc"}
+                  title={
+                    sortBy === "ratingAsc"
+                      ? "Showing least-rated first"
+                      : sortBy === "ratingDesc"
+                        ? "Showing best-rated first"
+                        : "Sort by rating"
+                  }
+                  className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
+                    sortBy === "ratingAsc"
+                      ? "border-red-500 text-red-600 dark:border-red-400 dark:text-red-400"
+                      : sortBy === "ratingDesc"
+                        ? "border-green-500 text-green-600 dark:border-green-400 dark:text-green-400"
+                        : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  Rating
+                </button>
               </div>
             </div>
 
