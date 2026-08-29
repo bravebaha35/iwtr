@@ -65,16 +65,18 @@ export function GlobalFooter() {
   const [showPricing, setShowPricing] = useState(false);
 
   return (
-    <footer className="mt-auto border-t border-zinc-800 bg-zinc-950">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-4">
-        <div className="overflow-hidden rounded-xl">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static footer art, not a Next/Image candidate */}
-          <img
-            src="/IWT%20Intro%20Real.png"
-            alt="I Worked There"
-            className="h-full w-full object-cover"
-          />
-        </div>
+    <footer className="relative mt-auto border-t border-zinc-800 bg-zinc-950">
+      {/* Large, positioned in the margin outside the centered column rather
+          than sharing its grid — keeps the PLATFORM/EMPLOYERS/LEGAL columns
+          at their original position and width. Only shown once there's
+          actually room for it beside that centered content. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- static footer art, not a Next/Image candidate */}
+      <img
+        src="/IWT%20Intro%20Real.png"
+        alt="I Worked There"
+        className="absolute left-10 top-1/2 hidden h-64 w-64 -translate-y-1/2 rounded-xl object-cover 2xl:block"
+      />
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
         {FOOTER_COLUMNS.map((column) => (
           <div key={column.title}>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-50">{column.title}</h3>
