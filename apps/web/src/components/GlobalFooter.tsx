@@ -77,7 +77,13 @@ export function GlobalFooter() {
           flat 16px (px-4) inset; past ~2000px the row's total width is
           capped and centered, splitting the leftover margin evenly, so
           the inset grows by half of whatever's left over 2000px. Same
-          formula here keeps this image in that same column at any width.
+          formula here (minus a fixed 72px nudge further left, so the
+          image clears the PLATFORM column instead of touching it — the
+          rail column itself sits right up against that column's left
+          edge) keeps this image in roughly that column at any width, with
+          an outer `max(16px, ...)` floor so the nudge can never push it
+          into negative/off-screen territory on the smaller end of the
+          2xl breakpoint where the growth term is already 0.
           Height-only sizing (top-0 + h-full, width auto) stretches the
           image edge-to-edge between the footer's own top and bottom
           border — its "outline" — while width is left for the browser to
@@ -89,7 +95,7 @@ export function GlobalFooter() {
         src="/IWT%20Intro%20Real.png"
         alt="I Worked There"
         className="absolute top-0 hidden h-full w-auto rounded-xl 2xl:block"
-        style={{ left: "calc(1rem + max(0px, (100vw - 2000px) / 2))" }}
+        style={{ left: "max(16px, calc(1rem + max(0px, (100vw - 2000px) / 2) - 72px))" }}
       />
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
         {FOOTER_COLUMNS.map((column) => (
