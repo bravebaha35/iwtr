@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { FlagsModule } from "../flags/flags.module";
+import { PaymentsModule } from "../payments/payments.module";
 import { RivalAnalyticsController } from "./rival-analytics.controller";
 import { RivalAnalyticsService } from "./rival-analytics.service";
 import { EMAIL_PROVIDER } from "./email/email-provider.interface";
@@ -12,7 +13,7 @@ function isSmtpConfigured(): boolean {
 }
 
 @Module({
-  imports: [AuthModule, FlagsModule],
+  imports: [AuthModule, FlagsModule, PaymentsModule],
   controllers: [RivalAnalyticsController],
   providers: [
     {

@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from "@nestjs/common";
 import type { PlanStatus, PlusCheckoutInput, PlusCheckoutResult } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { IyzicoProvider } from "./iyzico.provider";
+import type { CreateOneTimeCheckoutParams, OneTimeCheckoutInitResult, OneTimeCheckoutStatus } from "./payment-provider.interface";
 
 @Injectable()
 export class PaymentsService {
@@ -43,6 +44,21 @@ export class PaymentsService {
     });
 
     return { checkoutFormContent: result.checkoutFormContent, token: result.token };
+  }
+
+  // Deliberately thin and product-agnostic — unlike initiatePlusCheckout
+  // above, this method knows nothing about Rival Analytics, ownership, or
+  // free credits. That business logic lives in RivalAnalyticsService, which
+  // calls this after it has already decided a charge is needed; keeping it
+  // here would mean PaymentsModule importing RivalAnalyticsModule while
+  // RivalAnalyticsModule imports PaymentsModule for this very method — a
+  // circular module dependency for no real benefit.
+  async createOneTimeCheckout(params: CreateOneTimeCheckoutParams): Promise<OneTimeCheckoutInitResult> {
+    return this.provider.createOneTimeCheckout(params);
+  }
+
+  async retrieveOneTimeCheckoutStatus(token: string): Promise<OneTimeCheckoutStatus> {
+    return this.provider.retrieveOneTimeCheckoutStatus(token);
   }
 
   // The callback iyzico posts to only carries a token — its trustworthiness

@@ -51,6 +51,9 @@ export function buildRivalAnalyticsPdf(data: RivalAnalyticsReportData): Promise<
           ? "No published reviews yet."
           : `${data.overallRating?.toFixed(1)} / 5 across ${data.reviewCount} review${data.reviewCount === 1 ? "" : "s"}`,
       );
+    if (data.reviewCount > 0 && data.overallRating !== null) {
+      drawMeterBar(doc, data.overallRating / 5, "#16a34a");
+    }
     doc.moveDown(1);
 
     doc.fontSize(14).text("What Reviewers Said");
@@ -64,6 +67,8 @@ export function buildRivalAnalyticsPdf(data: RivalAnalyticsReportData): Promise<
     if (data.vibeFlags.length === 0) {
       doc.fontSize(11).text("Not enough data yet.");
     } else {
+      const greenCount = data.vibeFlags.filter((f) => f.color === "GREEN").length;
+      drawSplitBar(doc, greenCount, data.vibeFlags.length - greenCount);
       for (const flag of data.vibeFlags) {
         doc.fontSize(11).text(`${flag.color === "GREEN" ? "+" : "-"} ${flag.label}`);
       }
@@ -82,4 +87,42 @@ export function buildRivalAnalyticsPdf(data: RivalAnalyticsReportData): Promise<
 
     doc.end();
   });
+}
+
+type PdfDoc = InstanceType<typeof PDFDocument>;
+
+const METER_WIDTH = 200;
+const METER_HEIGHT = 10;
+
+// A filled horizontal track — 0 = empty, 1 = completely full — used for the
+// Overall Rating gauge. Drawing doesn't advance doc.y the way .text() does,
+// so callers must moveDown afterward themselves.
+function drawMeterBar(doc: PdfDoc, fraction: number, fillColor: string): void {
+  const x = doc.x;
+  const y = doc.y + 4;
+  const clamped = Math.max(0, Math.min(1, fraction));
+  doc.rect(x, y, METER_WIDTH, METER_HEIGHT).fill("#e5e7eb");
+  if (clamped > 0) {
+    doc.rect(x, y, METER_WIDTH * clamped, METER_HEIGHT).fill(fillColor);
+  }
+  doc.fillColor("#000000");
+  doc.y = y + METER_HEIGHT + 6;
+}
+
+// A single bar split green/red by count — the at-a-glance shape of a
+// company's Workplace Vibe Flags before the reader gets to the list below.
+function drawSplitBar(doc: PdfDoc, greenCount: number, redCount: number): void {
+  const total = greenCount + redCount;
+  if (total === 0) return;
+  const x = doc.x;
+  const y = doc.y + 4;
+  const greenWidth = (METER_WIDTH * greenCount) / total;
+  if (greenWidth > 0) {
+    doc.rect(x, y, greenWidth, METER_HEIGHT).fill("#16a34a");
+  }
+  if (greenWidth < METER_WIDTH) {
+    doc.rect(x + greenWidth, y, METER_WIDTH - greenWidth, METER_HEIGHT).fill("#dc2626");
+  }
+  doc.fillColor("#000000");
+  doc.y = y + METER_HEIGHT + 6;
 }

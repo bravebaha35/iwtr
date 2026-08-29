@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { companyWorkplaceTypesSchema, httpUrlSchema, ownerTierSchema, planStatusSchema } from "./company";
 import { companyContactPhoneSchema } from "./turkishPhone";
+import { plusCheckoutInputSchema } from "./payment";
 
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export type OwnerClaimStatus = z.infer<typeof ownerClaimStatusSchema>;
@@ -11,6 +12,13 @@ export const claimCompanyInputSchema = z.object({
   message: z.string().max(1000).optional(),
 });
 export type ClaimCompanyInput = z.infer<typeof claimCompanyInputSchema>;
+
+// Rival Analytics add-on tier — a separate axis from OwnerTier/PlanStatus
+// above (see RivalAnalyticsTier's own comment in schema.prisma). Declared
+// here (rather than further down, next to the request/result schemas) so
+// myCompanyClaimSchema below can reference it.
+export const rivalAnalyticsTierSchema = z.enum(["STARTER", "PRO", "ENTERPRISE"]);
+export type RivalAnalyticsTier = z.infer<typeof rivalAnalyticsTierSchema>;
 
 // What a claimant sees about their own claim(s).
 export const myCompanyClaimSchema = z.object({
@@ -24,6 +32,10 @@ export const myCompanyClaimSchema = z.object({
   claimStatus: ownerClaimStatusSchema,
   createdAt: z.string().datetime(),
   resolvedAt: z.string().datetime().nullable(),
+  // Null means "no Rival Analytics subscription yet" — same meaning as the
+  // nullable column it mirrors (CompanyOwner.rivalAnalyticsTier).
+  rivalAnalyticsTier: rivalAnalyticsTierSchema.nullable(),
+  rivalAnalyticsFreeRequestUsed: z.boolean(),
 });
 export type MyCompanyClaim = z.infer<typeof myCompanyClaimSchema>;
 
@@ -123,20 +135,24 @@ export const plusCheckoutResultSchema = z.object({
 });
 export type PlusCheckoutResult = z.infer<typeof plusCheckoutResultSchema>;
 
-// Rival Analytics add-on — a separate axis from OwnerTier/PlanStatus above
-// (see RivalAnalyticsTier's own comment in schema.prisma). Only Enterprise
-// gets a one-time free pull; every other tier (including no tier at all)
-// always pays, gated by apps/api's decideRivalAnalyticsAccess.
-export const rivalAnalyticsTierSchema = z.enum(["STARTER", "PRO", "ENTERPRISE"]);
-export type RivalAnalyticsTier = z.infer<typeof rivalAnalyticsTierSchema>;
-
+// Only Enterprise gets a one-time free pull; every other tier (including no
+// tier at all) always pays, gated by apps/api's decideRivalAnalyticsAccess.
+// `billing` is required only on the paid path — omitted entirely on a free
+// Enterprise pull, which needs no invoice/checkout details at all.
 export const rivalAnalyticsRequestInputSchema = z.object({
   requestingCompanyId: z.string().uuid(),
+  billing: plusCheckoutInputSchema.optional(),
 });
 export type RivalAnalyticsRequestInput = z.infer<typeof rivalAnalyticsRequestInputSchema>;
 
 export const rivalAnalyticsRequestResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("SENT"), recipientEmail: z.string(), usedFreeCredit: z.boolean() }),
+  // iyzico isn't configured with real credentials yet (see IyzicoProvider) —
+  // same "not set up yet" condition the Plus checkout flow already surfaces.
   z.object({ status: z.literal("PAYMENT_REQUIRED"), priceNote: z.string() }),
+  // iyzico IS configured — here's the hosted Checkout Form to complete
+  // payment; the report is generated and emailed once the callback confirms
+  // the charge succeeded, not synchronously with this response.
+  z.object({ status: z.literal("CHECKOUT_REQUIRED"), checkoutFormContent: z.string(), token: z.string() }),
 ]);
 export type RivalAnalyticsRequestResult = z.infer<typeof rivalAnalyticsRequestResultSchema>;

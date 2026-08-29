@@ -31,6 +31,8 @@ const claim: MyCompanyClaim = {
   claimStatus: "APPROVED",
   createdAt: new Date().toISOString(),
   resolvedAt: null,
+  rivalAnalyticsTier: null,
+  rivalAnalyticsFreeRequestUsed: false,
 };
 
 const detail: CompanyDetail = {

@@ -20,6 +20,27 @@ describe("buildRivalAnalyticsPdf", () => {
     expect(buffer.length).toBeGreaterThan(100);
   });
 
+  it("draws the green/red split bar when flags of both colors are present", async () => {
+    const buffer = await buildRivalAnalyticsPdf({
+      targetCompanyName: "Rival Co.",
+      requestingCompanyName: "My Co.",
+      requesterTier: "PRO",
+      generatedAt: new Date("2026-01-01T00:00:00Z"),
+      overallRating: 2.5,
+      reviewCount: 10,
+      mostAgreed: null,
+      mostDisputed: null,
+      vibeFlags: [
+        { category: "corporateCulture", cluster: 1, color: "GREEN", label: "Collaborative Team" },
+        { category: "stability", cluster: 2, color: "RED", label: "High Turnover" },
+      ],
+      commentThemes: [],
+    });
+
+    expect(buffer.subarray(0, 5).toString("ascii")).toBe("%PDF-");
+    expect(buffer.length).toBeGreaterThan(100);
+  });
+
   it("does not throw when there are no reviews at all yet", async () => {
     const buffer = await buildRivalAnalyticsPdf({
       targetCompanyName: "Brand New Co.",

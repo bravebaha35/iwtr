@@ -489,6 +489,36 @@ model AuditLog {
   @@schema("public")
 }
 
+enum RivalAnalyticsPurchaseStatus {
+  PENDING
+  PAID
+
+  @@schema("public")
+}
+
+// A one-off paid pull (Starter/Pro tier, or an Enterprise member with no free
+// credit left — see decideRivalAnalyticsAccess). No Prisma relation to
+// Company/User, same "matched by value only" pattern as InvestorApiKey below
+// — this is a transactional bookkeeping row (created PENDING right before
+// redirecting to iyzico, flipped to PAID by the callback once payment is
+// confirmed, which is what triggers actually building and emailing the
+// report), not something either model needs a back-reference array for.
+// This row's own id IS the iyzico conversationId (same correlation pattern
+// PaymentsService already uses for Plus subscriptions via CompanyOwner.id)
+// — iyzico echoes conversationId back on the callback's status lookup, so
+// there's no need to separately track its own opaque token here.
+model RivalAnalyticsPurchase {
+  id                  String                       @id @default(uuid())
+  requestingCompanyId String
+  requestingUserId    String
+  targetCompanyId     String
+  status              RivalAnalyticsPurchaseStatus @default(PENDING)
+  createdAt           DateTime                     @default(now())
+  completedAt         DateTime?
+
+  @@schema("public")
+}
+
 // A key issued to a paying "Market Investor API" subscriber — a third-party
 // actor, not a MEMBER or a Company owner, so this deliberately has no
 // relation to User. Same hash-only-at-rest pattern as RefreshToken below

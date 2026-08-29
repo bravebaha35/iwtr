@@ -257,6 +257,8 @@ export class OwnerService {
       claimStatus: OwnerClaimStatus;
       createdAt: Date;
       resolvedAt: Date | null;
+      rivalAnalyticsTier: "STARTER" | "PRO" | "ENTERPRISE" | null;
+      rivalAnalyticsFreeRequestUsed: boolean;
     },
     company: { name: string; slug: string; isVerifiedBadge: boolean },
   ): MyCompanyClaim {
@@ -271,6 +273,8 @@ export class OwnerService {
       claimStatus: row.claimStatus,
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt?.toISOString() ?? null,
+      rivalAnalyticsTier: row.rivalAnalyticsTier,
+      rivalAnalyticsFreeRequestUsed: row.rivalAnalyticsFreeRequestUsed,
     };
   }
 }
