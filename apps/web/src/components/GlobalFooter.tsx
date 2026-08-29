@@ -84,17 +84,19 @@ export function GlobalFooter() {
           an outer `max(16px, ...)` floor so the nudge can never push it
           into negative/off-screen territory on the smaller end of the
           2xl breakpoint where the growth term is already 0.
-          Height-only sizing (top-0 + h-full, width auto) stretches the
-          image edge-to-edge between the footer's own top and bottom
-          border — its "outline" — while width is left for the browser to
-          derive from the image's own aspect ratio, so it's never cropped
-          or stretched out of proportion. Only shown once there's actually
-          room for it beside the centered content. */}
+          Height-only sizing (h-[88%], width auto) stretches the image
+          most of the way between the footer's own top and bottom border
+          — its "outline" — leaving a small margin instead of touching
+          both, while width is left for the browser to derive from the
+          image's own aspect ratio, so it's never cropped or stretched
+          out of proportion. Centered vertically (top-1/2 + -translate-y-1/2)
+          so that margin lands evenly top and bottom. Only shown once
+          there's actually room for it beside the centered content. */}
       {/* eslint-disable-next-line @next/next/no-img-element -- static footer art, not a Next/Image candidate */}
       <img
         src="/IWT%20Intro%20Real.png"
         alt="I Worked There"
-        className="absolute top-0 hidden h-full w-auto rounded-xl 2xl:block"
+        className="absolute top-1/2 hidden h-[88%] w-auto -translate-y-1/2 rounded-xl 2xl:block"
         style={{ left: "max(16px, calc(1rem + max(0px, (100vw - 2000px) / 2) - 72px))" }}
       />
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
