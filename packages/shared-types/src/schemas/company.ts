@@ -231,6 +231,20 @@ export function scoreBandLabel(avg: number): string {
   return band?.label ?? "Unsatisfactory";
 }
 
+// GET /companies/:slug/narrative — the company page's rating-narrative box.
+// `description` is: the Claude-written ≤600-char summary when the primary
+// work-type has 3+ published reviews and generation succeeded; a plain
+// numbers-only sentence when 3+ reviews but no API key / a failed call;
+// null when under 3 reviews (the box then shows a short "summary appears at
+// 3 reviews" line built from reviewCount). See
+// apps/api/src/modules/company-narrative and the 2026-08-30 spec.
+export const companyNarrativeSchema = z.object({
+  workplaceType: workplaceTypeSchema,
+  reviewCount: z.number().int().min(0),
+  description: z.string().max(600).nullable(),
+});
+export type CompanyNarrative = z.infer<typeof companyNarrativeSchema>;
+
 export const companyAggregateScoreSchema = z.object({
   companyId: z.string().uuid(),
   overallAvg: z.number().min(0).max(5),
