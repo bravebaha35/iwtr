@@ -16,7 +16,12 @@ export class NarrativeGeneratorService {
 
   constructor() {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    this.client = apiKey ? new Anthropic({ apiKey }) : null;
+    // maxRetries: 0 — this runs on a synchronous page-view path (Task 6 awaits
+    // it during SSR) with an 8s budget. The SDK default (2 retries with
+    // exponential backoff, timeout applied per attempt) would stretch a
+    // persistent overload to ~20-30s. A failed call just falls back to the
+    // stored narrative / numbers line, so retrying here buys nothing.
+    this.client = apiKey ? new Anthropic({ apiKey, maxRetries: 0 }) : null;
   }
 
   get available(): boolean {
