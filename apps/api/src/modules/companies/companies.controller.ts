@@ -16,6 +16,7 @@ import type { AuthenticatedUser } from "../auth/auth.types";
 import { CompaniesService } from "./companies.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { FlagCalculatorService } from "../flags/flag-calculator.service";
+import { CompanyNarrativeService } from "../company-narrative/company-narrative.service";
 
 @Controller()
 export class CompaniesController {
@@ -23,6 +24,7 @@ export class CompaniesController {
     private readonly companies: CompaniesService,
     private readonly reviews: ReviewsService,
     private readonly flagCalculator: FlagCalculatorService,
+    private readonly companyNarrative: CompanyNarrativeService,
   ) {}
 
   @Post("admin/companies")
@@ -78,5 +80,15 @@ export class CompaniesController {
         flags: this.flagCalculator.computeVibeFlags(entry),
       })),
     };
+  }
+
+  // Lazily-generated ≤600-char rating-narrative summary for the company's
+  // primary work-type. See CompanyNarrativeService: an external (Anthropic)
+  // call happens only on a stale/absent row with 3+ published reviews for
+  // that type and a configured key — otherwise this is a single indexed
+  // SELECT. Never returns individual answers or reviewer data.
+  @Get("companies/:slug/narrative")
+  narrative(@Param("slug") slug: string) {
+    return this.companyNarrative.getNarrative(slug);
   }
 }

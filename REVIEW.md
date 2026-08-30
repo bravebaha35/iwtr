@@ -99,6 +99,19 @@ the severity because the diff is short.
    decision — this is a narrow carve-out for exactly these three columns,
    not a precedent for review-author fields in general.
 
+9. **AI company descriptions send only aggregate survey data off-platform.**
+   `apps/api/src/modules/company-narrative` is the one code path that sends
+   review-derived data to a third party (Anthropic). It may send ONLY: the
+   per-question agree/disagree/prefer-not COUNTS, the five category averages,
+   the overall rating, the published-review count, and the work-type label —
+   the same data class the flag engine already consumes. It must NEVER send
+   individual review rows, raw `surveyAnswers`, `generalThoughts` free text,
+   any reviewer identifier/avatar/username, employment dates, the answer key,
+   the company name, or anything from `PiiVault`. A hard floor of 3 published
+   reviews for the work-type gates every external call. A PR that widens this
+   input set, lowers the floor, or adds a second off-platform sink of
+   review data is critical-severity by default.
+
 ## What reviewers must do for an in-scope PR
 
 - Read the full diff, not just the hunk — leaks in this codebase come from
