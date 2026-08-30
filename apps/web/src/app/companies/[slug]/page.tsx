@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import type { Company, CompanyDetail, CompanyVibeFlags, VibeFlag } from "@iwtr/shared-types";
+import type { Company, CompanyDetail, CompanyNarrative } from "@iwtr/shared-types";
+import { scoreBandLabel } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
 import { WorkplaceVibeFlags } from "@/components/WorkplaceVibeFlags";
@@ -7,9 +8,9 @@ import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { RateButton } from "@/components/RateButton";
 import { AdSlot } from "@/components/AdSlot";
-import { scoreBarColor } from "@/lib/scoreBandColors";
+import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
-import { ratingNarrative } from "@/lib/ratingNarrative";
+import { ratingImageSrc } from "@/lib/ratingNarrative";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -19,46 +20,41 @@ const CATEGORIES = [
   { key: "stabilityAvg" as const, label: "Organizational Stability" },
 ];
 
-// Dynamic image + descriptive text, picked from the company's live overall
-// score, its primary (first-tag) work-type, and its real Workplace Vibe
-// Flags for that type — see ratingNarrative.ts. "Vertically flexible
-// container that expands to fit its content" means no fixed/aspect-ratio
-// height here: plain flexbox, so a longer text block just grows the box
-// rather than clipping or scrolling. Flex-col on mobile (image stacked
-// above text) / flex-row on larger screens (image left, text vertically
-// centered beside it), per the explicit mobile-readability ask.
-//
-// Sized to sit almost flush against the Rating Breakdown box beside it:
-// lg:max-w-2xl (up from lg:max-w-lg) plus the row's own tightened lg:gap-3
-// close most of the remaining daylight between the two, and the artwork
-// itself is bumped from h-40/w-40 to h-56/w-56 to fill the taller box
-// instead of floating small inside it.
+// Illustration (from the overall score) + a short summary. The summary text
+// is whatever GET /companies/:slug/narrative returned: the AI paragraph, a
+// plain numbers sentence, or null. When null and there are 1-2 reviews we
+// show a "summary appears at 3 reviews" line; with 0 reviews the box is an
+// empty fixed-size slot (reserved for future design). Fixed height is set in
+// a later step so 600 chars of text and the empty state render identically.
 function RatingNarrativeBox({
   score,
   workplaceType,
-  flags,
+  narrative,
 }: {
-  score: number;
+  score: number | null;
   workplaceType: Company["workplaceTypes"][number];
-  flags: VibeFlag[];
+  narrative: CompanyNarrative | null;
 }) {
-  const { imageSrc, text } = ratingNarrative(score, workplaceType, flags);
+  const imageSrc = score !== null ? ratingImageSrc(score, workplaceType) : null;
+  const waitingLine =
+    narrative && narrative.description === null && narrative.reviewCount >= 1 && narrative.reviewCount <= 2
+      ? `${narrative.reviewCount} review${narrative.reviewCount === 1 ? "" : "s"} so far — a full summary appears once 3 people have rated this workplace.`
+      : null;
+
   return (
     <div className="flex flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:max-w-2xl lg:shrink-0">
       {imageSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a small
-        // fixed set of local /public illustrations, not a remote/arbitrary
-        // URL next/image's loader config would need to know about.
+        // eslint-disable-next-line @next/next/no-img-element -- a small fixed
+        // set of local /public illustrations, not a remote/arbitrary URL.
         <img src={imageSrc} alt="" className="h-56 w-56 shrink-0 object-contain" />
       ) : (
-        <div
-          className="flex h-56 w-56 shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground"
-          aria-hidden="true"
-        >
-          Image coming soon
-        </div>
+        <div className="h-56 w-56 shrink-0" aria-hidden="true" />
       )}
-      <p className="text-center text-sm text-foreground sm:text-left">{text}</p>
+      {narrative?.description ? (
+        <p className="text-center text-sm text-foreground sm:text-left">{narrative.description}</p>
+      ) : waitingLine ? (
+        <p className="text-center text-sm text-muted-foreground sm:text-left">{waitingLine}</p>
+      ) : null}
     </div>
   );
 }
@@ -161,23 +157,16 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
 
   const { company, aggregate } = detail;
 
-  // Fetched server-side (public endpoint, no auth needed) purely to drive
-  // RatingNarrativeBox's flag-pattern text — see ratingNarrative.ts. Kept
-  // separate from WorkplaceVibeFlags' own client-side fetch of the same
-  // endpoint (that one needs to stay a client component for its work-type
-  // toggle buttons); a fetch failure here just falls back to an empty flag
-  // list rather than breaking the page.
-  let vibeFlags: CompanyVibeFlags | null = null;
+  // Server-side fetch purely for RatingNarrativeBox. The endpoint always
+  // returns 200 with { workplaceType, reviewCount, description } for a valid
+  // slug; a network error just falls back to null (box shows the illustration
+  // + nothing, same as the 0-review state).
+  let narrative: CompanyNarrative | null = null;
   try {
-    vibeFlags = await apiGetPublic<CompanyVibeFlags>(`/companies/${slug}/vibe-flags`);
+    narrative = await apiGetPublic<CompanyNarrative>(`/companies/${slug}/narrative`);
   } catch {
-    vibeFlags = null;
+    narrative = null;
   }
-  const narrativeWorkplaceType = company.workplaceTypes[0];
-  const narrativeFlags: VibeFlag[] =
-    vibeFlags?.byWorkplaceType.find((s) => s.workplaceType === narrativeWorkplaceType && s.totalReviews > 0)?.flags ??
-    vibeFlags?.byWorkplaceType.find((s) => s.totalReviews > 0)?.flags ??
-    [];
 
   return (
     // Same 3-column shell as the homepage (ad rail / content / ad rail) —
@@ -218,13 +207,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             more — the component itself is untouched and still available to
             reuse elsewhere later, it's just not shown here. */}
         <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3">
-          {aggregate && aggregate.reviewCount > 0 && (
-            <RatingNarrativeBox
-              score={aggregate.overallAvg}
-              workplaceType={narrativeWorkplaceType}
-              flags={narrativeFlags}
-            />
-          )}
+          <RatingNarrativeBox
+            score={aggregate && aggregate.reviewCount > 0 ? aggregate.overallAvg : null}
+            workplaceType={company.workplaceTypes[0]}
+            narrative={narrative}
+          />
 
           <div className="flex-1 rounded-xl border border-border bg-surface p-6 font-sans">
             <h2 className="mb-4 text-lg font-semibold text-foreground">Rating Breakdown</h2>
@@ -247,6 +234,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                 <p className="mt-2 text-xs text-muted-foreground">
                   {aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"}
                 </p>
+                <div className="mt-3 flex items-baseline gap-2 border-t border-border pt-3">
+                  <span className="text-3xl font-bold text-foreground">{aggregate.overallAvg.toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">/ 5.0</span>
+                  <span className={`ml-auto text-sm font-semibold ${scoreTextColor(aggregate.overallAvg)}`}>
+                    {scoreBandLabel(aggregate.overallAvg)}
+                  </span>
+                </div>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
