@@ -58,7 +58,7 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
 
   if (loadFailed) {
     return (
-      <div className="h-[545px] overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans">
+      <div className="h-auto overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans lg:h-[672px]">
         <p className="text-sm text-red-600 dark:text-red-400">Couldn&apos;t load workplace flags right now.</p>
       </div>
     );
@@ -83,13 +83,17 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
   // regardless of flag count or color split. The true worst case is NOT
   // "10 flags" evenly split 5-and-5 across the two columns — it's all 10
   // landing in a SINGLE column (a company with zero green or zero red
-  // flags), since each column stacks independently. That single-column
-  // case live-measured at 536.67px (10 chips, some 2-line-wrapping labels
-  // like "Dangerous Service Shortcuts"); 545px is that plus a small buffer,
-  // with overflow-y-auto as a safety net for anything that still doesn't
-  // fit.
+  // flags), since each column stacks independently. That single-colour
+  // 10-flag column was live-measured across all 4 work-types at multiple
+  // viewport widths; the max is 657px (SERVICE, all-red, at the lg
+  // breakpoint minimum width of 1024px where the 2-column grid is
+  // tightest). lg:h-[672px] = that 657px + a 15px buffer. Scoped to lg:
+  // because that's where the boxes sit side-by-side and their bottom
+  // edges must align; on mobile the grid is single-column and the boxes
+  // stack, so h-auto lets them flow instead of carrying dead space.
+  // overflow-y-auto is now just an inert safety net.
   return (
-    <div className="h-[545px] overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans">
+    <div className="h-auto overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans lg:h-[672px]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">
           Workplace Vibe Flags

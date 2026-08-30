@@ -42,13 +42,17 @@ function RatingNarrativeBox({
       : null;
 
   return (
-    <div className="flex flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:max-w-2xl lg:shrink-0">
+    // Height measured live against a 600-char description + the enlarged
+    // illustration on desktop (350px) → lg:h-[360px]. Scoped to lg: so the
+    // mobile stacked layout flows; the 0-review empty state holds this same
+    // slot.
+    <div className="flex flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:h-[360px] lg:max-w-2xl lg:shrink-0">
       {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element -- a small fixed
         // set of local /public illustrations, not a remote/arbitrary URL.
-        <img src={imageSrc} alt="" className="h-56 w-56 shrink-0 object-contain" />
+        <img src={imageSrc} alt="" className="h-72 w-56 shrink-0 object-contain" />
       ) : (
-        <div className="h-56 w-56 shrink-0" aria-hidden="true" />
+        <div className="h-72 w-56 shrink-0" aria-hidden="true" />
       )}
       {narrative?.description ? (
         <p className="text-center text-sm text-foreground sm:text-left">{narrative.description}</p>
@@ -76,12 +80,15 @@ function CompanyDetailsBox({ company }: { company: Company }) {
   ].filter((v): v is { label: string; href: string; external: boolean } => v !== null);
 
   // Fixed height (matching WorkplaceVibeFlags), not content-driven — see
-  // that component's comment. 545px matches the Vibe Flags box's true
-  // worst-case height (all 10 flags in a single column) plus a small
-  // buffer; overflow-y-auto handles whatever doesn't fit (e.g. an unusually
-  // long description) without ever growing the box itself.
+  // that component's comment. lg:h-[672px] matches the Vibe Flags box's
+  // true worst-case height (all 10 flags in a single column, live-measured
+  // at 657px — SERVICE all-red at the lg min width 1024px) plus a 15px
+  // buffer. Scoped to lg: because that's where this box is paired
+  // side-by-side with WorkplaceVibeFlags and their bottom edges must
+  // align; on mobile it stacks and h-auto lets it flow. overflow-y-auto
+  // is an inert safety net for anything that still doesn't fit.
   return (
-    <div className="h-[545px] overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans">
+    <div className="h-auto overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans lg:h-[672px]">
       <h2 className="mb-4 text-lg font-semibold text-foreground">Company Details</h2>
       <div className="flex flex-col gap-4 text-sm">
         <div>
