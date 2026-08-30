@@ -536,7 +536,7 @@ model CompanyNarrative {
   workplaceType    WorkplaceType
   description      String        // Postgres text; <=600 chars enforced in app code
   reviewCountAtGen Int
-  model            String        // e.g. "claude-haiku-4-5-20251001" — mismatch forces regen
+  model            String        // e.g. "claude-haiku-4-5" (= NARRATIVE_MODEL) — mismatch forces regen
   promptVersion    Int           // bumped in-repo when the prompt changes materially
   generatedAt      DateTime      @default(now())
 
