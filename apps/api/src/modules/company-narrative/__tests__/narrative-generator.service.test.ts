@@ -8,7 +8,7 @@ jest.mock("@anthropic-ai/sdk", () => {
 });
 
 import { NarrativeGeneratorService } from "../narrative-generator.service";
-import { SYSTEM_PROMPT } from "../company-narrative.prompt";
+import { NARRATIVE_MODEL, SYSTEM_PROMPT } from "../company-narrative.prompt";
 
 describe("NarrativeGeneratorService", () => {
   const OLD_ENV = process.env;
@@ -49,7 +49,7 @@ describe("NarrativeGeneratorService", () => {
     expect(out).toBe("This workplace is steady.");
     expect(createMock).toHaveBeenCalledWith(
       {
-        model: "claude-haiku-4-5-20251001",
+        model: NARRATIVE_MODEL,
         max_tokens: 400,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: "some user message" }],

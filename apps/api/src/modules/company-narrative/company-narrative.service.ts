@@ -43,6 +43,24 @@ export class CompanyNarrativeService {
 
     const workplaceType = company.workplaceTypes[0] as WorkplaceType;
 
+    const reviewCount = await this.prisma.review.count({
+      where: { companyId: company.id, status: "PUBLISHED", workplaceType },
+    });
+    if (reviewCount < MIN_REVIEWS_FOR_AI) {
+      return { workplaceType, reviewCount, description: null };
+    }
+
+    const stored = await this.prisma.companyNarrative.findUnique({
+      where: { companyId_workplaceType: { companyId: company.id, workplaceType } },
+    });
+
+    if (stored && !this.isStale(stored, reviewCount)) {
+      return { workplaceType, reviewCount, description: stored.description };
+    }
+
+    // Only now — past the fresh-row and N<3 early returns — load every
+    // published review row. Each one carries a surveyAnswers JSON blob, so
+    // this is the expensive query the two returns above deliberately skip.
     const reviews = (await this.prisma.review.findMany({
       where: { companyId: company.id, status: "PUBLISHED", workplaceType },
       select: {
@@ -55,11 +73,6 @@ export class CompanyNarrativeService {
       },
     })) as ReviewScoreRow[];
 
-    const reviewCount = reviews.length;
-    if (reviewCount < MIN_REVIEWS_FOR_AI) {
-      return { workplaceType, reviewCount, description: null };
-    }
-
     const categories = this.categoryAverages(reviews);
     const overall =
       (categories.corporateCulture +
@@ -68,14 +81,6 @@ export class CompanyNarrativeService {
         categories.workLifeBalance +
         categories.stability) /
       5;
-
-    const stored = await this.prisma.companyNarrative.findUnique({
-      where: { companyId_workplaceType: { companyId: company.id, workplaceType } },
-    });
-
-    if (stored && !this.isStale(stored, reviewCount)) {
-      return { workplaceType, reviewCount, description: stored.description };
-    }
 
     if (this.generator.available) {
       try {
@@ -108,7 +113,11 @@ export class CompanyNarrativeService {
           });
           return { workplaceType, reviewCount, description };
         }
-      } catch {
+        // eslint-disable-next-line no-console
+        console.error(`[company-narrative] empty description after clamp for company=${company.slug}`);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[company-narrative] generation failed for company=${company.slug}`, err);
         // fall through to stored copy / numbers line
       }
     }

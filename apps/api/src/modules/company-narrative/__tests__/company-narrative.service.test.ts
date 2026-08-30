@@ -3,14 +3,24 @@ import { CompanyNarrativeService } from "../company-narrative.service";
 
 type PrismaMock = {
   company: { findUnique: jest.Mock };
-  review: { findMany: jest.Mock };
+  review: { findMany: jest.Mock; count: jest.Mock };
   companyNarrative: { findUnique: jest.Mock; upsert: jest.Mock };
 };
+
+// getNarrative now calls review.count() before (and instead of, on the fresh /
+// low-N paths) review.findMany(). Keep the two consistent: count === the number
+// of rows findMany resolves.
+function reviewMock(rows: unknown[] = []) {
+  return {
+    findMany: jest.fn().mockResolvedValue(rows),
+    count: jest.fn().mockResolvedValue(rows.length),
+  };
+}
 
 function makePrisma(overrides: Partial<PrismaMock> = {}): PrismaMock {
   return {
     company: { findUnique: jest.fn().mockResolvedValue({ id: "c1", slug: "acme", workplaceTypes: ["OFFICE"] }) },
-    review: { findMany: jest.fn().mockResolvedValue([]) },
+    review: reviewMock(),
     companyNarrative: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn().mockResolvedValue({}) },
     ...overrides,
   };
@@ -41,7 +51,7 @@ describe("CompanyNarrativeService.getNarrative", () => {
   });
 
   it("returns description null and does not call the generator under 3 reviews", async () => {
-    const prisma = makePrisma({ review: { findMany: jest.fn().mockResolvedValue(reviewRows(2)) } });
+    const prisma = makePrisma({ review: reviewMock(reviewRows(2)) });
     const gen = generatorOn();
     const svc = new CompanyNarrativeService(prisma as any, gen as any);
     const out = await svc.getNarrative("acme");
@@ -50,7 +60,7 @@ describe("CompanyNarrativeService.getNarrative", () => {
   });
 
   it("with 3+ reviews and no generator, returns the numbers-only line and stores nothing", async () => {
-    const prisma = makePrisma({ review: { findMany: jest.fn().mockResolvedValue(reviewRows(6)) } });
+    const prisma = makePrisma({ review: reviewMock(reviewRows(6)) });
     const svc = new CompanyNarrativeService(prisma as any, generatorOff as any);
     const out = await svc.getNarrative("acme");
     expect(out.description).toBe(
@@ -60,7 +70,7 @@ describe("CompanyNarrativeService.getNarrative", () => {
   });
 
   it("with 3+ reviews, a generator and no stored row, generates once, clamps, upserts and returns", async () => {
-    const prisma = makePrisma({ review: { findMany: jest.fn().mockResolvedValue(reviewRows(4)) } });
+    const prisma = makePrisma({ review: reviewMock(reviewRows(4)) });
     const gen = generatorOn("A specific summary.");
     const svc = new CompanyNarrativeService(prisma as any, gen as any);
     const out = await svc.getNarrative("acme");
@@ -76,12 +86,12 @@ describe("CompanyNarrativeService.getNarrative", () => {
 
   it("serves a fresh stored row without calling the generator", async () => {
     const prisma = makePrisma({
-      review: { findMany: jest.fn().mockResolvedValue(reviewRows(5)) },
+      review: reviewMock(reviewRows(5)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
           description: "Stored copy.",
           reviewCountAtGen: 5,
-          model: "claude-haiku-4-5-20251001",
+          model: "claude-haiku-4-5",
           promptVersion: 1,
           generatedAt: new Date(),
         }),
@@ -97,10 +107,10 @@ describe("CompanyNarrativeService.getNarrative", () => {
 
   it("regenerates when the review count has moved by 3+ since the stored row", async () => {
     const prisma = makePrisma({
-      review: { findMany: jest.fn().mockResolvedValue(reviewRows(9)) },
+      review: reviewMock(reviewRows(9)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5-20251001", promptVersion: 1, generatedAt: new Date(),
+          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 1, generatedAt: new Date(),
         }),
         upsert: jest.fn().mockResolvedValue({}),
       },
@@ -115,10 +125,10 @@ describe("CompanyNarrativeService.getNarrative", () => {
   it("regenerates when the stored row is older than 30 days", async () => {
     const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
     const prisma = makePrisma({
-      review: { findMany: jest.fn().mockResolvedValue(reviewRows(5)) },
+      review: reviewMock(reviewRows(5)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5-20251001", promptVersion: 1, generatedAt: old,
+          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 1, generatedAt: old,
         }),
         upsert: jest.fn().mockResolvedValue({}),
       },
@@ -131,10 +141,10 @@ describe("CompanyNarrativeService.getNarrative", () => {
 
   it("regenerates when the stored promptVersion differs", async () => {
     const prisma = makePrisma({
-      review: { findMany: jest.fn().mockResolvedValue(reviewRows(5)) },
+      review: reviewMock(reviewRows(5)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5-20251001", promptVersion: 0, generatedAt: new Date(),
+          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 0, generatedAt: new Date(),
         }),
         upsert: jest.fn().mockResolvedValue({}),
       },
@@ -144,12 +154,29 @@ describe("CompanyNarrativeService.getNarrative", () => {
     expect((await svc.getNarrative("acme")).description).toBe("Fresh.");
   });
 
-  it("falls back to the stored row when generation throws", async () => {
+  it("regenerates when the stored model differs from NARRATIVE_MODEL", async () => {
     const prisma = makePrisma({
-      review: { findMany: jest.fn().mockResolvedValue(reviewRows(20)) },
+      review: reviewMock(reviewRows(5)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Stale but usable.", reviewCountAtGen: 5, model: "claude-haiku-4-5-20251001", promptVersion: 1, generatedAt: new Date(),
+          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-OLD", promptVersion: 1, generatedAt: new Date(),
+        }),
+        upsert: jest.fn().mockResolvedValue({}),
+      },
+    });
+    const gen = generatorOn("Fresh.");
+    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const out = await svc.getNarrative("acme");
+    expect(out.description).toBe("Fresh.");
+    expect(gen.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the stored row when generation throws", async () => {
+    const prisma = makePrisma({
+      review: reviewMock(reviewRows(20)),
+      companyNarrative: {
+        findUnique: jest.fn().mockResolvedValue({
+          description: "Stale but usable.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 1, generatedAt: new Date(),
         }),
         upsert: jest.fn(),
       },
@@ -162,7 +189,7 @@ describe("CompanyNarrativeService.getNarrative", () => {
   });
 
   it("falls back to the numbers line when generation throws and there is no stored row", async () => {
-    const prisma = makePrisma({ review: { findMany: jest.fn().mockResolvedValue(reviewRows(7)) } });
+    const prisma = makePrisma({ review: reviewMock(reviewRows(7)) });
     const gen = { available: true, generate: jest.fn().mockRejectedValue(new Error("overloaded")) };
     const svc = new CompanyNarrativeService(prisma as any, gen as any);
     const out = await svc.getNarrative("acme");
@@ -171,7 +198,7 @@ describe("CompanyNarrativeService.getNarrative", () => {
 
   it("clamps an over-long model response to 600 characters at a sentence boundary", async () => {
     const long = "First short sentence. " + "This second sentence is padded out. ".repeat(30);
-    const prisma = makePrisma({ review: { findMany: jest.fn().mockResolvedValue(reviewRows(4)) } });
+    const prisma = makePrisma({ review: reviewMock(reviewRows(4)) });
     const gen = generatorOn(long);
     const svc = new CompanyNarrativeService(prisma as any, gen as any);
     const out = await svc.getNarrative("acme");

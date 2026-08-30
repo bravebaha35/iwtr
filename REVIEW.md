@@ -103,7 +103,8 @@ the severity because the diff is short.
    `apps/api/src/modules/company-narrative` is the one code path that sends
    review-derived data to a third party (Anthropic). It may send ONLY: the
    per-question agree/disagree/prefer-not COUNTS, the five category averages,
-   the overall rating, the published-review count, and the work-type label —
+   the overall rating, the published-review count, the work-type label, and the
+   static survey question text —
    the same data class the flag engine already consumes. It must NEVER send
    individual review rows, raw `surveyAnswers`, `generalThoughts` free text,
    any reviewer identifier/avatar/username, employment dates, the answer key,

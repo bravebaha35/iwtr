@@ -2,6 +2,8 @@ import type { SurveyQuestionStats } from "@iwtr/shared-types";
 import {
   SYSTEM_PROMPT,
   MAX_DESCRIPTION_CHARS,
+  NARRATIVE_MODEL,
+  PROMPT_VERSION,
   buildUserMessage,
   buildNumbersLine,
   clampToLimit,
@@ -28,6 +30,13 @@ const INPUT: NarrativeInput = {
   reviewCount: 11,
   questions: QUESTIONS,
 };
+
+describe("model + prompt version", () => {
+  it("pins the exact model id and prompt version", () => {
+    expect(NARRATIVE_MODEL).toBe("claude-haiku-4-5");
+    expect(PROMPT_VERSION).toBe(1);
+  });
+});
 
 describe("SYSTEM_PROMPT", () => {
   it("states the 600-character limit and bans the filler phrases", () => {

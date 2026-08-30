@@ -3,7 +3,7 @@ import type { CategoryKey, SurveyQuestionStats, WorkplaceType } from "@iwtr/shar
 // Bump when the wording below changes in a way that should invalidate every
 // stored description (CompanyNarrativeService compares row.promptVersion).
 export const PROMPT_VERSION = 1;
-export const NARRATIVE_MODEL = "claude-haiku-4-5-20251001";
+export const NARRATIVE_MODEL = "claude-haiku-4-5";
 export const MAX_DESCRIPTION_CHARS = 600;
 
 const WORKPLACE_LABELS: Record<WorkplaceType, string> = {

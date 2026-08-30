@@ -24,8 +24,9 @@ const CATEGORIES = [
 // is whatever GET /companies/:slug/narrative returned: the AI paragraph, a
 // plain numbers sentence, or null. When null and there are 1-2 reviews we
 // show a "summary appears at 3 reviews" line; with 0 reviews the box is an
-// empty fixed-size slot (reserved for future design). Fixed height is set in
-// a later step so 600 chars of text and the empty state render identically.
+// empty fixed-size slot (reserved for future design). It has a fixed `lg:`
+// height (set below) so 600 chars of text and the empty state render at the
+// same size.
 function RatingNarrativeBox({
   score,
   workplaceType,
