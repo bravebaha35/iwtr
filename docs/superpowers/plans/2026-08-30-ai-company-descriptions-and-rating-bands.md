@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **`packages/shared-types` ships compiled JS.** After editing anything under `packages/shared-types/src/`, rebuild: `cd packages/shared-types && pnpm exec tsc`. Both apps consume `dist/`, not source.
+- **`packages/shared-types` ships compiled JS.** After editing anything under `packages/shared-types/src/`, rebuild: `cd packages/shared-types && pnpm exec tsc`. Both apps consume `dist/`, not source. **`dist/` is a gitignored build artifact (`.gitignore` line 3) — rebuild it locally so the running dev servers pick up the change, but NEVER `git add` it.** No dist file has ever been tracked in this repo.
 - **Prisma schema changes use `pnpm exec prisma db push`**, never `prisma migrate dev` (fails non-interactively in this environment).
 - **Stop the API dev server before `prisma generate` / `prisma db push`** (Windows `EPERM` if the query-engine DLL is loaded), then restart it.
 - **Model id:** `claude-haiku-4-5-20251001` (exact string, no aliasing).
@@ -138,7 +138,7 @@ Expected: clean build, all tests pass.
 - [ ] **Step 6: Commit & push**
 
 ```bash
-git add packages/shared-types/src/schemas/company.ts packages/shared-types/src/schemas/__tests__/scoreBands.test.ts packages/shared-types/dist
+git add packages/shared-types/src/schemas/company.ts packages/shared-types/src/schemas/__tests__/scoreBands.test.ts
 git commit -m "$(cat <<'EOF'
 Score bands: split the top tier at 4.5 (Highly Effective / Exemplary)
 
@@ -240,7 +240,7 @@ Expected: clean.
 - [ ] **Step 6: Commit & push**
 
 ```bash
-git add packages/shared-types/src/schemas/company.ts packages/shared-types/src/schemas/__tests__/companyNarrative.test.ts packages/shared-types/dist
+git add packages/shared-types/src/schemas/company.ts packages/shared-types/src/schemas/__tests__/companyNarrative.test.ts
 git commit -m "$(cat <<'EOF'
 shared-types: add companyNarrativeSchema for GET /companies/:slug/narrative
 
