@@ -212,17 +212,18 @@ export const mergeCompaniesResultSchema = z.object({
 });
 export type MergeCompaniesResult = z.infer<typeof mergeCompaniesResultSchema>;
 
-// 1.0-5.0 average maps to a fixed label band shown on every company page.
-// Exemplary is reserved for a literal perfect 5.0 average (2026-08-02
-// correction — it previously started at 4.5, which meant a mediocre-leaning
-// 4.6 average could read as "Exemplary"); Superb covers the rest of the top
-// point of the scale, 4.0 up to (not including) a perfect 5.0.
+// 1.0-5.0 average maps to a fixed label band shown on every company page and
+// browse card. 2026-08-30 relabel: the top of the scale is now split at 4.5
+// ("Highly Effective" 4.0-4.5, "Exemplary" 4.5-5.0) rather than reserving
+// "Exemplary" for a literal perfect 5.0. The 2.0/3.0/4.0 cut points are
+// unchanged. scoreBandLabel() is the single source of these strings — the
+// browse card (WorkplaceBrowser.tsx) and owner dashboard already call it.
 export const scoreBands = [
   { min: 0, max: 2.0, label: "Unsatisfactory" },
   { min: 2.0, max: 3.0, label: "Developing" },
   { min: 3.0, max: 4.0, label: "Effective" },
-  { min: 4.0, max: 5.0, label: "Superb" },
-  { min: 5.0, max: 5.01, label: "Exemplary" },
+  { min: 4.0, max: 4.5, label: "Highly Effective" },
+  { min: 4.5, max: 5.01, label: "Exemplary" },
 ] as const;
 
 export function scoreBandLabel(avg: number): string {
