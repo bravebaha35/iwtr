@@ -702,7 +702,12 @@ export class NarrativeGeneratorService {
 
   constructor() {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    this.client = apiKey ? new Anthropic({ apiKey }) : null;
+    // maxRetries: 0 — this is a synchronous page-view generation path; the
+    // SDK's default of 2 retries with backoff would blow the 8s budget on a
+    // persistent overload (~20-30s wall-clock). The plan's YAGNI says "no
+    // retry logic"; a failed call falls straight back to the stored/numbers
+    // line in Task 6.
+    this.client = apiKey ? new Anthropic({ apiKey, maxRetries: 0 }) : null;
   }
 
   get available(): boolean {
