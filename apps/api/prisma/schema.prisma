@@ -346,6 +346,7 @@ model Company {
   reviews              Review[]
   owners               CompanyOwner[]
   aggregate            CompanyAggregateScore?
+  companyNarratives    CompanyNarrative[]
   ownerContactMessages OwnerContactMessage[]
   replies              CompanyReply[]
 
@@ -519,6 +520,28 @@ model CompanyAggregateScore {
   reviewCount         Int      @default(0)
   updatedAt           DateTime @updatedAt
 
+  @@schema("public")
+}
+
+// Lazily-generated, cached rating-narrative text for one company + work-type.
+// Derived-cache style like CompanyAggregateScore: never authoritative, safe
+// to delete, rebuilt on demand. Written only by CompanyNarrativeService when
+// a company page is viewed and the stored copy is missing/stale (see the
+// 2026-08-30 spec). One row per (company, workplaceType) — a 2-tag company
+// can have two.
+model CompanyNarrative {
+  id               String        @id @default(uuid())
+  companyId        String
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workplaceType    WorkplaceType
+  description      String        // Postgres text; <=600 chars enforced in app code
+  reviewCountAtGen Int
+  model            String        // e.g. "claude-haiku-4-5-20251001" — mismatch forces regen
+  promptVersion    Int           // bumped in-repo when the prompt changes materially
+  generatedAt      DateTime      @default(now())
+
+  @@unique([companyId, workplaceType])
+  @@index([companyId])
   @@schema("public")
 }
 
