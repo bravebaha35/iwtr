@@ -44,39 +44,64 @@ type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "rati
 type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS";
 const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics"];
 
-// Icon-only pills — each button carries its old text label only as an
-// aria-label/title (screen readers + hover tooltip), not visible text.
+// Icon-only pills — each button's old text label now lives in aria-label
+// (screen readers) plus a custom hover/focus tooltip drawn next to the
+// button (see the CategoryGroup render below) rather than the browser's
+// native `title` tooltip, which is slower to appear and unstyled.
 type IconProps = { className?: string };
 function FileIcon({ className }: IconProps) {
+  // "Checklist on a file" — the plain document outline plus three
+  // checked-off list lines, so it doesn't read as an empty blank page.
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
       <path d="M14 2v6h6" />
+      <path d="m7.25 12 1 1 2-2" />
+      <path d="M11.75 12h4.5" />
+      <path d="m7.25 15.5 1 1 2-2" />
+      <path d="M11.75 15.5h4.5" />
+      <path d="m7.25 19 1 1 2-2" />
+      <path d="M11.75 19h3.5" />
     </svg>
   );
 }
 function ShoppingCartIcon({ className }: IconProps) {
+  // Trapezoid basket with a cross-hatched grille (instead of a bare
+  // outline) plus handle and wheels, so it reads as an actual wire cart.
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="21" r="1" />
-      <circle cx="20" cy="21" r="1" />
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h2l.7 3" />
+      <path d="M5.6 6h15.4l-2.2 8.5a1.5 1.5 0 0 1-1.45 1.13H8.9a1.5 1.5 0 0 1-1.46-1.16Z" />
+      <path d="M8.6 6v9.6M12 6v9.6M15.4 6v9.6" />
+      <path d="M6.4 9.4h15M7.2 12.7h13.4" />
+      <circle cx="10" cy="20" r="1.15" />
+      <circle cx="17" cy="20" r="1.15" />
     </svg>
   );
 }
 function FrenchFriesIcon({ className }: IconProps) {
+  // Fry box with a fold line for the paper-wrap seam and five uneven
+  // sticks poking out, instead of four evenly-spaced lines.
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 3v7M12 2v8M15 3.5v6.5M11 5v5" />
-      <path d="M5 9h14l-2 12H7Z" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7.5 9V4.5M9.8 9V2.5M12 9V5M14.2 9V2.8M16.5 9V4.8" />
+      <path d="M5 9h14l-2.1 12H7.1Z" />
+      <path d="M6 12.2h12" />
     </svg>
   );
 }
-function CargoCrateIcon({ className }: IconProps) {
+function ForkliftIcon({ className }: IconProps) {
+  // Side-profile forklift: cab + wheels, a two-post mast, forks, and a
+  // lifted pallet — swapped in for the cargo-crate icon per feedback.
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-      <path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 13h9v5H2Z" />
+      <circle cx="6" cy="19" r="1.3" />
+      <circle cx="13" cy="19" r="1.3" />
+      <path d="M12 18V6M15 18V6" />
+      <path d="M12 6h3" />
+      <path d="M12 10H5M12 13H5" />
+      <path d="M4 8h4v6H4Z" />
     </svg>
   );
 }
@@ -84,7 +109,7 @@ const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon: (prop
   { value: "FIRMS", label: "Firms", icon: FileIcon },
   { value: "SUPERMARKET", label: "Supermarket", icon: ShoppingCartIcon },
   { value: "FRANCHISE", label: "Franchises", icon: FrenchFriesIcon },
-  { value: "LOGISTICS", label: "Logistics", icon: CargoCrateIcon },
+  { value: "LOGISTICS", label: "Logistics", icon: ForkliftIcon },
 ];
 function matchesCategoryGroup(company: { category: string }, group: CategoryGroup | null): boolean {
   if (!group) return true;
@@ -551,22 +576,32 @@ export function WorkplaceBrowser() {
                   const checked = categoryGroup === opt.value;
                   const Icon = opt.icon;
                   return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={checked}
-                      aria-label={opt.label}
-                      title={opt.label}
-                      onClick={() => setCategoryGroup((g) => (g === opt.value ? null : opt.value))}
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition ${
-                        checked
-                          ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-                          : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </button>
+                    <div key={opt.value} className="group relative flex">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={checked}
+                        aria-label={opt.label}
+                        onClick={() => setCategoryGroup((g) => (g === opt.value ? null : opt.value))}
+                        className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition ${
+                          checked
+                            ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+                            : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </button>
+                      {/* Custom tooltip instead of the native `title` — shows
+                          instantly on hover/keyboard focus rather than after
+                          the browser's built-in delay, and matches the
+                          site's own type/theme instead of the OS default. */}
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -top-9 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[11px] font-medium text-background opacity-0 shadow-md transition-opacity duration-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                      >
+                        {opt.label}
+                      </span>
+                    </div>
                   );
                 })}
               </div>
