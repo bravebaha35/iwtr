@@ -41,8 +41,8 @@ type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "rati
 // apps/api/scripts/seed-nationwide-brands.ts) — every pre-existing company
 // (finance, construction, tech, etc.) falls under Firms by exclusion, same
 // as a company whose category happens to be spelled differently.
-type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS";
-const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics"];
+type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS" | "CLOTHING";
+const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics", "Clothing Retail"];
 
 // Icon-only pills — each button's old text label now lives in aria-label
 // (screen readers) plus a custom hover/focus tooltip drawn next to the
@@ -105,18 +105,29 @@ function ForkliftIcon({ className }: IconProps) {
     </svg>
   );
 }
+function TshirtIcon({ className }: IconProps) {
+  // Classic t-shirt silhouette — collar notch, sleeve, and hem — for the
+  // LC Waikiki / DeFacto / Koton clothing-brand grouping.
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3 3 7l3 3 2-1.5V21h8V8.5L18 10l3-3-5-4-1.5 1.5a3 3 0 0 1-5 0Z" />
+    </svg>
+  );
+}
 const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon: (props: IconProps) => React.JSX.Element }[] = [
   { value: "FIRMS", label: "Firms", icon: FileIcon },
   { value: "SUPERMARKET", label: "Supermarket", icon: ShoppingCartIcon },
   { value: "FRANCHISE", label: "Franchises", icon: FrenchFriesIcon },
   { value: "LOGISTICS", label: "Logistics", icon: ForkliftIcon },
+  { value: "CLOTHING", label: "Clothing", icon: TshirtIcon },
 ];
 function matchesCategoryGroup(company: { category: string }, group: CategoryGroup | null): boolean {
   if (!group) return true;
   if (group === "FIRMS") return !NARROW_CATEGORY_GROUP_VALUES.includes(company.category);
   if (group === "SUPERMARKET") return company.category === "Supermarket";
   if (group === "FRANCHISE") return company.category === "Franchise";
-  return company.category === "Logistics";
+  if (group === "LOGISTICS") return company.category === "Logistics";
+  return company.category === "Clothing Retail";
 }
 
 const RESULTS_PAGE_SIZE = 24;
@@ -594,13 +605,17 @@ export function WorkplaceBrowser() {
                       {/* Custom tooltip instead of the native `title` — shows
                           instantly on hover/keyboard focus rather than after
                           the browser's built-in delay, and matches the
-                          site's own type/theme instead of the OS default. */}
-                      <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute -bottom-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[11px] font-medium text-background opacity-0 shadow-md transition-opacity duration-100 group-hover:opacity-100 group-focus-within:opacity-100"
-                      >
-                        {opt.label}
-                      </span>
+                          site's own type/theme instead of the OS default.
+                          Gone entirely once this option is picked — the
+                          selected outline already says which one it is. */}
+                      {!checked && (
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute -bottom-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[11px] font-medium text-background opacity-0 shadow-md transition-opacity duration-100 group-hover:opacity-100 group-focus-within:opacity-100"
+                        >
+                          {opt.label}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
