@@ -82,11 +82,12 @@ export class CompaniesController {
     };
   }
 
-  // Lazily-generated ≤600-char rating-narrative summary for the company's
-  // primary work-type. See CompanyNarrativeService: an external (Anthropic)
-  // call happens only on a stale/absent row with 3+ published reviews for
-  // that type and a configured key — otherwise this is a single indexed
-  // SELECT. Never returns individual answers or reviewer data.
+  // Lazily-generated 450-600 char rating-narrative summary for the company's
+  // primary work-type, assembled entirely from SummaryPattern rows (see
+  // PatternGeneratorService) — no external call, no network. Regenerated
+  // only on a stale/absent row with 3+ published reviews for that type;
+  // otherwise this is a single indexed SELECT. Never returns individual
+  // answers or reviewer data.
   @Get("companies/:slug/narrative")
   narrative(@Param("slug") slug: string) {
     return this.companyNarrative.getNarrative(slug);

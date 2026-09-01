@@ -1,9 +1,11 @@
 import { Module } from "@nestjs/common";
+import { FlagsModule } from "../flags/flags.module";
 import { CompanyNarrativeService } from "./company-narrative.service";
-import { NarrativeGeneratorService } from "./narrative-generator.service";
+import { PatternGeneratorService } from "./pattern-generator.service";
 
 @Module({
-  providers: [CompanyNarrativeService, NarrativeGeneratorService],
+  imports: [FlagsModule],
+  providers: [CompanyNarrativeService, PatternGeneratorService],
   exports: [CompanyNarrativeService],
 })
 export class CompanyNarrativeModule {}

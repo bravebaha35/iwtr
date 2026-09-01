@@ -3,14 +3,9 @@ import type { CategoryKey, CompanyNarrative, WorkplaceType } from "@iwtr/shared-
 import { PrismaService } from "../../prisma/prisma.service";
 import { getQuestionsFor } from "../reviews/survey-questions.data";
 import { tallyQuestions } from "../reviews/survey-tally.util";
-import { NarrativeGeneratorService } from "./narrative-generator.service";
-import {
-  NARRATIVE_MODEL,
-  PROMPT_VERSION,
-  buildNumbersLine,
-  buildUserMessage,
-  clampToLimit,
-} from "./company-narrative.prompt";
+import { FlagCalculatorService } from "../flags/flag-calculator.service";
+import { PatternGeneratorService, type PatternRow } from "./pattern-generator.service";
+import { PATTERN_ENGINE_VERSION, PROMPT_VERSION, buildNumbersLine } from "./numbers-line";
 
 export const MIN_REVIEWS_FOR_AI = 3;
 export const STALE_AFTER_DAYS = 30;
@@ -29,7 +24,8 @@ type ReviewScoreRow = {
 export class CompanyNarrativeService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly generator: NarrativeGeneratorService,
+    private readonly flagCalculator: FlagCalculatorService,
+    private readonly patternGenerator: PatternGeneratorService,
   ) {}
 
   async getNarrative(slug: string): Promise<CompanyNarrative> {
@@ -73,63 +69,48 @@ export class CompanyNarrativeService {
       },
     })) as ReviewScoreRow[];
 
-    const categories = this.categoryAverages(reviews);
-    const overall =
-      (categories.corporateCulture +
-        categories.leadership +
-        categories.infrastructure +
-        categories.workLifeBalance +
-        categories.stability) /
-      5;
+    const questions = tallyQuestions(reviews.map((r) => ({ surveyAnswers: r.surveyAnswers })), getQuestionsFor(workplaceType));
+    const flags = this.flagCalculator.computeVibeFlags({ workplaceType, totalReviews: reviewCount, questions });
+    const patterns = await this.loadPatterns(workplaceType);
 
-    if (this.generator.available) {
-      try {
-        const questions = tallyQuestions(
-          reviews.map((r) => ({ surveyAnswers: r.surveyAnswers })),
-          getQuestionsFor(workplaceType),
-        );
-        const raw = await this.generator.generate(
-          buildUserMessage({ workplaceType, overall, categories, reviewCount, questions }),
-        );
-        const description = clampToLimit(raw);
-        if (description.length > 0) {
-          await this.prisma.companyNarrative.upsert({
-            where: { companyId_workplaceType: { companyId: company.id, workplaceType } },
-            create: {
-              companyId: company.id,
-              workplaceType,
-              description,
-              reviewCountAtGen: reviewCount,
-              model: NARRATIVE_MODEL,
-              promptVersion: PROMPT_VERSION,
-            },
-            update: {
-              description,
-              reviewCountAtGen: reviewCount,
-              model: NARRATIVE_MODEL,
-              promptVersion: PROMPT_VERSION,
-              generatedAt: new Date(),
-            },
-          });
-          return { workplaceType, reviewCount, description };
-        }
-        // eslint-disable-next-line no-console
-        console.error(`[company-narrative] empty description after clamp for company=${company.slug}`);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(`[company-narrative] generation failed for company=${company.slug}`, err);
-        // fall through to stored copy / numbers line
-      }
+    const assembled = this.patternGenerator.generate({ workplaceType, questions, flags, patterns });
+
+    if (assembled) {
+      await this.prisma.companyNarrative.upsert({
+        where: { companyId_workplaceType: { companyId: company.id, workplaceType } },
+        create: {
+          companyId: company.id,
+          workplaceType,
+          description: assembled,
+          reviewCountAtGen: reviewCount,
+          model: PATTERN_ENGINE_VERSION,
+          promptVersion: PROMPT_VERSION,
+        },
+        update: {
+          description: assembled,
+          reviewCountAtGen: reviewCount,
+          model: PATTERN_ENGINE_VERSION,
+          promptVersion: PROMPT_VERSION,
+          generatedAt: new Date(),
+        },
+      });
+      return { workplaceType, reviewCount, description: assembled };
     }
 
+    // No SummaryPattern content authored yet for this workplaceType — content
+    // gap, not an error. Serve whatever's cached, else the plain numbers line.
     if (stored) {
       return { workplaceType, reviewCount, description: stored.description };
     }
-    return {
-      workplaceType,
-      reviewCount,
-      description: buildNumbersLine({ workplaceType, overall, categories, reviewCount }),
-    };
+    const categories = this.categoryAverages(reviews);
+    const overall =
+      (categories.corporateCulture + categories.leadership + categories.infrastructure + categories.workLifeBalance + categories.stability) / 5;
+    return { workplaceType, reviewCount, description: buildNumbersLine({ workplaceType, overall, categories, reviewCount }) };
+  }
+
+  private async loadPatterns(workplaceType: WorkplaceType): Promise<PatternRow[]> {
+    const rows = await this.prisma.summaryPattern.findMany({ where: { workplaceType } });
+    return rows.map((r) => ({ id: r.id, category: r.category, qnaKey: r.qnaKey, flagKey: r.flagKey, textBlock: r.textBlock }));
   }
 
   private categoryAverages(reviews: ReviewScoreRow[]): Record<CategoryKey, number> {
@@ -148,7 +129,7 @@ export class CompanyNarrativeService {
     row: { reviewCountAtGen: number; model: string; promptVersion: number; generatedAt: Date },
     currentReviewCount: number,
   ): boolean {
-    if (row.model !== NARRATIVE_MODEL) return true;
+    if (row.model !== PATTERN_ENGINE_VERSION) return true;
     if (row.promptVersion !== PROMPT_VERSION) return true;
     if (currentReviewCount - row.reviewCountAtGen >= STALE_REVIEW_DELTA) return true;
     const ageDays = (Date.now() - row.generatedAt.getTime()) / (1000 * 60 * 60 * 24);

@@ -545,6 +545,57 @@ model CompanyNarrative {
   @@schema("public")
 }
 
+enum SummaryPatternCategory {
+  INTRO
+  QNA_PRIMARY
+  QNA_SECONDARY
+  FLAG_FALLBACK
+  CONCLUSION
+
+  @@schema("public")
+}
+
+// Hand-authored, DB-native replacement for the old Claude-generated company
+// narrative (see PatternGeneratorService / CompanyNarrativeService) — no LLM
+// call, no network: the engine only ever selects and concatenates rows from
+// this table. Content is maintained via apps/api/scripts/seed-summary-patterns.ts
+// (delete-all + re-insert on every run — this table is 100% authored template
+// content, never user data, so there's nothing to lose by resetting it).
+//
+// qnaKey (INTRO/QNA_PRIMARY/QNA_SECONDARY rows): "<questionId>:<AGREE|DISAGREE>",
+// where questionId is the stable "<WORKPLACE_TYPE>.<category>.<n>" id from
+// survey-questions.data.ts — identifies exactly which survey question, and
+// which direction of employee answer, this sentence narrates. INTRO rows
+// (the true-tie/no-signal opener) and CONCLUSION rows reuse this same column
+// for a synthetic, non-question key instead (e.g. "MANUAL_LABOUR:INTRO" /
+// "MANUAL_LABOUR:CONCLUSION") purely so they can still be looked up by
+// workplaceType — see PatternGeneratorService.
+//
+// flagKey (FLAG_FALLBACK rows only): "<category>:<cluster>:<GREEN|RED>",
+// matching one exact VibeFlag out of FlagCalculatorService's Master
+// Dual-Opposite Flag Chart (workplaceType is the column below, not repeated
+// in this key since — unlike qnaKey — nothing here needs to match a
+// pre-existing canonical string from elsewhere).
+//
+// A row uses exactly one semantic key (qnaKey for everything except
+// FLAG_FALLBACK, flagKey for FLAG_FALLBACK) — enforced in
+// PatternGeneratorService/the seed script, not at the DB layer (Prisma has
+// no portable "exactly one of" constraint).
+model SummaryPattern {
+  id             String                 @id @default(uuid())
+  workplaceType  WorkplaceType
+  category       SummaryPatternCategory
+  qnaKey         String?
+  flagKey        String?
+  textBlock      String
+  characterCount Int
+  createdAt      DateTime               @default(now())
+
+  @@index([workplaceType, category, qnaKey])
+  @@index([workplaceType, category, flagKey])
+  @@schema("public")
+}
+
 model ModerationQueueItem {
   id              String      @id @default(uuid())
   reviewId        String      @unique

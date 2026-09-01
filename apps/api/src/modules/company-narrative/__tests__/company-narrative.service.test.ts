@@ -1,15 +1,17 @@
 import { NotFoundException } from "@nestjs/common";
 import { CompanyNarrativeService } from "../company-narrative.service";
+import { PATTERN_ENGINE_VERSION } from "../numbers-line";
 
 type PrismaMock = {
   company: { findUnique: jest.Mock };
   review: { findMany: jest.Mock; count: jest.Mock };
   companyNarrative: { findUnique: jest.Mock; upsert: jest.Mock };
+  summaryPattern: { findMany: jest.Mock };
 };
 
-// getNarrative now calls review.count() before (and instead of, on the fresh /
-// low-N paths) review.findMany(). Keep the two consistent: count === the number
-// of rows findMany resolves.
+// getNarrative calls review.count() before (and instead of, on the fresh /
+// low-N paths) review.findMany(). Keep the two consistent: count === the
+// number of rows findMany resolves.
 function reviewMock(rows: unknown[] = []) {
   return {
     findMany: jest.fn().mockResolvedValue(rows),
@@ -22,6 +24,7 @@ function makePrisma(overrides: Partial<PrismaMock> = {}): PrismaMock {
     company: { findUnique: jest.fn().mockResolvedValue({ id: "c1", slug: "acme", workplaceTypes: ["OFFICE"] }) },
     review: reviewMock(),
     companyNarrative: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn().mockResolvedValue({}) },
+    summaryPattern: { findMany: jest.fn().mockResolvedValue([]) },
     ...overrides,
   };
 }
@@ -38,68 +41,67 @@ function reviewRows(n: number) {
   }));
 }
 
-const generatorOff = { available: false, generate: jest.fn() };
-function generatorOn(text = "This workplace is steady but slow to fix problems.") {
-  return { available: true, generate: jest.fn().mockResolvedValue(text) };
+const flagCalculatorStub = { computeVibeFlags: jest.fn().mockReturnValue([]) };
+function patternGeneratorStub(result: string | null = "A pattern-assembled summary.") {
+  return { generate: jest.fn().mockReturnValue(result) };
+}
+
+function makeService(prisma: PrismaMock, patternGenerator = patternGeneratorStub()) {
+  return new CompanyNarrativeService(prisma as any, flagCalculatorStub as any, patternGenerator as any);
 }
 
 describe("CompanyNarrativeService.getNarrative", () => {
   it("throws NotFoundException for an unknown slug", async () => {
     const prisma = makePrisma({ company: { findUnique: jest.fn().mockResolvedValue(null) } });
-    const svc = new CompanyNarrativeService(prisma as any, generatorOff as any);
+    const svc = makeService(prisma);
     await expect(svc.getNarrative("nope")).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("returns description null and does not call the generator under 3 reviews", async () => {
+  it("returns description null and does not call the pattern generator under 3 reviews", async () => {
     const prisma = makePrisma({ review: reviewMock(reviewRows(2)) });
-    const gen = generatorOn();
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub();
+    const svc = makeService(prisma, gen);
     const out = await svc.getNarrative("acme");
     expect(out).toEqual({ workplaceType: "OFFICE", reviewCount: 2, description: null });
     expect(gen.generate).not.toHaveBeenCalled();
   });
 
-  it("with 3+ reviews and no generator, returns the numbers-only line and stores nothing", async () => {
-    const prisma = makePrisma({ review: reviewMock(reviewRows(6)) });
-    const svc = new CompanyNarrativeService(prisma as any, generatorOff as any);
-    const out = await svc.getNarrative("acme");
-    expect(out.description).toBe(
-      "Across 6 reviews this workplace scores 4.0 out of 5, with all five areas rating about the same.",
-    );
-    expect(prisma.companyNarrative.upsert).not.toHaveBeenCalled();
-  });
-
-  it("with 3+ reviews, a generator and no stored row, generates once, clamps, upserts and returns", async () => {
+  it("with 3+ reviews and no stored row, assembles, upserts and returns the pattern-engine description", async () => {
     const prisma = makePrisma({ review: reviewMock(reviewRows(4)) });
-    const gen = generatorOn("A specific summary.");
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub("A specific summary.");
+    const svc = makeService(prisma, gen);
     const out = await svc.getNarrative("acme");
     expect(gen.generate).toHaveBeenCalledTimes(1);
     expect(out.description).toBe("A specific summary.");
     expect(prisma.companyNarrative.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { companyId_workplaceType: { companyId: "c1", workplaceType: "OFFICE" } },
-        create: expect.objectContaining({ description: "A specific summary.", reviewCountAtGen: 4, promptVersion: 1 }),
+        create: expect.objectContaining({
+          description: "A specific summary.",
+          reviewCountAtGen: 4,
+          model: PATTERN_ENGINE_VERSION,
+          promptVersion: 1,
+        }),
       }),
     );
   });
 
-  it("serves a fresh stored row without calling the generator", async () => {
+  it("serves a fresh stored row without calling the pattern generator", async () => {
     const prisma = makePrisma({
       review: reviewMock(reviewRows(5)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
           description: "Stored copy.",
           reviewCountAtGen: 5,
-          model: "claude-haiku-4-5",
+          model: PATTERN_ENGINE_VERSION,
           promptVersion: 1,
           generatedAt: new Date(),
         }),
         upsert: jest.fn(),
       },
     });
-    const gen = generatorOn();
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub();
+    const svc = makeService(prisma, gen);
     const out = await svc.getNarrative("acme");
     expect(out.description).toBe("Stored copy.");
     expect(gen.generate).not.toHaveBeenCalled();
@@ -110,13 +112,13 @@ describe("CompanyNarrativeService.getNarrative", () => {
       review: reviewMock(reviewRows(9)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 1, generatedAt: new Date(),
+          description: "Old.", reviewCountAtGen: 5, model: PATTERN_ENGINE_VERSION, promptVersion: 1, generatedAt: new Date(),
         }),
         upsert: jest.fn().mockResolvedValue({}),
       },
     });
-    const gen = generatorOn("Fresh.");
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub("Fresh.");
+    const svc = makeService(prisma, gen);
     const out = await svc.getNarrative("acme");
     expect(out.description).toBe("Fresh.");
     expect(gen.generate).toHaveBeenCalledTimes(1);
@@ -128,13 +130,13 @@ describe("CompanyNarrativeService.getNarrative", () => {
       review: reviewMock(reviewRows(5)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 1, generatedAt: old,
+          description: "Old.", reviewCountAtGen: 5, model: PATTERN_ENGINE_VERSION, promptVersion: 1, generatedAt: old,
         }),
         upsert: jest.fn().mockResolvedValue({}),
       },
     });
-    const gen = generatorOn("Fresh.");
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub("Fresh.");
+    const svc = makeService(prisma, gen);
     expect((await svc.getNarrative("acme")).description).toBe("Fresh.");
     expect(gen.generate).toHaveBeenCalledTimes(1);
   });
@@ -144,65 +146,69 @@ describe("CompanyNarrativeService.getNarrative", () => {
       review: reviewMock(reviewRows(5)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 0, generatedAt: new Date(),
+          description: "Old.", reviewCountAtGen: 5, model: PATTERN_ENGINE_VERSION, promptVersion: 0, generatedAt: new Date(),
         }),
         upsert: jest.fn().mockResolvedValue({}),
       },
     });
-    const gen = generatorOn("Fresh.");
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub("Fresh.");
+    const svc = makeService(prisma, gen);
     expect((await svc.getNarrative("acme")).description).toBe("Fresh.");
   });
 
-  it("regenerates when the stored model differs from NARRATIVE_MODEL", async () => {
+  it("regenerates when the stored model differs from PATTERN_ENGINE_VERSION (e.g. a leftover Claude-generated row)", async () => {
     const prisma = makePrisma({
       review: reviewMock(reviewRows(5)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-OLD", promptVersion: 1, generatedAt: new Date(),
+          description: "Old.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 1, generatedAt: new Date(),
         }),
         upsert: jest.fn().mockResolvedValue({}),
       },
     });
-    const gen = generatorOn("Fresh.");
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub("Fresh.");
+    const svc = makeService(prisma, gen);
     const out = await svc.getNarrative("acme");
     expect(out.description).toBe("Fresh.");
     expect(gen.generate).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to the stored row when generation throws", async () => {
+  it("falls back to the stored row when the pattern engine returns null (content gap), without upserting", async () => {
     const prisma = makePrisma({
       review: reviewMock(reviewRows(20)),
       companyNarrative: {
         findUnique: jest.fn().mockResolvedValue({
-          description: "Stale but usable.", reviewCountAtGen: 5, model: "claude-haiku-4-5", promptVersion: 1, generatedAt: new Date(),
+          description: "Stale but usable.", reviewCountAtGen: 5, model: PATTERN_ENGINE_VERSION, promptVersion: 1, generatedAt: new Date(),
         }),
         upsert: jest.fn(),
       },
     });
-    const gen = { available: true, generate: jest.fn().mockRejectedValue(new Error("overloaded")) };
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub(null);
+    const svc = makeService(prisma, gen);
     const out = await svc.getNarrative("acme");
     expect(out.description).toBe("Stale but usable.");
     expect(prisma.companyNarrative.upsert).not.toHaveBeenCalled();
   });
 
-  it("falls back to the numbers line when generation throws and there is no stored row", async () => {
+  it("falls back to the numbers line when the pattern engine returns null and there is no stored row", async () => {
     const prisma = makePrisma({ review: reviewMock(reviewRows(7)) });
-    const gen = { available: true, generate: jest.fn().mockRejectedValue(new Error("overloaded")) };
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
+    const gen = patternGeneratorStub(null);
+    const svc = makeService(prisma, gen);
     const out = await svc.getNarrative("acme");
     expect(out.description).toContain("Across 7 reviews this workplace scores 4.0 out of 5");
   });
 
-  it("clamps an over-long model response to 600 characters at a sentence boundary", async () => {
-    const long = "First short sentence. " + "This second sentence is padded out. ".repeat(30);
-    const prisma = makePrisma({ review: reviewMock(reviewRows(4)) });
-    const gen = generatorOn(long);
-    const svc = new CompanyNarrativeService(prisma as any, gen as any);
-    const out = await svc.getNarrative("acme");
-    expect(out.description!.length).toBeLessThanOrEqual(600);
-    expect(out.description!.endsWith(".")).toBe(true);
+  it("passes the SummaryPattern rows scoped to this company's workplaceType into the generator", async () => {
+    const prisma = makePrisma({
+      review: reviewMock(reviewRows(4)),
+      summaryPattern: { findMany: jest.fn().mockResolvedValue([{ id: "p1", category: "CONCLUSION", qnaKey: "OFFICE:CONCLUSION", flagKey: null, textBlock: "x" }]) },
+    });
+    const gen = patternGeneratorStub("Fresh.");
+    const svc = makeService(prisma, gen);
+    await svc.getNarrative("acme");
+    expect(prisma.summaryPattern.findMany).toHaveBeenCalledWith({ where: { workplaceType: "OFFICE" } });
+    expect(gen.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ patterns: [expect.objectContaining({ id: "p1", textBlock: "x" })] }),
+    );
   });
 });
