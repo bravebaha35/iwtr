@@ -43,11 +43,48 @@ type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "rati
 // as a company whose category happens to be spelled differently.
 type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS";
 const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics"];
-const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string }[] = [
-  { value: "FIRMS", label: "Firms" },
-  { value: "SUPERMARKET", label: "Supermarket" },
-  { value: "FRANCHISE", label: "Franchises" },
-  { value: "LOGISTICS", label: "Logistics" },
+
+// Icon-only pills — each button carries its old text label only as an
+// aria-label/title (screen readers + hover tooltip), not visible text.
+type IconProps = { className?: string };
+function FileIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+    </svg>
+  );
+}
+function ShoppingCartIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+function FrenchFriesIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3v7M12 2v8M15 3.5v6.5M11 5v5" />
+      <path d="M5 9h14l-2 12H7Z" />
+    </svg>
+  );
+}
+function CargoCrateIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+      <path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12" />
+    </svg>
+  );
+}
+const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon: (props: IconProps) => React.JSX.Element }[] = [
+  { value: "FIRMS", label: "Firms", icon: FileIcon },
+  { value: "SUPERMARKET", label: "Supermarket", icon: ShoppingCartIcon },
+  { value: "FRANCHISE", label: "Franchises", icon: FrenchFriesIcon },
+  { value: "LOGISTICS", label: "Logistics", icon: CargoCrateIcon },
 ];
 function matchesCategoryGroup(company: { category: string }, group: CategoryGroup | null): boolean {
   if (!group) return true;
@@ -512,20 +549,23 @@ export function WorkplaceBrowser() {
               <div role="radiogroup" aria-label="Filter by category group" className="flex flex-wrap items-center gap-2">
                 {CATEGORY_GROUP_BUTTONS.map((opt) => {
                   const checked = categoryGroup === opt.value;
+                  const Icon = opt.icon;
                   return (
                     <button
                       key={opt.value}
                       type="button"
                       role="radio"
                       aria-checked={checked}
+                      aria-label={opt.label}
+                      title={opt.label}
                       onClick={() => setCategoryGroup((g) => (g === opt.value ? null : opt.value))}
-                      className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition ${
                         checked
                           ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
                           : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
                       }`}
                     >
-                      {opt.label}
+                      <Icon className="h-4 w-4" />
                     </button>
                   );
                 })}
