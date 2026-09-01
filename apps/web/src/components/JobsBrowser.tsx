@@ -273,7 +273,9 @@ function JobCard({ company }: { company: CompanyListItem }) {
         </p>
 
         {/* Job titles/postings (bold) + Contact, side by side */}
-        <div className="mt-3 flex flex-1 items-start justify-between gap-2 overflow-hidden">
+        {/* No overflow-hidden here — the Contact column's Mail us!/Call us!
+            popovers are absolutely positioned to spill outside this row. */}
+        <div className="mt-3 flex flex-1 items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap content-start gap-1">
             {postedTitles.length > 0 ? (
               postedTitles.map((title, i) => (

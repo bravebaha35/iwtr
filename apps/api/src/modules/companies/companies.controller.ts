@@ -92,4 +92,15 @@ export class CompaniesController {
   narrative(@Param("slug") slug: string) {
     return this.companyNarrative.getNarrative(slug);
   }
+
+  // Public: feeds the Job Creation Flow's "What are you looking for?"
+  // dropdown before the owner is even past the auth-gated setup modal isn't
+  // necessary, but keeping this endpoint itself public (unguarded, like
+  // vibe-flags/narrative above) is simpler and it leaks nothing sensitive —
+  // it's a read of the same keyword catalog classifyJobRole already uses to
+  // read public EmploymentHistory titles.
+  @Get("companies/:slug/job-title-suggestions")
+  jobTitleSuggestions(@Param("slug") slug: string) {
+    return this.companies.jobTitleSuggestionsForSlug(slug);
+  }
 }

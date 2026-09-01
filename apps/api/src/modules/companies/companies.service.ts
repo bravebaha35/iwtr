@@ -8,6 +8,7 @@ import {
   type CompanyFilters,
   type CompanyListItem,
   type CompanySearchQuery,
+  type PublicJobPosting,
   type StructureType,
   type TurkeyRegionKey,
   type WorkplaceType,
@@ -16,6 +17,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { slugify } from "./slugify.util";
 import { resolveLocation } from "./resolve-location.util";
 import { classifyJobRole } from "./workplace-classifier/classifyJobRole";
+import { WORKPLACE_CATEGORY_MAP } from "./workplace-classifier/workplaceCategories";
 
 @Injectable()
 export class CompaniesService {
@@ -186,13 +188,61 @@ export class CompaniesService {
     const jobTitlesByCompanyId = query.includeJobTitles
       ? await this.jobTitlesByCompanyId(companies.map((c) => c.id))
       : new Map<string, string[]>();
+    const jobPostingsByCompanyId = query.includeJobTitles
+      ? await this.jobPostingsByCompanyId(companies.map((c) => c.id))
+      : new Map<string, PublicJobPosting[]>();
 
     return companies.map((c) => ({
       ...this.toPublicCompany(c),
       overallAvg: c.aggregate?.overallAvg ?? null,
       reviewCount: c.aggregate?.reviewCount ?? 0,
       jobTitles: jobTitlesByCompanyId.get(c.id) ?? [],
+      jobPostings: jobPostingsByCompanyId.get(c.id) ?? [],
     }));
+  }
+
+  // Individually-authored postings (job-postings module), as opposed to the
+  // auto-classified titles jobTitlesByCompanyId derives from
+  // EmploymentHistory above — same includeJobTitles-only population rule.
+  private async jobPostingsByCompanyId(companyIds: string[]): Promise<Map<string, PublicJobPosting[]>> {
+    if (companyIds.length === 0) return new Map();
+
+    const rows = await this.prisma.jobPosting.findMany({
+      where: { companyId: { in: companyIds }, status: "PUBLISHED" },
+      select: { companyId: true, jobTitle: true, description: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const byCompany = new Map<string, PublicJobPosting[]>();
+    for (const row of rows) {
+      const list = byCompany.get(row.companyId) ?? [];
+      list.push({ jobTitle: row.jobTitle, description: row.description });
+      byCompany.set(row.companyId, list);
+    }
+    return byCompany;
+  }
+
+  // Backs GET /companies/:slug/job-title-suggestions — the Job Creation
+  // Flow's "What are you looking for?" dropdown. Reuses the same Turkish
+  // keyword catalog the classifier uses to read EmploymentHistory rows
+  // (workplaceCategories.ts), flattened for whichever of the company's own
+  // 1-2 workplaceTypes apply, since there's no persisted per-company sector
+  // at that finer granularity to key off directly (see JobSector's own
+  // comment in workplaceCategories.ts).
+  async jobTitleSuggestionsForSlug(slug: string): Promise<string[]> {
+    const company = await this.prisma.company.findUnique({ where: { slug }, select: { workplaceTypes: true } });
+    if (!company) {
+      throw new NotFoundException("Company not found");
+    }
+    const titles = new Set<string>();
+    for (const workplaceType of company.workplaceTypes as WorkplaceType[]) {
+      for (const group of WORKPLACE_CATEGORY_MAP[workplaceType]) {
+        for (const keyword of group.keywords) {
+          titles.add(keyword);
+        }
+      }
+    }
+    return Array.from(titles).sort((a, b) => a.localeCompare(b));
   }
 
   // Only ever called for the /jobs page (query.includeJobTitles), never on

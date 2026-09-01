@@ -108,6 +108,21 @@ enum OwnerClaimStatus {
   @@schema("public")
 }
 
+enum JobPostingStatus {
+  PUBLISHED
+  PENDING_ADMIN
+  REJECTED
+
+  @@schema("public")
+}
+
+enum JobPostingBoostPaymentStatus {
+  PENDING
+  PAID
+
+  @@schema("public")
+}
+
 // A deliberately small, fixed classification of the *nature* of the work
 // (office/remote/service/manual-labour) — distinct from Company.category,
 // which is the specific business type (e.g. "Software", "Restaurant"). This
@@ -220,6 +235,7 @@ model User {
   // see EmployerProfile's own doc comment for why it gets a direct relation
   // when PiiVault deliberately doesn't.
   employerProfile         EmployerProfile?
+  jobPostings             JobPosting[]
 
   @@schema("public")
 }
@@ -394,6 +410,7 @@ model Company {
   companyNarratives    CompanyNarrative[]
   ownerContactMessages OwnerContactMessage[]
   replies              CompanyReply[]
+  jobPostings          JobPosting[]
 
   // name: helps the case-insensitive exact-match duplicate check
   // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
@@ -429,6 +446,35 @@ model CompanyOwner {
   rivalAnalyticsFreeRequestUsed Boolean             @default(false)
 
   @@unique([userId, companyId])
+  @@schema("public")
+}
+
+// An individually-authored job posting (Employer UI overhaul) — distinct
+// from Company.isHiring + the auto-classified jobTitles the /jobs page
+// already derives from EmploymentHistory (see JobsBrowser.tsx's own top
+// comment); this is the actual title+description an owner writes.
+// boostIsFree is what makes "deduct from free boosts first" computable —
+// free boosts used this month = count(createdByUserId, boostIsFree: true,
+// createdAt >= start of month). Only a 7-day boost can ever be free (see
+// decideBoostAccess.ts); a 14/21-day boost always goes through
+// boostPaymentStatus PENDING -> PAID via the iyzico one-time-checkout flow.
+model JobPosting {
+  id                 String                        @id @default(uuid())
+  companyId          String
+  company            Company                       @relation(fields: [companyId], references: [id])
+  createdByUserId    String
+  createdByUser      User                          @relation(fields: [createdByUserId], references: [id])
+  jobTitle           String
+  description        String
+  status             JobPostingStatus              @default(PUBLISHED)
+  boostDurationDays  Int?
+  boostIsFree        Boolean                       @default(false)
+  boostPaymentStatus JobPostingBoostPaymentStatus?
+  boostExpiresAt     DateTime?
+  createdAt          DateTime                      @default(now())
+
+  @@index([companyId])
+  @@index([createdByUserId])
   @@schema("public")
 }
 

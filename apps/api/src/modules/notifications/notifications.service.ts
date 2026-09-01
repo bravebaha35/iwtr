@@ -11,27 +11,41 @@ export class NotificationsService {
   /**
    * Derived, not stored (see notification.ts in shared-types) — pulled live
    * from ReviewVote and CompanyReply rows attached to the caller's own
-   * reviews every time the dropdown opens, then merged and re-sorted. No
-   * read/unread state yet, just the most recent events across both sources.
+   * reviews, plus (independently — a job posting has nothing to do with the
+   * caller's own reviews) their own published JobPosting rows, merged and
+   * re-sorted every time the dropdown opens. No read/unread state yet, just
+   * the most recent events across all sources.
    */
   async list(userId: string): Promise<Notification[]> {
     const myReviews = await this.prisma.review.findMany({
       where: { userId },
       select: { id: true, company: { select: { name: true, slug: true } } },
     });
-    if (myReviews.length === 0) return [];
-
     const reviewIds = myReviews.map((r) => r.id);
     const companyByReview = new Map(myReviews.map((r) => [r.id, r.company]));
 
-    const [votes, replies] = await Promise.all([
-      this.prisma.reviewVote.findMany({
-        where: { reviewId: { in: reviewIds } },
-        orderBy: { createdAt: "desc" },
-        take: MAX_NOTIFICATIONS,
-      }),
-      this.prisma.companyReply.findMany({
-        where: { reviewId: { in: reviewIds } },
+    const [votes, replies, jobPostings] = await Promise.all([
+      reviewIds.length > 0
+        ? this.prisma.reviewVote.findMany({
+            where: { reviewId: { in: reviewIds } },
+            orderBy: { createdAt: "desc" },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
+      reviewIds.length > 0
+        ? this.prisma.companyReply.findMany({
+            where: { reviewId: { in: reviewIds } },
+            orderBy: { createdAt: "desc" },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
+      // Fires the moment a posting becomes PUBLISHED, whether that happened
+      // immediately at creation or later via admin approval (see
+      // JobPostingsService) — this is a live read, not an event this service
+      // has to be told about separately.
+      this.prisma.jobPosting.findMany({
+        where: { createdByUserId: userId, status: "PUBLISHED" },
+        select: { id: true, createdAt: true, company: { select: { name: true, slug: true } } },
         orderBy: { createdAt: "desc" },
         take: MAX_NOTIFICATIONS,
       }),
@@ -51,6 +65,13 @@ export class NotificationsService {
         companyName: companyByReview.get(r.reviewId)?.name ?? "",
         companySlug: companyByReview.get(r.reviewId)?.slug ?? null,
         createdAt: r.createdAt.toISOString(),
+      })),
+      ...jobPostings.map((p) => ({
+        id: `job-posting-${p.id}`,
+        type: "JOB_POSTING_PUBLISHED" as NotificationType,
+        companyName: p.company.name,
+        companySlug: p.company.slug,
+        createdAt: p.createdAt.toISOString(),
       })),
     ];
 

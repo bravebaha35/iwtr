@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { employerProfileInputSchema, type EmployerProfileInput } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -24,6 +25,16 @@ export class EmployerProfileController {
     @Body(new ZodValidationPipe(employerProfileInputSchema)) body: EmployerProfileInput,
   ) {
     return this.employerProfile.updateMyProfile(user.id, body);
+  }
+
+  // Returns only {url} — saving it onto the profile is a separate PATCH
+  // above (already accepted profilePictureUrl before this endpoint existed),
+  // same two-step pattern OwnerController.uploadLogo/CompanyLogoUploader.tsx
+  // already use for company logos.
+  @Post("me/employer-profile/photo")
+  @UseInterceptors(FileInterceptor("file"))
+  uploadPhoto(@CurrentUser() user: AuthenticatedUser, @UploadedFile() file: Express.Multer.File) {
+    return this.employerProfile.uploadPhoto(user.id, file);
   }
 
   @Get("admin/employer-profiles")

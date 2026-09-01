@@ -38,6 +38,15 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   );
 }
 
+// priceTry arrives as a plain dot-decimal numeric string (that's the exact
+// value forwarded to iyzico's API unmodified, see iyzico.provider.ts) —
+// Turkish display formatting (comma decimal) is purely a frontend concern,
+// same as PricingComparisonTable.tsx's own hardcoded "299,99₺" style strings.
+function formatTry(priceTry: string): string {
+  const n = Number(priceTry);
+  return Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : priceTry;
+}
+
 const DURATION_COPY: Record<BoostDurationDays, string> = {
   7: "Get hired faster. Boost your job posting for 7 days.",
   14: "Dominate the market. Boost your job posting for 14 days.",
@@ -172,7 +181,7 @@ export function JobBoostModal({
                   >
                     <p className="text-sm text-foreground">{DURATION_COPY[option.durationDays]}</p>
                     <p className="mt-auto text-lg font-bold text-foreground">
-                      {freeForThisOne ? "Free" : `${option.priceTry} ₺`}
+                      {freeForThisOne ? "Free" : `${formatTry(option.priceTry)} ₺`}
                     </p>
                   </button>
                 );

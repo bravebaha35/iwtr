@@ -1,5 +1,15 @@
+import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import { join } from "path";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import type { AdminEmployerProfile, EmployerProfileInput, EmployerProfileView } from "@iwtr/shared-types";
+import { imageSize } from "image-size";
+import {
+  validateAvatarPhotoFile,
+  type AdminEmployerProfile,
+  type AvatarPhotoUploadResult,
+  type EmployerProfileInput,
+  type EmployerProfileView,
+} from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   decryptField,
@@ -9,6 +19,8 @@ import {
   unwrapDek,
   wrapDek,
 } from "./crypto.util";
+
+const UPLOADS_DIR = join(process.cwd(), "uploads", "employer-avatars");
 
 // Fields that must all be present for EmployerProfileView.isComplete to be
 // true — kept as one list so the self-view and admin-view compute it
@@ -149,6 +161,36 @@ export class EmployerProfileService {
 
     const fields = this.decryptRow(row);
     return { ...fields, profilePictureUrl: row.profilePictureUrl, isComplete: this.isComplete(fields) };
+  }
+
+  // Dimensions are read from the uploaded buffer (never trusted from the
+  // client) via image-size, then checked against the exact same
+  // validateAvatarPhotoFile rule the client runs for instant feedback —
+  // this call is the one that's actually authoritative. Same local-disk
+  // pattern as OwnerService.uploadLogo, a sibling uploads/ directory.
+  async uploadPhoto(userId: string, file: Express.Multer.File | undefined): Promise<AvatarPhotoUploadResult> {
+    await this.requireVerifiedEmployer(userId);
+    if (!file) {
+      throw new BadRequestException("No file uploaded.");
+    }
+
+    const { width, height } = imageSize(file.buffer);
+    const check = validateAvatarPhotoFile({
+      mimeType: file.mimetype,
+      sizeBytes: file.buffer.length,
+      width: width ?? 0,
+      height: height ?? 0,
+    });
+    if (!check.valid) {
+      throw new BadRequestException(check.error);
+    }
+
+    await mkdir(UPLOADS_DIR, { recursive: true });
+    const filename = `${randomUUID()}.jpg`;
+    await writeFile(join(UPLOADS_DIR, filename), file.buffer);
+
+    const origin = process.env.API_PUBLIC_ORIGIN ?? `http://localhost:${process.env.PORT ?? 3001}`;
+    return { url: `${origin}/uploads/employer-avatars/${filename}` };
   }
 
   // Admin-only — "100% visible to admins for legal compliance" per the

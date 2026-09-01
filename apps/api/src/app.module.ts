@@ -18,6 +18,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { TurnoverRiskModule } from "./modules/turnover-risk/turnover-risk.module";
 import { RivalAnalyticsModule } from "./modules/rival-analytics/rival-analytics.module";
 import { InvestorApiModule } from "./modules/investor-api/investor-api.module";
+import { JobPostingsModule } from "./modules/job-postings/job-postings.module";
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { InvestorApiModule } from "./modules/investor-api/investor-api.module";
     TurnoverRiskModule,
     RivalAnalyticsModule,
     InvestorApiModule,
+    JobPostingsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

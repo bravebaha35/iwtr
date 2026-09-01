@@ -31,7 +31,8 @@ export type JobSector =
   | "Manufacturing & Industrial (OSB)"
   | "Construction & Sites"
   | "Maintenance"
-  | "Facility & Security";
+  | "Facility & Security"
+  | "Energy";
 
 export interface SectorKeywordGroup {
   sector: JobSector;
@@ -86,6 +87,33 @@ export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]>
     {
       sector: "Traditional Engineering",
       keywords: ["Mimari Çizim", "Planlama Mühendisi", "Maliyet Kontrol Mühendisi"],
+    },
+    // Energy sits under both OFFICE and MANUAL_LABOUR (see the MANUAL_LABOUR
+    // copy of this group below) — the same cross-over the frontend's own
+    // independent sector list (apps/web/src/lib/sectors.ts) already tags
+    // "Energy" with. This half covers the desk-side/admin roles.
+    {
+      sector: "Energy",
+      keywords: ["Enerji Mühendisi", "Enerji Analisti", "Enerji Verimliliği Uzmanı", "Proje Mühendisi (Enerji)"],
+    },
+    // Software & Tech also sits under HYBRID_REMOTE (see below) — the spec's
+    // "Tech maps to Office and Hybrid/Remote" cross-over.
+    {
+      sector: "Software & Tech",
+      keywords: [
+        "Yazılım Geliştirici",
+        "Frontend",
+        "Backend",
+        "Fullstack",
+        "DevOps",
+        "Veri Analisti",
+        "Sistem Yöneticisi",
+        "Developer",
+        "Software Engineer",
+        "Siber Güvenlik",
+        "Veri Bilimci",
+        "Veri Mühendisi",
+      ],
     },
   ],
   HYBRID_REMOTE: [
@@ -223,6 +251,12 @@ export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]>
     {
       sector: "Facility & Security",
       keywords: ["Özel Güvenlik", "Güvenlik Görevlisi", "Temizlik Personeli", "Bina Bakım Elemanı", "Kapıcı", "Atık Toplama"],
+    },
+    // See the OFFICE copy of this group above for why Energy appears twice.
+    // This half covers the field/plant-side roles.
+    {
+      sector: "Energy",
+      keywords: ["Enerji Santrali Operatörü", "Rafineri İşçisi", "Petrol Sahası İşçisi", "Rüzgar Türbini Teknisyeni", "Elektrik Santrali Teknisyeni"],
     },
   ],
 };
