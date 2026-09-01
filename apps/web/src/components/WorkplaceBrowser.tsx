@@ -41,8 +41,15 @@ type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "rati
 // apps/api/scripts/seed-nationwide-brands.ts) — every pre-existing company
 // (finance, construction, tech, etc.) falls under Firms by exclusion, same
 // as a company whose category happens to be spelled differently.
-type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS" | "CLOTHING" | "SERVICE_PROVIDERS";
-const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics", "Clothing Retail", "Telecom"];
+type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS" | "CLOTHING" | "SERVICE_PROVIDERS" | "OIL_ENERGY";
+const NARROW_CATEGORY_GROUP_VALUES = [
+  "Supermarket",
+  "Franchise",
+  "Logistics",
+  "Clothing Retail",
+  "Telecom",
+  "Fuel & Energy",
+];
 
 // Icon-only pills — each button's old text label now lives in aria-label
 // (screen readers) plus a custom hover/focus tooltip drawn next to the
@@ -130,6 +137,16 @@ function TelecomIcon({ className }: IconProps) {
     </svg>
   );
 }
+function OilDropIcon({ className }: IconProps) {
+  // Single teardrop outline with a small highlight glint — for the
+  // TotalEnergies / Petrol Ofisi / Opet / Shell / Türkiye Petrolleri grouping.
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3c3.5 4.2 6 7.7 6 10.5a6 6 0 1 1-12 0C6 10.7 8.5 7.2 12 3Z" />
+      <path d="M9.8 15.2a2.6 2.6 0 0 0 2.2 2.4" />
+    </svg>
+  );
+}
 const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon: (props: IconProps) => React.JSX.Element }[] = [
   { value: "FIRMS", label: "Firms", icon: FileIcon },
   { value: "SUPERMARKET", label: "Supermarket", icon: ShoppingCartIcon },
@@ -137,6 +154,7 @@ const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon: (prop
   { value: "LOGISTICS", label: "Logistics", icon: ForkliftIcon },
   { value: "CLOTHING", label: "Clothing", icon: TshirtIcon },
   { value: "SERVICE_PROVIDERS", label: "Service Providers", icon: TelecomIcon },
+  { value: "OIL_ENERGY", label: "Oil & Energy", icon: OilDropIcon },
 ];
 function matchesCategoryGroup(company: { category: string }, group: CategoryGroup | null): boolean {
   if (!group) return true;
@@ -145,10 +163,12 @@ function matchesCategoryGroup(company: { category: string }, group: CategoryGrou
   if (group === "FRANCHISE") return company.category === "Franchise";
   if (group === "LOGISTICS") return company.category === "Logistics";
   if (group === "CLOTHING") return company.category === "Clothing Retail";
-  return company.category === "Telecom";
+  if (group === "SERVICE_PROVIDERS") return company.category === "Telecom";
+  return company.category === "Fuel & Energy";
 }
 
-const RESULTS_PAGE_SIZE = 24;
+// 4 columns × 5 rows at the desktop breakpoint — see CompanyCard/grid below.
+const RESULTS_PAGE_SIZE = 20;
 
 // Google-style page list: always show the first and last page, a small
 // window around the current page, and "…" for whatever's skipped in between.
@@ -217,37 +237,59 @@ function PaginationBar({
   );
 }
 
+// Fixed-height vertical box (rather than the old single-row layout) so a
+// long company name gets two full lines to wrap into instead of being
+// truncated to fit one — the whole point of trading a 5th grid column for
+// more room per card. mt-auto on the rating row keeps it pinned to the
+// bottom regardless of how many lines the name/location above take up.
 function CompanyCard({ company }: { company: CompanyListItem }) {
   return (
     <Link
       href={`/companies/${company.slug}`}
-      className="flex items-center gap-3 compact:gap-2 rounded-xl border border-border bg-surface p-4 compact:p-2.5 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
+      className="flex h-[196px] flex-col gap-2 rounded-xl border border-border bg-surface p-4 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
     >
-      <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-foreground compact:text-sm">{company.name}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
-          {company.city ? ` · ${company.city}` : ""}
-          {company.district ? `, ${company.district}` : ""}
-        </p>
+      <div className="flex items-start gap-3">
+        <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 font-semibold leading-snug text-foreground">{company.name}</p>
+          {company.isVerifiedBadge && (
+            <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 dark:text-brand-400">
+              ✓ Verified
+            </span>
+          )}
+        </div>
       </div>
 
-      {company.overallAvg !== null ? (
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="text-lg compact:text-base font-bold text-foreground">
-            {company.overallAvg.toFixed(1)}
-          </span>
-          <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-            {scoreBandLabel(company.overallAvg)}
-          </span>
-          <span className="text-xs text-muted-foreground compact:hidden">
-            ({company.reviewCount} review{company.reviewCount === 1 ? "" : "s"})
-          </span>
-        </div>
-      ) : (
-        <p className="shrink-0 text-xs text-muted-foreground">No reviews yet</p>
+      <p className="text-xs text-muted-foreground">
+        {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
+      </p>
+      {(company.city || company.district) && (
+        <p className="truncate text-xs text-muted-foreground">
+          {company.district ? `${company.district}, ` : ""}
+          {company.city}
+        </p>
       )}
+      {company.isHiring && (
+        <span className="w-fit rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
+          Hiring now
+        </span>
+      )}
+
+      <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-2">
+        {company.overallAvg !== null ? (
+          <>
+            <span className="text-lg font-bold text-foreground">{company.overallAvg.toFixed(1)}</span>
+            <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
+              {scoreBandLabel(company.overallAvg)}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
+            </span>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground">No reviews yet</p>
+        )}
+      </div>
     </Link>
   );
 }
@@ -531,14 +573,14 @@ export function WorkplaceBrowser() {
                   the two ends anchor inward instead and only the middle
                   tick stays centered. */}
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none overflow-hidden">
-                <div className="relative pt-7">
+                <div className="relative pt-12">
                   {RATING_TICKS.map((tick) => (
                     // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
                     <img
                       key={tick.value}
                       src={tick.src}
                       alt={tick.alt}
-                      className={`absolute top-0 h-6 w-6 ${
+                      className={`absolute top-0 h-11 w-11 ${
                         tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
                       }`}
                       style={{ left: `${(tick.value / 5) * 100}%` }}
@@ -553,13 +595,6 @@ export function WorkplaceBrowser() {
                     style={{ background: "linear-gradient(to right, #ef4444, #22c55e)" }}
                     title="Click and drag along the slider, or scroll, to fine-tune"
                   >
-                    {RATING_TICKS.map((tick) => (
-                      <span
-                        key={tick.value}
-                        className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-white/70"
-                        style={{ left: `${(tick.value / 5) * 100}%` }}
-                      />
-                    ))}
                     <span
                       className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow"
                       style={{ left: `${(minRating / 5) * 100}%` }}
@@ -715,7 +750,11 @@ export function WorkplaceBrowser() {
             {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
               <p className="text-sm text-muted-foreground">No workplaces match these filters yet.</p>
             )}
-            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 compact:lg:grid-cols-4 compact:xl:grid-cols-5">
+            {/* Fixed at 4 columns from the xl breakpoint up (never 5, even in
+                compact density) — 20 per page lays out as a clean 4x5 grid,
+                trading the extra column for taller cards that show the full
+                company name instead of truncating it. */}
+            <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {pageCompanies?.map((c) => (
                 <CompanyCard key={c.id} company={c} />
               ))}
