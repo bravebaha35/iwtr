@@ -611,13 +611,15 @@ export function JobsBrowser() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
               />
-              <div className="ml-auto flex items-center gap-1 rounded-xl border border-zinc-800/60 bg-zinc-950/80 p-1">
+              <div className="ml-auto flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800/60 dark:bg-zinc-950/80">
                 <button
                   type="button"
                   onClick={() => setSortBy((s) => (s === "alphabetical" ? "default" : "alphabetical"))}
                   aria-pressed={sortBy === "alphabetical"}
                   className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    sortBy === "alphabetical" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-zinc-200"
+                    sortBy === "alphabetical"
+                      ? "bg-zinc-800 text-white"
+                      : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                   }`}
                 >
                   A-Z
@@ -627,7 +629,9 @@ export function JobsBrowser() {
                   onClick={() => setSortBy((s) => (s === "workplace" ? "default" : "workplace"))}
                   aria-pressed={sortBy === "workplace"}
                   className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    sortBy === "workplace" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-zinc-200"
+                    sortBy === "workplace"
+                      ? "bg-zinc-800 text-white"
+                      : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                   }`}
                 >
                   Workplace
@@ -647,10 +651,10 @@ export function JobsBrowser() {
                   }
                   className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
                     sortBy === "ratingAsc"
-                      ? "border border-red-800/50 bg-red-950/40 text-red-400"
+                      ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400"
                       : sortBy === "ratingDesc"
-                        ? "border border-emerald-800/50 bg-emerald-950/40 text-emerald-400"
-                        : "text-zinc-400 hover:text-zinc-200"
+                        ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                        : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                   }`}
                 >
                   Rating

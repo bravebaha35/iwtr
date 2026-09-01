@@ -22,8 +22,13 @@ const trackSegmentBaseClass = "rounded-lg px-4 py-2 text-sm font-medium transiti
 const trackSegmentGridBaseClass =
   "flex w-full min-w-0 items-center justify-center break-words rounded-lg px-2 py-2 text-center text-xs font-medium leading-tight transition-all duration-200";
 // Just the recessed box — the layout (grid/wrap/column) and its own gap
-// still come from layoutClassName below, unchanged.
-const trackWrapperClass = "rounded-xl border border-zinc-800/60 bg-zinc-950/80 p-1";
+// still come from layoutClassName below, unchanged. Light tones in light
+// mode, dark tones in dark mode — this must NOT be a fixed-dark surface
+// (an always-dark box read as a broken, jarring island on the light-mode
+// page, per live screenshot feedback), so both halves are real dark:
+// variants, not one hardcoded look.
+const trackWrapperClass =
+  "rounded-xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800/60 dark:bg-zinc-950/80";
 
 // Single shared building block for every button-style filter in the app —
 // restyling how an active/inactive filter pill looks is a one-function
@@ -145,7 +150,7 @@ export function MultiFilterPillGroup<T extends string>({
             ? pillColorClassName(o.value, active)
             : active
               ? "bg-zinc-800 text-white"
-              : "text-zinc-400 hover:text-zinc-200";
+              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200";
           const shapeClass = direction === "grid" ? trackSegmentGridBaseClass : trackSegmentBaseClass;
           className = `${shapeClass} ${colorClass}`;
         } else if (pillColorClassName) {

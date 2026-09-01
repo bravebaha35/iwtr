@@ -52,10 +52,13 @@ export function collarBorderClass(type: WorkplaceType): string {
 // export from collarColorMap/collarPillClassName above (an outline-only
 // style used by WorkplaceVibeFlags.tsx's tabs and ReviewsList.tsx's accent
 // border), not a replacement for it. Solid fill + white text per collar,
-// for the dark recessed WorkType filter track on the homepage/jobs page
-// only. Exact values per design: Office slate-700 (#334155), Hybrid/Remote
+// for the recessed WorkType filter track on the homepage/jobs page only.
+// Exact values per design: Office slate-700 (#334155), Hybrid/Remote
 // teal-600 (#0D9488), Service orange-600 (#EA580C), Manual-Labour blue-600
-// (#2563EB) — plain Tailwind defaults, not custom hex.
+// (#2563EB) — plain Tailwind defaults, not custom hex. Unlike the track's
+// own background (see trackWrapperClass in FilterPillGroup.tsx), these
+// stay the same solid fill in both themes — a saturated color + white text
+// reads fine regardless of what's behind it, so no dark: variant needed.
 const collarSegmentActiveClass: Record<WorkplaceType, string> = {
   OFFICE: "bg-slate-700 text-white",
   HYBRID_REMOTE: "bg-teal-600 text-white",
@@ -64,8 +67,10 @@ const collarSegmentActiveClass: Record<WorkplaceType, string> = {
 };
 
 // Borderless ash text — same "color is the result of selection, not a hint
-// shown up front" reasoning as inactiveCollarPillClassName above.
-const collarSegmentInactiveClass = "text-zinc-400 hover:text-zinc-200";
+// shown up front" reasoning as inactiveCollarPillClassName above. Darker
+// zinc in light mode for real contrast against the track's light-mode
+// background (zinc-400 on a light track reads too washed out).
+const collarSegmentInactiveClass = "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200";
 
 export function collarSegmentClassName(type: WorkplaceType, active: boolean): string {
   return active ? collarSegmentActiveClass[type] : collarSegmentInactiveClass;
