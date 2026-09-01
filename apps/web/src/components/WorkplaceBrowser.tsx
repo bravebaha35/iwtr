@@ -258,7 +258,9 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
       href={`/companies/${company.slug}`}
       className="flex h-[196px] flex-col gap-2 rounded-xl border border-border bg-surface p-4 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
     >
-      <div className="flex items-start gap-3">
+      {/* items-center (not items-start) — the name sits vertically centered
+          against the logo instead of pinned to its top edge. */}
+      <div className="flex items-center gap-3">
         <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 font-semibold leading-snug text-foreground">{company.name}</p>
@@ -279,25 +281,39 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
           {company.city}
         </p>
       )}
-      {company.isHiring && (
-        <span className="w-fit rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
-          Hiring now
-        </span>
-      )}
 
+      {/* Hiring-now badge lives on the rating row now, directly left of the
+          review count — was its own line between city/district and here,
+          which risked crowding that line. Same green pill either way. */}
       <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-2">
         {company.overallAvg !== null ? (
           <>
-            <span className="text-lg font-bold text-foreground">{company.overallAvg.toFixed(1)}</span>
-            <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-              {scoreBandLabel(company.overallAvg)}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
-            </span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-lg font-bold text-foreground">{company.overallAvg.toFixed(1)}</span>
+              <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
+                {scoreBandLabel(company.overallAvg)}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {company.isHiring && (
+                <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                  Hiring now
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
+              </span>
+            </div>
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">No reviews yet</p>
+          <div className="flex items-center gap-1.5">
+            {company.isHiring && (
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                Hiring now
+              </span>
+            )}
+            <p className="text-xs text-muted-foreground">No reviews yet</p>
+          </div>
         )}
       </div>
     </Link>
