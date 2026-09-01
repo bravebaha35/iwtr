@@ -59,6 +59,26 @@ describe("AdminCompaniesService.update — structureType/region/city consistency
     );
   });
 
+  it("actually clears the stored region when switching a REGION_BASED company to SETTLED", async () => {
+    const existing = makeExisting({ structureType: "REGION_BASED", region: "MARMARA" });
+    const prisma = makePrisma({
+      company: {
+        findUnique: jest.fn().mockResolvedValue(existing),
+        update: jest.fn().mockResolvedValue({ ...existing, structureType: "SETTLED", region: null }),
+      },
+    });
+    const service = new AdminCompaniesService(prisma as any, {} as any);
+
+    // Explicit null (not omitted) — this is what the frontend's structure-type
+    // radio switch sends to actively clear the now-irrelevant field, distinct
+    // from omitting the field entirely (which would leave it untouched).
+    await service.update("admin-1", "c1", { structureType: "SETTLED", region: null });
+
+    expect(prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ structureType: "SETTLED", region: null }) }),
+    );
+  });
+
   it("allows changing just the region on an already REGION_BASED company", async () => {
     const existing = makeExisting({ structureType: "REGION_BASED", region: "MARMARA" });
     const prisma = makePrisma({

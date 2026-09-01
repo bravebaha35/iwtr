@@ -47,6 +47,8 @@ const detail: CompanyDetail = {
     website: null,
     city: "Istanbul",
     district: "Kadikoy",
+    structureType: "SETTLED",
+    region: null,
     isVerifiedBadge: false,
     taxNumber: null,
     isChainStore: false,

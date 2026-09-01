@@ -203,7 +203,14 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
               </p>
             </div>
           </div>
-          <RateButton companyId={company.id} companyName={company.name} workplaceTypes={company.workplaceTypes} />
+          <RateButton
+            companyId={company.id}
+            companyName={company.name}
+            workplaceTypes={company.workplaceTypes}
+            structureType={company.structureType}
+            city={company.city}
+            region={company.region}
+          />
         </div>
 
         {/* Rating visuals (left) + the category-breakdown box (right) sit in

@@ -96,7 +96,12 @@ export class AdminCompaniesService {
 
     // Same rule as admin creation/owner editing: a district can't be set
     // without a city, both canonicalized against the real province list.
-    const location = input.city !== undefined ? resolveLocation(input.city, input.district) : undefined;
+    // `?? undefined` matters here: input.city can now be explicit `null`
+    // (the structure-type radio switching away from CITY_BASED/SETTLED
+    // location), and resolveLocation's own "falsy city clears both" behavior
+    // is exactly what that case needs — only `undefined` (the field omitted
+    // entirely) should leave the existing city/district untouched.
+    const location = input.city !== undefined ? resolveLocation(input.city ?? undefined, input.district ?? undefined) : undefined;
 
     // Cross-field structureType/region/city consistency can't be validated
     // at the zod layer for a PARTIAL update (a caller touching only e.g.

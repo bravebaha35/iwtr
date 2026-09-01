@@ -12,6 +12,16 @@ export {
   type TurkeyProvince,
 } from "@iwtr/shared-types";
 
+// Same reasoning as the province/district re-export above — one canonical
+// table shared with apps/api (which validates a REGION_BASED company's
+// region, and a review's city, against these exact same 7 regions).
+export {
+  TURKEY_REGIONS,
+  provincesInRegion,
+  regionLabel,
+  type TurkeyRegionKey,
+} from "@iwtr/shared-types";
+
 // Haversine distance in kilometers — kept here rather than moved to
 // shared-types since it's pure client-side "how far is this from the
 // visitor's browser geolocation" math, not something apps/api ever needs.

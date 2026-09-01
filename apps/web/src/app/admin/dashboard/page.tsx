@@ -6,6 +6,8 @@ import type {
   CompanyDetail,
   CompanySuggestion,
   MergeCompaniesResult,
+  StructureType,
+  TurkeyRegionKey,
   WorkplaceType,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
@@ -14,9 +16,58 @@ import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { TurkishPhoneInput } from "@/components/TurkishPhoneInput";
-import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
+import { TURKEY_PROVINCES, TURKEY_REGIONS, findProvinceByCityName, regionLabel } from "@/lib/turkeyGeo";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
+
+const STRUCTURE_TYPE_OPTIONS: { value: StructureType; label: string; hint: string }[] = [
+  { value: "SETTLED", label: "Settled", hint: "One specific address" },
+  { value: "CITY_BASED", label: "City-Based", hint: "Reviewed per city (e.g. a nationwide chain)" },
+  { value: "REGION_BASED", label: "Region-Based", hint: "Reviewed per region (e.g. a fuel/logistics network)" },
+];
+
+// Real native radio inputs (not styled buttons pretending to be radios, like
+// YesNoToggle above) wrapped in the same bordered-card look — gives free
+// radiogroup semantics (arrow-key navigation between options, screen readers
+// announce "radio button, N of 3") that a plain button group doesn't have.
+function StructureTypeRadioGroup({
+  value,
+  onChange,
+}: {
+  value: StructureType;
+  onChange: (v: StructureType) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label="Company structure type" className="flex flex-col gap-2 sm:flex-row">
+      {STRUCTURE_TYPE_OPTIONS.map((opt) => {
+        const checked = value === opt.value;
+        return (
+          <label
+            key={opt.value}
+            className={`flex flex-1 cursor-pointer flex-col gap-0.5 rounded-lg border-2 px-3 py-2 text-sm font-medium transition ${
+              checked
+                ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+                : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="structureType"
+                value={opt.value}
+                checked={checked}
+                onChange={() => onChange(opt.value)}
+                className="h-4 w-4 accent-brand-600"
+              />
+              {opt.label}
+            </span>
+            <span className="pl-6 text-xs font-normal text-muted-foreground">{opt.hint}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
 
 // Real server-side protection for everything on this page is `proxy.ts`
 // (redirects a non-admin away before this even renders) plus, independently,
@@ -95,8 +146,10 @@ interface CompanyFormState {
   name: string;
   category: string | null;
   workplaceTypes: WorkplaceType[];
+  structureType: StructureType;
   city: string | null;
   district: string | null;
+  region: TurkeyRegionKey | null;
   mainPhotoUrl: string;
   taxNumber: string;
   isChainStore: boolean;
@@ -114,8 +167,10 @@ const emptyForm: CompanyFormState = {
   name: "",
   category: null,
   workplaceTypes: [],
+  structureType: "SETTLED",
   city: null,
   district: null,
+  region: null,
   mainPhotoUrl: "",
   taxNumber: "",
   isChainStore: false,
@@ -135,8 +190,10 @@ function formFromDetail(detail: CompanyDetail): CompanyFormState {
     name: c.name,
     category: c.category,
     workplaceTypes: c.workplaceTypes,
+    structureType: c.structureType,
     city: c.city,
     district: c.district,
+    region: c.region,
     mainPhotoUrl: c.mainPhotoUrl ?? "",
     taxNumber: c.taxNumber ?? "",
     isChainStore: c.isChainStore,
@@ -168,6 +225,23 @@ function CompanyFieldsEditor({
     () => (province?.districts ?? []).map((d) => ({ value: d, label: d })),
     [province],
   );
+  const regionOptions: DropdownOption[] = useMemo(
+    () => TURKEY_REGIONS.map((r) => ({ value: r.key, label: regionLabel(r.key) })),
+    [],
+  );
+
+  function setStructureType(next: StructureType) {
+    // Clear whichever fields the new structure type doesn't use — a stray
+    // leftover region on a CITY_BASED company (or city on a REGION_BASED
+    // one) would fail the server's own cross-field validation on publish.
+    setForm((p) => ({
+      ...p,
+      structureType: next,
+      city: next === "REGION_BASED" ? null : p.city,
+      district: next === "SETTLED" ? p.district : null,
+      region: next === "REGION_BASED" ? p.region : null,
+    }));
+  }
 
   function toggleWorkplaceType(v: WorkplaceType) {
     setForm((prev) => {
@@ -199,6 +273,10 @@ function CompanyFieldsEditor({
         />
       </div>
 
+      <Field label="Structure Type" required>
+        <StructureTypeRadioGroup value={form.structureType} onChange={setStructureType} />
+      </Field>
+
       <Field label="Sector">
         <SingleSelectDropdown
           value={form.category}
@@ -221,25 +299,47 @@ function CompanyFieldsEditor({
         />
       </Field>
 
-      <Field label="Location">
-        <div className="grid grid-cols-2 gap-2">
+      {form.structureType === "REGION_BASED" ? (
+        <Field label="Region" required>
+          <SingleSelectDropdown
+            value={form.region}
+            options={regionOptions}
+            placeholder="Region"
+            clearable={false}
+            onChange={(v) => setForm((p) => ({ ...p, region: v as TurkeyRegionKey | null }))}
+          />
+        </Field>
+      ) : form.structureType === "CITY_BASED" ? (
+        <Field label="City" required>
           <SingleSelectDropdown
             value={form.city}
             options={cityOptions}
             placeholder="Province"
             clearable={false}
-            onChange={(v) => setForm((p) => ({ ...p, city: v, district: null }))}
+            onChange={(v) => setForm((p) => ({ ...p, city: v }))}
           />
-          <SingleSelectDropdown
-            value={form.district}
-            options={districtOptions}
-            placeholder="District"
-            disabled={!form.city}
-            clearable={false}
-            onChange={(v) => setForm((p) => ({ ...p, district: v }))}
-          />
-        </div>
-      </Field>
+        </Field>
+      ) : (
+        <Field label="Location">
+          <div className="grid grid-cols-2 gap-2">
+            <SingleSelectDropdown
+              value={form.city}
+              options={cityOptions}
+              placeholder="Province"
+              clearable={false}
+              onChange={(v) => setForm((p) => ({ ...p, city: v, district: null }))}
+            />
+            <SingleSelectDropdown
+              value={form.district}
+              options={districtOptions}
+              placeholder="District"
+              disabled={!form.city}
+              clearable={false}
+              onChange={(v) => setForm((p) => ({ ...p, district: v }))}
+            />
+          </div>
+        </Field>
+      )}
 
       <Field label="Contact Email">
         <TextField value={form.contactEmail} onChange={(v) => setForm((p) => ({ ...p, contactEmail: v }))} placeholder="contact@company.com" />
@@ -315,8 +415,10 @@ function CreateCompanySection({
         name: form.name.trim(),
         category: form.category ?? "Uncategorized",
         workplaceTypes: form.workplaceTypes,
+        structureType: form.structureType,
         city: form.city ?? undefined,
         district: form.district ?? undefined,
+        region: form.region ?? undefined,
         mainPhotoUrl: form.mainPhotoUrl.trim() || undefined,
         taxNumber: form.taxNumber.trim() || undefined,
         isChainStore: form.isChainStore,
@@ -475,8 +577,10 @@ function EditCompanySection({
         name: form.name.trim(),
         category: form.category ?? undefined,
         workplaceTypes: form.workplaceTypes.length > 0 ? form.workplaceTypes : undefined,
+        structureType: form.structureType,
         city: form.city ?? undefined,
         district: form.district ?? undefined,
+        region: form.region ?? undefined,
         mainPhotoUrl: form.mainPhotoUrl.trim() || undefined,
         taxNumber: form.taxNumber.trim() || undefined,
         isChainStore: form.isChainStore,

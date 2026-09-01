@@ -189,8 +189,14 @@ export const adminUpdateCompanyInputSchema = z.object({
   mainPhotoUrl: httpUrlSchema.optional(),
   description: z.string().optional(),
   website: httpUrlSchema.optional(),
-  city: z.string().min(1).optional(),
-  district: z.string().min(1).optional(),
+  // Nullable (not just optional): omitting the field means "leave
+  // unchanged" (AdminCompaniesService.update), but the admin dashboard's
+  // structure-type radio group needs to be able to actively CLEAR city/
+  // district/region when switching structureType — e.g. Region-Based ->
+  // Settled must null out the now-irrelevant region, not silently leave the
+  // old one in place. See AdminCompaniesService.update's use of `?? undefined`.
+  city: z.string().min(1).nullable().optional(),
+  district: z.string().min(1).nullable().optional(),
   // Cross-field consistency with structureType (e.g. a REGION_BASED company
   // can't also carry a city) is validated in AdminCompaniesService.update
   // against the EXISTING row merged with whatever this partial update
@@ -198,7 +204,7 @@ export const adminUpdateCompanyInputSchema = z.object({
   // it isn't attempted here (unlike adminCreateCompanyInputSchema, where
   // every relevant field is always present in the same call).
   structureType: structureTypeSchema.optional(),
-  region: turkeyRegionKeySchema.optional(),
+  region: turkeyRegionKeySchema.nullable().optional(),
   contactEmail: z.string().email().optional(),
   contactPhone: z.string().optional(),
   facebookUrl: httpUrlSchema.optional(),

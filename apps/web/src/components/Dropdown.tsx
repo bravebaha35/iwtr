@@ -44,11 +44,18 @@ export function SingleSelectDropdown({
   openSignal,
   clearable = true,
   fitContent = false,
+  ariaLabel,
 }: {
   value: string | null;
   options: DropdownOption[];
   placeholder: string;
   onChange: (value: string | null) => void;
+  // Accessible name for the trigger button, for screen readers, when the
+  // visible placeholder/selected label alone isn't enough context (e.g. two
+  // dropdowns on the same form both showing province names) — the trigger
+  // has no other way to be labeled (it isn't a real <select>, and this
+  // component doesn't expose an `id` to pair with an external <label for>).
+  ariaLabel?: string;
   maxHeightClassName?: string;
   disabled?: boolean;
   // Whether the option list shows a leading "clear back to placeholder"
@@ -113,6 +120,9 @@ export function SingleSelectDropdown({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel ?? (selectedOption ? undefined : placeholder)}
         className={`flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:border-border/50 disabled:bg-surface-muted disabled:text-muted-foreground disabled:opacity-60 disabled:hover:bg-surface-muted ${fitContent ? "w-max" : "w-full"}`}
       >
         <span

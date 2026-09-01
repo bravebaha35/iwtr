@@ -7,9 +7,11 @@ import type {
   CreateReviewInput,
   MyEmploymentEntry,
   MyReview,
+  StructureType,
   SubmitReviewResult,
   SurveyAnswer,
   SurveyQuestion,
+  TurkeyRegionKey,
   UpdateReviewInput,
   WorkplaceType,
 } from "@iwtr/shared-types";
@@ -17,6 +19,8 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { RATE_BUTTON_EMOJI } from "@/lib/rateButton";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
+import { findProvinceByCityName, provincesInRegion } from "@/lib/turkeyGeo";
 
 const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "corporateCulture", label: "Corporate Culture" },
@@ -124,10 +128,22 @@ export function RateButton({
   companyId,
   companyName,
   workplaceTypes,
+  structureType,
+  city,
+  region,
 }: {
   companyId: string;
   companyName: string;
   workplaceTypes: WorkplaceType[];
+  // See Company.structureType in schema.prisma. A CITY_BASED company (e.g.
+  // "Starbucks İstanbul Şubeleri") needs the reviewer to name a district of
+  // its own `city`; a REGION_BASED one (e.g. "TotalEnergies Marmara Bölgesi
+  // Şubeleri") needs a city within its own `region`. Both are review-level
+  // context only — the company's own rating page/aggregate never splits by
+  // them (see Review.city/district in schema.prisma).
+  structureType: StructureType;
+  city: string | null;
+  region: TurkeyRegionKey | null;
 }) {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
@@ -144,6 +160,9 @@ export function RateButton({
   const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
   const [generalThoughts, setGeneralThoughts] = useState("");
   const [isRandomizedIdentity, setIsRandomizedIdentity] = useState(false);
+  // A district (CITY_BASED) or a city (REGION_BASED) — see the structureType
+  // prop doc comment. Always null and unused for a SETTLED company.
+  const [locationValue, setLocationValue] = useState<string | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SubmitReviewResult | null>(null);
@@ -181,6 +200,7 @@ export function RateButton({
     setAnswers({});
     setGeneralThoughts("");
     setIsRandomizedIdentity(false);
+    setLocationValue(null);
     setError(null);
     setResult(null);
     setSelectedWorkplaceType(null);
@@ -193,6 +213,7 @@ export function RateButton({
         setAnswers(review.surveyAnswers);
         setGeneralThoughts(review.generalThoughts ?? "");
         setIsRandomizedIdentity(review.isRandomizedIdentity);
+        setLocationValue(review.district ?? review.city);
         setSelectedWorkplaceType(review.workplaceType);
         await loadQuestionsFor(review.workplaceType);
       } else if (workplaceTypes.length === 1) {
@@ -234,6 +255,25 @@ export function RateButton({
     ? questionsFor(currentCategory.key).every((q) => answers[q.id] !== undefined)
     : true;
 
+  // Mandatory only for a non-SETTLED company — see the structureType prop
+  // doc comment. Districts come from the company's own city (CITY_BASED);
+  // cities come from the company's own region (REGION_BASED) — never a
+  // free-typed value, so what gets stored always matches a real place.
+  const locationPrompt =
+    structureType === "CITY_BASED"
+      ? "Choose the district"
+      : structureType === "REGION_BASED"
+        ? "Choose the city"
+        : null;
+  const locationOptions: DropdownOption[] =
+    structureType === "CITY_BASED"
+      ? (findProvinceByCityName(city)?.districts ?? []).map((d) => ({ value: d, label: d }))
+      : structureType === "REGION_BASED" && region
+        ? provincesInRegion(region).map((p) => ({ value: p.name, label: p.name }))
+        : [];
+  const locationRequired = locationPrompt !== null;
+  const canSubmit = !locationRequired || locationValue !== null;
+
   async function handleSubmit() {
     if (!matchingEntry || !questions || !selectedWorkplaceType) return;
     setError(null);
@@ -244,6 +284,8 @@ export function RateButton({
         answers: answerList,
         generalThoughts: generalThoughts.trim() || undefined,
         isRandomizedIdentity,
+        district: structureType === "CITY_BASED" ? (locationValue ?? undefined) : undefined,
+        city: structureType === "REGION_BASED" ? (locationValue ?? undefined) : undefined,
       };
       const res = matchingEntry.reviewId
         ? await apiPatch<SubmitReviewResult>(`/reviews/${matchingEntry.reviewId}`, content satisfies UpdateReviewInput)
@@ -375,6 +417,26 @@ export function RateButton({
                   </div>
                 )}
 
+                {onFinalStep && locationPrompt && (
+                  <div className="border-t border-border pt-3">
+                    <p className="mb-1 text-sm font-medium text-foreground">
+                      {locationPrompt} <span className="text-red-600 dark:text-red-400">*</span>
+                    </p>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      {companyName} covers more than one place — this only tags your own review and never changes{" "}
+                      {companyName}&apos;s overall rating.
+                    </p>
+                    <SingleSelectDropdown
+                      ariaLabel={locationPrompt}
+                      value={locationValue}
+                      options={locationOptions}
+                      placeholder={locationPrompt}
+                      clearable={false}
+                      onChange={setLocationValue}
+                    />
+                  </div>
+                )}
+
                 {onFinalStep && (
                   <div className="border-t border-border pt-3">
                     <textarea
@@ -420,7 +482,7 @@ export function RateButton({
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      disabled={submitting}
+                      disabled={submitting || !canSubmit}
                       className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                     >
                       {submitting ? "Saving..." : editing ? "Save changes" : "Submit review"}

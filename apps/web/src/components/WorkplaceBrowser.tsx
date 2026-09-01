@@ -33,6 +33,30 @@ const RATING_TICKS: { value: number; emoji: string }[] = [
 // re-render.
 type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "ratingDesc";
 
+// Coarse, curated grouping over Company.category — distinct from (and
+// combines with, ANDed) the free-text Sector dropdown's exact-category
+// filter below. "Firms" is everything NOT tagged with one of the other
+// three categories, matching exactly the category strings the nationwide
+// CITY_BASED/REGION_BASED brand seed script writes (see
+// apps/api/scripts/seed-nationwide-brands.ts) — every pre-existing company
+// (finance, construction, tech, etc.) falls under Firms by exclusion, same
+// as a company whose category happens to be spelled differently.
+type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS";
+const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics"];
+const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string }[] = [
+  { value: "FIRMS", label: "Firms" },
+  { value: "SUPERMARKET", label: "Supermarket" },
+  { value: "FRANCHISE", label: "Franchises" },
+  { value: "LOGISTICS", label: "Logistics" },
+];
+function matchesCategoryGroup(company: { category: string }, group: CategoryGroup | null): boolean {
+  if (!group) return true;
+  if (group === "FIRMS") return !NARROW_CATEGORY_GROUP_VALUES.includes(company.category);
+  if (group === "SUPERMARKET") return company.category === "Supermarket";
+  if (group === "FRANCHISE") return company.category === "Franchise";
+  return company.category === "Logistics";
+}
+
 const RESULTS_PAGE_SIZE = 24;
 
 // Google-style page list: always show the first and last page, a small
@@ -164,6 +188,7 @@ export function WorkplaceBrowser() {
   const [geo, setGeo] = useState<Geo>(null);
   const [geoRequesting, setGeoRequesting] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
   const [page, setPage] = useState(1);
   const sliderTrackRef = useRef<HTMLDivElement>(null);
   const resultsTopRef = useRef<HTMLDivElement>(null);
@@ -300,6 +325,7 @@ export function WorkplaceBrowser() {
   const visibleCompanies = useMemo(() => {
     if (!companies) return null;
     let list = selectedCategory ? companies.filter((c) => c.category === selectedCategory) : companies;
+    list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
 
     if (sortBy === "alphabetical") {
       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
@@ -320,7 +346,7 @@ export function WorkplaceBrowser() {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
     return list;
-  }, [companies, selectedCategory, geo, sortBy]);
+  }, [companies, selectedCategory, categoryGroup, geo, sortBy]);
 
   // Any change to what's being shown should land back on page 1 — otherwise
   // narrowing a filter can strand you on a now-nonexistent page 12 of 2.
@@ -470,6 +496,31 @@ export function WorkplaceBrowser() {
 
           {/* Results */}
           <div ref={resultsTopRef} className="flex-1">
+            {/* Curated category-group quick filter — a coarser, single-select
+                alternative to the free-text Sector dropdown below, for the
+                4 groupings that matter most on the browse page. */}
+            <div role="radiogroup" aria-label="Filter by category group" className="mb-3 flex flex-wrap items-center gap-2">
+              {CATEGORY_GROUP_BUTTONS.map((opt) => {
+                const checked = categoryGroup === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={checked}
+                    onClick={() => setCategoryGroup((g) => (g === opt.value ? null : opt.value))}
+                    className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
+                      checked
+                        ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+                        : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="mb-4 flex items-center gap-2">
               <input
                 type="search"
