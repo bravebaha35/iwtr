@@ -13,6 +13,8 @@ function describe(n: Notification): string {
       return `Someone marked your review at ${n.companyName} not helpful.`;
     case "COMPANY_REPLY":
       return `${n.companyName} replied to your review.`;
+    case "JOB_POSTING_PUBLISHED":
+      return `Your job posting at ${n.companyName} is up !`;
   }
 }
 

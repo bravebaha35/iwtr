@@ -6,6 +6,7 @@ import {
   ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE,
   type EduLevel,
   type EducationHistoryEntry,
+  type EmployerProfileView,
   type MyEmploymentEntry,
   type MyProfile,
   type WorkplaceType,
@@ -15,6 +16,7 @@ import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client
 import { avatarLabel, avatarWorkType } from "@/lib/avatars";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
+import { AvatarPhotoUploader } from "@/components/profile/AvatarPhotoUploader";
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
 import { WorkplacePicker } from "@/components/WorkplacePicker";
@@ -60,8 +62,13 @@ function formatDate(iso: string | null): string {
 }
 
 export default function ProfilePage() {
-  const { isAuthenticated, isLoading: authLoading, refreshOnboardingStatus } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, refreshOnboardingStatus, role } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
+  // Only a claimed+APPROVED owner has this at all (GET 403s otherwise, see
+  // EmployerProfileService.requireVerifiedEmployer) — null here means
+  // "not a verified employer," not "still loading," so the photo box below
+  // simply doesn't render rather than showing a loading state forever.
+  const [employerProfile, setEmployerProfile] = useState<EmployerProfileView | null>(null);
   const [employment, setEmployment] = useState<MyEmploymentEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("customize");
@@ -171,6 +178,24 @@ export default function ProfilePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!isAuthenticated || role !== "COMPANY_OWNER") {
+      setEmployerProfile(null);
+      return;
+    }
+    let cancelled = false;
+    apiGet<EmployerProfileView>("/me/employer-profile")
+      .then((data) => {
+        if (!cancelled) setEmployerProfile(data);
+      })
+      .catch(() => {
+        if (!cancelled) setEmployerProfile(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, role]);
 
   async function saveCustomization() {
     setAvatarSaving(true);
@@ -517,6 +542,20 @@ export default function ProfilePage() {
             {avatarStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{avatarStatus}</p>}
             {avatarError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{avatarError}</p>}
           </div>
+
+          {role === "COMPANY_OWNER" && employerProfile && (
+            <div className="rounded-xl border border-border bg-surface p-5">
+              <h2 className="mb-1 font-semibold text-foreground">Employer Photo</h2>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Shown alongside your real name wherever you appear as a verified company owner — separate from the
+                anonymous avatar/username above, which is still yours to use if you ever review a different company.
+              </p>
+              <AvatarPhotoUploader
+                value={employerProfile.profilePictureUrl}
+                onChange={(url) => setEmployerProfile((prev) => (prev ? { ...prev, profilePictureUrl: url } : prev))}
+              />
+            </div>
+          )}
           </>
           )}
 

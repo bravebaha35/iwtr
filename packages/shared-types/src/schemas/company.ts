@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { turkeyRegionKeySchema } from "../geo/turkeyRegions";
+import { publicJobPostingSchema } from "./jobPosting";
 
 // How a company's reviews are scoped to a physical location — see the
 // matching Prisma `StructureType` enum comment in schema.prisma for the full
@@ -125,6 +126,10 @@ export const companyListItemSchema = companySchema.extend({
   // the request set includeJobTitles; otherwise always [], never omitted, so
   // every CompanyListItem consumer can rely on the field existing.
   jobTitles: z.array(z.string()),
+  // Individually-authored, currently-PUBLISHED job postings (see
+  // schemas/jobPosting.ts) — same includeJobTitles-only population rule and
+  // always-array convention as jobTitles above.
+  jobPostings: z.array(publicJobPostingSchema),
 });
 export type CompanyListItem = z.infer<typeof companyListItemSchema>;
 

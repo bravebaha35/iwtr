@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
+import { type CompanyListItem, type CompanyVibeFlags, type VibeFlag, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarPillClassName } from "@/lib/collarColors";
@@ -101,19 +101,139 @@ function PaginationBar({
   );
 }
 
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function CopyIconButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      title="Copy to clipboard"
+      aria-label="Copy to clipboard"
+      onClick={async () => {
+        if (await copyToClipboard(text)) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }
+      }}
+      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+    >
+      {copied ? (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="11" height="11" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+// "Mail us!" / "Call us!" — click opens a small popover to the right with
+// the raw value + a copy-to-clipboard icon, rather than a mailto:/tel: link
+// (a reviewer-anonymous platform never wants an accidental full mail-client
+// handoff to be the only option — copying the address is the more reliable
+// action on both desktop and mobile).
+function ContactRow({ label, value }: { label: string; value: string | null }) {
+  const [open, setOpen] = useState(false);
+  if (!value) return null;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full rounded-lg border border-border px-3 py-1.5 text-left text-xs font-medium text-foreground transition hover:bg-surface-muted"
+      >
+        {label}
+      </button>
+      {open && (
+        <div className="absolute left-full top-0 z-20 ml-1 flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground shadow-lg">
+          <span>{value}</span>
+          <CopyIconButton text={value} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const VIBE_FLAG_ROW_ORDER = ["corporateCulture", "leadership", "infrastructure", "workLifeBalance", "stability"];
+
+// Compact popover version of WorkplaceVibeFlags.tsx (that component is a
+// fixed lg:h-[672px] page-section box, far too large for a card's dropdown
+// menu) — pools every work-type's flags into one flat green/red list,
+// deduped by category+cluster, capped so the popover stays small.
+function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
+  const [data, setData] = useState<CompanyVibeFlags | null | "error">(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<CompanyVibeFlags>(`/companies/${companySlug}/vibe-flags`)
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch(() => {
+        if (!cancelled) setData("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [companySlug]);
+
+  if (data === null) return <p className="p-1 text-xs text-muted-foreground">Loading...</p>;
+  if (data === "error") return <p className="p-1 text-xs text-muted-foreground">Couldn&apos;t load flags.</p>;
+
+  const allFlags = data.byWorkplaceType.flatMap((s) => s.flags);
+  const seen = new Set<string>();
+  const pooled: VibeFlag[] = [];
+  for (const category of VIBE_FLAG_ROW_ORDER) {
+    for (const flag of allFlags.filter((f) => f.category === category)) {
+      const key = `${flag.category}-${flag.cluster}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pooled.push(flag);
+    }
+  }
+  if (pooled.length === 0) {
+    return <p className="p-1 text-xs text-muted-foreground">No flags yet.</p>;
+  }
+
+  return (
+    <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
+      {pooled.map((f) => (
+        <li key={`${f.category}-${f.cluster}`} className="flex items-center gap-1.5 text-xs">
+          <span aria-hidden="true">{f.color === "GREEN" ? "✅" : "🚩"}</span>
+          <span className="truncate text-foreground">{f.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 // One job card: 4:5 aspect main box (logo+name header, address/sector,
-// job titles + apply actions, rating + future-flag "i" menu) plus a
-// General Information footer strip below the box — see the layout notes
-// in the PR description for why the footer sits outside the aspect box.
+// job titles + contact, rating + vibe-flags "i" menu) plus a General
+// Information footer strip below the box — see the layout notes in the PR
+// description for why the footer sits outside the aspect box.
 function JobCard({ company }: { company: CompanyListItem }) {
   const [infoOpen, setInfoOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const location = [company.district, company.city].filter(Boolean).join(", ");
+  const postedTitles =
+    company.jobPostings.length > 0 ? company.jobPostings.map((p) => p.jobTitle) : company.jobTitles;
 
   return (
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
-    // button's flag dropdown is absolutely positioned to spill outside this
-    // box on the right, and clipping it would make it invisible.
+    // button's flag dropdown and the contact popovers are absolutely
+    // positioned to spill outside this box, and clipping it would make them
+    // invisible.
     <div className="flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700">
       <div className="flex aspect-[4/5] flex-col p-4 compact:p-3">
         {/* Top row: logo + name (top-left) ... spacer + rating + info button (top-right) */}
@@ -124,10 +244,6 @@ function JobCard({ company }: { company: CompanyListItem }) {
           </Link>
 
           <div className="flex shrink-0 items-center gap-1.5">
-            {/* Reserved, deliberately empty space to the left of the rating
-                number for a future element (e.g. a trend indicator) — not
-                loaded yet, just held open so adding it later isn't a
-                relayout. */}
             <span className="h-4 w-4" aria-hidden="true" />
             <span className="text-sm font-bold text-foreground" title="User rating">
               {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
@@ -143,11 +259,8 @@ function JobCard({ company }: { company: CompanyListItem }) {
                 i
               </button>
               {infoOpen && (
-                // Intentionally empty — reserved for the future green/red
-                // flag integration (see FlagCalculatorService), not wired up
-                // yet.
-                <div className="absolute left-full top-0 z-10 ml-1 w-40 rounded-lg border border-border bg-surface p-2 text-xs text-muted-foreground shadow-lg">
-                  No flags yet.
+                <div className="absolute right-0 top-full z-10 mt-1 w-52 rounded-lg border border-border bg-surface p-2 shadow-lg">
+                  <VibeFlagsPopover companySlug={company.slug} />
                 </div>
               )}
             </div>
@@ -159,13 +272,13 @@ function JobCard({ company }: { company: CompanyListItem }) {
           {location || "Location not set"} · {company.category}
         </p>
 
-        {/* Job titles (bold) + Apply actions, side by side */}
+        {/* Job titles/postings (bold) + Contact, side by side */}
         <div className="mt-3 flex flex-1 items-start justify-between gap-2 overflow-hidden">
           <div className="flex min-w-0 flex-wrap content-start gap-1">
-            {company.jobTitles.length > 0 ? (
-              company.jobTitles.map((title) => (
+            {postedTitles.length > 0 ? (
+              postedTitles.map((title, i) => (
                 <span
-                  key={title}
+                  key={`${title}-${i}`}
                   className="truncate rounded-full bg-brand-50 px-2 py-1 text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300"
                 >
                   {title}
@@ -176,24 +289,11 @@ function JobCard({ company }: { company: CompanyListItem }) {
             )}
           </div>
           <div className="flex shrink-0 flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={() => setNotice("Applications aren't open yet — check back soon.")}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700"
-            >
-              Apply
-            </button>
-            <button
-              type="button"
-              onClick={() => setNotice("Anonymous applications aren't open yet — check back soon.")}
-              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-surface-muted"
-            >
-              Apply Anonymously
-            </button>
+            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Contact</h4>
+            <ContactRow label="Mail us!" value={company.contactEmail} />
+            <ContactRow label="Call us!" value={company.contactPhone} />
           </div>
         </div>
-
-        {notice && <p className="mt-2 text-[11px] text-muted-foreground">{notice}</p>}
       </div>
 
       {/* Card footer, below the main content box */}

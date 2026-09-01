@@ -1,14 +1,17 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { EmployerProfileView } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
+import { apiGet } from "@/lib/api-client";
 import { Logo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
 import { avatarLabel } from "@/lib/avatars";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
+import { JobCreationFlow } from "@/components/jobs/JobCreationFlow";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
 // uses (Home, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
@@ -63,6 +66,38 @@ export function GlobalHeader() {
   const { isAuthenticated, role, onboardingStatus, logout, openAuthModal } = useAuth();
   const pathname = usePathname();
   const showAccountControls = isAuthenticated && onboardingStatus?.status === "ACTIVE";
+  const isCompanyOwner = showAccountControls && role === "COMPANY_OWNER";
+
+  // Only a claimed+APPROVED owner has this profile at all — GET 403s for
+  // everyone else, which is exactly the "verified" gate the real-name header
+  // display needs (see EmployerProfileService.requireVerifiedEmployer).
+  // Deliberately a local fetch here rather than a global auth-context change:
+  // nothing else in the app needs this yet.
+  const [employerProfile, setEmployerProfile] = useState<EmployerProfileView | null>(null);
+  const [jobFlowOpen, setJobFlowOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isCompanyOwner) {
+      setEmployerProfile(null);
+      return;
+    }
+    let cancelled = false;
+    apiGet<EmployerProfileView>("/me/employer-profile")
+      .then((data) => {
+        if (!cancelled) setEmployerProfile(data);
+      })
+      .catch(() => {
+        if (!cancelled) setEmployerProfile(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isCompanyOwner]);
+
+  const employerDisplayName =
+    employerProfile?.firstName && employerProfile?.lastName
+      ? `${employerProfile.firstName} ${employerProfile.lastName}`
+      : null;
 
   return (
     <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-surface py-4 pr-6">
@@ -89,6 +124,9 @@ export function GlobalHeader() {
             </Link>
             <Link href="/admin/owner-claims" className="hover:text-brand-600 dark:hover:text-brand-400">
               Owner Claims
+            </Link>
+            <Link href="/admin/job-postings" className="hover:text-brand-600 dark:hover:text-brand-400">
+              Job Postings
             </Link>
           </nav>
         )}
@@ -126,11 +164,26 @@ export function GlobalHeader() {
           {showAccountControls && <NotificationsMenu />}
 
           {showAccountControls && (
-            <NavIconLink href="/jobs" label="Jobs" title="Jobs">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-              </svg>
-            </NavIconLink>
+            <div className="flex items-center">
+              <NavIconLink href="/jobs" label={isCompanyOwner ? "Hire now !" : "Jobs"} title={isCompanyOwner ? "Post a job" : "Jobs"}>
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                </svg>
+              </NavIconLink>
+              {isCompanyOwner && (
+                <button
+                  type="button"
+                  onClick={() => setJobFlowOpen(true)}
+                  aria-label="Create a job posting"
+                  title="Create a job posting"
+                  className="flex h-6 w-6 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </button>
+              )}
+            </div>
           )}
 
           {showAccountControls && (
@@ -154,7 +207,7 @@ export function GlobalHeader() {
             >
               <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
               <span className="text-sm font-medium text-foreground">
-                {onboardingStatus.reviewUsername || avatarLabel(onboardingStatus.avatarKey) || "Anonymous"}
+                {employerDisplayName || onboardingStatus.reviewUsername || avatarLabel(onboardingStatus.avatarKey) || "Anonymous"}
               </span>
             </Link>
             <button
@@ -185,6 +238,8 @@ export function GlobalHeader() {
           </button>
         )}
       </div>
+
+      {isCompanyOwner && <JobCreationFlow open={jobFlowOpen} onClose={() => setJobFlowOpen(false)} />}
     </header>
   );
 }

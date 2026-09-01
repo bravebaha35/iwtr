@@ -4,7 +4,12 @@ import { z } from "zod";
 // from ReviewVote and CompanyReply rows attached to the caller's own
 // reviews (see NotificationsService.list). No read/unread tracking yet;
 // it's just the most recent events, newest first.
-export const notificationTypeSchema = z.enum(["VOTE_HELPFUL", "VOTE_NOT_HELPFUL", "COMPANY_REPLY"]);
+export const notificationTypeSchema = z.enum([
+  "VOTE_HELPFUL",
+  "VOTE_NOT_HELPFUL",
+  "COMPANY_REPLY",
+  "JOB_POSTING_PUBLISHED",
+]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 
 export const notificationSchema = z.object({

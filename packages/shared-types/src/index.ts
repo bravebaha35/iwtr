@@ -9,6 +9,8 @@ export * from "./schemas/employerProfile";
 export * from "./schemas/turkishPhone";
 export * from "./schemas/companyLogo";
 export * from "./schemas/notification";
+export * from "./schemas/jobPosting";
+export * from "./schemas/avatarPhoto";
 export * from "./geo/turkey";
 export * from "./geo/turkeyAreaCodes";
 export * from "./geo/turkeyRegions";
