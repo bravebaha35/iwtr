@@ -9,6 +9,9 @@ import { Prisma } from "@prisma/client";
 import {
   RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
   RANDOMIZED_IDENTITY_AVATAR_KEY,
+  findDistrictInProvince,
+  findProvinceByCityName,
+  findRegionByProvinceName,
   type AddEmploymentHistoryInput,
   type CastVoteInput,
   type CastVoteResult,
@@ -21,9 +24,11 @@ import {
   type MyReviewListItem,
   type PublicReview,
   type ReplyToReviewInput,
+  type StructureType,
   type SubmitReviewResult,
   type SurveyAnswer,
   type SurveyResponse,
+  type TurkeyRegionKey,
   type UpdateEmploymentHistoryInput,
   type UpdateReviewInput,
   type WorkplaceType,
@@ -37,6 +42,13 @@ import { tallyQuestions } from "./survey-tally.util";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
 const MID_THRESHOLD = 0.5;
+
+// k-anonymity floor for surfacing a review's district/city (see
+// listForCompany) — a district/city shared by fewer than this many published
+// reviews on the same company is withheld (not deleted, just not returned)
+// to avoid "highly specific filtering on small branches" singling out one
+// or two people at a small branch.
+const MIN_REVIEWS_FOR_LOCATION_DISPLAY = 3;
 
 function toDateOnly(d: Date | null): string | null {
   return d ? d.toISOString().slice(0, 10) : null;
@@ -258,6 +270,7 @@ export class ReviewsService {
     }
 
     const { scores, surveyAnswers } = this.scoreAnswers(input.workplaceType, input.answers);
+    const location = this.resolveReviewLocation(employment.company, input);
 
     const [priorPublished, priorRejected] = await Promise.all([
       this.prisma.review.count({ where: { userId, status: "PUBLISHED" } }),
@@ -301,6 +314,8 @@ export class ReviewsService {
           publishedAt: status === "PUBLISHED" ? new Date() : null,
           isRandomizedIdentity,
           displayUsername,
+          city: location.city,
+          district: location.district,
         },
       });
     } catch (err) {
@@ -341,6 +356,62 @@ export class ReviewsService {
           : "Your review is being reviewed before publishing. This usually takes a short while.",
       scores,
     };
+  }
+
+  /**
+   * Shared by submitReview and updateReview — resolves and validates the
+   * optional per-review city/district against the TARGET COMPANY's own
+   * structureType, never trusting the client's claim of which company this
+   * even applies to (that's already enforced by the caller having loaded the
+   * real company row). A SETTLED company accepts neither field; a CITY_BASED
+   * one requires a district of its own city; a REGION_BASED one requires a
+   * city belonging to its own region. Canonicalizes both to the exact
+   * spelling in TURKEY_PROVINCES, same as resolveLocation does for
+   * Company.city/district, so a stored value always matches picker output.
+   */
+  private resolveReviewLocation(
+    company: { structureType: StructureType; city: string | null; region: TurkeyRegionKey | null },
+    input: { city?: string; district?: string },
+  ): { city: string | null; district: string | null } {
+    // Explicit checks for the two special cases, SETTLED as the fall-through
+    // default (matches the schema's own @default(SETTLED)) — deliberately
+    // NOT "if CITY_BASED {...} else REGION_BASED {...}", which would treat a
+    // missing/unrecognized structureType as the MOST restrictive case
+    // instead of the least.
+    if (company.structureType === "CITY_BASED") {
+      if (!input.district) {
+        throw new BadRequestException("Choose the district this review is about.");
+      }
+      const province = company.city ? findProvinceByCityName(company.city) : null;
+      if (!province) {
+        throw new BadRequestException("This company has no valid city configured.");
+      }
+      const canonicalDistrict = findDistrictInProvince(province, input.district);
+      if (!canonicalDistrict) {
+        throw new BadRequestException(`"${input.district}" isn't a district of ${province.name}.`);
+      }
+      return { city: province.name, district: canonicalDistrict };
+    }
+
+    if (company.structureType === "REGION_BASED") {
+      if (!input.city) {
+        throw new BadRequestException("Choose the city this review is about.");
+      }
+      if (!company.region) {
+        throw new BadRequestException("This company has no valid region configured.");
+      }
+      const province = findProvinceByCityName(input.city);
+      if (!province || findRegionByProvinceName(province.name) !== company.region) {
+        throw new BadRequestException(`"${input.city}" isn't a city in this company's region.`);
+      }
+      return { city: province.name, district: null };
+    }
+
+    // SETTLED (and the safe default for anything else): neither field applies.
+    if (input.city || input.district) {
+      throw new BadRequestException("This company doesn't use per-location reviews.");
+    }
+    return { city: null, district: null };
   }
 
   /**
@@ -425,6 +496,8 @@ export class ReviewsService {
       status: review.status,
       isRandomizedIdentity: review.isRandomizedIdentity,
       displayUsername: review.displayUsername,
+      city: review.city,
+      district: review.district,
     };
   }
 
@@ -445,7 +518,7 @@ export class ReviewsService {
 
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
-      include: { employmentHistory: true },
+      include: { employmentHistory: true, company: true },
     });
     if (!review || review.userId !== userId) {
       throw new NotFoundException("Review not found");
@@ -454,6 +527,7 @@ export class ReviewsService {
     const wasPublished = review.status === "PUBLISHED";
 
     const { scores, surveyAnswers } = this.scoreAnswers(review.workplaceType, input.answers);
+    const location = this.resolveReviewLocation(review.company, input);
 
     const [priorPublished, priorRejected] = await Promise.all([
       this.prisma.review.count({ where: { userId, status: "PUBLISHED", id: { not: reviewId } } }),
@@ -496,6 +570,8 @@ export class ReviewsService {
         publishedAt: status === "PUBLISHED" ? (review.publishedAt ?? new Date()) : review.publishedAt,
         isRandomizedIdentity,
         displayUsername,
+        city: location.city,
+        district: location.district,
       },
     });
 
@@ -651,6 +727,31 @@ export class ReviewsService {
       authors.map((a) => [a.id, { avatarKey: a.avatarKey, avatarGradient: a.avatarGradient, reviewUsername: a.reviewUsername }]),
     );
 
+    // k-anonymity gate for district/city (see MIN_REVIEWS_FOR_LOCATION_DISPLAY):
+    // grouped counts over ALL published reviews for this company, not just
+    // this page's `reviews`, so the threshold reflects the true population —
+    // there is no separate query param anywhere that lets a caller filter
+    // this list down to one district/city in the first place, which is the
+    // actual "highly specific filtering" this whole gate exists to prevent.
+    const [districtCounts, cityCounts] = await Promise.all([
+      this.prisma.review.groupBy({
+        by: ["district"],
+        where: { companyId: company.id, status: "PUBLISHED", district: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.review.groupBy({
+        by: ["city"],
+        where: { companyId: company.id, status: "PUBLISHED", city: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
+    const districtMeetsThreshold = new Set(
+      districtCounts.filter((r) => r._count._all >= MIN_REVIEWS_FOR_LOCATION_DISPLAY).map((r) => r.district),
+    );
+    const cityMeetsThreshold = new Set(
+      cityCounts.filter((r) => r._count._all >= MIN_REVIEWS_FOR_LOCATION_DISPLAY).map((r) => r.city),
+    );
+
     return reviews.map((r) => ({
       id: r.id,
       companyId: r.companyId,
@@ -679,6 +780,8 @@ export class ReviewsService {
         ? RANDOMIZED_IDENTITY_AVATAR_GRADIENT
         : (avatarByAuthor.get(r.userId)?.avatarGradient ?? null),
       displayUsername: r.isRandomizedIdentity ? r.displayUsername : (avatarByAuthor.get(r.userId)?.reviewUsername ?? null),
+      district: r.district && districtMeetsThreshold.has(r.district) ? r.district : null,
+      city: r.city && cityMeetsThreshold.has(r.city) ? r.city : null,
     }));
   }
 
@@ -829,6 +932,8 @@ export class ReviewsService {
       status: r.status,
       isRandomizedIdentity: r.isRandomizedIdentity,
       displayUsername: r.displayUsername,
+      city: r.city,
+      district: r.district,
       createdAt: r.createdAt.toISOString(),
       publishedAt: r.publishedAt?.toISOString() ?? null,
       likeCount: likeByReview.get(r.id) ?? 0,

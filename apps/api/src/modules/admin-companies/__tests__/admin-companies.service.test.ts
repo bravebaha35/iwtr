@@ -25,6 +25,57 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
   return { ...base, ...overrides };
 }
 
+describe("AdminCompaniesService.update — structureType/region/city consistency", () => {
+  function makeExisting(overrides: Record<string, unknown>) {
+    return { id: "c1", name: "Acme", city: null, district: null, structureType: "SETTLED", region: null, ...overrides };
+  }
+
+  it("rejects switching to REGION_BASED without a region", async () => {
+    const prisma = makePrisma({ company: { findUnique: jest.fn().mockResolvedValue(makeExisting({})) } });
+    const service = new AdminCompaniesService(prisma as any, {} as any);
+
+    await expect(service.update("admin-1", "c1", { structureType: "REGION_BASED" })).rejects.toThrow(
+      "A region-based company needs a region.",
+    );
+  });
+
+  it("rejects setting a region on an existing SETTLED company without also changing structureType", async () => {
+    const prisma = makePrisma({ company: { findUnique: jest.fn().mockResolvedValue(makeExisting({})) } });
+    const service = new AdminCompaniesService(prisma as any, {} as any);
+
+    await expect(service.update("admin-1", "c1", { region: "EGE" })).rejects.toThrow(
+      "A settled company can't have a region.",
+    );
+  });
+
+  it("rejects giving a city to an already REGION_BASED company", async () => {
+    const prisma = makePrisma({
+      company: { findUnique: jest.fn().mockResolvedValue(makeExisting({ structureType: "REGION_BASED", region: "MARMARA" })) },
+    });
+    const service = new AdminCompaniesService(prisma as any, {} as any);
+
+    await expect(service.update("admin-1", "c1", { city: "İstanbul" })).rejects.toThrow(
+      "A region-based company can't also have a city/district.",
+    );
+  });
+
+  it("allows changing just the region on an already REGION_BASED company", async () => {
+    const existing = makeExisting({ structureType: "REGION_BASED", region: "MARMARA" });
+    const prisma = makePrisma({
+      company: {
+        findUnique: jest.fn().mockResolvedValue(existing),
+        update: jest.fn().mockResolvedValue({ ...existing, region: "EGE" }),
+      },
+    });
+    const service = new AdminCompaniesService(prisma as any, {} as any);
+
+    await expect(service.update("admin-1", "c1", { region: "EGE" })).resolves.toBeDefined();
+    expect(prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ region: "EGE" }) }),
+    );
+  });
+});
+
 describe("AdminCompaniesService.merge", () => {
   it("throws NotFoundException when either company doesn't exist", async () => {
     const prisma = makePrisma({

@@ -35,6 +35,8 @@ const PUBLIC_COMPANY_SELECT = {
   website: true,
   city: true,
   district: true,
+  structureType: true,
+  region: true,
   isVerifiedBadge: true,
   taxNumber: true,
   isChainStore: true,
@@ -96,6 +98,31 @@ export class AdminCompaniesService {
     // without a city, both canonicalized against the real province list.
     const location = input.city !== undefined ? resolveLocation(input.city, input.district) : undefined;
 
+    // Cross-field structureType/region/city consistency can't be validated
+    // at the zod layer for a PARTIAL update (a caller touching only e.g.
+    // `description` sends neither field) — so it's checked here against the
+    // EFFECTIVE values (whatever this call changes, falling back to what's
+    // already stored), the same merge-then-validate approach `location`
+    // above already uses for city/district.
+    const effectiveStructureType = input.structureType ?? existing.structureType;
+    const effectiveRegion = input.region !== undefined ? input.region : existing.region;
+    const effectiveCity = location !== undefined ? location.city : existing.city;
+    if (effectiveStructureType === "CITY_BASED" && !effectiveCity) {
+      throw new BadRequestException("A city-based company needs a city.");
+    }
+    if (effectiveStructureType === "CITY_BASED" && effectiveRegion) {
+      throw new BadRequestException("A city-based company can't also have a region.");
+    }
+    if (effectiveStructureType === "REGION_BASED" && !effectiveRegion) {
+      throw new BadRequestException("A region-based company needs a region.");
+    }
+    if (effectiveStructureType === "REGION_BASED" && effectiveCity) {
+      throw new BadRequestException("A region-based company can't also have a city/district.");
+    }
+    if (effectiveStructureType === "SETTLED" && effectiveRegion) {
+      throw new BadRequestException("A settled company can't have a region.");
+    }
+
     const company = await this.prisma.company.update({
       where: { id: companyId },
       data: {
@@ -107,6 +134,8 @@ export class AdminCompaniesService {
         website: input.website,
         city: location?.city,
         district: location?.district,
+        structureType: input.structureType,
+        region: input.region,
         contactEmail: input.contactEmail,
         contactPhone: input.contactPhone,
         facebookUrl: input.facebookUrl,

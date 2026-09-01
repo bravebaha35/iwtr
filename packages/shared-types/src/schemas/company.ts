@@ -1,4 +1,11 @@
 import { z } from "zod";
+import { turkeyRegionKeySchema } from "../geo/turkeyRegions";
+
+// How a company's reviews are scoped to a physical location — see the
+// matching Prisma `StructureType` enum comment in schema.prisma for the full
+// explanation of each value.
+export const structureTypeSchema = z.enum(["SETTLED", "CITY_BASED", "REGION_BASED"]);
+export type StructureType = z.infer<typeof structureTypeSchema>;
 
 export const ownerTierSchema = z.enum(["FREE", "PLUS"]);
 export type OwnerTier = z.infer<typeof ownerTierSchema>;
@@ -47,6 +54,12 @@ export const companySchema = z.object({
   // resolveLocation validation admin creation uses.
   city: z.string().nullable(),
   district: z.string().nullable(),
+  // See structureTypeSchema above. region is only ever non-null when
+  // structureType is REGION_BASED (enforced at write time, not by this
+  // output schema — a plain nullable field is the correct *read* shape
+  // regardless of which structureType produced the null/non-null value).
+  structureType: structureTypeSchema,
+  region: turkeyRegionKeySchema.nullable(),
   isVerifiedBadge: z.boolean(),
   // Admin-only fields (AdminCompaniesService) — see Prisma schema comments.
   // taxNumber is public trade-registry info, not personal PII.
@@ -124,22 +137,45 @@ export const companyFiltersSchema = z.object({
 });
 export type CompanyFilters = z.infer<typeof companyFiltersSchema>;
 
-export const adminCreateCompanyInputSchema = z.object({
-  name: z.string().min(1),
-  category: z.string().min(1),
-  workplaceTypes: companyWorkplaceTypesSchema,
-  city: z.string().min(1).optional(),
-  district: z.string().min(1).optional(),
-  mainPhotoUrl: httpUrlSchema.optional(),
-  taxNumber: z.string().trim().min(1).optional(),
-  isChainStore: z.boolean().optional(),
-  // Set by the admin dashboard's "Pending Review Queue" when this create
-  // call is approving a worker-suggested name rather than starting from
-  // scratch — purely so AdminCompaniesController can log AuditLog's
-  // actionType as APPROVE instead of CREATE (AdminCompaniesService.create
-  // still runs the exact same logic either way).
-  fromSuggestion: z.boolean().optional(),
-});
+export const adminCreateCompanyInputSchema = z
+  .object({
+    name: z.string().min(1),
+    category: z.string().min(1),
+    workplaceTypes: companyWorkplaceTypesSchema,
+    city: z.string().min(1).optional(),
+    district: z.string().min(1).optional(),
+    // Defaults to SETTLED (a normal single-address company) when omitted —
+    // every pre-existing company in the directory is implicitly this case.
+    structureType: structureTypeSchema.optional(),
+    region: turkeyRegionKeySchema.optional(),
+    mainPhotoUrl: httpUrlSchema.optional(),
+    taxNumber: z.string().trim().min(1).optional(),
+    isChainStore: z.boolean().optional(),
+    // Set by the admin dashboard's "Pending Review Queue" when this create
+    // call is approving a worker-suggested name rather than starting from
+    // scratch — purely so AdminCompaniesController can log AuditLog's
+    // actionType as APPROVE instead of CREATE (AdminCompaniesService.create
+    // still runs the exact same logic either way).
+    fromSuggestion: z.boolean().optional(),
+  })
+  .superRefine((v, ctx) => {
+    const structureType = v.structureType ?? "SETTLED";
+    if (structureType === "CITY_BASED" && !v.city) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["city"], message: "A city-based company needs a city." });
+    }
+    if (structureType === "CITY_BASED" && v.region) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["region"], message: "A city-based company can't also have a region." });
+    }
+    if (structureType === "REGION_BASED" && !v.region) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["region"], message: "A region-based company needs a region." });
+    }
+    if (structureType === "REGION_BASED" && (v.city || v.district)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["city"], message: "A region-based company can't also have a city/district." });
+    }
+    if (structureType === "SETTLED" && v.region) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["region"], message: "A settled company can't have a region." });
+    }
+  });
 export type AdminCreateCompanyInput = z.infer<typeof adminCreateCompanyInputSchema>;
 
 // Admin edit ("Edit Company Data" dashboard module) — deliberately the same
@@ -155,6 +191,14 @@ export const adminUpdateCompanyInputSchema = z.object({
   website: httpUrlSchema.optional(),
   city: z.string().min(1).optional(),
   district: z.string().min(1).optional(),
+  // Cross-field consistency with structureType (e.g. a REGION_BASED company
+  // can't also carry a city) is validated in AdminCompaniesService.update
+  // against the EXISTING row merged with whatever this partial update
+  // actually changes — a zod-level superRefine can't see prior DB state, so
+  // it isn't attempted here (unlike adminCreateCompanyInputSchema, where
+  // every relevant field is always present in the same call).
+  structureType: structureTypeSchema.optional(),
+  region: turkeyRegionKeySchema.optional(),
   contactEmail: z.string().email().optional(),
   contactPhone: z.string().optional(),
   facebookUrl: httpUrlSchema.optional(),
@@ -232,12 +276,13 @@ export function scoreBandLabel(avg: number): string {
 }
 
 // GET /companies/:slug/narrative — the company page's rating-narrative box.
-// `description` is: the Claude-written ≤600-char summary when the primary
-// work-type has 3+ published reviews and generation succeeded; a plain
-// numbers-only sentence when 3+ reviews but no API key / a failed call;
+// `description` is: a 450-600 char summary assembled from pre-authored
+// SummaryPattern rows (see PatternGeneratorService) when the primary
+// work-type has 3+ published reviews; a plain numbers-only sentence when 3+
+// reviews but no pattern content is authored yet for that workplaceType;
 // null when under 3 reviews (the box then shows a short "summary appears at
 // 3 reviews" line built from reviewCount). See
-// apps/api/src/modules/company-narrative and the 2026-08-30 spec.
+// apps/api/src/modules/company-narrative.
 export const companyNarrativeSchema = z.object({
   workplaceType: workplaceTypeSchema,
   reviewCount: z.number().int().min(0),

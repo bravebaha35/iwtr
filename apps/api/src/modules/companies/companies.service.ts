@@ -8,6 +8,8 @@ import {
   type CompanyFilters,
   type CompanyListItem,
   type CompanySearchQuery,
+  type StructureType,
+  type TurkeyRegionKey,
   type WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -57,6 +59,8 @@ export class CompaniesService {
         workplaceTypes: input.workplaceTypes,
         city,
         district,
+        structureType: input.structureType ?? "SETTLED",
+        region: input.region ?? null,
         mainPhotoUrl: input.mainPhotoUrl,
         taxNumber: input.taxNumber,
         isChainStore: input.isChainStore ?? false,
@@ -284,6 +288,8 @@ export class CompaniesService {
     website: string | null;
     city: string | null;
     district: string | null;
+    structureType: StructureType;
+    region: TurkeyRegionKey | null;
     isVerifiedBadge: boolean;
     taxNumber: string | null;
     isChainStore: boolean;
@@ -306,6 +312,8 @@ export class CompaniesService {
       website: c.website,
       city: c.city,
       district: c.district,
+      structureType: c.structureType,
+      region: c.region,
       isVerifiedBadge: c.isVerifiedBadge,
       taxNumber: c.taxNumber,
       isChainStore: c.isChainStore,

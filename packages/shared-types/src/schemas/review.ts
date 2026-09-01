@@ -142,6 +142,15 @@ export const createReviewInputSchema = z.object({
   // avatarKey/avatarGradient/reviewUsername. Also settable on
   // updateReviewInputSchema below, so a reviewer can turn it on/off later.
   isRandomizedIdentity: z.boolean().optional().default(false),
+  // Required only when the target company is CITY_BASED (a district of that
+  // company's own city) or REGION_BASED (a city within that company's own
+  // region) — never used for a SETTLED company. Server-revalidated against
+  // the company's actual structureType/city/region regardless of what's
+  // sent (see ReviewsService.resolveReviewLocation) — plain optional strings
+  // here since the real canonical-name/membership check needs a DB lookup
+  // the zod layer doesn't have.
+  city: z.string().min(1).max(100).optional(),
+  district: z.string().min(1).max(100).optional(),
 });
 export type CreateReviewInput = z.infer<typeof createReviewInputSchema>;
 
@@ -223,6 +232,17 @@ export const publicReviewSchema = z.object({
   // trade-off, opted out of per-review). Never a number: this fully replaces
   // the old numeric User.memberNumber system.
   displayUsername: z.string().nullable(),
+  // The district/city this review named (see createReviewInputSchema) —
+  // only ever non-null here when at least MIN_REVIEWS_FOR_LOCATION_DISPLAY
+  // published reviews on this exact company share the exact same value
+  // (ReviewsService.listForCompany's k-anonymity gate). Always null for a
+  // SETTLED company's reviews, and can be null even when the reviewer did
+  // supply one, if too few others share it — the raw value is still stored,
+  // just not surfaced yet. Never a vector for "highly specific filtering on
+  // small branches": there is no query param anywhere that lets a caller ask
+  // for reviews matching one particular district/city.
+  city: z.string().nullable(),
+  district: z.string().nullable(),
 });
 export type PublicReview = z.infer<typeof publicReviewSchema>;
 
@@ -298,6 +318,12 @@ export const myReviewSchema = z.object({
   status: reviewStatusSchema,
   isRandomizedIdentity: z.boolean(),
   displayUsername: z.string().nullable(),
+  // Ungated here (unlike PublicReview's city/district) — this is the
+  // reviewer's own private view of their own review, so there's no
+  // anonymity-set concern in showing them exactly what they submitted, the
+  // same way an edit form needs to reload it.
+  city: z.string().nullable(),
+  district: z.string().nullable(),
 });
 export type MyReview = z.infer<typeof myReviewSchema>;
 

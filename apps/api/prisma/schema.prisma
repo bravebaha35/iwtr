@@ -121,6 +121,42 @@ enum WorkplaceType {
   @@schema("public")
 }
 
+// How a company's reviews are scoped to a physical location, if at all.
+// SETTLED (the default, every pre-existing company): one specific address —
+// city/district on Company describe that one place, same as always.
+// CITY_BASED: a nationwide brand reviewed per-city (e.g. "Starbucks İstanbul
+// Şubeleri") — Company.city is which city THIS row represents; a review of
+// it must additionally name a district of that same city (Review.district),
+// purely for context, never splitting this row's own aggregate score.
+// REGION_BASED: a nationwide brand reviewed per-region (e.g. "TotalEnergies
+// Marmara Bölgesi Şubeleri") — Company.region is which region THIS row
+// represents; a review of it must additionally name a city within that
+// region (Review.city), same non-splitting rule.
+enum StructureType {
+  SETTLED
+  CITY_BASED
+  REGION_BASED
+
+  @@schema("public")
+}
+
+// Turkey's 7 official statistical regions (Bölge) — a coarser grouping than
+// the 81 provinces in packages/shared-types/src/geo/turkey.ts, used only by
+// REGION_BASED companies. Enum values are ASCII-safe identifiers; the
+// Turkish display label/province list lives in shared-types (TURKEY_REGIONS)
+// alongside the existing province/district data, not duplicated here.
+enum TurkeyRegion {
+  MARMARA
+  EGE
+  AKDENIZ
+  IC_ANADOLU
+  KARADENIZ
+  DOGU_ANADOLU
+  GUNEYDOGU_ANADOLU
+
+  @@schema("public")
+}
+
 model User {
   id              String       @id @default(uuid())
   email           String?      @unique
@@ -310,6 +346,15 @@ model Company {
   createdByAdminId String?
   createdAt        DateTime        @default(now())
 
+  // See the StructureType/TurkeyRegion enum comments above. Admin-only
+  // (AdminCompaniesService/CompaniesService.createByAdmin), same as
+  // workplaceTypes — never owner-self-editable. Exactly one of
+  // {city, region} is meaningful depending on structureType, enforced in
+  // shared-types' adminCreateCompanyInputSchema/adminUpdateCompanyInputSchema,
+  // not at the DB layer (Prisma has no portable cross-field constraint).
+  structureType StructureType @default(SETTLED)
+  region        TurkeyRegion?
+
   // Turkish trade-registry business identifier (Vergi Numarası / VKN) —
   // public business info, not personal data, so it lives here rather than
   // in the PII vault (contrast with a reviewer's own T.C. Kimlik No, which
@@ -434,6 +479,20 @@ model Review {
   surveyAnswers         Json
   generalThoughts       String?
 
+  // Reviewer-supplied, review-level-only location tag for a non-SETTLED
+  // parent company (see Company.structureType) — a district when reviewing a
+  // CITY_BASED company, a city when reviewing a REGION_BASED one. Required
+  // and validated against Company.city/region at submission (see
+  // ReviewsService.resolveReviewLocation); NEVER null-vs-required for a
+  // SETTLED company, which has no use for either. Deliberately excluded from
+  // CompanyAggregateScore/recomputeAggregate — the parent's rating always
+  // stays one unified number regardless of which district/city a review
+  // names. Exposure is additionally gated at read time (see
+  // ReviewsService.listForCompany's k-anonymity threshold) so a district/city
+  // with too few reviews to blend in is never surfaced.
+  city     String?
+  district String?
+
   status            ReviewStatus @default(PENDING_MODERATION)
   aiModerationScore Float?
   aiTrustScore      Float?
@@ -463,6 +522,12 @@ model Review {
   // reviews, recomputing its aggregate, survey stats) had nothing to use
   // until this explicit index.
   @@index([companyId])
+  // Backs listForCompany's k-anonymity grouped counts (how many published
+  // reviews share this company's exact district, and separately its exact
+  // city) — both group by companyId first, same leading column as the index
+  // above, so this is additive rather than redundant with it.
+  @@index([companyId, district])
+  @@index([companyId, city])
   @@schema("public")
 }
 

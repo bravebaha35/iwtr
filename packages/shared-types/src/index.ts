@@ -11,3 +11,4 @@ export * from "./schemas/companyLogo";
 export * from "./schemas/notification";
 export * from "./geo/turkey";
 export * from "./geo/turkeyAreaCodes";
+export * from "./geo/turkeyRegions";
