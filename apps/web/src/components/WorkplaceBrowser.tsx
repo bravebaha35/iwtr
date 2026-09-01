@@ -18,12 +18,12 @@ import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 
 type Geo = { lat: number; lng: number } | "denied" | null;
 
-// Placeholder emojis for the 0/2.5/5 rating-slider ticks — swap for real
-// icons once they're picked.
-const RATING_TICKS: { value: number; emoji: string }[] = [
-  { value: 0, emoji: "😠" },
-  { value: 2.5, emoji: "😐" },
-  { value: 5, emoji: "😄" },
+// Custom mood art for the 0/2.5/5 rating-slider ticks (apps/web/public),
+// replacing the placeholder emojis.
+const RATING_TICKS: { value: number; src: string; alt: string }[] = [
+  { value: 0, src: "/1LowMood.png", alt: "Low rating" },
+  { value: 2.5, src: "/3MidMood.png", alt: "Mid rating" },
+  { value: 5, src: "/5HighMood.png", alt: "High rating" },
 ];
 
 // "ratingAsc"/"ratingDesc" are two separate states (not one "rating" value
@@ -41,8 +41,8 @@ type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "rati
 // apps/api/scripts/seed-nationwide-brands.ts) — every pre-existing company
 // (finance, construction, tech, etc.) falls under Firms by exclusion, same
 // as a company whose category happens to be spelled differently.
-type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS" | "CLOTHING";
-const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics", "Clothing Retail"];
+type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS" | "CLOTHING" | "SERVICE_PROVIDERS";
+const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics", "Clothing Retail", "Telecom"];
 
 // Icon-only pills — each button's old text label now lives in aria-label
 // (screen readers) plus a custom hover/focus tooltip drawn next to the
@@ -114,12 +114,29 @@ function TshirtIcon({ className }: IconProps) {
     </svg>
   );
 }
+function TelecomIcon({ className }: IconProps) {
+  // Broadcast/signal tower — mast, two crossbars, a base, and a pair of
+  // signal arcs off the tip — for the Türk Telekom / Turkcell Superonline /
+  // Vodafone / TurkNet service-provider grouping.
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" />
+      <path d="M12 6v14" />
+      <path d="M8.5 20h7" />
+      <path d="M9.5 10h5" />
+      <path d="M8.5 15h7" />
+      <path d="M9 6.3a3.2 3.2 0 0 1 0-4.6" />
+      <path d="M15 6.3a3.2 3.2 0 0 0 0-4.6" />
+    </svg>
+  );
+}
 const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon: (props: IconProps) => React.JSX.Element }[] = [
   { value: "FIRMS", label: "Firms", icon: FileIcon },
   { value: "SUPERMARKET", label: "Supermarket", icon: ShoppingCartIcon },
   { value: "FRANCHISE", label: "Franchises", icon: FrenchFriesIcon },
   { value: "LOGISTICS", label: "Logistics", icon: ForkliftIcon },
   { value: "CLOTHING", label: "Clothing", icon: TshirtIcon },
+  { value: "SERVICE_PROVIDERS", label: "Service Providers", icon: TelecomIcon },
 ];
 function matchesCategoryGroup(company: { category: string }, group: CategoryGroup | null): boolean {
   if (!group) return true;
@@ -127,7 +144,8 @@ function matchesCategoryGroup(company: { category: string }, group: CategoryGrou
   if (group === "SUPERMARKET") return company.category === "Supermarket";
   if (group === "FRANCHISE") return company.category === "Franchise";
   if (group === "LOGISTICS") return company.category === "Logistics";
-  return company.category === "Clothing Retail";
+  if (group === "CLOTHING") return company.category === "Clothing Retail";
+  return company.category === "Telecom";
 }
 
 const RESULTS_PAGE_SIZE = 24;
@@ -503,28 +521,28 @@ export function WorkplaceBrowser() {
               </div>
               {/* Red-to-green slider, no stars. Shows companies at or BELOW
                   the chosen value (not "X and up"), so dragging left tightens
-                  toward the worst-rated end. Emojis at 0/2.5/5 are
-                  placeholders — swap for real artwork later. Click-and-drag
-                  on the track (or scroll) sets the value; avoids a native
-                  <input type="range">, which never fully themes across
-                  browsers and can't take a gradient track everywhere.
-                  Each tick's horizontal translate is edge-aware — centering
-                  every emoji (-translate-x-1/2) would push the leftmost one
-                  half outside the box on the left and the rightmost one half
-                  outside on the right, so the two ends anchor inward instead
-                  and only the middle tick stays centered. */}
+                  toward the worst-rated end. Click-and-drag on the track (or
+                  scroll) sets the value; avoids a native <input type="range">,
+                  which never fully themes across browsers and can't take a
+                  gradient track everywhere. Each tick's horizontal translate
+                  is edge-aware — centering every icon (-translate-x-1/2)
+                  would push the leftmost one half outside the box on the
+                  left and the rightmost one half outside on the right, so
+                  the two ends anchor inward instead and only the middle
+                  tick stays centered. */}
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none overflow-hidden">
                 <div className="relative pt-7">
                   {RATING_TICKS.map((tick) => (
-                    <span
+                    // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
+                    <img
                       key={tick.value}
-                      className={`absolute top-0 text-lg leading-none ${
+                      src={tick.src}
+                      alt={tick.alt}
+                      className={`absolute top-0 h-6 w-6 ${
                         tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
                       }`}
                       style={{ left: `${(tick.value / 5) * 100}%` }}
-                    >
-                      {tick.emoji}
-                    </span>
+                    />
                   ))}
 
                   <div
