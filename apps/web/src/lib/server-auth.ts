@@ -81,14 +81,15 @@ export function refreshTokens(refreshToken: string): Promise<AuthTokensResponse 
   return attempt;
 }
 
-// Shared by /api/auth/register and /api/auth/verify-admin-otp: both always
-// get back a plain AuthTokensResponse on success, so both exchange it for
-// httpOnly cookies the exact same way, instead of ever handing raw tokens
-// back to browser JS. /api/auth/login is different (see exchangeLoginForSession
+// Shared by /api/auth/register, /api/auth/verify-admin-otp, and
+// /api/auth/dev-admin-login: all three always get back a plain
+// AuthTokensResponse on success, so all three exchange it for httpOnly
+// cookies the exact same way, instead of ever handing raw tokens back to
+// browser JS. /api/auth/login is different (see exchangeLoginForSession
 // below) — its upstream response can also be an OTP_REQUIRED placeholder
 // with no tokens at all yet.
 export async function exchangeCredentialsForSession(
-  upstreamPath: "auth/register" | "auth/login/verify-otp",
+  upstreamPath: "auth/register" | "auth/login/verify-otp" | "auth/dev-admin-login",
   body: string,
 ): Promise<NextResponse> {
   const upstream = await fetch(`${API_BASE_URL}/${upstreamPath}`, {

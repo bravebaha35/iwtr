@@ -15,6 +15,9 @@ import {
   validateRegistrationEmail,
 } from "@/lib/emailVerification";
 
+const DEV_MODE = process.env.NODE_ENV !== "production";
+const DEV_ADMIN_EMAIL = "cuneytbahasulunoglu@gmail.com";
+
 // Close (×) button shared by both steps' cards — top-right corner, dismisses
 // the whole dialog back to whatever page was showing underneath (the
 // homepage's WorkplaceBrowser, a company page, etc.) without logging in.
@@ -37,6 +40,7 @@ export function AuthModal() {
   const {
     login,
     verifyAdminOtp,
+    devAdminLogin,
     register,
     authMode: mode,
     setAuthMode: setMode,
@@ -62,6 +66,7 @@ export function AuthModal() {
   // "Verify your email" was showing. Password is never persisted (see
   // lib/emailVerification.ts), so EmailVerificationScreen re-asks for it.
   const [step, setStep] = useState<"form" | "verify" | "admin-otp">("form");
+  const [devLoggingIn, setDevLoggingIn] = useState(false);
 
   useEffect(() => {
     const pending = loadPendingVerification();
@@ -125,6 +130,23 @@ export function AuthModal() {
   async function handleVerified(effectivePassword: string) {
     await register(email, effectivePassword);
     clearPendingVerification();
+  }
+
+  // Local-dev-only one-click login as this repo's seeded ADMIN account (see
+  // apps/api/scripts/seed-admin.ts) — skips password + OTP entirely. The API
+  // 404s DEV_ADMIN_EMAIL's login attempt once NODE_ENV=production, so
+  // DEV_MODE below (which also only reads true outside production) is just
+  // the matching client-side visibility gate, not the real security boundary.
+  async function handleDevAdminLogin() {
+    setError(null);
+    setDevLoggingIn(true);
+    try {
+      await devAdminLogin(DEV_ADMIN_EMAIL);
+    } catch {
+      setError("Dev admin login failed — check the API server is running and this account still exists.");
+    } finally {
+      setDevLoggingIn(false);
+    }
   }
 
   function handleBackFromVerify() {
@@ -298,6 +320,18 @@ export function AuthModal() {
             Continue with Apple (coming soon)
           </button>
         </div>
+
+        {DEV_MODE && mode === "login" && (
+          <button
+            type="button"
+            onClick={handleDevAdminLogin}
+            disabled={devLoggingIn}
+            title={DEV_ADMIN_EMAIL}
+            className="mt-3 w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+          >
+            {devLoggingIn ? "Logging in..." : "Dev: Log in as Admin"}
+          </button>
+        )}
       </div>
     </div>
   );

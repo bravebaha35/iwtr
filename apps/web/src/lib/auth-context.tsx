@@ -21,6 +21,10 @@ interface AuthContextValue {
   // and calls verifyAdminOtp to actually finish logging in from there.
   login: (email: string, password: string) => Promise<{ otpRequired: boolean }>;
   verifyAdminOtp: (email: string, code: string) => Promise<void>;
+  // Local-dev-only shortcut (see AuthService.devAdminLogin) — skips
+  // password + OTP for a pre-existing ADMIN account. The API 404s this
+  // once NODE_ENV=production, so it's inert in a real deployment.
+  devAdminLogin: (email: string) => Promise<void>;
   logout: () => void;
   // Which tab of AuthModal is active — lifted up here (rather than kept as
   // AuthModal-local state) so GlobalHeader's "Login/Register" button can open
@@ -170,6 +174,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadSession],
   );
 
+  const devAdminLogin = useCallback(
+    async (email: string) => {
+      await postCredentials("/api/auth/dev-admin-login", { email });
+      await loadSession();
+      setAuthModalOpen(false);
+    },
+    [loadSession],
+  );
+
   const logout = useCallback(() => {
     setIsAuthenticated(false);
     setRole(null);
@@ -198,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         login,
         verifyAdminOtp,
+        devAdminLogin,
         logout,
         authMode,
         setAuthMode,

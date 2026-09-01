@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   NotImplementedException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -112,6 +113,28 @@ export class AuthService {
     }
     await this.adminLoginOtp.verifyChallenge(user.id, input.code);
     return this.issueTokenPair(user.id, user.role, user.status, deviceLabel);
+  }
+
+  // Local-dev convenience: skips password + OTP entirely for a pre-existing
+  // ADMIN account. Same production refusal as ConsoleAdminOtpNotifier — this
+  // endpoint must 404 the instant a real deployment exists, since it's an
+  // unauthenticated admin-session mint by design.
+  async devAdminLogin(email: string): Promise<AuthTokensResponse> {
+    if (process.env.NODE_ENV === "production") {
+      throw new NotFoundException();
+    }
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || user.role !== "ADMIN") {
+      throw new UnauthorizedException("No admin account with this email");
+    }
+
+    // Distinct action name from the real OTP-verified "ADMIN_LOGIN" so the
+    // audit trail never conflates the two.
+    await this.prisma.auditLog.create({
+      data: { actorUserId: user.id, action: "DEV_ADMIN_LOGIN", targetType: "User", targetId: user.id },
+    });
+
+    return this.issueTokenPair(user.id, user.role, user.status);
   }
 
   async refresh(refreshToken: string): Promise<AuthTokensResponse> {

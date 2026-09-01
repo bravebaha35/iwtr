@@ -97,3 +97,9 @@ export const verifyAdminOtpInputSchema = loginEmailInputSchema.pick({ email: tru
   code: z.string().regex(/^\d{6}$/, "Must be a 6-digit code"),
 });
 export type VerifyAdminOtpInput = z.infer<typeof verifyAdminOtpInputSchema>;
+
+// POST /auth/dev-admin-login — local-dev-only shortcut that skips password
+// and OTP entirely for a pre-existing ADMIN account (AuthService.devAdminLogin
+// refuses to run once NODE_ENV=production, same guard as ConsoleAdminOtpNotifier).
+export const devAdminLoginInputSchema = loginEmailInputSchema.pick({ email: true });
+export type DevAdminLoginInput = z.infer<typeof devAdminLoginInputSchema>;

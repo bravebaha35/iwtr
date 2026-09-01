@@ -1,11 +1,13 @@
 import { BadRequestException, Body, Controller, Post } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import {
+  devAdminLoginInputSchema,
   loginEmailInputSchema,
   oauthLoginInputSchema,
   refreshRequestSchema,
   registerEmailInputSchema,
   verifyAdminOtpInputSchema,
+  type DevAdminLoginInput,
   type LoginEmailInput,
   type OAuthLoginInput,
   type RefreshRequest,
@@ -43,6 +45,14 @@ export class AuthController {
   @Post("login/verify-otp")
   verifyLoginOtp(@Body(new ZodValidationPipe(verifyAdminOtpInputSchema)) body: VerifyAdminOtpInput) {
     return this.auth.verifyAdminLoginOtp(body, "web");
+  }
+
+  // Local-dev-only shortcut — see AuthService.devAdminLogin for the
+  // production refusal that makes this safe to leave wired up.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post("dev-admin-login")
+  devAdminLogin(@Body(new ZodValidationPipe(devAdminLoginInputSchema)) body: DevAdminLoginInput) {
+    return this.auth.devAdminLogin(body.email);
   }
 
   @Post("refresh")
