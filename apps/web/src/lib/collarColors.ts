@@ -47,3 +47,26 @@ export function collarPillClassName(type: WorkplaceType, active: boolean): strin
 export function collarBorderClass(type: WorkplaceType): string {
   return collarColorMap[type].borderLeft;
 }
+
+// "Mode B" strict segmented-control palette — deliberately a separate
+// export from collarColorMap/collarPillClassName above (an outline-only
+// style used by WorkplaceVibeFlags.tsx's tabs and ReviewsList.tsx's accent
+// border), not a replacement for it. Solid fill + white text per collar,
+// for the dark recessed WorkType filter track on the homepage/jobs page
+// only. Exact values per design: Office slate-700 (#334155), Hybrid/Remote
+// teal-600 (#0D9488), Service orange-600 (#EA580C), Manual-Labour blue-600
+// (#2563EB) — plain Tailwind defaults, not custom hex.
+const collarSegmentActiveClass: Record<WorkplaceType, string> = {
+  OFFICE: "bg-slate-700 text-white",
+  HYBRID_REMOTE: "bg-teal-600 text-white",
+  SERVICE: "bg-orange-600 text-white",
+  MANUAL_LABOUR: "bg-blue-600 text-white",
+};
+
+// Borderless ash text — same "color is the result of selection, not a hint
+// shown up front" reasoning as inactiveCollarPillClassName above.
+const collarSegmentInactiveClass = "text-zinc-400 hover:text-zinc-200";
+
+export function collarSegmentClassName(type: WorkplaceType, active: boolean): string {
+  return active ? collarSegmentActiveClass[type] : collarSegmentInactiveClass;
+}

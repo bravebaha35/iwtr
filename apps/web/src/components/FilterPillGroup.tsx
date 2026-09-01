@@ -12,6 +12,18 @@ const wrapPillBaseClass =
 // fixed width regardless of label length (e.g. "Hybrid/Remote").
 const gridPillBaseClass =
   "flex w-full min-w-0 items-center justify-center break-words rounded-xl px-2 py-2 text-center text-xs font-light leading-tight transition";
+// "Mode B" segmented-control shape — used only when a consumer opts into
+// variant="track" below (WorkType filter on the homepage/jobs page). Every
+// other consumer of MultiFilterPillGroup is untouched by this. Grid mode
+// keeps gridPillBaseClass's wrapping safeguards (break-words, smaller text)
+// — the design spec's px-4/text-sm reads fine in a spacious single row, but
+// clips a label like "Hybrid/Remote" in the sidebar's fixed 2-column grid.
+const trackSegmentBaseClass = "rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200";
+const trackSegmentGridBaseClass =
+  "flex w-full min-w-0 items-center justify-center break-words rounded-lg px-2 py-2 text-center text-xs font-medium leading-tight transition-all duration-200";
+// Just the recessed box — the layout (grid/wrap/column) and its own gap
+// still come from layoutClassName below, unchanged.
+const trackWrapperClass = "rounded-xl border border-zinc-800/60 bg-zinc-950/80 p-1";
 
 // Single shared building block for every button-style filter in the app —
 // restyling how an active/inactive filter pill looks is a one-function
@@ -91,6 +103,11 @@ export function MultiFilterPillGroup<T extends string>({
   // the sidebar-style labeled filter group. Also centers the pill row itself
   // in that case, since there's no heading to balance it against.
   showHeading = true,
+  // "track" swaps the pill shape for a borderless segmented-control look
+  // inside a dark recessed box (trackWrapperClass/trackSegmentBaseClass) —
+  // opt-in only, so every existing consumer (default "pill") is unaffected.
+  // Currently used only by the WorkType filter on the homepage/jobs page.
+  variant = "pill",
 }: {
   heading: string;
   options: { value: T; label: string }[];
@@ -109,13 +126,41 @@ export function MultiFilterPillGroup<T extends string>({
   // plain look unchanged.
   pillColorClassName?: (value: T, active: boolean) => string;
   showHeading?: boolean;
+  variant?: "pill" | "track";
 }) {
+  const isTrack = variant === "track";
   const layoutClassName =
     direction === "column"
       ? "flex flex-row flex-wrap gap-1.5 sm:flex-col"
       : direction === "grid"
         ? "grid grid-cols-2 gap-1.5"
         : `flex flex-wrap gap-1.5${showHeading ? "" : " justify-center"}`;
+  const pills = (
+    <div className={layoutClassName}>
+      {options.map((o) => {
+        const active = selected.includes(o.value);
+        let className: string;
+        if (isTrack) {
+          const colorClass = pillColorClassName
+            ? pillColorClassName(o.value, active)
+            : active
+              ? "bg-zinc-800 text-white"
+              : "text-zinc-400 hover:text-zinc-200";
+          const shapeClass = direction === "grid" ? trackSegmentGridBaseClass : trackSegmentBaseClass;
+          className = `${shapeClass} ${colorClass}`;
+        } else if (pillColorClassName) {
+          className = `${direction === "grid" ? gridPillBaseClass : wrapPillBaseClass} ${pillColorClassName(o.value, active)}`;
+        } else {
+          className = direction === "grid" ? gridPillClass(active) : pillClass(active);
+        }
+        return (
+          <button key={o.value} type="button" onClick={() => onToggle(o.value)} className={className}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
   return (
     <div>
       {showHeading && (
@@ -124,21 +169,7 @@ export function MultiFilterPillGroup<T extends string>({
           <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} />
         </div>
       )}
-      <div className={layoutClassName}>
-        {options.map((o) => {
-          const active = selected.includes(o.value);
-          const className = pillColorClassName
-            ? `${direction === "grid" ? gridPillBaseClass : wrapPillBaseClass} ${pillColorClassName(o.value, active)}`
-            : direction === "grid"
-              ? gridPillClass(active)
-              : pillClass(active);
-          return (
-            <button key={o.value} type="button" onClick={() => onToggle(o.value)} className={className}>
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
+      {isTrack ? <div className={trackWrapperClass}>{pills}</div> : pills}
     </div>
   );
 }

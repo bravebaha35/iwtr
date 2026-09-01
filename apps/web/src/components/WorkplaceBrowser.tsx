@@ -6,7 +6,7 @@ import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
-import { collarPillClassName } from "@/lib/collarColors";
+import { collarSegmentClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
@@ -544,7 +544,8 @@ export function WorkplaceBrowser() {
                 onToggle={toggleWorkplaceType}
                 onReset={resetWorkplaceTypes}
                 direction="grid"
-                pillColorClassName={collarPillClassName}
+                variant="track"
+                pillColorClassName={collarSegmentClassName}
               />
               <div className="mt-2">
                 <SingleSelectDropdown
@@ -681,15 +682,13 @@ export function WorkplaceBrowser() {
                   through three states on each click — neutral, red
                   outline (least-rated first), green outline (best-rated
                   first), then back to neutral. */}
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex items-center gap-1 rounded-xl border border-zinc-800/60 bg-zinc-950/80 p-1">
                 <button
                   type="button"
                   onClick={() => setSortBy((s) => (s === "alphabetical" ? "default" : "alphabetical"))}
                   aria-pressed={sortBy === "alphabetical"}
-                  className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
-                    sortBy === "alphabetical"
-                      ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-                      : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    sortBy === "alphabetical" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
                   A-Z
@@ -698,10 +697,8 @@ export function WorkplaceBrowser() {
                   type="button"
                   onClick={() => setSortBy((s) => (s === "workplace" ? "default" : "workplace"))}
                   aria-pressed={sortBy === "workplace"}
-                  className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
-                    sortBy === "workplace"
-                      ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-                      : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    sortBy === "workplace" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
                   Workplace
@@ -719,12 +716,12 @@ export function WorkplaceBrowser() {
                         ? "Showing best-rated first"
                         : "Sort by rating"
                   }
-                  className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
                     sortBy === "ratingAsc"
-                      ? "border-red-500 text-red-600 dark:border-red-400 dark:text-red-400"
+                      ? "border border-red-800/50 bg-red-950/40 text-red-400"
                       : sortBy === "ratingDesc"
-                        ? "border-green-500 text-green-600 dark:border-green-400 dark:text-green-400"
-                        : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                        ? "border border-emerald-800/50 bg-emerald-950/40 text-emerald-400"
+                        : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
                   Rating
