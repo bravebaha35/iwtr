@@ -11,7 +11,6 @@ import { Avatar } from "@/components/Avatar";
 import { avatarLabel } from "@/lib/avatars";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
-import { JobCreationFlow } from "@/components/jobs/JobCreationFlow";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
 // uses (Home, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
@@ -74,7 +73,6 @@ export function GlobalHeader() {
   // Deliberately a local fetch here rather than a global auth-context change:
   // nothing else in the app needs this yet.
   const [employerProfile, setEmployerProfile] = useState<EmployerProfileView | null>(null);
-  const [jobFlowOpen, setJobFlowOpen] = useState(false);
 
   useEffect(() => {
     if (!isCompanyOwner) {
@@ -164,26 +162,11 @@ export function GlobalHeader() {
           {showAccountControls && <NotificationsMenu />}
 
           {showAccountControls && (
-            <div className="flex items-center">
-              <NavIconLink href="/jobs" label={isCompanyOwner ? "Hire now !" : "Jobs"} title={isCompanyOwner ? "Post a job" : "Jobs"}>
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                </svg>
-              </NavIconLink>
-              {isCompanyOwner && (
-                <button
-                  type="button"
-                  onClick={() => setJobFlowOpen(true)}
-                  aria-label="Create a job posting"
-                  title="Create a job posting"
-                  className="flex h-6 w-6 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
-                >
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </button>
-              )}
-            </div>
+            <NavIconLink href="/jobs" label={isCompanyOwner ? "Hire now !" : "Jobs"} title={isCompanyOwner ? "Post a job" : "Jobs"}>
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+              </svg>
+            </NavIconLink>
           )}
 
           {showAccountControls && (
@@ -238,8 +221,6 @@ export function GlobalHeader() {
           </button>
         )}
       </div>
-
-      {isCompanyOwner && <JobCreationFlow open={jobFlowOpen} onClose={() => setJobFlowOpen(false)} />}
     </header>
   );
 }

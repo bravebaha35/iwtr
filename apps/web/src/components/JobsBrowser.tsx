@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { type CompanyListItem, type CompanyVibeFlags, type VibeFlag, type WorkplaceType } from "@iwtr/shared-types";
+import { useAuth } from "@/lib/auth-context";
 import { apiGet } from "@/lib/api-client";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarSegmentClassName } from "@/lib/collarColors";
@@ -12,6 +13,7 @@ import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
+import { JobCreationFlow } from "@/components/jobs/JobCreationFlow";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
@@ -315,31 +317,6 @@ function JobCard({ company }: { company: CompanyListItem }) {
   );
 }
 
-// Compact list beside the main grid — company names and plain rating
-// numbers only, nothing else, per the brief.
-function HiringRatingSidebar({ companies }: { companies: CompanyListItem[] }) {
-  return (
-    <aside className="hidden w-56 shrink-0 flex-col gap-2 xl:flex">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Companies Hiring</h3>
-      <div className="thin-scrollbar flex max-h-[75vh] flex-col gap-0.5 overflow-y-auto rounded-xl border border-border bg-surface p-2">
-        {companies.map((c) => (
-          <Link
-            key={c.id}
-            href={`/companies/${c.slug}`}
-            className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-surface-muted"
-          >
-            <span className="truncate text-foreground">{c.name}</span>
-            <span className="shrink-0 font-semibold text-foreground">
-              {c.overallAvg !== null ? c.overallAvg.toFixed(1) : "—"}
-            </span>
-          </Link>
-        ))}
-        {companies.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">No companies yet.</p>}
-      </div>
-    </aside>
-  );
-}
-
 function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number }): number {
   const province = findProvinceByCityName(company.city);
   if (!province) return Infinity;
@@ -347,6 +324,9 @@ function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number })
 }
 
 export function JobsBrowser() {
+  const { isAuthenticated, role, onboardingStatus } = useAuth();
+  const isCompanyOwner = isAuthenticated && onboardingStatus?.status === "ACTIVE" && role === "COMPANY_OWNER";
+  const [jobFlowOpen, setJobFlowOpen] = useState(false);
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [minRating, setMinRating] = useState(0);
@@ -611,54 +591,65 @@ export function JobsBrowser() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
               />
-              <div className="ml-auto flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800/60 dark:bg-zinc-950/80">
-                <button
-                  type="button"
-                  onClick={() => setSortBy((s) => (s === "alphabetical" ? "default" : "alphabetical"))}
-                  aria-pressed={sortBy === "alphabetical"}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    sortBy === "alphabetical"
-                      ? "bg-zinc-800 text-white"
-                      : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                  }`}
-                >
-                  A-Z
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSortBy((s) => (s === "workplace" ? "default" : "workplace"))}
-                  aria-pressed={sortBy === "workplace"}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    sortBy === "workplace"
-                      ? "bg-zinc-800 text-white"
-                      : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                  }`}
-                >
-                  Workplace
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSortBy((s) => (s === "ratingAsc" ? "ratingDesc" : s === "ratingDesc" ? "default" : "ratingAsc"))
-                  }
-                  aria-pressed={sortBy === "ratingAsc" || sortBy === "ratingDesc"}
-                  title={
-                    sortBy === "ratingAsc"
-                      ? "Showing least-rated first"
-                      : sortBy === "ratingDesc"
-                        ? "Showing best-rated first"
-                        : "Sort by rating"
-                  }
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    sortBy === "ratingAsc"
-                      ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400"
-                      : sortBy === "ratingDesc"
-                        ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+              <div className="ml-auto flex items-center gap-3">
+                {isCompanyOwner && (
+                  <button
+                    type="button"
+                    onClick={() => setJobFlowOpen(true)}
+                    className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+                  >
+                    Create job posting !
+                  </button>
+                )}
+                <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800/60 dark:bg-zinc-950/80">
+                  <button
+                    type="button"
+                    onClick={() => setSortBy((s) => (s === "alphabetical" ? "default" : "alphabetical"))}
+                    aria-pressed={sortBy === "alphabetical"}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                      sortBy === "alphabetical"
+                        ? "bg-zinc-800 text-white"
                         : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                  }`}
-                >
-                  Rating
-                </button>
+                    }`}
+                  >
+                    A-Z
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortBy((s) => (s === "workplace" ? "default" : "workplace"))}
+                    aria-pressed={sortBy === "workplace"}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                      sortBy === "workplace"
+                        ? "bg-zinc-800 text-white"
+                        : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    Workplace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSortBy((s) => (s === "ratingAsc" ? "ratingDesc" : s === "ratingDesc" ? "default" : "ratingAsc"))
+                    }
+                    aria-pressed={sortBy === "ratingAsc" || sortBy === "ratingDesc"}
+                    title={
+                      sortBy === "ratingAsc"
+                        ? "Showing least-rated first"
+                        : sortBy === "ratingDesc"
+                          ? "Showing best-rated first"
+                          : "Sort by rating"
+                    }
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                      sortBy === "ratingAsc"
+                        ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400"
+                        : sortBy === "ratingDesc"
+                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                          : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    Rating
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -698,10 +689,10 @@ export function JobsBrowser() {
               </>
             )}
           </div>
-
-          <HiringRatingSidebar companies={visibleCompanies ?? []} />
         </div>
       </div>
+
+      {isCompanyOwner && <JobCreationFlow open={jobFlowOpen} onClose={() => setJobFlowOpen(false)} />}
     </div>
   );
 }
