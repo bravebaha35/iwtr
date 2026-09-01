@@ -26,6 +26,16 @@ const RATING_TICKS: { value: number; src: string; alt: string }[] = [
   { value: 5, src: "/5HighMood.png", alt: "High rating" },
 ];
 
+// Which of the 3 mood mascots is "live" for the current slider value — an
+// even 3-way split of the 0-5 range (not tied to the ticks' exact anchor
+// values), so the red mascot owns the left third of the track, the middle
+// one the middle third, and the green one the right third.
+function activeMoodIndex(value: number): number {
+  if (value < 5 / 3) return 0;
+  if (value < 10 / 3) return 1;
+  return 2;
+}
+
 // "ratingAsc"/"ratingDesc" are two separate states (not one "rating" value
 // the Rating button just flips) because the button cycles through three
 // distinct looks — neutral, red-outlined (worst first), green-outlined
@@ -572,21 +582,27 @@ export function WorkplaceBrowser() {
                   would push the leftmost one half outside the box on the
                   left and the rightmost one half outside on the right, so
                   the two ends anchor inward instead and only the middle
-                  tick stays centered. */}
+                  tick stays centered. Only the mascot for the slider's
+                  current third is at full size/color (scale-110, no filter)
+                  — the other two sit dim and grayscale (scale-90, opacity-40)
+                  until the value slides into their zone. */}
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none overflow-hidden">
-                <div className="relative pt-12">
-                  {RATING_TICKS.map((tick) => (
-                    // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
-                    <img
-                      key={tick.value}
-                      src={tick.src}
-                      alt={tick.alt}
-                      className={`absolute top-0 h-11 w-11 ${
-                        tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
-                      }`}
-                      style={{ left: `${(tick.value / 5) * 100}%` }}
-                    />
-                  ))}
+                <div className="relative pt-16">
+                  {RATING_TICKS.map((tick, i) => {
+                    const active = activeMoodIndex(minRating) === i;
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
+                      <img
+                        key={tick.value}
+                        src={tick.src}
+                        alt={tick.alt}
+                        className={`absolute top-0 h-14 w-14 transition-all duration-200 ${
+                          tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
+                        } ${active ? "scale-110 opacity-100" : "scale-90 opacity-40 grayscale"}`}
+                        style={{ left: `${(tick.value / 5) * 100}%` }}
+                      />
+                    );
+                  })}
 
                   <div
                     ref={sliderTrackRef}

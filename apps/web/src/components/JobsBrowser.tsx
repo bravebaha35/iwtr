@@ -28,15 +28,29 @@ import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 
 type Geo = { lat: number; lng: number } | "denied" | null;
 
-const RATING_TICKS: { value: number; emoji: string }[] = [
-  { value: 0, emoji: "😠" },
-  { value: 2.5, emoji: "😐" },
-  { value: 5, emoji: "😄" },
+const RATING_TICKS: { value: number; src: string; alt: string }[] = [
+  { value: 0, src: "/1LowMood.png", alt: "Low rating" },
+  { value: 2.5, src: "/3MidMood.png", alt: "Mid rating" },
+  { value: 5, src: "/5HighMood.png", alt: "High rating" },
 ];
+
+// Which of the 3 mood mascots is "live" for the current slider value — an
+// even 3-way split of the 0-5 range (not tied to the ticks' exact anchor
+// values), so the red mascot owns the left third of the track, the middle
+// one the middle third, and the green one the right third. Kept as a
+// separate copy of WorkplaceBrowser.tsx's identical helper per this file's
+// standing near-duplicate policy (see the file-header comment).
+function activeMoodIndex(value: number): number {
+  if (value < 5 / 3) return 0;
+  if (value < 10 / 3) return 1;
+  return 2;
+}
 
 type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "ratingDesc";
 
-const RESULTS_PAGE_SIZE = 24;
+// 4 columns × 4 rows at the desktop breakpoint, matching the homepage's own
+// "columns × rows" page-size convention (see WorkplaceBrowser.tsx).
+const RESULTS_PAGE_SIZE = 16;
 
 function pageNumbers(current: number, total: number): (number | "...")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -292,20 +306,20 @@ function JobCard({ company }: { company: CompanyListItem }) {
               <span className="text-xs font-bold text-muted-foreground">No open roles listed yet</span>
             )}
           </div>
-          <div className="flex shrink-0 flex-col gap-1.5">
-            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Contact</h4>
+          <div className="flex shrink-0 flex-col gap-1">
             <ContactRow label="Mail us!" value={company.contactEmail} />
             <ContactRow label="Call us!" value={company.contactPhone} />
           </div>
         </div>
       </div>
 
-      {/* Card footer, below the main content box */}
-      <div className="border-t border-border p-3 compact:p-2">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          General Information
-        </h4>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
+      {/* Card footer, below the main content box — no "General Information"
+          label above it (removed per design feedback): the line is
+          self-explanatory on its own, and dropping the label plus the
+          padding it needed is what lets the card shrink to fit a 4-column
+          grid without losing any of the actual info it shows. */}
+      <div className="border-t border-border px-3 py-2 compact:px-2 compact:py-1.5">
+        <p className="truncate text-xs text-muted-foreground">
           {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")}
           {company.isVerifiedBadge ? " · Verified" : ""}
           {company.isChainStore ? " · Chain store" : ""}
@@ -528,18 +542,22 @@ export function JobsBrowser() {
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none overflow-hidden">
-                <div className="relative pt-7">
-                  {RATING_TICKS.map((tick) => (
-                    <span
-                      key={tick.value}
-                      className={`absolute top-0 text-lg leading-none ${
-                        tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
-                      }`}
-                      style={{ left: `${(tick.value / 5) * 100}%` }}
-                    >
-                      {tick.emoji}
-                    </span>
-                  ))}
+                <div className="relative pt-16">
+                  {RATING_TICKS.map((tick, i) => {
+                    const active = activeMoodIndex(minRating) === i;
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
+                      <img
+                        key={tick.value}
+                        src={tick.src}
+                        alt={tick.alt}
+                        className={`absolute top-0 h-14 w-14 transition-all duration-200 ${
+                          tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
+                        } ${active ? "scale-110 opacity-100" : "scale-90 opacity-40 grayscale"}`}
+                        style={{ left: `${(tick.value / 5) * 100}%` }}
+                      />
+                    );
+                  })}
 
                   <div
                     ref={sliderTrackRef}
@@ -673,7 +691,7 @@ export function JobsBrowser() {
                 No companies are looking for people under these filters yet.
               </p>
             )}
-            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {pageCompanies?.map((c) => (
                 <JobCard key={c.id} company={c} />
               ))}
