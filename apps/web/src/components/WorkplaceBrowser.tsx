@@ -496,32 +496,7 @@ export function WorkplaceBrowser() {
 
           {/* Results */}
           <div ref={resultsTopRef} className="flex-1">
-            {/* Curated category-group quick filter — a coarser, single-select
-                alternative to the free-text Sector dropdown below, for the
-                4 groupings that matter most on the browse page. */}
-            <div role="radiogroup" aria-label="Filter by category group" className="mb-3 flex flex-wrap items-center gap-2">
-              {CATEGORY_GROUP_BUTTONS.map((opt) => {
-                const checked = categoryGroup === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={checked}
-                    onClick={() => setCategoryGroup((g) => (g === opt.value ? null : opt.value))}
-                    className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
-                      checked
-                        ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-                        : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
               <input
                 type="search"
                 placeholder="Search a workplace by name..."
@@ -529,6 +504,33 @@ export function WorkplaceBrowser() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
               />
+
+              {/* Curated category-group quick filter — a coarser,
+                  single-select alternative to the free-text Sector dropdown
+                  above, for the 4 groupings that matter most on the browse
+                  page. Sits between the search box and the sort buttons. */}
+              <div role="radiogroup" aria-label="Filter by category group" className="flex flex-wrap items-center gap-2">
+                {CATEGORY_GROUP_BUTTONS.map((opt) => {
+                  const checked = categoryGroup === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={checked}
+                      onClick={() => setCategoryGroup((g) => (g === opt.value ? null : opt.value))}
+                      className={`rounded-full border-2 px-3 py-1.5 text-xs font-medium transition ${
+                        checked
+                          ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+                          : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Standalone toggle buttons instead of a "Sort by" dropdown —
                   every option is visible and clickable directly. A-Z and
                   Workplace are plain on/off toggles (click again to go
