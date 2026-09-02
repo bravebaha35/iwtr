@@ -5,9 +5,11 @@ import Link from "next/link";
 import { type CompanyListItem, type CompanyVibeFlags, type VibeFlag, type WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet } from "@/lib/api-client";
+import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarSegmentClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
+import { type CategoryGroup, matchesCategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -155,25 +157,47 @@ function CopyIconButton({ text }: { text: string }) {
   );
 }
 
-// "Mail us!" / "Call us!" — click opens a small popover to the right with
-// the raw value + a copy-to-clipboard icon, rather than a mailto:/tel: link
-// (a reviewer-anonymous platform never wants an accidental full mail-client
-// handoff to be the only option — copying the address is the more reliable
-// action on both desktop and mobile).
-function ContactRow({ label, value }: { label: string; value: string | null }) {
+function MailIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m4 7 8 6 8-6" />
+    </svg>
+  );
+}
+function PhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 4h3.5l1.5 4-2 1.5a12 12 0 0 0 5.5 5.5l1.5-2 4 1.5v3.5a1.5 1.5 0 0 1-1.6 1.5A17 17 0 0 1 3 5.6 1.5 1.5 0 0 1 4.5 4Z" />
+    </svg>
+  );
+}
+
+// "Mail" / "Call" — icon + short word, side by side (were stacked "Mail
+// us!"/"Call us!" full-width buttons; per design feedback that ate too much
+// of the card, both now read as compact horizontal icon buttons). Click
+// opens a small popover with the raw value + a copy-to-clipboard icon,
+// rather than a mailto:/tel: link (a reviewer-anonymous platform never
+// wants an accidental full mail-client handoff to be the only option —
+// copying the address is the more reliable action on both desktop and
+// mobile).
+function ContactButton({ icon, label, value }: { icon: "mail" | "phone"; label: string; value: string | null }) {
   const [open, setOpen] = useState(false);
   if (!value) return null;
+  const Icon = icon === "mail" ? MailIcon : PhoneIcon;
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full rounded-lg border border-border px-3 py-1.5 text-left text-xs font-medium text-foreground transition hover:bg-surface-muted"
+        aria-label={`${label}: ${value}`}
+        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs font-medium text-foreground transition hover:bg-surface-muted"
       >
+        <Icon className="h-3.5 w-3.5" />
         {label}
       </button>
       {open && (
-        <div className="absolute left-full top-0 z-20 ml-1 flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground shadow-lg">
+        <div className="absolute right-0 top-full z-20 mt-1 flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground shadow-lg">
           <span>{value}</span>
           <CopyIconButton text={value} />
         </div>
@@ -235,15 +259,33 @@ function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
   );
 }
 
-// One job card: 4:5 aspect main box (logo+name header, address/sector,
-// job titles + contact, rating + vibe-flags "i" menu) plus a General
+// One card = one job (or the company's empty state) — was one card per
+// company with every one of its postings crammed into a chip row, which
+// gave a multi-role employer no way to boost/advertise a single title on
+// its own. JobPosting already carries its own boost fields per row in the
+// DB, so splitting the card this way lines the UI up with what the data
+// model already supports: pick "3D Artist", not "3D Artist AND Forklift
+// Operatörü", when buying a boost.
+type CardPosting = { jobTitle: string; description: string | null } | null;
+
+function postingsForCard(company: CompanyListItem): CardPosting[] {
+  if (company.jobPostings.length > 0) {
+    return company.jobPostings.map((p) => ({ jobTitle: p.jobTitle, description: p.description }));
+  }
+  if (company.jobTitles.length > 0) {
+    // Auto-classified titles have no owner-authored description to show.
+    return company.jobTitles.map((title) => ({ jobTitle: title, description: null }));
+  }
+  return [null];
+}
+
+// One job card: 4:5 aspect main box (logo+name header, address/sector, one
+// job title + contact, rating + vibe-flags "i" menu) plus a General
 // Information footer strip below the box — see the layout notes in the PR
 // description for why the footer sits outside the aspect box.
-function JobCard({ company }: { company: CompanyListItem }) {
+function JobCard({ company, posting }: { company: CompanyListItem; posting: CardPosting }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const location = [company.district, company.city].filter(Boolean).join(", ");
-  const postedTitles =
-    company.jobPostings.length > 0 ? company.jobPostings.map((p) => p.jobTitle) : company.jobTitles;
 
   return (
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
@@ -252,16 +294,24 @@ function JobCard({ company }: { company: CompanyListItem }) {
     // invisible.
     <div className="flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700">
       <div className="flex aspect-[4/5] flex-col p-4 compact:p-3">
-        {/* Top row: logo + name (top-left) ... spacer + rating + info button (top-right) */}
+        {/* Top row: logo + name (top-left) ... rating + info button
+            (top-right). Name wraps up to 2 lines (was a single truncated
+            line that clipped anything past ~20 chars, e.g. "Örnek Perakende
+            M...") rather than cutting a long company name short. */}
         <div className="flex items-start justify-between gap-2">
-          <Link href={`/companies/${company.slug}`} className="flex min-w-0 items-center gap-2">
+          <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
             <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
-            <span className="truncate font-semibold text-foreground">{company.name}</span>
+            <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">{company.name}</span>
           </Link>
 
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="h-4 w-4" aria-hidden="true" />
-            <span className="text-sm font-bold text-foreground" title="User rating">
+            {/* Colored by score band (same scoreTextColor the rating
+                homepage's CompanyCard uses) instead of plain foreground —
+                red/orange/amber/lime/green at a glance, not just a number. */}
+            <span
+              className={`text-sm font-bold ${company.overallAvg !== null ? scoreTextColor(company.overallAvg) : "text-muted-foreground"}`}
+              title="User rating"
+            >
               {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
             </span>
             <div className="relative">
@@ -288,29 +338,36 @@ function JobCard({ company }: { company: CompanyListItem }) {
           {location || "Location not set"} · {company.category}
         </p>
 
-        {/* Job titles/postings (bold) + Contact, side by side */}
-        {/* No overflow-hidden here — the Contact column's Mail us!/Call us!
+        {/* This card's one job title + Mail/Call, side by side (were a
+            stacked column) so the row stays short and leaves room for the
+            description below. No overflow-hidden here — the Contact
             popovers are absolutely positioned to spill outside this row. */}
-        <div className="mt-3 flex flex-1 items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap content-start gap-1">
-            {postedTitles.length > 0 ? (
-              postedTitles.map((title, i) => (
-                <span
-                  key={`${title}-${i}`}
-                  className="truncate rounded-full bg-brand-50 px-2 py-1 text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300"
-                >
-                  {title}
-                </span>
-              ))
+        <div className="mt-3 flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {posting ? (
+              <span className="inline-block truncate rounded-full bg-brand-50 px-2 py-1 text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300">
+                {posting.jobTitle}
+              </span>
             ) : (
               <span className="text-xs font-bold text-muted-foreground">No open roles listed yet</span>
             )}
           </div>
-          <div className="flex shrink-0 flex-col gap-1">
-            <ContactRow label="Mail us!" value={company.contactEmail} />
-            <ContactRow label="Call us!" value={company.contactPhone} />
+          <div className="flex shrink-0 items-center gap-1.5">
+            <ContactButton icon="mail" label="Mail" value={company.contactEmail} />
+            <ContactButton icon="phone" label="Call" value={company.contactPhone} />
           </div>
         </div>
+
+        {/* The description the owner wrote for this posting in
+            JobSetupModal's "Tell us more" field — shown here by default,
+            filling the rest of the box, not tucked behind a click. Only
+            individually-authored postings (company.jobPostings) carry one;
+            the auto-classified jobTitles fallback has none to show. */}
+        {posting?.description && (
+          <p className="mt-3 flex-1 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground">
+            {posting.description}
+          </p>
+        )}
       </div>
 
       {/* Card footer, below the main content box — no "General Information"
@@ -343,6 +400,7 @@ export function JobsBrowser() {
   const [jobFlowOpen, setJobFlowOpen] = useState(false);
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
   const [minRating, setMinRating] = useState(0);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
@@ -450,6 +508,7 @@ export function JobsBrowser() {
   const visibleCompanies = useMemo(() => {
     if (!companies) return null;
     let list = selectedCategory ? companies.filter((c) => c.category === selectedCategory) : companies;
+    list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
 
     if (sortBy === "alphabetical") {
       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
@@ -464,11 +523,11 @@ export function JobsBrowser() {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
     return list;
-  }, [companies, selectedCategory, geo, sortBy]);
+  }, [companies, selectedCategory, categoryGroup, geo, sortBy]);
 
   useEffect(() => {
     setPage(1);
-  }, [workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
+  }, [workplaceTypes, selectedCategory, categoryGroup, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
 
   const totalPages = visibleCompanies ? Math.max(1, Math.ceil(visibleCompanies.length / RESULTS_PAGE_SIZE)) : 1;
   const pageCompanies = visibleCompanies?.slice((page - 1) * RESULTS_PAGE_SIZE, page * RESULTS_PAGE_SIZE) ?? null;
@@ -541,7 +600,7 @@ export function JobsBrowser() {
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h3>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
-              <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none overflow-hidden">
+              <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
                 <div className="relative pt-16">
                   {RATING_TICKS.map((tick, i) => {
                     const active = activeMoodIndex(minRating) === i;
@@ -552,7 +611,11 @@ export function JobsBrowser() {
                         src={tick.src}
                         alt={tick.alt}
                         className={`absolute top-0 h-14 w-14 transition-all duration-200 ${
-                          tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
+                          tick.value === 0
+                            ? "translate-x-[-10px]"
+                            : tick.value === 5
+                              ? "translate-x-[calc(-100%+10px)]"
+                              : "-translate-x-1/2"
                         } ${active ? "scale-110 opacity-100" : "scale-90 opacity-40 grayscale"}`}
                         style={{ left: `${(tick.value / 5) * 100}%` }}
                       />
@@ -601,7 +664,7 @@ export function JobsBrowser() {
 
           {/* Results */}
           <div ref={resultsTopRef} className="min-w-0 flex-1">
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
               <input
                 type="search"
                 placeholder="Search a workplace by name..."
@@ -609,6 +672,12 @@ export function JobsBrowser() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
               />
+
+              {/* Same curated category-group quick filter as the rating
+                  homepage (WorkplaceBrowser.tsx) — shared markup/config via
+                  lib/categoryGroups.tsx, this page's own selection state. */}
+              <CategoryGroupFilter value={categoryGroup} onChange={setCategoryGroup} />
+
               <div className="ml-auto flex items-center gap-3">
                 {isCompanyOwner && (
                   <button
@@ -691,10 +760,14 @@ export function JobsBrowser() {
                 No companies are looking for people under these filters yet.
               </p>
             )}
+            {/* One card per job (see postingsForCard) — a company with N
+                open postings renders N cards here, not one crowded card. */}
             <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {pageCompanies?.map((c) => (
-                <JobCard key={c.id} company={c} />
-              ))}
+              {pageCompanies?.flatMap((c) =>
+                postingsForCard(c).map((posting, i) => (
+                  <JobCard key={`${c.id}-${posting?.jobTitle ?? "none"}-${i}`} company={c} posting={posting} />
+                )),
+              )}
             </div>
 
             {visibleCompanies !== null && visibleCompanies.length > 0 && (

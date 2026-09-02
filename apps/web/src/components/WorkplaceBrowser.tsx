@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
@@ -8,6 +9,7 @@ import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarSegmentClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
+import { type CategoryGroup, matchesCategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -42,140 +44,6 @@ function activeMoodIndex(value: number): number {
 // (best first) — and each needs its own stored state to read back on
 // re-render.
 type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "ratingDesc";
-
-// Coarse, curated grouping over Company.category — distinct from (and
-// combines with, ANDed) the free-text Sector dropdown's exact-category
-// filter below. "Firms" is everything NOT tagged with one of the other
-// three categories, matching exactly the category strings the nationwide
-// CITY_BASED/REGION_BASED brand seed script writes (see
-// apps/api/scripts/seed-nationwide-brands.ts) — every pre-existing company
-// (finance, construction, tech, etc.) falls under Firms by exclusion, same
-// as a company whose category happens to be spelled differently.
-type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS" | "CLOTHING" | "SERVICE_PROVIDERS" | "OIL_ENERGY";
-const NARROW_CATEGORY_GROUP_VALUES = [
-  "Supermarket",
-  "Franchise",
-  "Logistics",
-  "Clothing Retail",
-  "Telecom",
-  "Fuel & Energy",
-];
-
-// Icon-only pills — each button's old text label now lives in aria-label
-// (screen readers) plus a custom hover/focus tooltip drawn next to the
-// button (see the CategoryGroup render below) rather than the browser's
-// native `title` tooltip, which is slower to appear and unstyled.
-type IconProps = { className?: string };
-function FileIcon({ className }: IconProps) {
-  // "Checklist on a file" — the plain document outline plus three
-  // checked-off list lines, so it doesn't read as an empty blank page.
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-      <path d="M14 2v6h6" />
-      <path d="m7.25 12 1 1 2-2" />
-      <path d="M11.75 12h4.5" />
-      <path d="m7.25 15.5 1 1 2-2" />
-      <path d="M11.75 15.5h4.5" />
-      <path d="m7.25 19 1 1 2-2" />
-      <path d="M11.75 19h3.5" />
-    </svg>
-  );
-}
-function ShoppingCartIcon({ className }: IconProps) {
-  // Trapezoid basket with a cross-hatched grille (instead of a bare
-  // outline) plus handle and wheels, so it reads as an actual wire cart.
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 3h2l.7 3" />
-      <path d="M5.6 6h15.4l-2.2 8.5a1.5 1.5 0 0 1-1.45 1.13H8.9a1.5 1.5 0 0 1-1.46-1.16Z" />
-      <path d="M8.6 6v9.6M12 6v9.6M15.4 6v9.6" />
-      <path d="M6.4 9.4h15M7.2 12.7h13.4" />
-      <circle cx="10" cy="20" r="1.15" />
-      <circle cx="17" cy="20" r="1.15" />
-    </svg>
-  );
-}
-function FrenchFriesIcon({ className }: IconProps) {
-  // Fry box with a fold line for the paper-wrap seam and five uneven
-  // sticks poking out, instead of four evenly-spaced lines.
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7.5 9V4.5M9.8 9V2.5M12 9V5M14.2 9V2.8M16.5 9V4.8" />
-      <path d="M5 9h14l-2.1 12H7.1Z" />
-      <path d="M6 12.2h12" />
-    </svg>
-  );
-}
-function ForkliftIcon({ className }: IconProps) {
-  // Side-profile forklift: cab + wheels, a two-post mast, forks, and a
-  // lifted pallet — swapped in for the cargo-crate icon per feedback.
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 13h9v5H2Z" />
-      <circle cx="6" cy="19" r="1.3" />
-      <circle cx="13" cy="19" r="1.3" />
-      <path d="M12 18V6M15 18V6" />
-      <path d="M12 6h3" />
-      <path d="M12 10H5M12 13H5" />
-      <path d="M4 8h4v6H4Z" />
-    </svg>
-  );
-}
-function TshirtIcon({ className }: IconProps) {
-  // Classic t-shirt silhouette — collar notch, sleeve, and hem — for the
-  // LC Waikiki / DeFacto / Koton clothing-brand grouping.
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 3 3 7l3 3 2-1.5V21h8V8.5L18 10l3-3-5-4-1.5 1.5a3 3 0 0 1-5 0Z" />
-    </svg>
-  );
-}
-function TelecomIcon({ className }: IconProps) {
-  // Broadcast/signal tower — mast, two crossbars, a base, and a pair of
-  // signal arcs off the tip — for the Türk Telekom / Turkcell Superonline /
-  // Vodafone / TurkNet service-provider grouping.
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" />
-      <path d="M12 6v14" />
-      <path d="M8.5 20h7" />
-      <path d="M9.5 10h5" />
-      <path d="M8.5 15h7" />
-      <path d="M9 6.3a3.2 3.2 0 0 1 0-4.6" />
-      <path d="M15 6.3a3.2 3.2 0 0 0 0-4.6" />
-    </svg>
-  );
-}
-function OilDropIcon({ className }: IconProps) {
-  // Single teardrop outline with a small highlight glint — for the
-  // TotalEnergies / Petrol Ofisi / Opet / Shell / Türkiye Petrolleri grouping.
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3c3.5 4.2 6 7.7 6 10.5a6 6 0 1 1-12 0C6 10.7 8.5 7.2 12 3Z" />
-      <path d="M9.8 15.2a2.6 2.6 0 0 0 2.2 2.4" />
-    </svg>
-  );
-}
-const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon: (props: IconProps) => React.JSX.Element }[] = [
-  { value: "FIRMS", label: "Firms", icon: FileIcon },
-  { value: "SUPERMARKET", label: "Supermarket", icon: ShoppingCartIcon },
-  { value: "FRANCHISE", label: "Franchises", icon: FrenchFriesIcon },
-  { value: "LOGISTICS", label: "Logistics", icon: ForkliftIcon },
-  { value: "CLOTHING", label: "Clothing", icon: TshirtIcon },
-  { value: "SERVICE_PROVIDERS", label: "Service Providers", icon: TelecomIcon },
-  { value: "OIL_ENERGY", label: "Oil & Energy", icon: OilDropIcon },
-];
-function matchesCategoryGroup(company: { category: string }, group: CategoryGroup | null): boolean {
-  if (!group) return true;
-  if (group === "FIRMS") return !NARROW_CATEGORY_GROUP_VALUES.includes(company.category);
-  if (group === "SUPERMARKET") return company.category === "Supermarket";
-  if (group === "FRANCHISE") return company.category === "Franchise";
-  if (group === "LOGISTICS") return company.category === "Logistics";
-  if (group === "CLOTHING") return company.category === "Clothing Retail";
-  if (group === "SERVICE_PROVIDERS") return company.category === "Telecom";
-  return company.category === "Fuel & Energy";
-}
 
 // 4 columns × 5 rows at the desktop breakpoint — see CompanyCard/grid below.
 const RESULTS_PAGE_SIZE = 20;
@@ -288,7 +156,7 @@ function CompanyCard({ company }: { company: CompanyListItem }) {
       <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-2">
         {company.overallAvg !== null ? (
           <>
-            <div className="flex items-baseline gap-1.5">
+            <div className="flex items-center gap-1.5">
               <span className="text-lg font-bold text-foreground">{company.overallAvg.toFixed(1)}</span>
               <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
                 {scoreBandLabel(company.overallAvg)}
@@ -326,7 +194,44 @@ function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number })
   return distanceKm(geo.lat, geo.lng, province.lat, province.lng);
 }
 
+type HighlightTarget = "search" | "categories";
+
+// Reads GlobalFooter.tsx's `?highlight=search|categories` (added to
+// "Submit a Review"/"Claim Profile" and "Job Categories" respectively) so
+// arriving here can point at the right control instead of a bare
+// navigation with no explanation. useSearchParams (not a one-time
+// window.location read) so this still fires on a query-only client-side
+// navigation that doesn't remount WorkplaceBrowser — e.g. clicking the
+// footer link while already on the homepage. Split into its own component
+// only because useSearchParams requires a Suspense boundary for the build;
+// fallback is null since this renders nothing itself.
+function HighlightParamListener({ onHighlight }: { onHighlight: (target: HighlightTarget) => void }) {
+  const searchParams = useSearchParams();
+  const highlight = searchParams.get("highlight");
+
+  useEffect(() => {
+    if (highlight !== "search" && highlight !== "categories") return;
+    onHighlight(highlight);
+    // Strip the param so the URL doesn't linger with ?highlight=... and
+    // re-trigger the pulse on every later refresh of the same page.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("highlight");
+    window.history.replaceState({}, "", url.toString());
+  }, [highlight, onHighlight]);
+
+  return null;
+}
+
 export function WorkplaceBrowser() {
+  // Set briefly by HighlightParamListener above to pulse/glow whichever
+  // control a footer link pointed at, then cleared once the CSS animation
+  // (.highlight-pulse, 3 iterations of a 0.8s keyframe ≈ 2.4s) has finished.
+  const [highlightTarget, setHighlightTarget] = useState<HighlightTarget | null>(null);
+  const onHighlight = useCallback((target: HighlightTarget) => {
+    setHighlightTarget(target);
+    window.setTimeout(() => setHighlightTarget(null), 2500);
+  }, []);
+
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [minRating, setMinRating] = useState(0);
@@ -597,12 +502,13 @@ export function WorkplaceBrowser() {
                   is edge-aware — centering every icon (-translate-x-1/2)
                   would push the leftmost one half outside the box on the
                   left and the rightmost one half outside on the right, so
-                  the two ends anchor inward instead and only the middle
-                  tick stays centered. Only the mascot for the slider's
+                  the two ends nudge outward past the track by 10px instead
+                  (no overflow-hidden on the wrapper, so this is visible) and
+                  only the middle tick stays centered. Only the mascot for the slider's
                   current third is at full size/color (scale-110, no filter)
                   — the other two sit dim and grayscale (scale-90, opacity-40)
                   until the value slides into their zone. */}
-              <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none overflow-hidden">
+              <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
                 <div className="relative pt-16">
                   {RATING_TICKS.map((tick, i) => {
                     const active = activeMoodIndex(minRating) === i;
@@ -613,7 +519,11 @@ export function WorkplaceBrowser() {
                         src={tick.src}
                         alt={tick.alt}
                         className={`absolute top-0 h-14 w-14 transition-all duration-200 ${
-                          tick.value === 0 ? "translate-x-0" : tick.value === 5 ? "-translate-x-full" : "-translate-x-1/2"
+                          tick.value === 0
+                            ? "translate-x-[-10px]"
+                            : tick.value === 5
+                              ? "translate-x-[calc(-100%+10px)]"
+                              : "-translate-x-1/2"
                         } ${active ? "scale-110 opacity-100" : "scale-90 opacity-40 grayscale"}`}
                         style={{ left: `${(tick.value / 5) * 100}%` }}
                       />
@@ -655,57 +565,29 @@ export function WorkplaceBrowser() {
 
           {/* Results */}
           <div ref={resultsTopRef} className="flex-1">
+            <Suspense fallback={null}>
+              <HighlightParamListener onHighlight={onHighlight} />
+            </Suspense>
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <input
                 type="search"
                 placeholder="Search a workplace by name..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
+                className={`w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground ${
+                  highlightTarget === "search" ? "highlight-pulse" : ""
+                }`}
               />
 
               {/* Curated category-group quick filter — a coarser,
                   single-select alternative to the free-text Sector dropdown
                   above, for the 4 groupings that matter most on the browse
                   page. Sits between the search box and the sort buttons. */}
-              <div role="radiogroup" aria-label="Filter by category group" className="flex flex-wrap items-center gap-2">
-                {CATEGORY_GROUP_BUTTONS.map((opt) => {
-                  const checked = categoryGroup === opt.value;
-                  const Icon = opt.icon;
-                  return (
-                    <div key={opt.value} className="group relative flex">
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={checked}
-                        aria-label={opt.label}
-                        onClick={() => setCategoryGroup((g) => (g === opt.value ? null : opt.value))}
-                        className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition ${
-                          checked
-                            ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-                            : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </button>
-                      {/* Custom tooltip instead of the native `title` — shows
-                          instantly on hover/keyboard focus rather than after
-                          the browser's built-in delay, and matches the
-                          site's own type/theme instead of the OS default.
-                          Gone entirely once this option is picked — the
-                          selected outline already says which one it is. */}
-                      {!checked && (
-                        <span
-                          aria-hidden="true"
-                          className="pointer-events-none absolute -bottom-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[11px] font-medium text-background opacity-0 shadow-md transition-opacity duration-100 group-hover:opacity-100 group-focus-within:opacity-100"
-                        >
-                          {opt.label}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <CategoryGroupFilter
+                value={categoryGroup}
+                onChange={setCategoryGroup}
+                highlighted={highlightTarget === "categories"}
+              />
 
               {/* Standalone toggle buttons instead of a "Sort by" dropdown —
                   every option is visible and clickable directly. A-Z and

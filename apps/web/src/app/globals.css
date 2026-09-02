@@ -82,21 +82,22 @@
   --font-mono: var(--font-geist-mono);
 
   /* Brand accent — a single place to retune the whole site's color later.
-     A warm copper/amber (not the default SaaS blue), chosen to go with the
-     beaver mark: riverbank clay and cut wood rather than "corporate trust
-     blue". Named brand-* so nothing that references it needs to change if
-     the hue is ever swapped. */
-  --color-brand-50: #fff7ed;
-  --color-brand-100: #ffedd5;
-  --color-brand-200: #fed7aa;
-  --color-brand-300: #fdba74;
-  --color-brand-400: #fb923c;
-  --color-brand-500: #f97316;
-  --color-brand-600: #ea580c;
-  --color-brand-700: #c2410c;
-  --color-brand-800: #9a3412;
-  --color-brand-900: #7c2d12;
-  --color-brand-950: #431407;
+     Anchored on #AE4712 (brand-600, the resting color of every filled CTA —
+     Login/Register, Rate, etc.): burnt rust/riverbank clay, not stock
+     Tailwind orange-600 (#ea580c), so buttons read as the beaver's dug-clay
+     and cut-wood habitat rather than generic SaaS orange. Named brand-* so
+     nothing that references it needs to change if the hue is ever swapped. */
+  --color-brand-50: #fdf5f1;
+  --color-brand-100: #fcece4;
+  --color-brand-200: #f8d5c4;
+  --color-brand-300: #f2b597;
+  --color-brand-400: #eb8b5c;
+  --color-brand-500: #e35e1c;
+  --color-brand-600: #ae4712;
+  --color-brand-700: #883911;
+  --color-brand-800: #712f0e;
+  --color-brand-900: #5b260b;
+  --color-brand-950: #361707;
 }
 
 body {
@@ -115,6 +116,26 @@ a[href],
 select,
 [role="button"]:not([aria-disabled="true"]) {
   cursor: pointer;
+}
+
+/* Footer "take me there" highlight — a brief pulsing glow ring the
+   homepage's search box / category-button row plays once when a footer
+   link (Submit a Review, Job Categories, Claim Profile) routes here with
+   ?highlight=... appended, so the visitor's eye lands on the right control
+   instead of a bare navigation with no explanation. Single hardcoded
+   brand-600 hex (#AE4712, no light/dark variant — see the brand-* comment
+   above) keeps the glow identical in both themes. */
+@keyframes highlight-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(174, 71, 18, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(174, 71, 18, 0);
+  }
+}
+.highlight-pulse {
+  animation: highlight-pulse 0.8s ease-out 3;
 }
 
 button:disabled,

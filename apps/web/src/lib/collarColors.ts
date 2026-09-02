@@ -51,26 +51,30 @@ export function collarBorderClass(type: WorkplaceType): string {
 // "Mode B" strict segmented-control palette — deliberately a separate
 // export from collarColorMap/collarPillClassName above (an outline-only
 // style used by WorkplaceVibeFlags.tsx's tabs and ReviewsList.tsx's accent
-// border), not a replacement for it. Solid fill + white text per collar,
-// for the recessed WorkType filter track on the homepage/jobs page only.
-// Exact values per design: Office slate-700 (#334155), Hybrid/Remote
-// teal-600 (#0D9488), Service orange-600 (#EA580C), Manual-Labour blue-600
-// (#2563EB) — plain Tailwind defaults, not custom hex. Unlike the track's
-// own background (see trackWrapperClass in FilterPillGroup.tsx), these
-// stay the same solid fill in both themes — a saturated color + white text
-// reads fine regardless of what's behind it, so no dark: variant needed.
+// border), not a replacement for it, for the recessed WorkType filter track
+// on the homepage/jobs page only. Was a solid fill + white text per collar;
+// per explicit user request, switched to outline-only (border-2 + plain
+// foreground text on the plain surface, same treatment collarPillClassName
+// already uses) — the fill read as too heavy against the track. Exact hues
+// per design unchanged: Office slate-700 (#334155), Hybrid/Remote teal-600
+// (#0D9488), Service orange-600 (#EA580C), Manual-Labour blue-600
+// (#2563EB) — plain Tailwind defaults, not custom hex. No dark: variant
+// needed — a saturated border color reads fine regardless of theme.
 const collarSegmentActiveClass: Record<WorkplaceType, string> = {
-  OFFICE: "bg-slate-700 text-white",
-  HYBRID_REMOTE: "bg-teal-600 text-white",
-  SERVICE: "bg-orange-600 text-white",
-  MANUAL_LABOUR: "bg-blue-600 text-white",
+  OFFICE: "border-2 border-slate-700 text-foreground bg-surface",
+  HYBRID_REMOTE: "border-2 border-teal-600 text-foreground bg-surface",
+  SERVICE: "border-2 border-orange-600 text-foreground bg-surface",
+  MANUAL_LABOUR: "border-2 border-blue-600 text-foreground bg-surface",
 };
 
 // Borderless ash text — same "color is the result of selection, not a hint
 // shown up front" reasoning as inactiveCollarPillClassName above. Darker
 // zinc in light mode for real contrast against the track's light-mode
-// background (zinc-400 on a light track reads too washed out).
-const collarSegmentInactiveClass = "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200";
+// background (zinc-400 on a light track reads too washed out). Carries a
+// transparent border-2 to match the active state's box size — otherwise
+// picking an option would visibly grow the pill by the border width.
+const collarSegmentInactiveClass =
+  "border-2 border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200";
 
 export function collarSegmentClassName(type: WorkplaceType, active: boolean): string {
   return active ? collarSegmentActiveClass[type] : collarSegmentInactiveClass;
