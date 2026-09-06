@@ -103,3 +103,10 @@ export type VerifyAdminOtpInput = z.infer<typeof verifyAdminOtpInputSchema>;
 // refuses to run once NODE_ENV=production, same guard as ConsoleAdminOtpNotifier).
 export const devAdminLoginInputSchema = loginEmailInputSchema.pick({ email: true });
 export type DevAdminLoginInput = z.infer<typeof devAdminLoginInputSchema>;
+
+// POST /auth/dev-owner-login — same local-dev-only shortcut, for a
+// pre-existing COMPANY_OWNER account instead of ADMIN (AuthService.devOwnerLogin,
+// same production refusal). Identical shape to devAdminLoginInputSchema; kept
+// as its own named export since the two log into different account kinds.
+export const devOwnerLoginInputSchema = loginEmailInputSchema.pick({ email: true });
+export type DevOwnerLoginInput = z.infer<typeof devOwnerLoginInputSchema>;

@@ -11,7 +11,7 @@ import { BannerUploader } from "@/components/owner/BannerUploader";
 import { CompanyWorkCard, type CompanyWorkCardData } from "@/components/company/CompanyWorkCard";
 import { PremiumFeaturesPanel } from "@/components/PremiumFeaturesPanel";
 import { RivalAnalyticsRequestModal } from "@/components/RivalAnalyticsRequestModal";
-import { tierKeyFromOwnerTier } from "@/lib/pricingTiers";
+import { canUseBanner, tierKeyFromOwnerTier } from "@/lib/pricingTiers";
 
 const PAID_TIER_PRICES: { tier: "BLUE" | "BLUE_PLUS" | "ENTERPRISE"; label: string; price: string }[] = [
   { tier: "BLUE", label: "Blue", price: "299,99₺" },
@@ -102,6 +102,8 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
     };
   }, [props.hasActivePaidTier, props.companySlug]);
 
+  const bannerAllowed = canUseBanner(props.claim.tier);
+
   const livePreview: CompanyWorkCardData = {
     name: props.name || props.companyName,
     mainPhotoUrl: props.mainPhotoUrl.trim() || null,
@@ -111,6 +113,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
     district: props.district,
     isHiring: props.isHiring,
     badgeTier: props.claim.tier,
+    bannerImageUrl: props.bannerImageUrl.trim() || null,
     overallAvg: props.detail?.aggregate?.overallAvg ?? null,
     reviewCount: props.detail?.aggregate?.reviewCount ?? 0,
   };
@@ -122,10 +125,16 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
     <div className="flex flex-col gap-6">
       <DashboardBox title="General Information">
         {/* Live Work Card preview, anchored top-right — the exact same
-            component the "Rating / Overview" browse grid renders, updating
-            instantly as the fields below change. */}
+            component the "Rating / Overview" browse grid renders (same
+            classes, same padding/line-heights), updating instantly as the
+            fields below change. CompanyWorkCard itself carries no width
+            class of its own (a real browse-grid card is sized by its grid
+            cell), so this fixed-width wrapper is what gives the preview a
+            sane size outside of a grid. */}
         <div className="mb-4 flex justify-end sm:absolute sm:right-6 sm:top-6 sm:mb-0">
-          <CompanyWorkCard company={livePreview} />
+          <div className="w-[280px]">
+            <CompanyWorkCard company={livePreview} />
+          </div>
         </div>
 
         <div className="flex max-w-xl flex-col gap-3 sm:pr-72">
@@ -260,11 +269,24 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             <div>
               <label className="text-xs font-medium text-muted-foreground">Custom banner image</label>
               <div className="mt-1">
-                <BannerUploader
-                  uploadPath={`/my-companies/${props.companyId}/banner`}
-                  value={props.bannerImageUrl}
-                  onChange={props.setBannerImageUrl}
-                />
+                {bannerAllowed ? (
+                  <BannerUploader
+                    uploadPath={`/my-companies/${props.companyId}/banner`}
+                    value={props.bannerImageUrl}
+                    onChange={props.setBannerImageUrl}
+                  />
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border p-3">
+                    <p className="text-xs text-muted-foreground">Upgrade to Blue+ or Enterprise to add a banner image.</p>
+                    <button
+                      type="button"
+                      onClick={() => props.onStartUpgrade("BLUE_PLUS")}
+                      className="mt-2 rounded-lg border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
+                    >
+                      Blue+ — 499,99₺
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

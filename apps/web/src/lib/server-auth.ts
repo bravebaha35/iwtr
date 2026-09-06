@@ -89,7 +89,7 @@ export function refreshTokens(refreshToken: string): Promise<AuthTokensResponse 
 // below) — its upstream response can also be an OTP_REQUIRED placeholder
 // with no tokens at all yet.
 export async function exchangeCredentialsForSession(
-  upstreamPath: "auth/register" | "auth/login/verify-otp" | "auth/dev-admin-login",
+  upstreamPath: "auth/register" | "auth/login/verify-otp" | "auth/dev-admin-login" | "auth/dev-owner-login",
   body: string,
 ): Promise<NextResponse> {
   const upstream = await fetch(`${API_BASE_URL}/${upstreamPath}`, {

@@ -9,6 +9,7 @@ import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarSegmentClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
+import { canUseBanner } from "@/lib/pricingTiers";
 import { type CategoryGroup, matchesCategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
@@ -303,6 +304,7 @@ function postingsForCard(company: CompanyListItem): CardPosting[] {
 function JobCard({ company, posting }: { company: CompanyListItem; posting: CardPosting }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const location = [company.district, company.city].filter(Boolean).join(", ");
+  const showBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
 
   return (
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
@@ -310,7 +312,17 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
     // positioned to spill outside this box, and clipping it would make them
     // invisible.
     <div className="flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700">
-      <div className="flex aspect-[4/5] flex-col p-4 compact:p-3">
+      {/* Banner privilege is Pro/Enterprise only (canUseBanner) — sits above
+          the aspect-[4/5] content box rather than inside it, so it doesn't
+          eat into that box's fixed proportions. 4:1 keeps the file itself
+          light and the strip short relative to the rest of the card. */}
+      {showBanner && (
+        <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
+          <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
+        </div>
+      )}
+      <div className={`flex aspect-[4/5] flex-col p-4 compact:p-3 ${showBanner ? "rounded-b-xl" : "rounded-xl"}`}>
         {/* Top row: logo + name (top-left) ... rating + info button
             (top-right). Name wraps up to 2 lines (was a single truncated
             line that clipped anything past ~20 chars, e.g. "Örnek Perakende

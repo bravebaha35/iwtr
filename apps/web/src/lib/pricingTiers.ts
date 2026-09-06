@@ -53,6 +53,26 @@ export function badgeLabelForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "EN
   return value === "No" ? null : value;
 }
 
+// Static asset per paid tier for the Instagram-style inline verified tick
+// (apps/web/public) — null on Free, which shows no tick at all. Kept as its
+// own lookup (not derived from badgeLabelForOwnerTier's text) since the two
+// are rendered completely differently: one is an <img>, the other plain text.
+export function tickSrcForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): string | null {
+  if (tier === "BLUE") return "/blue tick.webp";
+  if (tier === "BLUE_PLUS") return "/blue+ tick.webp";
+  if (tier === "ENTERPRISE") return "/gold tick.webp";
+  return null;
+}
+
+// Banner image is a narrower privilege than the rest of a paid tier's
+// Premium Features box — Blue (Starter) doesn't include it, only Blue+
+// (Pro) and Enterprise do (matches the "add logo and banner" wording that
+// only appears from the Pro row down in the hr-analytics feature row
+// above). Mirrors the same rule enforced server-side in owner.service.ts.
+export function canUseBanner(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): boolean {
+  return tier === "BLUE_PLUS" || tier === "ENTERPRISE";
+}
+
 interface PricingFeatureRow {
   id: string;
   label: string;

@@ -137,6 +137,28 @@ export class AuthService {
     return this.issueTokenPair(user.id, user.role, user.status);
   }
 
+  // Same local-dev shortcut as devAdminLogin above, for a pre-existing
+  // COMPANY_OWNER account instead of ADMIN — backs the web app's
+  // DevAutoLogin component, which logs a fresh localhost visit straight
+  // into the official "I Worked There" owner's dashboard. Same production
+  // refusal, same reasoning: this is an unauthenticated session mint by
+  // design, so it must 404 the instant a real deployment exists.
+  async devOwnerLogin(email: string): Promise<AuthTokensResponse> {
+    if (process.env.NODE_ENV === "production") {
+      throw new NotFoundException();
+    }
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || user.role !== "COMPANY_OWNER") {
+      throw new UnauthorizedException("No company-owner account with this email");
+    }
+
+    await this.prisma.auditLog.create({
+      data: { actorUserId: user.id, action: "DEV_OWNER_LOGIN", targetType: "User", targetId: user.id },
+    });
+
+    return this.issueTokenPair(user.id, user.role, user.status);
+  }
+
   async refresh(refreshToken: string): Promise<AuthTokensResponse> {
     const tokenHash = this.tokens.hashRefreshToken(refreshToken);
     // Look up by hash alone (not scoped to revokedAt: null) so a replay of an

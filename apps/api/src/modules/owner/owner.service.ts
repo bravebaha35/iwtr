@@ -81,19 +81,24 @@ export class OwnerService {
   async updateMyCompany(userId: string, companyId: string, input: UpdateCompanyInput): Promise<void> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
 
-    // Server-enforced field allowlist: description/website/banner/featured-
-    // review are paid-tier-only (any rank above FREE). The schema accepts
-    // them from anyone (so the same endpoint serves every tier), but a
-    // Free-tier (or lapsed paid) owner gets a clear rejection here rather
-    // than the fields silently being dropped.
+    // Server-enforced field allowlist: description/website/featured-review
+    // are paid-tier-only (any rank above FREE). The schema accepts them from
+    // anyone (so the same endpoint serves every tier), but a Free-tier (or
+    // lapsed paid) owner gets a clear rejection here rather than the fields
+    // silently being dropped.
     const wantsPaidOnlyFields =
-      input.description !== undefined ||
-      input.website !== undefined ||
-      input.bannerImageUrl !== undefined ||
-      input.featuredReviewId !== undefined;
+      input.description !== undefined || input.website !== undefined || input.featuredReviewId !== undefined;
     const hasActivePaidTier = ownership.tier !== "FREE" && ownership.planStatus === "ACTIVE";
     if (wantsPaidOnlyFields && !hasActivePaidTier) {
-      throw new ForbiddenException("Upgrade to a paid tier to edit description, website, banner, or featured review.");
+      throw new ForbiddenException("Upgrade to a paid tier to edit description, website, or featured review.");
+    }
+
+    // Banner is a narrower privilege than the rest of the Premium box — Blue
+    // (Starter) doesn't include it, only Blue+ (Pro) and Enterprise do (same
+    // rule as uploadBanner below).
+    const hasBannerTier = ownership.tier === "BLUE_PLUS" || ownership.tier === "ENTERPRISE";
+    if (input.bannerImageUrl !== undefined && !(hasBannerTier && ownership.planStatus === "ACTIVE")) {
+      throw new ForbiddenException("Upgrade to Blue+ or Enterprise to set a banner image.");
     }
 
     if (input.featuredReviewId !== undefined && input.featuredReviewId !== null) {
@@ -179,12 +184,15 @@ export class OwnerService {
   }
 
   // Same validation/storage path as the logo — a wide banner image is just a
-  // second upload target, gated paid-tier-only (unlike the logo, which is
-  // free-tier) since it lives in the dashboard's Premium Features box.
+  // second upload target, gated to Blue+ (Pro) and Enterprise only (unlike
+  // the logo, which is free-tier, and unlike the rest of the Premium
+  // Features box, which Blue/Starter can already use) since a banner is
+  // specifically a Pro/Enterprise privilege in the pricing matrix.
   async uploadBanner(userId: string, companyId: string, file: Express.Multer.File | undefined): Promise<LogoUploadResult> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
-    if (ownership.tier === "FREE" || ownership.planStatus !== "ACTIVE") {
-      throw new ForbiddenException("Upgrade to a paid tier to upload a banner image.");
+    const hasBannerTier = ownership.tier === "BLUE_PLUS" || ownership.tier === "ENTERPRISE";
+    if (!hasBannerTier || ownership.planStatus !== "ACTIVE") {
+      throw new ForbiddenException("Upgrade to Blue+ or Enterprise to upload a banner image.");
     }
     if (!file) {
       throw new BadRequestException("No file uploaded.");
