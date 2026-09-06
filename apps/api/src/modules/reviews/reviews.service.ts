@@ -38,7 +38,8 @@ import { ModerationService } from "../moderation/moderation.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
 import { getQuestionsFor } from "./survey-questions.data";
 import { pickRandomDisplayUsername } from "./randomized-identity.util";
-import { tallyQuestions } from "./survey-tally.util";
+import { tallyQuestions, tallyContradictionPairs, type ContradictionPairMatchCount } from "./survey-tally.util";
+import { YELLOW_FLAG_PAIRS } from "../flags/yellow-flag-pairs.data";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
 const MID_THRESHOLD = 0.5;
@@ -807,6 +808,27 @@ export class ReviewsService {
    * rubric itself.
    */
   async getSurveyStats(companySlug: string): Promise<CompanySurveyStats> {
+    const byWorkplaceType = await this.getPublishedSurveyAnswersByType(companySlug);
+
+    return {
+      byWorkplaceType: byWorkplaceType.map(({ workplaceType, reviews }) => ({
+        workplaceType,
+        totalReviews: reviews.length,
+        questions: tallyQuestions(reviews, getQuestionsFor(workplaceType)),
+      })),
+    };
+  }
+
+  /**
+   * Shared "fetch this company's published reviews, split by
+   * workplaceType" step behind both getSurveyStats above and
+   * getVibeFlagsInput below — factored out so the two never drift on which
+   * reviews count (published-only) or duplicate the Prisma round trip
+   * within a single request.
+   */
+  private async getPublishedSurveyAnswersByType(
+    companySlug: string,
+  ): Promise<{ workplaceType: WorkplaceType; reviews: { surveyAnswers: Prisma.JsonValue }[] }[]> {
     const company = await this.prisma.company.findUnique({ where: { slug: companySlug } });
     if (!company) {
       throw new NotFoundException("Company not found");
@@ -817,18 +839,38 @@ export class ReviewsService {
       select: { workplaceType: true, surveyAnswers: true },
     });
 
-    const byWorkplaceType = company.workplaceTypes.map((workplaceType) => {
-      const reviewsForType = published.filter((r) => r.workplaceType === workplaceType);
-      const questions = getQuestionsFor(workplaceType);
+    return company.workplaceTypes.map((workplaceType) => ({
+      workplaceType,
+      reviews: published.filter((r) => r.workplaceType === workplaceType),
+    }));
+  }
 
-      return {
-        workplaceType,
-        totalReviews: reviewsForType.length,
-        questions: tallyQuestions(reviewsForType, questions),
-      };
-    });
+  /**
+   * Everything GET /companies/:slug/vibe-flags needs to resolve both the
+   * GREEN/RED Dual-Opposite chart (FlagCalculatorService.computeVibeFlags)
+   * and the Yellow Flag contradiction pairs
+   * (FlagCalculatorService.computeYellowFlags) for every workplaceType a
+   * company has, in one pass over one Prisma fetch. Like getSurveyStats,
+   * this only ever returns aggregate tallies (per-question counts, per-pair
+   * match counts) — never a raw per-review answer, which
+   * FlagCalculatorService is never given a way to see.
+   */
+  async getVibeFlagsInput(companySlug: string): Promise<
+    {
+      workplaceType: WorkplaceType;
+      totalReviews: number;
+      questions: CompanySurveyStats["byWorkplaceType"][number]["questions"];
+      yellowPairMatchCounts: ContradictionPairMatchCount[];
+    }[]
+  > {
+    const byWorkplaceType = await this.getPublishedSurveyAnswersByType(companySlug);
 
-    return { byWorkplaceType };
+    return byWorkplaceType.map(({ workplaceType, reviews }) => ({
+      workplaceType,
+      totalReviews: reviews.length,
+      questions: tallyQuestions(reviews, getQuestionsFor(workplaceType)),
+      yellowPairMatchCounts: tallyContradictionPairs(reviews, YELLOW_FLAG_PAIRS[workplaceType]),
+    }));
   }
 
   /**

@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { CategoryKey, CompanyWorkplaceSurveyStats, WorkplaceType } from "@iwtr/shared-types";
+import { YELLOW_FLAG_PAIRS } from "./yellow-flag-pairs.data";
+import type { ContradictionPairMatchCount } from "../reviews/survey-tally.util";
 
 export type FlagColor = "GREEN" | "RED";
 
@@ -8,6 +10,13 @@ export interface VibeFlag {
   cluster: 1 | 2;
   color: FlagColor;
   label: string;
+}
+
+export interface YellowFlag {
+  id: string;
+  workplaceType: WorkplaceType;
+  label: string;
+  explanation: string;
 }
 
 interface QuestionTally {
@@ -122,5 +131,24 @@ export class FlagCalculatorService {
         stats.questions.filter((q) => q.category === category),
       ),
     );
+  }
+
+  /**
+   * Yellow Flag ("mixed signals") resolution: takes only the already-
+   * anonymized per-pair match COUNT a company's published reviews produced
+   * (see ReviewsService.getVibeFlagsInput / tallyContradictionPairs) — same
+   * DB-free, no-individual-answers guarantee as computeVibeFlags above. A
+   * pair triggers only when a strict majority of this workplaceType's
+   * reviews exhibited that exact contradictory answer combination (a tie,
+   * or fewer than half, doesn't surface it — same worker-safety-first
+   * tie-break spirit as the GREEN/RED cluster rule).
+   */
+  computeYellowFlags(workplaceType: WorkplaceType, totalReviews: number, pairMatchCounts: ContradictionPairMatchCount[]): YellowFlag[] {
+    if (totalReviews === 0) return [];
+    const matchCountByPairId = new Map(pairMatchCounts.map((m) => [m.pairId, m.matchCount]));
+
+    return YELLOW_FLAG_PAIRS[workplaceType]
+      .filter((pair) => (matchCountByPairId.get(pair.id) ?? 0) / totalReviews > 0.5)
+      .map((pair) => ({ id: pair.id, workplaceType, label: pair.label, explanation: pair.explanation }));
   }
 }

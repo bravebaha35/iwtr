@@ -183,10 +183,27 @@ function PhoneIcon({ className }: { className?: string }) {
 // mobile).
 function ContactButton({ icon, label, value }: { icon: "mail" | "phone"; label: string; value: string | null }) {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Closes this popover on any click/tap outside it. Mail and Call each
+  // manage their own `open` state independently, so both stay open if the
+  // user opens both — this only reacts to a click landing outside the
+  // ref'd container.
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
   if (!value) return null;
   const Icon = icon === "mail" ? MailIcon : PhoneIcon;
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

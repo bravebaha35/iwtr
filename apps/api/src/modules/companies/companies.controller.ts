@@ -66,18 +66,21 @@ export class CompaniesController {
   }
 
   // Dual-Opposite Flag Aggregation Engine (CEO-mandated, replaces the old
-  // points-based WorkplaceVibeFlags system). Only ever returns the final
-  // GREEN/RED flag + its chart label per category cluster — never the
-  // agree/disagree counts (see survey-stats above) or any individual
-  // employee's answers, which FlagCalculatorService never even receives.
+  // points-based WorkplaceVibeFlags system) plus the Yellow Flag
+  // contradiction-pair engine. Only ever returns final, already-resolved
+  // flags (GREEN/RED chart labels, Yellow pair labels) — never the
+  // agree/disagree counts (see survey-stats above), the per-pair match
+  // counts, or any individual employee's answers, which FlagCalculatorService
+  // never even receives.
   @Get("companies/:slug/vibe-flags")
   async vibeFlags(@Param("slug") slug: string) {
-    const stats = await this.reviews.getSurveyStats(slug);
+    const entries = await this.reviews.getVibeFlagsInput(slug);
     return {
-      byWorkplaceType: stats.byWorkplaceType.map((entry) => ({
+      byWorkplaceType: entries.map((entry) => ({
         workplaceType: entry.workplaceType,
         totalReviews: entry.totalReviews,
         flags: this.flagCalculator.computeVibeFlags(entry),
+        yellowFlags: this.flagCalculator.computeYellowFlags(entry.workplaceType, entry.totalReviews, entry.yellowPairMatchCounts),
       })),
     };
   }

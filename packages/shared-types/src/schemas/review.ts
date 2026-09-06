@@ -422,12 +422,29 @@ export const vibeFlagSchema = z.object({
 });
 export type VibeFlag = z.infer<typeof vibeFlagSchema>;
 
+// A "mixed signals" contradiction flag — two specific survey questions
+// (often spanning different categories) whose answers, taken together,
+// contradict each other for a strict majority of a workplaceType's
+// reviewers. Unlike vibeFlagSchema, these don't map onto a single
+// CategoryKey/cluster: the whole point is that they cut across categories
+// (see apps/api's flags/yellow-flag-pairs.data.ts), so there's no color
+// field either — every entry in this array is implicitly yellow.
+export const yellowVibeFlagSchema = z.object({
+  id: z.string(),
+  workplaceType: workplaceTypeSchema,
+  label: z.string(),
+  // Plain-English "why" shown on hover/focus of the flag's ❓ in the UI.
+  explanation: z.string(),
+});
+export type YellowVibeFlag = z.infer<typeof yellowVibeFlagSchema>;
+
 export const companyWorkplaceVibeFlagsSchema = z.object({
   workplaceType: workplaceTypeSchema,
   totalReviews: z.number().int().min(0),
   // Empty when totalReviews is 0 — a workplace type nobody has reviewed yet
   // gets no flags rather than 10 default-red ones.
   flags: z.array(vibeFlagSchema),
+  yellowFlags: z.array(yellowVibeFlagSchema),
 });
 export type CompanyWorkplaceVibeFlags = z.infer<typeof companyWorkplaceVibeFlagsSchema>;
 

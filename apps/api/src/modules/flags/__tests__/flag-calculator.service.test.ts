@@ -1,5 +1,6 @@
 import type { CategoryKey, WorkplaceType } from "@iwtr/shared-types";
 import { FlagCalculatorService } from "../flag-calculator.service";
+import { YELLOW_FLAG_PAIRS } from "../yellow-flag-pairs.data";
 
 // One row per (workplaceType, category) exactly as transcribed from the
 // Master Dual-Opposite Flag Chart PDF. Doubles as a transcription-accuracy
@@ -189,5 +190,44 @@ describe("FlagCalculatorService.computeVibeFlags", () => {
       expect(Object.keys(flag).sort()).toEqual(["category", "cluster", "color", "label"]);
     }
     expect(result.filter((f) => f.color === "GREEN")).toHaveLength(10); // 8-2 is positive on every question here
+  });
+});
+
+describe("FlagCalculatorService.computeYellowFlags", () => {
+  const service = new FlagCalculatorService();
+  const officePairs = YELLOW_FLAG_PAIRS.OFFICE;
+
+  it("returns no flags when the company has zero published reviews for this workplace type", () => {
+    const result = service.computeYellowFlags("OFFICE", 0, []);
+    expect(result).toEqual([]);
+  });
+
+  it("triggers a pair only once a strict majority of reviews exhibit its contradiction", () => {
+    const pair = officePairs[0]; // office-toxic-positivity
+
+    const tie = service.computeYellowFlags("OFFICE", 10, [{ pairId: pair.id, matchCount: 5 }]);
+    expect(tie).toEqual([]);
+
+    const majority = service.computeYellowFlags("OFFICE", 10, [{ pairId: pair.id, matchCount: 6 }]);
+    expect(majority).toEqual([{ id: pair.id, workplaceType: "OFFICE", label: pair.label, explanation: pair.explanation }]);
+  });
+
+  it("resolves each workplaceType's pairs independently and only lists the ones that triggered", () => {
+    const [toxicPositivity, highAutonomy, flexibleButTracked] = officePairs;
+
+    const result = service.computeYellowFlags("OFFICE", 4, [
+      { pairId: toxicPositivity.id, matchCount: 3 }, // 3/4 -> triggers
+      { pairId: highAutonomy.id, matchCount: 2 }, // 2/4 -> does not trigger
+      { pairId: flexibleButTracked.id, matchCount: 0 }, // 0/4 -> does not trigger
+    ]);
+
+    expect(result).toEqual([
+      { id: toxicPositivity.id, workplaceType: "OFFICE", label: toxicPositivity.label, explanation: toxicPositivity.explanation },
+    ]);
+  });
+
+  it("treats a missing match count for a pair as zero", () => {
+    const result = service.computeYellowFlags("OFFICE", 10, []);
+    expect(result).toEqual([]);
   });
 });

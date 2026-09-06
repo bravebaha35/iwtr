@@ -1,5 +1,6 @@
 import type { SurveyQuestionStats, SurveyAnswer } from "@iwtr/shared-types";
 import type { SurveyQuestion } from "./survey-questions.data";
+import type { YellowFlagPairDefinition } from "../flags/yellow-flag-pairs.data";
 
 /**
  * Pure per-question agree/disagree/prefer-not tally over a set of reviews'
@@ -39,4 +40,36 @@ export function tallyQuestions(
     text: q.text,
     ...tallies.get(q.id)!,
   }));
+}
+
+export interface ContradictionPairMatchCount {
+  pairId: string;
+  matchCount: number;
+}
+
+/**
+ * Per-pair "did this one review answer both questions the contradictory
+ * way" tally over a set of reviews' raw surveyAnswers, mirroring
+ * tallyQuestions above: reads raw per-review answers exactly once, then
+ * only ever returns a COUNT — never which review, never any single answer.
+ * A review counts as a match only when it answered BOTH questions with the
+ * pair's exact flagged combination; PREFER_NOT_TO_ANSWER (or a missing
+ * answer) on either question can't produce a match.
+ */
+export function tallyContradictionPairs(
+  reviews: { surveyAnswers: unknown }[],
+  pairs: YellowFlagPairDefinition[],
+): ContradictionPairMatchCount[] {
+  const matchCounts = new Map(pairs.map((pair) => [pair.id, 0]));
+
+  for (const review of reviews) {
+    const answers = review.surveyAnswers as Record<string, SurveyAnswer>;
+    for (const pair of pairs) {
+      if (answers[pair.questionAId] === pair.answerA && answers[pair.questionBId] === pair.answerB) {
+        matchCounts.set(pair.id, matchCounts.get(pair.id)! + 1);
+      }
+    }
+  }
+
+  return pairs.map((pair) => ({ pairId: pair.id, matchCount: matchCounts.get(pair.id)! }));
 }
