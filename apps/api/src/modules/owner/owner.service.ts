@@ -12,6 +12,9 @@ import type {
   OwnedCompany,
   OwnerClaimStatus,
   OwnerContactMessage,
+  OwnerTier,
+  PlanStatus,
+  RivalAnalyticsTier,
   UpdateCompanyInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -78,13 +81,26 @@ export class OwnerService {
   async updateMyCompany(userId: string, companyId: string, input: UpdateCompanyInput): Promise<void> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
 
-    // Server-enforced field allowlist: description/website are Plus-only.
-    // The schema accepts them from anyone (so the same endpoint serves both
-    // tiers), but a Free-tier (or lapsed Plus) owner gets a clear rejection
-    // here rather than the fields silently being dropped.
-    const wantsPlusOnlyFields = input.description !== undefined || input.website !== undefined;
-    if (wantsPlusOnlyFields && !(ownership.tier === "PLUS" && ownership.planStatus === "ACTIVE")) {
-      throw new ForbiddenException("Upgrade to the Plus tier to edit description and website.");
+    // Server-enforced field allowlist: description/website/banner/featured-
+    // review are paid-tier-only (any rank above FREE). The schema accepts
+    // them from anyone (so the same endpoint serves every tier), but a
+    // Free-tier (or lapsed paid) owner gets a clear rejection here rather
+    // than the fields silently being dropped.
+    const wantsPaidOnlyFields =
+      input.description !== undefined ||
+      input.website !== undefined ||
+      input.bannerImageUrl !== undefined ||
+      input.featuredReviewId !== undefined;
+    const hasActivePaidTier = ownership.tier !== "FREE" && ownership.planStatus === "ACTIVE";
+    if (wantsPaidOnlyFields && !hasActivePaidTier) {
+      throw new ForbiddenException("Upgrade to a paid tier to edit description, website, banner, or featured review.");
+    }
+
+    if (input.featuredReviewId !== undefined && input.featuredReviewId !== null) {
+      const review = await this.prisma.review.findUnique({ where: { id: input.featuredReviewId } });
+      if (!review || review.companyId !== companyId || review.status !== "PUBLISHED") {
+        throw new ForbiddenException("Featured review must be one of this company's own published reviews.");
+      }
     }
 
     if (input.name) {
@@ -122,7 +138,12 @@ export class OwnerService {
         instagramUrl: input.instagramUrl,
         whatsappUrl: input.whatsappUrl,
         xUrl: input.xUrl,
+        linkedinUrl: input.linkedinUrl,
+        youtubeUrl: input.youtubeUrl,
+        glassdoorUrl: input.glassdoorUrl,
         isHiring: input.isHiring,
+        bannerImageUrl: input.bannerImageUrl,
+        featuredReviewId: input.featuredReviewId,
       },
     });
   }
@@ -134,6 +155,37 @@ export class OwnerService {
   // is the one that's actually authoritative.
   async uploadLogo(userId: string, companyId: string, file: Express.Multer.File | undefined): Promise<LogoUploadResult> {
     await this.requireApprovedOwnership(userId, companyId);
+    if (!file) {
+      throw new BadRequestException("No file uploaded.");
+    }
+
+    const { width, height } = imageSize(file.buffer);
+    const check = validateLogoFile({
+      mimeType: file.mimetype,
+      sizeBytes: file.buffer.length,
+      width: width ?? 0,
+      height: height ?? 0,
+    });
+    if (!check.valid) {
+      throw new BadRequestException(check.error);
+    }
+
+    await mkdir(UPLOADS_DIR, { recursive: true });
+    const filename = `${randomUUID()}.png`;
+    await writeFile(join(UPLOADS_DIR, filename), file.buffer);
+
+    const origin = process.env.API_PUBLIC_ORIGIN ?? `http://localhost:${process.env.PORT ?? 3001}`;
+    return { url: `${origin}/uploads/company-logos/${filename}` };
+  }
+
+  // Same validation/storage path as the logo — a wide banner image is just a
+  // second upload target, gated paid-tier-only (unlike the logo, which is
+  // free-tier) since it lives in the dashboard's Premium Features box.
+  async uploadBanner(userId: string, companyId: string, file: Express.Multer.File | undefined): Promise<LogoUploadResult> {
+    const ownership = await this.requireApprovedOwnership(userId, companyId);
+    if (ownership.tier === "FREE" || ownership.planStatus !== "ACTIVE") {
+      throw new ForbiddenException("Upgrade to a paid tier to upload a banner image.");
+    }
     if (!file) {
       throw new BadRequestException("No file uploaded.");
     }
@@ -253,12 +305,12 @@ export class OwnerService {
     row: {
       id: string;
       companyId: string;
-      tier: "FREE" | "PLUS";
-      planStatus: "NONE" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+      tier: OwnerTier;
+      planStatus: PlanStatus;
       claimStatus: OwnerClaimStatus;
       createdAt: Date;
       resolvedAt: Date | null;
-      rivalAnalyticsTier: "STARTER" | "PRO" | "ENTERPRISE" | null;
+      rivalAnalyticsTier: RivalAnalyticsTier | null;
       rivalAnalyticsFreeRequestUsed: boolean;
     },
     company: { name: string; slug: string; isVerifiedBadge: boolean },

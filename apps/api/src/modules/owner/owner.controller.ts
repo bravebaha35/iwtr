@@ -73,6 +73,16 @@ export class OwnerController {
     return this.owner.uploadLogo(user.id, companyId, file);
   }
 
+  @Post("my-companies/:companyId/banner")
+  @UseInterceptors(FileInterceptor("file"))
+  uploadBanner(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("companyId", new ParseUUIDPipe()) companyId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.owner.uploadBanner(user.id, companyId, file);
+  }
+
   @Post("my-companies/:companyId/contact-admin")
   contactAdmin(
     @CurrentUser() user: AuthenticatedUser,

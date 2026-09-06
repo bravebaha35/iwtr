@@ -1,13 +1,13 @@
-import type { MembershipTierKey } from "@iwtr/shared-types";
+import type { MembershipTierKey, OwnerTier } from "@iwtr/shared-types";
 
-// Same idea as rival-analytics/access-decision.util.ts's
-// decideRivalAnalyticsAccess, and the same reuse-rivalAnalyticsTier stand-in
-// apps/web/src/lib/pricingTiers.ts already documents doing for the whole
-// membership story — this module doesn't add a second, competing tier
-// field, it just reads the one that already exists.
-export function tierKeyFromRivalAnalyticsTier(tier: "STARTER" | "PRO" | "ENTERPRISE" | null): MembershipTierKey {
-  if (tier === "STARTER") return "starter";
-  if (tier === "PRO") return "pro";
+// The real, DB-backed OwnerTier axis (see its schema.prisma comment) mapped
+// onto the same free/starter/pro/enterprise MembershipTierKey buckets the
+// job-ads pricing-matrix row already uses — GOLD doesn't exist as a
+// standalone tier name (see OwnerTier), it's ENTERPRISE's badge, so
+// ENTERPRISE alone maps onto the matrix's top "enterprise" bucket.
+export function tierKeyFromOwnerTier(tier: OwnerTier): MembershipTierKey {
+  if (tier === "BLUE") return "starter";
+  if (tier === "BLUE_PLUS") return "pro";
   if (tier === "ENTERPRISE") return "enterprise";
   return "free";
 }

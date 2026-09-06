@@ -11,6 +11,7 @@ import { AdSlot } from "@/components/AdSlot";
 import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { ratingImageSrc } from "@/lib/ratingNarrative";
+import { badgeLabelForOwnerTier } from "@/lib/pricingTiers";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -191,9 +192,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             <div>
               <h1 className="text-2xl font-bold text-foreground">
                 {company.name}
-                {company.isVerifiedBadge && (
+                {badgeLabelForOwnerTier(company.badgeTier) && (
                   <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-                    Verified Company
+                    {badgeLabelForOwnerTier(company.badgeTier)} Badge
                   </span>
                 )}
               </h1>

@@ -13,9 +13,9 @@ import { type CategoryGroup, matchesCategoryGroup, CategoryGroupFilter } from "@
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
-import { CompanyLogo } from "@/components/CompanyLogo";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
+import { CompanyWorkCard } from "@/components/company/CompanyWorkCard";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 
 type Geo = { lat: number; lng: number } | "denied" | null;
@@ -115,79 +115,6 @@ function PaginationBar({
   );
 }
 
-// Fixed-height vertical box (rather than the old single-row layout) so a
-// long company name gets two full lines to wrap into instead of being
-// truncated to fit one — the whole point of trading a 5th grid column for
-// more room per card. mt-auto on the rating row keeps it pinned to the
-// bottom regardless of how many lines the name/location above take up.
-function CompanyCard({ company }: { company: CompanyListItem }) {
-  return (
-    <Link
-      href={`/companies/${company.slug}`}
-      className="flex h-[196px] flex-col gap-2 rounded-xl border border-border bg-surface p-4 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
-    >
-      {/* items-center (not items-start) — the name sits vertically centered
-          against the logo instead of pinned to its top edge. */}
-      <div className="flex items-center gap-3">
-        <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 font-semibold leading-snug text-foreground">{company.name}</p>
-          {company.isVerifiedBadge && (
-            <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 dark:text-brand-400">
-              ✓ Verified
-            </span>
-          )}
-        </div>
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
-      </p>
-      {(company.city || company.district) && (
-        <p className="truncate text-xs text-muted-foreground">
-          {company.district ? `${company.district}, ` : ""}
-          {company.city}
-        </p>
-      )}
-
-      {/* Hiring-now badge lives on the rating row now, directly left of the
-          review count — was its own line between city/district and here,
-          which risked crowding that line. Same green pill either way. */}
-      <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-2">
-        {company.overallAvg !== null ? (
-          <>
-            <div className="flex items-center gap-1.5">
-              <span className="text-lg font-bold text-foreground">{company.overallAvg.toFixed(1)}</span>
-              <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-                {scoreBandLabel(company.overallAvg)}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {company.isHiring && (
-                <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                  Hiring now
-                </span>
-              )}
-              <span className="text-xs text-muted-foreground">
-                {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            {company.isHiring && (
-              <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                Hiring now
-              </span>
-            )}
-            <p className="text-xs text-muted-foreground">No reviews yet</p>
-          </div>
-        )}
-      </div>
-    </Link>
-  );
-}
-
 function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number }): number {
   const province = findProvinceByCityName(company.city);
   if (!province) return Infinity;
@@ -205,6 +132,43 @@ type HighlightTarget = "search" | "categories";
 // footer link while already on the homepage. Split into its own component
 // only because useSearchParams requires a Suspense boundary for the build;
 // fallback is null since this renders nothing itself.
+// Persists every filter/search/sort/page choice across a visit to a company
+// page and back (BackButton.tsx's router.back(), or the header logo — both
+// land back on "/", and the App Router fully remounts this client component
+// on that navigation rather than restoring its previous instance, so plain
+// useState alone loses everything). sessionStorage rather than the URL: this
+// app deliberately keeps homepage URLs bare (see HighlightParamListener's
+// own one-shot ?highlight= param), and sessionStorage already matches the
+// right lifetime — remembered for the rest of this browsing session, gone
+// once the tab closes, never a stale filter resurrected days later.
+// Deliberately excludes `geo`: reusing a stored device position without a
+// fresh "Near Me" click would silently reintroduce the exact behavior the
+// geo state's own comment above rules out.
+const FILTER_STORAGE_KEY = "iwtr:homeFilters";
+
+interface PersistedFilters {
+  workplaceTypes: WorkplaceType[];
+  selectedCategory: string | null;
+  minRating: number;
+  selectedCities: string[];
+  selectedDistrictKeys: string[];
+  query: string;
+  sortBy: SortOption;
+  categoryGroup: CategoryGroup | null;
+  page: number;
+}
+
+function loadPersistedFilters(): Partial<PersistedFilters> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.sessionStorage.getItem(FILTER_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function HighlightParamListener({ onHighlight }: { onHighlight: (target: HighlightTarget) => void }) {
   const searchParams = useSearchParams();
   const highlight = searchParams.get("highlight");
@@ -232,12 +196,22 @@ export function WorkplaceBrowser() {
     window.setTimeout(() => setHighlightTarget(null), 2500);
   }, []);
 
-  const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [minRating, setMinRating] = useState(0);
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
-  const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
+  // Read once on mount (the setter is never called) — see loadPersistedFilters
+  // above for why this exists at all.
+  const [initialFilters] = useState(loadPersistedFilters);
+
+  const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>(() =>
+    Array.isArray(initialFilters.workplaceTypes) ? initialFilters.workplaceTypes : [],
+  );
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(() => initialFilters.selectedCategory ?? null);
+  const [minRating, setMinRating] = useState(() => (typeof initialFilters.minRating === "number" ? initialFilters.minRating : 0));
+  const [selectedCities, setSelectedCities] = useState<string[]>(() =>
+    Array.isArray(initialFilters.selectedCities) ? initialFilters.selectedCities : [],
+  );
+  const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>(() =>
+    Array.isArray(initialFilters.selectedDistrictKeys) ? initialFilters.selectedDistrictKeys : [],
+  );
+  const [query, setQuery] = useState(() => initialFilters.query ?? "");
   const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
   // Distinguishes "the request failed" from "genuinely zero matches" — both
   // used to collapse into the same empty `companies` state and render the
@@ -251,11 +225,17 @@ export function WorkplaceBrowser() {
   // narrowed "All" down to their onboarding city with no action from them.
   const [geo, setGeo] = useState<Geo>(null);
   const [geoRequesting, setGeoRequesting] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>("default");
-  const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
-  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortOption>(() => initialFilters.sortBy ?? "default");
+  const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(() => initialFilters.categoryGroup ?? null);
+  const [page, setPage] = useState(() => (typeof initialFilters.page === "number" ? initialFilters.page : 1));
   const sliderTrackRef = useRef<HTMLDivElement>(null);
   const resultsTopRef = useRef<HTMLDivElement>(null);
+  // The two "reset on filter change" effects below (category-reset,
+  // page-reset) would otherwise fire on this very first render too — since
+  // effect dependency arrays trigger once on mount regardless — and wipe out
+  // the selectedCategory/page values just restored from sessionStorage above.
+  const skipCategoryResetOnce = useRef(true);
+  const skipPageResetOnce = useRef(true);
 
   function stepRating(delta: number) {
     setMinRating((prev) => Math.min(5, Math.max(0, Math.round((prev + delta) * 10) / 10)));
@@ -376,6 +356,10 @@ export function WorkplaceBrowser() {
   // than silently filtering against a category the visible dropdown no
   // longer offers.
   useEffect(() => {
+    if (skipCategoryResetOnce.current) {
+      skipCategoryResetOnce.current = false;
+      return;
+    }
     setSelectedCategory(null);
   }, [workplaceTypes]);
 
@@ -415,8 +399,36 @@ export function WorkplaceBrowser() {
   // Any change to what's being shown should land back on page 1 — otherwise
   // narrowing a filter can strand you on a now-nonexistent page 12 of 2.
   useEffect(() => {
+    if (skipPageResetOnce.current) {
+      skipPageResetOnce.current = false;
+      return;
+    }
     setPage(1);
   }, [workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
+
+  // Mirror every filter/search/sort/page choice into sessionStorage as it
+  // changes, so loadPersistedFilters picks it back up on the next mount (see
+  // that function's comment for why this exists).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const toStore: PersistedFilters = {
+      workplaceTypes,
+      selectedCategory,
+      minRating,
+      selectedCities,
+      selectedDistrictKeys,
+      query,
+      sortBy,
+      categoryGroup,
+      page,
+    };
+    try {
+      window.sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(toStore));
+    } catch {
+      // Storage can throw under private-browsing/storage-restricted settings —
+      // remembering filters is a nice-to-have, never required for the page to work.
+    }
+  }, [workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, query, sortBy, categoryGroup, page]);
 
   const totalPages = visibleCompanies ? Math.max(1, Math.ceil(visibleCompanies.length / RESULTS_PAGE_SIZE)) : 1;
   const pageCompanies = visibleCompanies?.slice((page - 1) * RESULTS_PAGE_SIZE, page * RESULTS_PAGE_SIZE) ?? null;
@@ -671,7 +683,7 @@ export function WorkplaceBrowser() {
                 company name instead of truncating it. */}
             <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {pageCompanies?.map((c) => (
-                <CompanyCard key={c.id} company={c} />
+                <CompanyWorkCard key={c.id} company={c} href={`/companies/${c.slug}`} />
               ))}
             </div>
 

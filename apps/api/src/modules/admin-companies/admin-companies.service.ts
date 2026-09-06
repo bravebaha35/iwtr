@@ -38,6 +38,7 @@ const PUBLIC_COMPANY_SELECT = {
   structureType: true,
   region: true,
   isVerifiedBadge: true,
+  badgeTier: true,
   taxNumber: true,
   isChainStore: true,
   isHiring: true,
@@ -47,6 +48,11 @@ const PUBLIC_COMPANY_SELECT = {
   instagramUrl: true,
   whatsappUrl: true,
   xUrl: true,
+  linkedinUrl: true,
+  youtubeUrl: true,
+  glassdoorUrl: true,
+  bannerImageUrl: true,
+  featuredReviewId: true,
 } as const;
 
 function normalizeNameKey(rawCompanyName: string): string {

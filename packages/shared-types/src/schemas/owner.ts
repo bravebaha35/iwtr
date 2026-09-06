@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { companyWorkplaceTypesSchema, httpUrlSchema, ownerTierSchema, planStatusSchema } from "./company";
 import { companyContactPhoneSchema } from "./turkishPhone";
-import { plusCheckoutInputSchema } from "./payment";
+import { checkoutBillingInputSchema } from "./payment";
 
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export type OwnerClaimStatus = z.infer<typeof ownerClaimStatusSchema>;
@@ -92,9 +92,14 @@ export const updateCompanyInputSchema = z
     // "We're hiring" toggle for the /jobs page — free tier, same as the
     // fields above (see Company.isHiring's schema.prisma comment).
     isHiring: z.boolean().optional(),
-    // Plus-tier only:
+    linkedinUrl: httpUrlSchema.optional(),
+    youtubeUrl: httpUrlSchema.optional(),
+    glassdoorUrl: httpUrlSchema.optional(),
+    // Paid-tier only (any tier above FREE):
     description: z.string().max(2000).optional(),
     website: httpUrlSchema.optional(),
+    bannerImageUrl: httpUrlSchema.optional(),
+    featuredReviewId: z.string().uuid().nullable().optional(),
   })
   .refine((v) => Object.values(v).some((value) => value !== undefined), {
     message: "Provide at least one field to update",
@@ -144,7 +149,7 @@ export type PlusCheckoutResult = z.infer<typeof plusCheckoutResultSchema>;
 // Enterprise pull, which needs no invoice/checkout details at all.
 export const rivalAnalyticsRequestInputSchema = z.object({
   requestingCompanyId: z.string().uuid(),
-  billing: plusCheckoutInputSchema.optional(),
+  billing: checkoutBillingInputSchema.optional(),
 });
 export type RivalAnalyticsRequestInput = z.infer<typeof rivalAnalyticsRequestInputSchema>;
 

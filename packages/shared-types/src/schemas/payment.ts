@@ -14,7 +14,11 @@ export const billingAddressSchema = z.object({
 });
 export type BillingAddress = z.infer<typeof billingAddressSchema>;
 
-export const plusCheckoutInputSchema = z.object({
+// Shared by every "collect billing details, hand them to iyzico" flow —
+// Plus/tier checkout below AND Rival Analytics' one-time report purchase
+// (owner.ts's rivalAnalyticsRequestInputSchema), which needs the exact same
+// buyer/invoice fields but has no "tier" of its own to attach.
+export const checkoutBillingInputSchema = z.object({
   buyerName: z.string().min(1),
   buyerSurname: z.string().min(1),
   // Required by iyzico for the subscription customer record (billing/invoice
@@ -24,5 +28,15 @@ export const plusCheckoutInputSchema = z.object({
   buyerEmail: z.string().email(),
   buyerGsmNumber: z.string().min(7).optional(),
   billingAddress: billingAddressSchema,
+});
+export type CheckoutBillingInput = z.infer<typeof checkoutBillingInputSchema>;
+
+// The 3 self-serve paid ranks (see OwnerTier's schema.prisma comment) —
+// FREE is never a checkout target.
+export const paidOwnerTierSchema = z.enum(["BLUE", "BLUE_PLUS", "ENTERPRISE"]);
+export type PaidOwnerTier = z.infer<typeof paidOwnerTierSchema>;
+
+export const plusCheckoutInputSchema = checkoutBillingInputSchema.extend({
+  targetTier: paidOwnerTierSchema,
 });
 export type PlusCheckoutInput = z.infer<typeof plusCheckoutInputSchema>;

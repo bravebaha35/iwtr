@@ -46,25 +46,34 @@ enum EduLevel {
   @@schema("public")
 }
 
+// Resolves the "unified 4-tier pricing model" question the comment below
+// used to flag as open (see project memory, 2026-09-06 decision): FREE plus
+// exactly the 3 paid ranks from the CEO-finalized Free/Starter/Pro/Enterprise
+// matrix (apps/web/src/lib/pricingTiers.ts), renamed here to match the badge
+// each rank grants (Blue/Blue+/Enterprise — the top rank keeps the name
+// "Enterprise" from that matrix, whose badge is "Gold", not a 4th name).
+// tierKeyFromOwnerTier (apps/web/src/lib/pricingTiers.ts,
+// apps/api/src/modules/job-postings/decideBoostAccess.ts) maps this 1:1 onto
+// that matrix's free/starter/pro/enterprise keys — the matrix's own content
+// (prices, feature copy) is unchanged, only the DB-backed axis driving it is
+// new.
 enum OwnerTier {
   FREE
-  PLUS
+  BLUE
+  BLUE_PLUS
+  ENTERPRISE
 
   @@schema("public")
 }
 
 // A deliberately separate axis from OwnerTier above — OwnerTier gates the
 // existing company-listing Plus features (description/website editing,
-// verified badge); this gates the new Rival Analytics add-on only. The
-// project's real unified 4-tier pricing model is still an open, undecided
-// item (see project memory) — this exists so Rival Analytics access
-// control has something concrete to check now rather than blocking on
-// that larger decision. Nullable on CompanyOwner: unset means "no Rival
-// Analytics subscription", which behaves identically to STARTER/PRO for
-// gating purposes (always pays per pull) until a real self-serve upgrade
-// flow exists — for now this is admin-settable only, matching how
-// OwnerTier/planStatus are only ever set for real via the (also-stubbed)
-// payments flow.
+// verified badge); this gates the new Rival Analytics add-on only. Nullable
+// on CompanyOwner: unset means "no Rival Analytics subscription", which
+// behaves identically to STARTER/PRO for gating purposes (always pays per
+// pull) until a real self-serve upgrade flow exists — for now this is
+// admin-settable only, matching how OwnerTier/planStatus are only ever set
+// for real via the (also-stubbed) payments flow.
 enum RivalAnalyticsTier {
   STARTER
   PRO
@@ -359,6 +368,13 @@ model Company {
   city             String?
   district         String?
   isVerifiedBadge  Boolean         @default(false)
+  // Denormalized copy of the approved owner's OwnerTier, kept in sync in the
+  // same place isVerifiedBadge already is (PaymentsService.
+  // applySubscriptionStatus) — needed alongside the boolean because the
+  // public badge now has 4 distinct looks (none/Blue/Blue+/Gold), not just
+  // yes/no. Never read CompanyOwner.tier directly for public display; this
+  // is the public-safe copy of it.
+  badgeTier        OwnerTier       @default(FREE)
   createdByAdminId String?
   createdAt        DateTime        @default(now())
 
@@ -402,6 +418,20 @@ model Company {
   instagramUrl String?
   whatsappUrl  String?
   xUrl         String?
+  linkedinUrl  String?
+  youtubeUrl   String?
+  glassdoorUrl String?
+
+  // Premium Features box (owner dashboard) — paid-tier-gated same as
+  // description/website above. bannerImageUrl: a wide banner image, separate
+  // from the square mainPhotoUrl logo. featuredReviewId: the one published
+  // Review this owner has chosen to spotlight — matched by id only (no
+  // Prisma relation), same "no relation, matched by value" pattern as
+  // RivalAnalyticsPurchase/InvestorApiKey below, since a spotlighted review
+  // must never gain a queryable back-reference from Review to Company beyond
+  // the one it already has.
+  bannerImageUrl   String?
+  featuredReviewId String?
 
   employmentHistories  EmploymentHistory[]
   reviews              Review[]
@@ -431,6 +461,12 @@ model CompanyOwner {
   companyId             String
   company               Company          @relation(fields: [companyId], references: [id])
   tier                  OwnerTier        @default(FREE)
+  // Which paid tier a just-initiated checkout is for — set right before
+  // redirecting to iyzico (PaymentsService.initiatePlusCheckout), read and
+  // cleared once the callback confirms payment (applySubscriptionStatus).
+  // Needed because iyzico's callback only carries a token/conversationId,
+  // not which of the 3 paid tiers the buyer actually picked.
+  pendingTier           OwnerTier?
   planStatus            PlanStatus       @default(NONE)
   iyzicoSubscriptionRef String?
   planRenewsAt          DateTime?

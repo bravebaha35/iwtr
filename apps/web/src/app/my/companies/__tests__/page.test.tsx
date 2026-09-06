@@ -50,6 +50,7 @@ const detail: CompanyDetail = {
     structureType: "SETTLED",
     region: null,
     isVerifiedBadge: false,
+    badgeTier: "FREE",
     taxNumber: null,
     isChainStore: false,
     isHiring: false,
@@ -59,6 +60,11 @@ const detail: CompanyDetail = {
     instagramUrl: null,
     whatsappUrl: null,
     xUrl: null,
+    linkedinUrl: null,
+    youtubeUrl: null,
+    glassdoorUrl: null,
+    bannerImageUrl: null,
+    featuredReviewId: null,
   },
   aggregate: null,
 };
@@ -77,41 +83,57 @@ beforeEach(() => {
   mockApiGet();
 });
 
+// General Information is the default active tab, so waiting on a field only
+// the company-detail fetch populates (workplaceTypes, not carried by the
+// earlier claims-list fetch) confirms the card is fully hydrated before each
+// test interacts with it.
 async function renderLoadedPage() {
   render(<MyCompaniesPage />);
-  // "Acme Corp" itself renders from the claims list (a separate, earlier
-  // fetch than the card's own company-detail load) — wait on a field that
-  // only gets its value from that second fetch, so every test starts from
-  // a fully-hydrated card, not a half-loaded one.
-  await waitFor(() => expect(screen.getByLabelText(/^Email/i)).toHaveValue(detail.company.contactEmail));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Office" })).toHaveClass("bg-brand-600"));
 }
 
-test("renders exactly three dashboard boxes with the required headers, in order", async () => {
+function generalInfoBox(): HTMLElement {
+  return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
+}
+
+test("side panel lists the three sections in order, and only the active one's content renders", async () => {
+  const user = userEvent.setup();
   await renderLoadedPage();
 
-  // getByRole throws on more than one match, so each call also confirms
-  // that exact header text appears exactly once (not merged/duplicated).
-  const general = screen.getByRole("heading", { name: "General Information" });
-  const contact = screen.getByRole("heading", { name: "Contact & Social Media" });
-  const reviews = screen.getByRole("heading", { name: "Reviews & Ratings" });
+  const nav = screen.getByRole("navigation", { name: "Company dashboard sections" });
+  const tabs = within(nav).getAllByRole("button");
+  expect(tabs.map((t) => t.textContent)).toEqual(["General Information", "Contact & Social Media", "Reviews & Ratings"]);
 
-  // DOCUMENT_POSITION_FOLLOWING (4) means the second node comes after the
-  // first in document order.
-  expect(general.compareDocumentPosition(contact) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(contact.compareDocumentPosition(reviews) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Contact & Social Media" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Reviews & Ratings" })).not.toBeInTheDocument();
+
+  await user.click(within(nav).getByRole("button", { name: "Contact & Social Media" }));
+  expect(screen.getByRole("heading", { name: "Contact & Social Media" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "General Information", level: 3 })).not.toBeInTheDocument();
+
+  await user.click(within(nav).getByRole("button", { name: "Reviews & Ratings" }));
+  expect(screen.getByRole("heading", { name: "Reviews & Ratings" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Contact & Social Media" })).not.toBeInTheDocument();
 });
 
-test("General Information box holds both company-basics and location fields", async () => {
+test("General Information box holds both company-basics and location fields, plus a live Work Card preview", async () => {
   await renderLoadedPage();
 
-  const box = screen.getByRole("heading", { name: "General Information" }).parentElement as HTMLElement;
+  const box = generalInfoBox();
   expect(within(box).getByLabelText(/Company name/i)).toBeInTheDocument();
-  expect(within(box).getByText("Location")).toBeInTheDocument();
+  expect(within(box).getByText("Headcount Range / Location")).toBeInTheDocument();
+  // "No reviews yet" only ever renders inside the live CompanyWorkCard
+  // preview (the mocked company has aggregate: null) — confirms the preview
+  // mounted with real data, not a blank shell.
+  expect(within(box).getByText("No reviews yet")).toBeInTheDocument();
 });
 
 test("Contact & Social Media box shows the exact KVKK contact-number notice", async () => {
+  const user = userEvent.setup();
   await renderLoadedPage();
 
+  await user.click(screen.getByRole("button", { name: "Contact & Social Media" }));
   const box = screen.getByRole("heading", { name: "Contact & Social Media" }).parentElement as HTMLElement;
   expect(within(box).getByText("Notice on Contact Numbers:")).toBeInTheDocument();
   expect(
@@ -132,24 +154,27 @@ test("saving Contact & Social Media does not discard an unsaved City pick in Gen
   (apiPatch as jest.Mock).mockResolvedValue(undefined);
   await renderLoadedPage();
 
-  const generalBox = screen.getByRole("heading", { name: "General Information" }).parentElement as HTMLElement;
-  const locationRow = within(generalBox).getByText("Location").nextElementSibling as HTMLElement;
+  const generalBox = generalInfoBox();
+  const locationLabel = within(generalBox).getByText("Headcount Range / Location");
+  const locationRow = locationLabel.nextElementSibling as HTMLElement;
   await user.click(within(locationRow).getAllByRole("button")[0]);
-  await user.click(within(generalBox).getByRole("button", { name: "Ankara" }));
+  await user.click(screen.getByRole("button", { name: "Ankara" }));
   expect(within(generalBox).getByRole("button", { name: /^Ankara/ })).toBeInTheDocument();
 
+  await user.click(screen.getByRole("button", { name: "Contact & Social Media" }));
   const contactBox = screen.getByRole("heading", { name: "Contact & Social Media" }).parentElement as HTMLElement;
   await user.click(within(contactBox).getByRole("button", { name: "Save changes" }));
   await waitFor(() => expect(within(contactBox).getByText("Saved.")).toBeInTheDocument());
 
-  expect(within(generalBox).getByRole("button", { name: /^Ankara/ })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "General Information" }));
+  expect(within(generalInfoBox()).getByRole("button", { name: /^Ankara/ })).toBeInTheDocument();
 });
 
 test("picking a 3rd workplace type replaces the selection instead of adding to it", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
-  const box = screen.getByRole("heading", { name: "General Information" }).parentElement as HTMLElement;
+  const box = generalInfoBox();
   const office = within(box).getByRole("button", { name: "Office" });
   const hybrid = within(box).getByRole("button", { name: "Hybrid/Remote" });
   const service = within(box).getByRole("button", { name: "Service" });
@@ -171,11 +196,11 @@ test("Sector options narrow to the picked workplace type(s)", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
-  const box = screen.getByRole("heading", { name: "General Information" }).parentElement as HTMLElement;
+  const box = generalInfoBox();
   // Loaded workplaceTypes is ["OFFICE"] — "Construction" is manual-labour-only.
   await user.click(within(box).getByRole("button", { name: /^Sector/ }));
   expect(within(box).queryByRole("button", { name: "Construction" })).not.toBeInTheDocument();
-  expect(within(box).getByRole("button", { name: "Information Technology" })).toBeInTheDocument();
+  expect(within(box).getByRole("button", { name: "Information Technology (IT)" })).toBeInTheDocument();
 });
 
 test("saving General Information sends the changed fields in one request", async () => {
@@ -183,7 +208,7 @@ test("saving General Information sends the changed fields in one request", async
   (apiPatch as jest.Mock).mockResolvedValue(undefined);
   await renderLoadedPage();
 
-  const box = screen.getByRole("heading", { name: "General Information" }).parentElement as HTMLElement;
+  const box = generalInfoBox();
   const nameInput = within(box).getByLabelText(/Company name/i);
   await user.clear(nameInput);
   await user.type(nameInput, "New Acme Name");
@@ -195,4 +220,13 @@ test("saving General Information sends the changed fields in one request", async
       expect.objectContaining({ name: "New Acme Name" }),
     ),
   );
+});
+
+test("Premium Features box is hidden on the Free tier", async () => {
+  await renderLoadedPage();
+
+  expect(screen.queryByRole("heading", { name: "Premium Features" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Blue — /})).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Blue\+ — /})).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
 });

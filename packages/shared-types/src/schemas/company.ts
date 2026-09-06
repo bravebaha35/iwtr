@@ -8,7 +8,7 @@ import { publicJobPostingSchema } from "./jobPosting";
 export const structureTypeSchema = z.enum(["SETTLED", "CITY_BASED", "REGION_BASED"]);
 export type StructureType = z.infer<typeof structureTypeSchema>;
 
-export const ownerTierSchema = z.enum(["FREE", "PLUS"]);
+export const ownerTierSchema = z.enum(["FREE", "BLUE", "BLUE_PLUS", "ENTERPRISE"]);
 export type OwnerTier = z.infer<typeof ownerTierSchema>;
 
 export const planStatusSchema = z.enum(["NONE", "ACTIVE", "PAST_DUE", "CANCELED"]);
@@ -79,6 +79,17 @@ export const companySchema = z.object({
   instagramUrl: httpUrlSchema.nullable(),
   whatsappUrl: httpUrlSchema.nullable(),
   xUrl: httpUrlSchema.nullable(),
+  linkedinUrl: httpUrlSchema.nullable(),
+  youtubeUrl: httpUrlSchema.nullable(),
+  glassdoorUrl: httpUrlSchema.nullable(),
+  // Denormalized copy of the approved owner's OwnerTier — public-safe,
+  // drives the badge shown on browse cards/company page/dashboard. See
+  // Company.badgeTier's schema.prisma comment.
+  badgeTier: ownerTierSchema,
+  // Premium Features box (owner dashboard), paid-tier-gated like
+  // description/website above.
+  bannerImageUrl: httpUrlSchema.nullable(),
+  featuredReviewId: z.string().uuid().nullable(),
 });
 export type Company = z.infer<typeof companySchema>;
 

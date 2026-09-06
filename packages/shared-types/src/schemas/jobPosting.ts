@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { plusCheckoutInputSchema } from "./payment";
+import { checkoutBillingInputSchema } from "./payment";
 
 export const jobPostingStatusSchema = z.enum(["PUBLISHED", "PENDING_ADMIN", "REJECTED"]);
 export type JobPostingStatus = z.infer<typeof jobPostingStatusSchema>;
@@ -38,14 +38,14 @@ export type PublicJobPosting = z.infer<typeof publicJobPostingSchema>;
 // the chosen boost isn't covered by a free monthly allowance — same
 // optional-only-on-the-paid-path shape rivalAnalyticsRequestInputSchema
 // already uses for the exact same iyzico one-time-checkout mechanism (see
-// owner.ts), reusing plusCheckoutInputSchema rather than a new billing shape.
+// owner.ts), reusing checkoutBillingInputSchema rather than a new billing shape.
 export const createJobPostingInputSchema = z.object({
   jobTitle: z.string().min(1).max(200),
   description: z.string().min(1).max(600),
   boost: z
     .object({
       durationDays: boostDurationDaysSchema,
-      billing: plusCheckoutInputSchema.optional(),
+      billing: checkoutBillingInputSchema.optional(),
     })
     .nullable(),
 });

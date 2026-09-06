@@ -341,6 +341,7 @@ export class CompaniesService {
     structureType: StructureType;
     region: TurkeyRegionKey | null;
     isVerifiedBadge: boolean;
+    badgeTier: Company["badgeTier"];
     taxNumber: string | null;
     isChainStore: boolean;
     isHiring: boolean;
@@ -350,6 +351,11 @@ export class CompaniesService {
     instagramUrl: string | null;
     whatsappUrl: string | null;
     xUrl: string | null;
+    linkedinUrl: string | null;
+    youtubeUrl: string | null;
+    glassdoorUrl: string | null;
+    bannerImageUrl: string | null;
+    featuredReviewId: string | null;
   }): Company {
     return {
       id: c.id,
@@ -365,6 +371,7 @@ export class CompaniesService {
       structureType: c.structureType,
       region: c.region,
       isVerifiedBadge: c.isVerifiedBadge,
+      badgeTier: c.badgeTier,
       taxNumber: c.taxNumber,
       isChainStore: c.isChainStore,
       isHiring: c.isHiring,
@@ -374,6 +381,11 @@ export class CompaniesService {
       instagramUrl: c.instagramUrl,
       whatsappUrl: c.whatsappUrl,
       xUrl: c.xUrl,
+      linkedinUrl: c.linkedinUrl,
+      youtubeUrl: c.youtubeUrl,
+      glassdoorUrl: c.glassdoorUrl,
+      bannerImageUrl: c.bannerImageUrl,
+      featuredReviewId: c.featuredReviewId,
     };
   }
 }

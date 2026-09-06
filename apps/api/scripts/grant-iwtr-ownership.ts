@@ -52,21 +52,37 @@ async function main() {
         workplaceTypes: ["OFFICE"],
         createdByAdminId: user.id,
         mainPhotoUrl,
+        isVerifiedBadge: true,
+        badgeTier: "ENTERPRISE",
       },
     });
     console.log(`Created company "${company.name}" (slug: ${company.slug})`);
   } else {
-    if (company.mainPhotoUrl !== mainPhotoUrl) {
-      company = await prisma.company.update({ where: { id: company.id }, data: { mainPhotoUrl } });
+    if (company.mainPhotoUrl !== mainPhotoUrl || company.badgeTier !== "ENTERPRISE" || !company.isVerifiedBadge) {
+      company = await prisma.company.update({
+        where: { id: company.id },
+        data: { mainPhotoUrl, isVerifiedBadge: true, badgeTier: "ENTERPRISE" },
+      });
     }
     console.log(`Company "${company.name}" already exists (slug: ${company.slug})`);
   }
 
+  // The platform's own listing is the flagship Enterprise example — set
+  // directly here (not through the iyzico checkout flow, which this account
+  // never goes through) rather than as a raw SQL edit, so it stays a real,
+  // re-runnable seed step.
   await prisma.$transaction([
     prisma.companyOwner.upsert({
       where: { userId_companyId: { userId: user.id, companyId: company.id } },
-      create: { userId: user.id, companyId: company.id, claimStatus: "APPROVED", resolvedAt: new Date() },
-      update: { claimStatus: "APPROVED", resolvedAt: new Date() },
+      create: {
+        userId: user.id,
+        companyId: company.id,
+        claimStatus: "APPROVED",
+        resolvedAt: new Date(),
+        tier: "ENTERPRISE",
+        planStatus: "ACTIVE",
+      },
+      update: { claimStatus: "APPROVED", resolvedAt: new Date(), tier: "ENTERPRISE", planStatus: "ACTIVE" },
     }),
     prisma.user.updateMany({
       where: { id: user.id, role: "MEMBER" },
@@ -74,7 +90,7 @@ async function main() {
     }),
   ]);
 
-  console.log(`Granted approved ownership of "${company.name}" to ${email}`);
+  console.log(`Granted approved Enterprise ownership of "${company.name}" to ${email}`);
 }
 
 main()

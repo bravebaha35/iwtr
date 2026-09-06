@@ -10,7 +10,7 @@ import type {
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PaymentsService } from "../payments/payments.service";
-import { decideBoostAccess, freeBoostsRemaining, tierKeyFromRivalAnalyticsTier } from "./decideBoostAccess";
+import { decideBoostAccess, freeBoostsRemaining, tierKeyFromOwnerTier } from "./decideBoostAccess";
 
 const BOOST_PRICING: { durationDays: 7 | 14 | 21; priceTry: string }[] = [
   { durationDays: 7, priceTry: "299.99" },
@@ -97,7 +97,7 @@ export class JobPostingsService {
 
   async getBoostStatus(userId: string, companyId: string): Promise<JobPostingBoostStatus> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
-    const tierKey = tierKeyFromRivalAnalyticsTier(ownership.rivalAnalyticsTier);
+    const tierKey = tierKeyFromOwnerTier(ownership.tier);
     const usedThisMonth = await this.freeBoostsUsedThisMonth(userId);
     return {
       tierKey,
@@ -129,7 +129,7 @@ export class JobPostingsService {
       return { status: status === "PENDING_ADMIN" ? "PENDING_ADMIN" : "PUBLISHED", jobPosting: toPublic(posting) };
     }
 
-    const tierKey = tierKeyFromRivalAnalyticsTier(ownership.rivalAnalyticsTier);
+    const tierKey = tierKeyFromOwnerTier(ownership.tier);
     const usedThisMonth = await this.freeBoostsUsedThisMonth(userId);
     const access = decideBoostAccess({
       durationDays: input.boost.durationDays,

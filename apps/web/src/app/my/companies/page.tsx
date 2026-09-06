@@ -4,28 +4,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   companyContactPhoneSchema,
-  scoreBandLabel,
   type CompanyDetail,
   type MyCompanyClaim,
+  type PaidOwnerTier,
   type PlusCheckoutResult,
   type WorkplaceType,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
-import { RivalAnalyticsRequestModal } from "@/components/RivalAnalyticsRequestModal";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
-import { PremiumFeaturesPanel } from "@/components/PremiumFeaturesPanel";
-import { tierKeyFromRivalAnalyticsTier } from "@/lib/pricingTiers";
-import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
-import { ReviewsList } from "@/components/ReviewsList";
 import { AdSlot } from "@/components/AdSlot";
-import { SingleSelectDropdown } from "@/components/Dropdown";
-import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
-import { TurkishPhoneInput } from "@/components/TurkishPhoneInput";
+import { badgeLabelForOwnerTier } from "@/lib/pricingTiers";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
-import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
+import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
+import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
+import { ContactSocialCategory } from "@/components/owner/sections/ContactSocialCategory";
+import { ReviewsRatingsCategory } from "@/components/owner/sections/ReviewsRatingsCategory";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -43,8 +39,21 @@ const emptyBilling = {
   address: "",
 };
 
-function UpgradeToPlus({ companyId }: { companyId: string }) {
-  const [showForm, setShowForm] = useState(false);
+// Generalized from the old single-plan "Upgrade to Plus" button: the owner
+// picks which of the 3 paid tiers they want (each carrying its own price)
+// before billing details even show, and that choice rides along as
+// targetTier on the checkout call — PaymentsService.applySubscriptionStatus
+// applies exactly that tier once iyzico confirms payment.
+function UpgradeCheckout({
+  companyId,
+  initialTier,
+  onClose,
+}: {
+  companyId: string;
+  initialTier: PaidOwnerTier;
+  onClose: () => void;
+}) {
+  const [tier, setTier] = useState<PaidOwnerTier>(initialTier);
   const [billing, setBilling] = useState(emptyBilling);
   const [checkout, setCheckout] = useState<PlusCheckoutResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +68,7 @@ function UpgradeToPlus({ companyId }: { companyId: string }) {
     setError(null);
     try {
       const result = await apiPost<PlusCheckoutResult>(`/my-companies/${companyId}/plus/checkout`, {
+        targetTier: tier,
         buyerName: billing.buyerName,
         buyerSurname: billing.buyerSurname,
         buyerIdentityNumber: billing.buyerIdentityNumber,
@@ -74,9 +84,7 @@ function UpgradeToPlus({ companyId }: { companyId: string }) {
       setCheckout(result);
     } catch (err) {
       if (err instanceof ApiError && err.status === 501) {
-        setError(
-          "Plus subscriptions aren't set up yet — the site owner needs to add iyzico payment credentials first.",
-        );
+        setError("Subscriptions aren't set up yet — the site owner needs to add iyzico payment credentials first.");
       } else {
         setError(err instanceof ApiError ? err.message : "Couldn't start checkout.");
       }
@@ -85,113 +93,104 @@ function UpgradeToPlus({ companyId }: { companyId: string }) {
     }
   }
 
-  if (checkout) {
-    return (
-      <div className="mt-3 rounded-lg border border-border p-3">
-        <p className="mb-2 text-xs text-muted-foreground">Complete payment below:</p>
-        <IyzicoCheckoutEmbed checkoutFormContent={checkout.checkoutFormContent} />
-      </div>
-    );
-  }
-
-  if (!showForm) {
-    return (
-      <button
-        onClick={() => setShowForm(true)}
-        className="mt-3 rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
-      >
-        Upgrade to Plus
-      </button>
-    );
-  }
+  const TIERS: { value: PaidOwnerTier; label: string; price: string }[] = [
+    { value: "BLUE", label: "Blue", price: "299,99₺" },
+    { value: "BLUE_PLUS", label: "Blue+", price: "499,99₺" },
+    { value: "ENTERPRISE", label: "Enterprise", price: "999,99₺" },
+  ];
 
   return (
     <div className="mt-3 rounded-lg border border-border p-3">
-      <p className="mb-2 text-xs text-muted-foreground">
-        Billing details for the subscription invoice (not shared with reviewers or the public).
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          placeholder="First name"
-          value={billing.buyerName}
-          onChange={(e) => set("buyerName", e.target.value)}
-          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-        />
-        <input
-          placeholder="Last name"
-          value={billing.buyerSurname}
-          onChange={(e) => set("buyerSurname", e.target.value)}
-          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-        />
-        <input
-          placeholder="T.C. Kimlik No / Tax ID (11 digits)"
-          value={billing.buyerIdentityNumber}
-          onChange={(e) => set("buyerIdentityNumber", e.target.value)}
-          className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-        />
-        <input
-          placeholder="Billing email"
-          value={billing.buyerEmail}
-          onChange={(e) => set("buyerEmail", e.target.value)}
-          className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-        />
-        <input
-          placeholder="Phone (optional)"
-          value={billing.buyerGsmNumber}
-          onChange={(e) => set("buyerGsmNumber", e.target.value)}
-          className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-        />
-        <input
-          placeholder="City"
-          value={billing.city}
-          onChange={(e) => set("city", e.target.value)}
-          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-        />
-        <input
-          placeholder="Billing address"
-          value={billing.address}
-          onChange={(e) => set("address", e.target.value)}
-          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-        />
-      </div>
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
-      <div className="mt-2 flex gap-2">
-        <button
-          onClick={startCheckout}
-          disabled={submitting}
-          className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-        >
-          Continue to payment
-        </button>
-        <button
-          onClick={() => setShowForm(false)}
-          className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// Shared shell for all 3 dashboard boxes so the grid reads as one system
-// rather than unrelated one-off cards. `h-full` matters most on the General
-// Information box: it spans both rows of the right column's stack (see the
-// `lg:row-span-2` grid item below), and this is what makes it stretch to
-// fill that spanned height rather than shrink-wrapping its own content.
-function DashboardBox({
-  title,
-  className = "",
-  children,
-}: {
-  title: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={`flex h-full flex-col rounded-xl border border-border bg-surface p-5 ${className}`}>
-      <h3 className="mb-3 font-semibold text-foreground">{title}</h3>
-      {children}
+      {checkout ? (
+        <>
+          <p className="mb-2 text-xs text-muted-foreground">Complete payment below:</p>
+          <IyzicoCheckoutEmbed checkoutFormContent={checkout.checkoutFormContent} />
+        </>
+      ) : (
+        <>
+          <div className="mb-3 flex gap-2">
+            {TIERS.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTier(t.value)}
+                className={`flex-1 rounded-lg border-2 px-3 py-2 text-center text-sm font-medium transition ${
+                  tier === t.value
+                    ? "border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-950 dark:text-brand-300"
+                    : "border-border text-foreground hover:bg-surface-muted"
+                }`}
+              >
+                {t.label}
+                <br />
+                <span className="text-xs font-normal text-muted-foreground">{t.price}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Billing details for the subscription invoice (not shared with reviewers or the public).
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              placeholder="First name"
+              value={billing.buyerName}
+              onChange={(e) => set("buyerName", e.target.value)}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            />
+            <input
+              placeholder="Last name"
+              value={billing.buyerSurname}
+              onChange={(e) => set("buyerSurname", e.target.value)}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            />
+            <input
+              placeholder="T.C. Kimlik No / Tax ID (11 digits)"
+              value={billing.buyerIdentityNumber}
+              onChange={(e) => set("buyerIdentityNumber", e.target.value)}
+              className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            />
+            <input
+              placeholder="Billing email"
+              value={billing.buyerEmail}
+              onChange={(e) => set("buyerEmail", e.target.value)}
+              className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            />
+            <input
+              placeholder="Phone (optional)"
+              value={billing.buyerGsmNumber}
+              onChange={(e) => set("buyerGsmNumber", e.target.value)}
+              className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            />
+            <input
+              placeholder="City"
+              value={billing.city}
+              onChange={(e) => set("city", e.target.value)}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            />
+            <input
+              placeholder="Billing address"
+              value={billing.address}
+              onChange={(e) => set("address", e.target.value)}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            />
+          </div>
+          {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={startCheckout}
+              disabled={submitting}
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            >
+              Continue to payment
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -203,67 +202,64 @@ function sameWorkplaceTypes(a: WorkplaceType[], b: WorkplaceType[]): boolean {
 function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<OwnerDashboardCategory>("general-info");
 
-  // General Information — basics + location, one merged save action
+  // General Information (Box 1)
   const [name, setName] = useState(claim.companyName);
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
-  // Sector is optional and, like the browse-page filter it shares a list
-  // with, is really just a controlled-vocabulary value for Company.category
-  // — see sectorsForWorkplaceTypes.
   const [category, setCategory] = useState<string | null>(null);
   const [mainPhotoUrl, setMainPhotoUrl] = useState("");
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
   const [city, setCity] = useState<string | null>(null);
   const [district, setDistrict] = useState<string | null>(null);
-  // "We're hiring" toggle for the /jobs page (Company.isHiring) — free tier,
-  // saved as part of the same General Information action as the rest of
-  // this box.
   const [isHiring, setIsHiring] = useState(false);
   const [generalInfoSaving, setGeneralInfoSaving] = useState(false);
   const [generalInfoStatus, setGeneralInfoStatus] = useState<string | null>(null);
   const [generalInfoError, setGeneralInfoError] = useState<string | null>(null);
+  const [pendingUpgradeTier, setPendingUpgradeTier] = useState<PaidOwnerTier | null>(null);
 
-  // Box 3 — contact & socials
+  // Premium Features (Box 2)
+  const [bannerImageUrl, setBannerImageUrl] = useState("");
+  const [featuredReviewId, setFeaturedReviewId] = useState<string | null>(null);
+  const [premiumSaving, setPremiumSaving] = useState(false);
+  const [premiumStatus, setPremiumStatus] = useState<string | null>(null);
+  const [premiumError, setPremiumError] = useState<string | null>(null);
+  const [showRivalAnalytics, setShowRivalAnalytics] = useState(false);
+  const [freeRivalAnalyticsRequestJustUsed, setFreeRivalAnalyticsRequestJustUsed] = useState(false);
+
+  // Contact & Social Media
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("+90");
   const [facebookUrl, setFacebookUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [whatsappUrl, setWhatsappUrl] = useState("");
   const [xUrl, setXUrl] = useState("");
-  const [box3Saving, setBox3Saving] = useState(false);
-  const [box3Status, setBox3Status] = useState<string | null>(null);
-  const [box3Error, setBox3Error] = useState<string | null>(null);
-
-  const [contactMessage, setContactMessage] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [glassdoorUrl, setGlassdoorUrl] = useState("");
+  const [contactSaving, setContactSaving] = useState(false);
   const [contactStatus, setContactStatus] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
+
+  const [contactAdminMessage, setContactAdminMessage] = useState("");
+  const [contactAdminStatus, setContactAdminStatus] = useState<string | null>(null);
+  const [contactAdminError, setContactAdminError] = useState<string | null>(null);
+  const [sendingContactAdmin, setSendingContactAdmin] = useState(false);
 
   const [showPricing, setShowPricing] = useState(false);
-  const [showRivalAnalytics, setShowRivalAnalytics] = useState(false);
-  // `claim` is a static prop from the parent's one-time claims fetch — it
-  // never updates on its own after a successful free pull. Tracking the
-  // "just used it" fact here and folding it into every read (badge AND the
-  // modal's own props below) keeps both in sync; patching only the badge
-  // would leave a freshly-reopened modal still trusting the stale prop and
-  // offering a free report a second time.
-  const [freeRivalAnalyticsRequestJustUsed, setFreeRivalAnalyticsRequestJustUsed] = useState(false);
+
   const rivalAnalyticsFreeRequestUsed = claim.rivalAnalyticsFreeRequestUsed || freeRivalAnalyticsRequestJustUsed;
   const hasFreeRivalAnalyticsRequest = claim.rivalAnalyticsTier === "ENTERPRISE" && !rivalAnalyticsFreeRequestUsed;
+  const hasActivePaidTier = claim.tier !== "FREE" && claim.planStatus === "ACTIVE";
 
-  const isPlusActive = claim.tier === "PLUS" && claim.planStatus === "ACTIVE";
-
-  // `scope` limits which box's local field state gets overwritten by the
-  // fresh server response. Each box saves independently — without a scope,
-  // reloading after ANY box's save would reset every field from every box,
-  // silently discarding whatever unsaved edits were sitting in the OTHER
-  // box (e.g. picking a new City in General Information, then saving
-  // Contact & Social Media, used to snap City back to its last-saved
-  // value). `detail` itself always refreshes fully — it's read-only display
-  // data (aggregate score, etc.), not editable form state.
+  // `scope` limits which category's local field state gets overwritten by
+  // the fresh server response — each category saves independently, so a
+  // reload after one category's save must never discard unsaved edits
+  // sitting in another. `detail` itself always refreshes fully (read-only
+  // display data, not editable form state).
   const loadDetail = useCallback(
-    async (scope?: "general" | "contact") => {
+    async (scope?: "general" | "premium" | "contact") => {
       try {
         const data = await apiGet<CompanyDetail>(`/companies/${claim.companySlug}`);
         setDetail(data);
@@ -279,6 +275,10 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           setDistrict(c.district);
           setIsHiring(c.isHiring);
         }
+        if (!scope || scope === "premium") {
+          setBannerImageUrl(c.bannerImageUrl ?? "");
+          setFeaturedReviewId(c.featuredReviewId);
+        }
         if (!scope || scope === "contact") {
           setContactEmail(c.contactEmail ?? "");
           setContactPhone(c.contactPhone ?? "+90");
@@ -286,6 +286,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           setInstagramUrl(c.instagramUrl ?? "");
           setWhatsappUrl(c.whatsappUrl ?? "");
           setXUrl(c.xUrl ?? "");
+          setLinkedinUrl(c.linkedinUrl ?? "");
+          setYoutubeUrl(c.youtubeUrl ?? "");
+          setGlassdoorUrl(c.glassdoorUrl ?? "");
         }
       } catch (err) {
         setDetailError(err instanceof ApiError ? err.message : "Couldn't load this company's details.");
@@ -332,10 +335,10 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         // "" so "no district" round-trips as "leave it unset", not a 400.
         if (district) body.district = district;
       }
-      if (isPlusActive && description.trim() && description.trim() !== detail?.company.description) {
+      if (hasActivePaidTier && description.trim() && description.trim() !== detail?.company.description) {
         body.description = description.trim();
       }
-      if (isPlusActive && website.trim() && website.trim() !== detail?.company.website) {
+      if (hasActivePaidTier && website.trim() && website.trim() !== detail?.company.website) {
         body.website = website.trim();
       }
       if (isHiring !== (detail?.company.isHiring ?? false)) {
@@ -355,14 +358,40 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     }
   }
 
-  async function saveBox3() {
-    setBox3Saving(true);
-    setBox3Error(null);
-    setBox3Status(null);
+  async function savePremium() {
+    setPremiumSaving(true);
+    setPremiumError(null);
+    setPremiumStatus(null);
+    try {
+      const body: Record<string, unknown> = {};
+      if (bannerImageUrl.trim() && bannerImageUrl.trim() !== detail?.company.bannerImageUrl) {
+        body.bannerImageUrl = bannerImageUrl.trim();
+      }
+      if (featuredReviewId !== (detail?.company.featuredReviewId ?? null)) {
+        body.featuredReviewId = featuredReviewId;
+      }
+      if (Object.keys(body).length === 0) {
+        setPremiumError("Change at least one field before saving.");
+        return;
+      }
+      await apiPatch(`/my-companies/${claim.companyId}`, body);
+      await loadDetail("premium");
+      setPremiumStatus("Saved.");
+    } catch (err) {
+      setPremiumError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+    } finally {
+      setPremiumSaving(false);
+    }
+  }
+
+  async function saveContact() {
+    setContactSaving(true);
+    setContactError(null);
+    setContactStatus(null);
     const phoneCheck = companyContactPhoneSchema.safeParse(contactPhone.trim());
     if (!phoneCheck.success) {
-      setBox3Error(phoneCheck.error.issues[0]?.message ?? "That phone number isn't valid.");
-      setBox3Saving(false);
+      setContactError(phoneCheck.error.issues[0]?.message ?? "That phone number isn't valid.");
+      setContactSaving(false);
       return;
     }
     try {
@@ -374,51 +403,55 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       if (instagramUrl.trim()) body.instagramUrl = instagramUrl.trim();
       if (whatsappUrl.trim()) body.whatsappUrl = whatsappUrl.trim();
       if (xUrl.trim()) body.xUrl = xUrl.trim();
+      if (linkedinUrl.trim()) body.linkedinUrl = linkedinUrl.trim();
+      if (youtubeUrl.trim()) body.youtubeUrl = youtubeUrl.trim();
+      if (glassdoorUrl.trim()) body.glassdoorUrl = glassdoorUrl.trim();
       await apiPatch(`/my-companies/${claim.companyId}`, body);
       await loadDetail("contact");
-      setBox3Status("Saved.");
+      setContactStatus("Saved.");
     } catch (err) {
-      setBox3Error(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setContactError(err instanceof ApiError ? err.message : "Couldn't save changes.");
     } finally {
-      setBox3Saving(false);
+      setContactSaving(false);
     }
   }
 
-  async function sendContactMessage() {
-    if (!contactMessage.trim()) return;
-    setSending(true);
-    setContactError(null);
-    setContactStatus(null);
+  async function sendContactAdminMessage() {
+    if (!contactAdminMessage.trim()) return;
+    setSendingContactAdmin(true);
+    setContactAdminError(null);
+    setContactAdminStatus(null);
     try {
-      await apiPost(`/my-companies/${claim.companyId}/contact-admin`, { message: contactMessage.trim() });
-      setContactMessage("");
-      setContactStatus("Message sent to the admin.");
+      await apiPost(`/my-companies/${claim.companyId}/contact-admin`, { message: contactAdminMessage.trim() });
+      setContactAdminMessage("");
+      setContactAdminStatus("Message sent to the admin.");
     } catch (err) {
-      setContactError(err instanceof ApiError ? err.message : "Couldn't send the message.");
+      setContactAdminError(err instanceof ApiError ? err.message : "Couldn't send the message.");
     } finally {
-      setSending(false);
+      setSendingContactAdmin(false);
     }
   }
 
   const province = findProvinceByCityName(city);
   const cityOptions = TURKEY_PROVINCES.map((p) => ({ value: p.name, label: p.name }));
   const districtOptions = (province?.districts ?? []).map((d) => ({ value: d, label: d }));
+  const badgeLabel = badgeLabelForOwnerTier(claim.tier);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
       {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}
       <div className="mb-4 flex items-center justify-between">
         <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-foreground hover:underline">
           {claim.companyName}
         </Link>
         <div className="flex items-center gap-2">
-          {claim.isVerifiedBadge && (
+          {badgeLabel && (
             <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-              Verified
+              {badgeLabel} Badge
             </span>
           )}
           <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-            {claim.tier === "PLUS" ? "Plus Tier" : "Free Tier"}
+            {claim.tier === "FREE" ? "Free Tier" : `${badgeLabel ?? claim.tier} Tier`}
           </span>
           <button
             type="button"
@@ -432,283 +465,128 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
       {detailError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{detailError}</p>}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr]">
-        {/* Left, large: company basics + location, one merged save action */}
-        <DashboardBox title="General Information" className="lg:row-span-2">
-          <div className="flex flex-1 flex-col gap-2">
-            <label className="text-xs font-medium text-muted-foreground">
-              Company name
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-              />
-            </label>
-            <MultiFilterPillGroup
-              heading="Workplace types (up to 2)"
-              options={WORKPLACE_TYPES}
-              selected={workplaceTypes}
-              onToggle={toggleWorkplaceType}
-              onReset={() => {
-                setWorkplaceTypes([]);
-                setCategory(null);
-              }}
-              direction="grid"
-            />
-            <label className="mt-2 text-xs font-medium text-muted-foreground">
-              Sector <span className="text-muted-foreground/70">(optional)</span>
-              <div className="mt-1">
-                <SingleSelectDropdown value={category} options={sectorOptions} placeholder="Sector" onChange={setCategory} />
-              </div>
-            </label>
-            <div className="text-xs font-medium text-muted-foreground">
-              Company Logo
-              <div className="mt-1">
-                <CompanyLogoUploader
-                  uploadPath={`/my-companies/${claim.companyId}/logo`}
-                  companyName={claim.companyName}
-                  value={mainPhotoUrl}
-                  onChange={setMainPhotoUrl}
-                />
-              </div>
-            </div>
+      <div className="flex flex-col gap-6 sm:flex-row">
+        <OwnerDashboardSidePanel active={activeCategory} onChange={setActiveCategory} />
 
-            <label className="mt-2 text-xs font-medium text-muted-foreground">Location</label>
-            <div className="grid grid-cols-2 gap-2">
-              <SingleSelectDropdown
-                value={city}
-                options={cityOptions}
-                placeholder="City"
-                clearable={false}
-                onChange={(v) => {
-                  setCity(v);
-                  setDistrict(null);
+        <div className="min-w-0 flex-1">
+          {activeCategory === "general-info" && (
+            <>
+              <GeneralInfoCategory
+                claim={claim}
+                detail={detail}
+                companySlug={claim.companySlug}
+                companyId={claim.companyId}
+                companyName={claim.companyName}
+                name={name}
+                setName={setName}
+                workplaceTypes={workplaceTypes}
+                toggleWorkplaceType={toggleWorkplaceType}
+                onResetWorkplaceTypes={() => {
+                  setWorkplaceTypes([]);
+                  setCategory(null);
                 }}
+                category={category}
+                setCategory={setCategory}
+                sectorOptions={sectorOptions}
+                mainPhotoUrl={mainPhotoUrl}
+                setMainPhotoUrl={setMainPhotoUrl}
+                city={city}
+                setCity={setCity}
+                district={district}
+                setDistrict={setDistrict}
+                cityOptions={cityOptions}
+                districtOptions={districtOptions}
+                isHiring={isHiring}
+                setIsHiring={setIsHiring}
+                description={description}
+                setDescription={setDescription}
+                website={website}
+                setWebsite={setWebsite}
+                hasActivePaidTier={hasActivePaidTier}
+                onSaveGeneralInfo={saveGeneralInfo}
+                generalInfoSaving={generalInfoSaving}
+                generalInfoStatus={generalInfoStatus}
+                generalInfoError={generalInfoError}
+                onStartUpgrade={setPendingUpgradeTier}
+                bannerImageUrl={bannerImageUrl}
+                setBannerImageUrl={setBannerImageUrl}
+                featuredReviewId={featuredReviewId}
+                setFeaturedReviewId={setFeaturedReviewId}
+                onSavePremium={savePremium}
+                premiumSaving={premiumSaving}
+                premiumStatus={premiumStatus}
+                premiumError={premiumError}
+                showRivalAnalytics={showRivalAnalytics}
+                setShowRivalAnalytics={setShowRivalAnalytics}
+                hasFreeRivalAnalyticsRequest={hasFreeRivalAnalyticsRequest}
+                rivalAnalyticsFreeRequestUsed={rivalAnalyticsFreeRequestUsed}
+                onFreeCreditUsed={() => setFreeRivalAnalyticsRequestJustUsed(true)}
+                onOpenPricing={() => setShowPricing(true)}
               />
-              <SingleSelectDropdown
-                value={district}
-                options={districtOptions}
-                placeholder="District"
-                disabled={!city}
-                clearable={false}
-                onChange={setDistrict}
-              />
-            </div>
-
-            <label className="mt-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={isHiring}
-                onChange={(e) => setIsHiring(e.target.checked)}
-                className="h-4 w-4 rounded border-border"
-              />
-              We&apos;re currently hiring (show this company on the Jobs page)
-            </label>
-
-            {isPlusActive ? (
-              <>
-                <label className="mt-2 text-xs font-medium text-muted-foreground">
-                  Description (Plus)
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-                  />
-                </label>
-                <label className="text-xs font-medium text-muted-foreground">
-                  Website (Plus)
-                  <input
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    placeholder="https://..."
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-                  />
-                </label>
-              </>
-            ) : (
-              <>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Description and website are Plus-tier features.
-                </p>
-                <UpgradeToPlus companyId={claim.companyId} />
-              </>
-            )}
-          </div>
-          <button
-            onClick={saveGeneralInfo}
-            disabled={generalInfoSaving}
-            className="mt-auto self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-          >
-            Save changes
-          </button>
-          {generalInfoStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{generalInfoStatus}</p>}
-          {generalInfoError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{generalInfoError}</p>}
-        </DashboardBox>
-
-        {/* Right, top: contact & socials */}
-        <DashboardBox title="Contact & Social Media">
-          <div className="flex flex-1 flex-col gap-2">
-            <div className="text-xs text-muted-foreground">
-              <p className="font-semibold text-foreground">Notice on Contact Numbers:</p>
-              <ul className="mt-1 list-disc space-y-1 pl-4">
-                <li>
-                  <span className="font-medium">Sole Proprietorships (Şahıs Şirketleri):</span> If an official
-                  corporate landline is unavailable, you may register using your personal or primary mobile
-                  number.
-                </li>
-                <li>
-                  <span className="font-medium">Corporate Entities (A.Ş., LTD. ŞTİ., etc.):</span> You must
-                  provide an official corporate landline number accompanied by your city&apos;s official Turkish
-                  area code.
-                </li>
-              </ul>
-            </div>
-
-            <label className="text-xs font-medium text-muted-foreground">
-              Email <span className="text-red-600 dark:text-red-400">(required)</span>
-              <input
-                type="email"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="contact@company.com"
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-              />
-            </label>
-            <label className="text-xs font-medium text-muted-foreground">
-              Phone <span className="text-red-600 dark:text-red-400">(required)</span>
-              <div className="mt-1">
-                <TurkishPhoneInput value={contactPhone} onChange={setContactPhone} suggestedProvince={city} />
-              </div>
-            </label>
-            <label className="text-xs font-medium text-muted-foreground">
-              Facebook <span className="text-muted-foreground/70">(optional)</span>
-              <input
-                value={facebookUrl}
-                onChange={(e) => setFacebookUrl(e.target.value)}
-                placeholder="https://facebook.com/..."
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-              />
-            </label>
-            <label className="text-xs font-medium text-muted-foreground">
-              Instagram <span className="text-muted-foreground/70">(optional)</span>
-              <input
-                value={instagramUrl}
-                onChange={(e) => setInstagramUrl(e.target.value)}
-                placeholder="https://instagram.com/..."
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-              />
-            </label>
-            <label className="text-xs font-medium text-muted-foreground">
-              WhatsApp <span className="text-muted-foreground/70">(optional)</span>
-              <input
-                value={whatsappUrl}
-                onChange={(e) => setWhatsappUrl(e.target.value)}
-                placeholder="https://wa.me/..."
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-              />
-            </label>
-            <label className="text-xs font-medium text-muted-foreground">
-              X (Twitter) <span className="text-muted-foreground/70">(optional)</span>
-              <input
-                value={xUrl}
-                onChange={(e) => setXUrl(e.target.value)}
-                placeholder="https://x.com/..."
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
-              />
-            </label>
-          </div>
-          <button
-            onClick={saveBox3}
-            disabled={box3Saving || !contactEmail.trim() || !contactPhone.trim() || contactPhone.trim() === "+90"}
-            className="mt-3 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-          >
-            Save changes
-          </button>
-          {box3Status && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{box3Status}</p>}
-          {box3Error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{box3Error}</p>}
-        </DashboardBox>
-
-        {/* Right, bottom: reviews & ratings — owner can post one public
-            reply per review here (ReviewsList's canReply), everything else
-            about the review itself is still read-only. */}
-        <DashboardBox title="Reviews & Ratings">
-          {detail?.aggregate && detail.aggregate.reviewCount > 0 ? (
-            <p className="mb-3 text-sm text-foreground">
-              <span className="text-xl font-bold">{detail.aggregate.overallAvg.toFixed(1)}</span>{" "}
-              {scoreBandLabel(detail.aggregate.overallAvg)} ·{" "}
-              {detail.aggregate.reviewCount} review{detail.aggregate.reviewCount === 1 ? "" : "s"}
-            </p>
-          ) : (
-            <p className="mb-3 text-sm text-muted-foreground">No reviews yet.</p>
+              {pendingUpgradeTier && (
+                <UpgradeCheckout
+                  companyId={claim.companyId}
+                  initialTier={pendingUpgradeTier}
+                  onClose={() => setPendingUpgradeTier(null)}
+                />
+              )}
+            </>
           )}
-          <div className="max-h-80 overflow-y-auto thin-scrollbar">
-            <ReviewsList
-              companySlug={claim.companySlug}
-              workplaceTypes={detail?.company.workplaceTypes}
-              companyName={detail?.company.name ?? claim.companyName}
-              canReply
-            />
-          </div>
-        </DashboardBox>
-      </div>
 
-      <div className="mt-5 border-t border-border pt-4">
-        <h3 className="mb-1 font-semibold text-foreground">Rival Analytics</h3>
-        <p className="mb-3 text-sm text-muted-foreground">
-          See how another company compares — overall rating, most agreed/disputed questions, and workplace vibe
-          flags, delivered as a PDF to your inbox. Individual reviewer comments are never included.
-        </p>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setShowRivalAnalytics(true)}
-            className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
-          >
-            Request Rival Analytics
-          </button>
-          {hasFreeRivalAnalyticsRequest && (
-            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-              1 Free Request available
-            </span>
+          {activeCategory === "contact-social" && (
+            <ContactSocialCategory
+              city={city}
+              contactEmail={contactEmail}
+              setContactEmail={setContactEmail}
+              contactPhone={contactPhone}
+              setContactPhone={setContactPhone}
+              facebookUrl={facebookUrl}
+              setFacebookUrl={setFacebookUrl}
+              instagramUrl={instagramUrl}
+              setInstagramUrl={setInstagramUrl}
+              whatsappUrl={whatsappUrl}
+              setWhatsappUrl={setWhatsappUrl}
+              xUrl={xUrl}
+              setXUrl={setXUrl}
+              linkedinUrl={linkedinUrl}
+              setLinkedinUrl={setLinkedinUrl}
+              youtubeUrl={youtubeUrl}
+              setYoutubeUrl={setYoutubeUrl}
+              glassdoorUrl={glassdoorUrl}
+              setGlassdoorUrl={setGlassdoorUrl}
+              onSave={saveContact}
+              saving={contactSaving}
+              status={contactStatus}
+              error={contactError}
+            />
+          )}
+
+          {activeCategory === "reviews-ratings" && (
+            <ReviewsRatingsCategory companySlug={claim.companySlug} companyName={detail?.company.name ?? claim.companyName} detail={detail} />
           )}
         </div>
-        {showRivalAnalytics && (
-          <RivalAnalyticsRequestModal
-            requestingCompanyId={claim.companyId}
-            rivalAnalyticsTier={claim.rivalAnalyticsTier}
-            rivalAnalyticsFreeRequestUsed={rivalAnalyticsFreeRequestUsed}
-            onClose={() => setShowRivalAnalytics(false)}
-            onFreeCreditUsed={() => setFreeRivalAnalyticsRequestJustUsed(true)}
-          />
-        )}
       </div>
-
-      <PremiumFeaturesPanel
-        tierKey={tierKeyFromRivalAnalyticsTier(claim.rivalAnalyticsTier)}
-        onOpenPricing={() => setShowPricing(true)}
-      />
 
       <div className="mt-5 border-t border-border pt-4">
         <label className="text-xs font-medium text-muted-foreground">
           Contact the admin (one-way — they can&apos;t reply here, but can reach you by email)
           <textarea
-            value={contactMessage}
-            onChange={(e) => setContactMessage(e.target.value)}
+            value={contactAdminMessage}
+            onChange={(e) => setContactAdminMessage(e.target.value)}
             rows={2}
             placeholder="e.g. our details are wrong, or we have a question"
             className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
           />
         </label>
         <button
-          onClick={sendContactMessage}
-          disabled={sending || !contactMessage.trim()}
+          onClick={sendContactAdminMessage}
+          disabled={sendingContactAdmin || !contactAdminMessage.trim()}
           className="mt-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
         >
           Send message
         </button>
-        {contactStatus && <p className="mt-3 text-sm text-green-700 dark:text-green-400">{contactStatus}</p>}
-        {contactError && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{contactError}</p>}
+        {contactAdminStatus && <p className="mt-3 text-sm text-green-700 dark:text-green-400">{contactAdminStatus}</p>}
+        {contactAdminError && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{contactAdminError}</p>}
       </div>
     </div>
   );

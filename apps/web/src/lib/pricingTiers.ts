@@ -3,14 +3,11 @@
 // premium-features side menu read from here, so the copy can never drift
 // between the two places it's shown.
 //
-// There is no real "membership tier" column in the schema yet (see
-// CompanyOwner.rivalAnalyticsTier's own comment in schema.prisma — "the
-// project's real unified 4-tier pricing model is still an open, undecided
-// item"). Per this task's explicit backend-isolation rule, nothing here
-// touches Prisma/the API — the side menu reuses rivalAnalyticsTier (the
-// closest already-existing field, itself a 3-value STARTER/PRO/ENTERPRISE
-// axis with null meaning "no tier") as a stand-in for gating until a real
-// unified tier field exists.
+// The real, DB-backed axis is OwnerTier (schema.prisma) — FREE/BLUE/
+// BLUE_PLUS/ENTERPRISE — mapped onto this file's keys via
+// tierKeyFromOwnerTier below. The matrix's own keys/copy/prices are
+// unchanged from before that axis existed; only the source feeding
+// tierKeyFromOwnerTier is new.
 
 export type PricingTierKey = "free" | "starter" | "pro" | "enterprise";
 
@@ -33,6 +30,27 @@ export function tierKeyFromRivalAnalyticsTier(tier: "STARTER" | "PRO" | "ENTERPR
 
 export function tierRank(key: PricingTierKey): number {
   return PRICING_TIERS.find((t) => t.key === key)?.rank ?? 0;
+}
+
+// The real, DB-backed OwnerTier axis (FREE/BLUE/BLUE_PLUS/ENTERPRISE — see
+// its schema.prisma comment) mapped onto this file's free/starter/pro/
+// enterprise keys. GOLD isn't a tier name — it's the badge ENTERPRISE grants
+// (see the "verified-badge" row below) — so ENTERPRISE alone maps onto the
+// matrix's top "enterprise" bucket.
+export function tierKeyFromOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): PricingTierKey {
+  if (tier === "BLUE") return "starter";
+  if (tier === "BLUE_PLUS") return "pro";
+  if (tier === "ENTERPRISE") return "enterprise";
+  return "free";
+}
+
+// The one label shown as a company's verification badge (browse card,
+// company page header, dashboard) — null on Free. Derived straight from the
+// "verified-badge" pricing-matrix row so this can never drift from the copy
+// shown in PricingComparisonTable/PremiumFeaturesPanel.
+export function badgeLabelForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): string | null {
+  const value = pricingFeature("verified-badge").values[tierKeyFromOwnerTier(tier)];
+  return value === "No" ? null : value;
 }
 
 interface PricingFeatureRow {
