@@ -12,3 +12,5 @@ coverage/
 apps/api/uploads/
 .claude/settings.local.json
 graphify-out/
+.worktrees/
+.superpowers/
