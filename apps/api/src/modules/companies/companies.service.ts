@@ -14,6 +14,7 @@ import {
   type WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ReviewsService } from "../reviews/reviews.service";
 import { slugify } from "./slugify.util";
 import { resolveLocation } from "./resolve-location.util";
 import { classifyJobRole } from "./workplace-classifier/classifyJobRole";
@@ -21,7 +22,10 @@ import { WORKPLACE_CATEGORY_MAP } from "./workplace-classifier/workplaceCategori
 
 @Injectable()
 export class CompaniesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reviews: ReviewsService,
+  ) {}
 
   async createByAdmin(adminUserId: string, input: AdminCreateCompanyInput): Promise<Company> {
     // Company names are the only thing the employment-history matching (both
@@ -310,8 +314,13 @@ export class CompaniesService {
       throw new NotFoundException("Company not found");
     }
 
+    const workplaceTypesLocked = await this.reviews.areAllWorkplaceTypesReviewed(
+      company.id,
+      company.workplaceTypes,
+    );
+
     return {
-      company: this.toPublicCompany(company),
+      company: { ...this.toPublicCompany(company), workplaceTypesLocked },
       aggregate: company.aggregate
         ? {
             companyId: company.aggregate.companyId,

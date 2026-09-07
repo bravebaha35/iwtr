@@ -9,6 +9,9 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
     employmentHistory: {
       groupBy: jest.fn().mockResolvedValue([]),
     },
+    jobPosting: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   };
   return { ...base, ...overrides };
 }
@@ -26,7 +29,7 @@ describe("CompaniesService.search — job titles (/jobs page)", () => {
         ]),
       },
     });
-    const service = new CompaniesService(prisma as any);
+    const service = new CompaniesService(prisma as any, {} as any);
 
     const results = await service.search(baseQuery());
 
@@ -55,7 +58,7 @@ describe("CompaniesService.search — job titles (/jobs page)", () => {
         ]),
       },
     });
-    const service = new CompaniesService(prisma as any);
+    const service = new CompaniesService(prisma as any, {} as any);
 
     const results = await service.search({ ...baseQuery(), includeJobTitles: true });
 
@@ -80,11 +83,56 @@ describe("CompaniesService.search — job titles (/jobs page)", () => {
         ]),
       },
     });
-    const service = new CompaniesService(prisma as any);
+    const service = new CompaniesService(prisma as any, {} as any);
 
     const results = await service.search({ ...baseQuery(), includeJobTitles: true });
 
     expect(results[0].jobTitles).toHaveLength(4);
     expect(results[0].jobTitles).not.toContain("CEO");
+  });
+});
+
+describe("CompaniesService.getBySlug — workplaceTypesLocked", () => {
+  it("is true when the company's workplaceTypes are both already reviewed", async () => {
+    const prisma = {
+      company: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "c1",
+          slug: "co",
+          name: "Co",
+          category: "Software",
+          workplaceTypes: ["OFFICE", "SERVICE"],
+          aggregate: null,
+        }),
+      },
+    };
+    const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(true) };
+    const service = new CompaniesService(prisma as any, reviews as any);
+
+    const result = await service.getBySlug("co");
+
+    expect(result.company.workplaceTypesLocked).toBe(true);
+    expect(reviews.areAllWorkplaceTypesReviewed).toHaveBeenCalledWith("c1", ["OFFICE", "SERVICE"]);
+  });
+
+  it("is false when they aren't both reviewed yet", async () => {
+    const prisma = {
+      company: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "c1",
+          slug: "co",
+          name: "Co",
+          category: "Software",
+          workplaceTypes: ["OFFICE", "SERVICE"],
+          aggregate: null,
+        }),
+      },
+    };
+    const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(false) };
+    const service = new CompaniesService(prisma as any, reviews as any);
+
+    const result = await service.getBySlug("co");
+
+    expect(result.company.workplaceTypesLocked).toBe(false);
   });
 });

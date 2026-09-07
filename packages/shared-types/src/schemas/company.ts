@@ -90,6 +90,13 @@ export const companySchema = z.object({
   // description/website above.
   bannerImageUrl: httpUrlSchema.nullable(),
   featuredReviewId: z.string().uuid().nullable(),
+  // Computed (not stored) — true when both of this company's workplaceTypes
+  // already have a PUBLISHED review, which locks OwnerService.updateMyCompany
+  // against further workplaceTypes edits. Only ever computed on the
+  // single-company detail fetch (CompaniesService.getBySlug) — omitted
+  // (undefined) on browse/search list rows, where per-row lock status isn't
+  // needed and computing it for every row would add a query per card.
+  workplaceTypesLocked: z.boolean().optional(),
 });
 export type Company = z.infer<typeof companySchema>;
 
