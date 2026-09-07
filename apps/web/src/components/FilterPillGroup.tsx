@@ -177,7 +177,7 @@ export function MultiFilterPillGroup<T extends string>({
       {showHeading && (
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
-          <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} />
+          <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} disabled={disabled} />
         </div>
       )}
       {isTrack ? <div className={trackWrapperClass}>{pills}</div> : pills}

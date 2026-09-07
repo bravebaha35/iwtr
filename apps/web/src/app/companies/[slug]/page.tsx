@@ -165,6 +165,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
   }
 
   const { company, aggregate } = detail;
+  const showBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
 
   // Server-side fetch purely for RatingNarrativeBox. The endpoint always
   // returns 200 with { workplaceType, reviewCount, description } for a valid
@@ -186,14 +187,16 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       <AdSlot />
 
       <div className="w-full max-w-6xl">
-        {canUseBanner(company.badgeTier) && company.bannerImageUrl && (
+        {showBanner && (
           // Same Facebook-style overlap as the browse-grid card, scaled up
           // for a full-width detail-page hero — ring-background (not
           // ring-surface) since this header sits directly on the page's own
           // background, not inside a bg-surface card.
-          <div className="relative mb-10 aspect-[4/1] w-full overflow-hidden rounded-xl">
-            {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
-            <img src={company.bannerImageUrl} alt="" className="h-full w-full object-cover" />
+          <div className="relative mb-10">
+            <div className="aspect-[4/1] w-full overflow-hidden rounded-xl">
+              {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
+              <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
+            </div>
             <div className="absolute left-6 top-full -translate-y-1/2 rounded-xl ring-4 ring-background">
               <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
             </div>
@@ -201,7 +204,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
         )}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {!(canUseBanner(company.badgeTier) && company.bannerImageUrl) && (
+            {!showBanner && (
               <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
             )}
             <div>

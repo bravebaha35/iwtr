@@ -18,7 +18,6 @@ const PAID_TIER_PRICES: { tier: "BLUE" | "BLUE_PLUS" | "ENTERPRISE"; label: stri
 export interface GeneralInfoCategoryProps {
   claim: MyCompanyClaim;
   detail: CompanyDetail | null;
-  companySlug: string;
   companyId: string;
   companyName: string;
 
@@ -68,7 +67,7 @@ function DashboardBox({ title, className = "", children }: { title: string; clas
 }
 
 export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
-  const bannerAllowed = canUseBanner(props.claim.tier);
+  const bannerAllowed = canUseBanner(props.claim.tier) && props.hasActivePaidTier;
   const workplaceTypesLocked = props.detail?.company.workplaceTypesLocked ?? false;
 
   const livePreview: CompanyWorkCardData = {
@@ -240,8 +239,8 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
               always visible, greyed out below Blue+/Enterprise rather than
               hidden outright, so a lower-tier owner sees what they're
               missing instead of nothing at all. */}
-          <label className="mt-2 text-xs font-medium text-muted-foreground">
-            Banner image
+          <div className="mt-2">
+            <p className="text-xs font-medium text-muted-foreground">Banner image</p>
             <div className="mt-1">
               {bannerAllowed ? (
                 <BannerUploader
@@ -262,7 +261,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
                 </div>
               )}
             </div>
-          </label>
+          </div>
 
           <button
             onClick={props.onSaveGeneralInfo}

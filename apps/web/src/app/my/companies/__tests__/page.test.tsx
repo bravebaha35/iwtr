@@ -96,13 +96,13 @@ function generalInfoBox(): HTMLElement {
   return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
 }
 
-test("side panel lists the three sections in order, and only the active one's content renders", async () => {
+test("side panel lists the four sections in order, and only the active one's content renders", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
   const nav = screen.getByRole("navigation", { name: "Company dashboard sections" });
   const tabs = within(nav).getAllByRole("button");
-  expect(tabs.map((t) => t.textContent)).toEqual(["General Information", "Contact & Social Media", "Reviews & Ratings"]);
+  expect(tabs.map((t) => t.textContent)).toEqual(["General Information", "Premium Features", "Contact & Social Media", "Reviews & Ratings"]);
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Contact & Social Media" })).not.toBeInTheDocument();
@@ -226,7 +226,12 @@ test("Premium Features box is hidden on the Free tier", async () => {
   await renderLoadedPage();
 
   expect(screen.queryByRole("heading", { name: "Premium Features" })).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /^Blue — /})).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /^Blue\+ — /})).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
+  // Scoped to the 3-tier upsell row specifically — GeneralInfoCategory also
+  // renders a second, separate Blue+ upsell button next to the (also
+  // Free-tier-gated) banner-image field, so an unscoped query for "Blue+"
+  // matches two buttons.
+  const upsellBox = screen.getByText(/unlock on a paid tier/).parentElement as HTMLElement;
+  expect(within(upsellBox).getByRole("button", { name: /^Blue — /})).toBeInTheDocument();
+  expect(within(upsellBox).getByRole("button", { name: /^Blue\+ — /})).toBeInTheDocument();
+  expect(within(upsellBox).getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
 });

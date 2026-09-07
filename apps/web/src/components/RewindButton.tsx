@@ -12,6 +12,7 @@ export function RewindButton({
   onClick,
   active,
   title = "Reset",
+  disabled = false,
 }: {
   onClick: () => void;
   // Whether this section currently has anything to reset — dims the icon
@@ -19,14 +20,25 @@ export function RewindButton({
   // so it doesn't read as a broken/dead control.
   active: boolean;
   title?: string;
+  // True when the whole filter/picker this belongs to is locked — makes
+  // the button genuinely inert, not just dimmed, since there's nothing a
+  // click could safely do (e.g. Company.workplaceTypesLocked).
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={title}
       aria-label={title}
-      className={`transition ${active ? "text-muted-foreground hover:text-foreground" : "text-muted-foreground/40 hover:text-muted-foreground/70"}`}
+      className={`transition ${
+        disabled
+          ? "cursor-not-allowed text-muted-foreground/30"
+          : active
+            ? "text-muted-foreground hover:text-foreground"
+            : "text-muted-foreground/40 hover:text-muted-foreground/70"
+      }`}
     >
       {/* Circular "restore" arrow, not the media fast-rewind glyph — a
           near-complete ring with a gap on the lower-left, closed off by a

@@ -11,7 +11,7 @@ const CATEGORIES: { key: OwnerDashboardCategory; label: string }[] = [
 
 /**
  * Left-side vertical nav on desktop, sticky horizontal tab bar on mobile —
- * the 3 fixed categories every approved-owner company card is organized
+ * the 4 fixed categories every approved-owner company card is organized
  * under (see sections/*.tsx). Purely a controlled tab switcher; every field
  * and save action still lives in the category components themselves.
  */

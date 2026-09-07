@@ -15,7 +15,7 @@ import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { AdSlot } from "@/components/AdSlot";
-import { badgeLabelForOwnerTier } from "@/lib/pricingTiers";
+import { badgeLabelForOwnerTier, canUseBanner } from "@/lib/pricingTiers";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
@@ -263,14 +263,13 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   // sitting in another. `detail` itself always refreshes fully (read-only
   // display data, not editable form state).
   const loadDetail = useCallback(
-    async (scope?: "general" | "premium" | "contact") => {
+    async (scope?: "general" | "premium" | "contact" | "workplace") => {
       try {
         const data = await apiGet<CompanyDetail>(`/companies/${claim.companySlug}`);
         setDetail(data);
         const c = data.company;
         if (!scope || scope === "general") {
           setName(c.name);
-          setWorkplaceTypes(c.workplaceTypes);
           setCategory(c.category);
           setMainPhotoUrl(c.mainPhotoUrl ?? "");
           setDescription(c.description ?? "");
@@ -278,6 +277,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           setCity(c.city);
           setDistrict(c.district);
           setIsHiring(c.isHiring);
+        }
+        if (!scope || scope === "workplace") {
+          setWorkplaceTypes(c.workplaceTypes);
         }
         if (!scope || scope === "premium") {
           setBannerImageUrl(c.bannerImageUrl ?? "");
@@ -345,7 +347,12 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       if (isHiring !== (detail?.company.isHiring ?? false)) {
         body.isHiring = isHiring;
       }
-      if (bannerImageUrl.trim() && bannerImageUrl.trim() !== detail?.company.bannerImageUrl) {
+      if (
+        canUseBanner(claim.tier) &&
+        hasActivePaidTier &&
+        bannerImageUrl.trim() &&
+        bannerImageUrl.trim() !== detail?.company.bannerImageUrl
+      ) {
         body.bannerImageUrl = bannerImageUrl.trim();
       }
       if (Object.keys(body).length === 0) {
@@ -376,7 +383,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         return;
       }
       await apiPatch(`/my-companies/${claim.companyId}`, { workplaceTypes });
-      await loadDetail("general");
+      await loadDetail("workplace");
       setWorkplaceTypesStatus("Saved.");
     } catch (err) {
       setWorkplaceTypesError(err instanceof ApiError ? err.message : "Couldn't save work types.");
@@ -497,7 +504,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             <GeneralInfoCategory
               claim={claim}
               detail={detail}
-              companySlug={claim.companySlug}
               companyId={claim.companyId}
               companyName={claim.companyName}
               name={name}

@@ -324,9 +324,11 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
         // edge), so the content box below gets extra top padding (pt-5,
         // added to the ${showBanner ? ...} branch below) instead of a
         // margin on the banner wrapper, to clear the protruding logo.
-        <div className="relative aspect-[4/1] w-full overflow-hidden rounded-t-xl">
-          {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
-          <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
+        <div className="relative">
+          <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
+            <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
+          </div>
           <div className="absolute left-3 top-full -translate-y-1/2 rounded-lg ring-4 ring-surface">
             <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
           </div>
