@@ -16,15 +16,24 @@ import type {
   PlanStatus,
   RivalAnalyticsTier,
   UpdateCompanyInput,
+  WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ReviewsService } from "../reviews/reviews.service";
 import { resolveLocation } from "../companies/resolve-location.util";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads", "company-logos");
 
+function sameWorkplaceTypes(a: WorkplaceType[], b: WorkplaceType[]): boolean {
+  return a.length === b.length && a.every((v) => b.includes(v));
+}
+
 @Injectable()
 export class OwnerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reviews: ReviewsService,
+  ) {}
 
   async claimCompany(userId: string, companySlug: string, input: ClaimCompanyInput): Promise<MyCompanyClaim> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -99,6 +108,26 @@ export class OwnerService {
     const hasBannerTier = ownership.tier === "BLUE_PLUS" || ownership.tier === "ENTERPRISE";
     if (input.bannerImageUrl !== undefined && !(hasBannerTier && ownership.planStatus === "ACTIVE")) {
       throw new ForbiddenException("Upgrade to Blue+ or Enterprise to set a banner image.");
+    }
+
+    // Once a company's (at most 2) workplaceTypes have each collected a
+    // published review, they're locked against further self-service edits —
+    // an owner reclassifying work-types after reviews land under them would
+    // let bad reviews get orphaned from the type a future visitor filters
+    // by. Only checked when workplaceTypes is actually part of this request,
+    // and only against a real change (re-submitting the same 2 values is a
+    // no-op, not a lock violation).
+    if (input.workplaceTypes !== undefined) {
+      const currentCompany = await this.prisma.company.findUniqueOrThrow({
+        where: { id: companyId },
+        select: { workplaceTypes: true },
+      });
+      const isChanging = !sameWorkplaceTypes(currentCompany.workplaceTypes, input.workplaceTypes);
+      if (isChanging && (await this.reviews.areAllWorkplaceTypesReviewed(companyId, currentCompany.workplaceTypes))) {
+        throw new ForbiddenException(
+          "Workplace types are locked once both have received reviews. Contact support to change them.",
+        );
+      }
     }
 
     if (input.featuredReviewId !== undefined && input.featuredReviewId !== null) {
