@@ -54,7 +54,7 @@ function SocialField({
 
 export function ContactSocialCategory(props: ContactSocialCategoryProps) {
   return (
-    <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
+    <div className="rounded-xl border border-border p-6">
       <h3 className="mb-4 font-semibold text-foreground">Contact & Social Media</h3>
 
       <div className="grid max-w-3xl grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">

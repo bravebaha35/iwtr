@@ -438,7 +438,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const badgeLabel = badgeLabelForOwnerTier(claim.tier);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+    <div className="rounded-xl border border-border bg-surface p-5">
       {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}
       <div className="mb-4 flex items-center justify-between">
         <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-foreground hover:underline">
