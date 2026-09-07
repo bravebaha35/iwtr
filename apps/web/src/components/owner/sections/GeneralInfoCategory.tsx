@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { CompanyDetail, MyCompanyClaim, PublicReview, WorkplaceType } from "@iwtr/shared-types";
-import { apiGet } from "@/lib/api-client";
+import type { CompanyDetail, MyCompanyClaim, WorkplaceType } from "@iwtr/shared-types";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
 import { BannerUploader } from "@/components/owner/BannerUploader";
 import { CompanyWorkCard, type CompanyWorkCardData } from "@/components/company/CompanyWorkCard";
-import { PremiumFeaturesPanel } from "@/components/PremiumFeaturesPanel";
-import { RivalAnalyticsRequestModal } from "@/components/RivalAnalyticsRequestModal";
-import { canUseBanner, tierKeyFromOwnerTier } from "@/lib/pricingTiers";
+import { canUseBanner } from "@/lib/pricingTiers";
 
 const PAID_TIER_PRICES: { tier: "BLUE" | "BLUE_PLUS" | "ENTERPRISE"; label: string; price: string }[] = [
   { tier: "BLUE", label: "Blue", price: "299,99₺" },
@@ -31,6 +27,10 @@ export interface GeneralInfoCategoryProps {
   workplaceTypes: WorkplaceType[];
   toggleWorkplaceType: (v: WorkplaceType) => void;
   onResetWorkplaceTypes: () => void;
+  onSaveWorkplaceTypes: () => void;
+  workplaceTypesSaving: boolean;
+  workplaceTypesStatus: string | null;
+  workplaceTypesError: string | null;
   category: string | null;
   setCategory: (v: string | null) => void;
   sectorOptions: { value: string; label: string }[];
@@ -48,28 +48,14 @@ export interface GeneralInfoCategoryProps {
   setDescription: (v: string) => void;
   website: string;
   setWebsite: (v: string) => void;
+  bannerImageUrl: string;
+  setBannerImageUrl: (v: string) => void;
   hasActivePaidTier: boolean;
   onSaveGeneralInfo: () => void;
   generalInfoSaving: boolean;
   generalInfoStatus: string | null;
   generalInfoError: string | null;
   onStartUpgrade: (tier: "BLUE" | "BLUE_PLUS" | "ENTERPRISE") => void;
-
-  bannerImageUrl: string;
-  setBannerImageUrl: (v: string) => void;
-  featuredReviewId: string | null;
-  setFeaturedReviewId: (v: string | null) => void;
-  onSavePremium: () => void;
-  premiumSaving: boolean;
-  premiumStatus: string | null;
-  premiumError: string | null;
-
-  showRivalAnalytics: boolean;
-  setShowRivalAnalytics: (v: boolean) => void;
-  hasFreeRivalAnalyticsRequest: boolean;
-  rivalAnalyticsFreeRequestUsed: boolean;
-  onFreeCreditUsed: () => void;
-  onOpenPricing: () => void;
 }
 
 function DashboardBox({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
@@ -82,27 +68,8 @@ function DashboardBox({ title, className = "", children }: { title: string; clas
 }
 
 export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
-  const [ownReviews, setOwnReviews] = useState<PublicReview[] | null>(null);
-
-  // Only fetched when the Premium box is actually shown (paid tiers) — a
-  // Free-tier owner never sees the featured-review picker, so there's no
-  // reason to pay for this request on their page load.
-  useEffect(() => {
-    if (!props.hasActivePaidTier) return;
-    let cancelled = false;
-    apiGet<PublicReview[]>(`/companies/${props.companySlug}/reviews`)
-      .then((rows) => {
-        if (!cancelled) setOwnReviews(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setOwnReviews([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [props.hasActivePaidTier, props.companySlug]);
-
   const bannerAllowed = canUseBanner(props.claim.tier);
+  const workplaceTypesLocked = props.detail?.company.workplaceTypesLocked ?? false;
 
   const livePreview: CompanyWorkCardData = {
     name: props.name || props.companyName,
@@ -118,26 +85,27 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
     reviewCount: props.detail?.aggregate?.reviewCount ?? 0,
   };
 
-  const publishedOwnReviews = (ownReviews ?? []).filter((r) => r.status === "PUBLISHED");
-  const priorityResponse = props.claim.tier === "ENTERPRISE" || props.claim.tier === "BLUE_PLUS";
-
   return (
     <div className="flex flex-col gap-6">
       <DashboardBox title="General Information">
         {/* Live Work Card preview, anchored top-right — the exact same
-            component the "Rating / Overview" browse grid renders (same
-            classes, same padding/line-heights), updating instantly as the
-            fields below change. CompanyWorkCard itself carries no width
-            class of its own (a real browse-grid card is sized by its grid
-            cell), so this fixed-width wrapper is what gives the preview a
-            sane size outside of a grid. */}
-        <div className="mb-4 flex justify-end sm:absolute sm:right-6 sm:top-6 sm:mb-0">
+            component the "Rating / Overview" browse grid renders, updating
+            instantly as the fields below change. The helper note under it
+            tells an owner what this preview actually means (it's easy to
+            mistake for decoration otherwise). */}
+        <div className="mb-4 flex flex-col items-end gap-1.5 sm:absolute sm:right-6 sm:top-6 sm:mb-0">
           <div className="w-[280px]">
             <CompanyWorkCard company={livePreview} />
           </div>
+          <p className="max-w-[280px] text-right text-[11px] leading-snug text-muted-foreground">
+            This is how your company will appear to job seekers browsing the site.
+          </p>
         </div>
 
-        <div className="flex max-w-xl flex-col gap-3 sm:pr-72">
+        {/* No max-w here (was max-w-xl) — fields fill the box's actual
+            width, capped only by sm:pr-72 so they don't run under the
+            preview. */}
+        <div className="flex flex-col gap-3 sm:pr-72">
           <label className="text-xs font-medium text-muted-foreground">
             Company name
             <input
@@ -147,14 +115,33 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             />
           </label>
 
-          <MultiFilterPillGroup
-            heading="Workplace types (up to 2)"
-            options={WORKPLACE_TYPES}
-            selected={props.workplaceTypes}
-            onToggle={props.toggleWorkplaceType}
-            onReset={props.onResetWorkplaceTypes}
-            direction="grid"
-          />
+          <div>
+            <MultiFilterPillGroup
+              heading="Workplace types (up to 2)"
+              options={WORKPLACE_TYPES}
+              selected={props.workplaceTypes}
+              onToggle={props.toggleWorkplaceType}
+              onReset={props.onResetWorkplaceTypes}
+              direction="grid"
+              disabled={workplaceTypesLocked}
+            />
+            <button
+              onClick={props.onSaveWorkplaceTypes}
+              disabled={props.workplaceTypesSaving || workplaceTypesLocked}
+              className="mt-2 self-start rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Save work types
+            </button>
+            {workplaceTypesLocked && (
+              <p className="mt-1.5 text-xs text-muted-foreground">Please mail us to change your work-types.</p>
+            )}
+            {props.workplaceTypesStatus && (
+              <p className="mt-1.5 text-xs text-green-700 dark:text-green-400">{props.workplaceTypesStatus}</p>
+            )}
+            {props.workplaceTypesError && (
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{props.workplaceTypesError}</p>
+            )}
+          </div>
 
           <label className="mt-2 text-xs font-medium text-muted-foreground">
             Sector / Industry <span className="text-muted-foreground/70">(optional)</span>
@@ -231,7 +218,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
           ) : (
             <div className="mt-2 rounded-lg border border-dashed border-border p-3">
               <p className="text-xs text-muted-foreground">
-                Description, website, and the Premium Features box below unlock on a paid tier.
+                Description, website, and the Premium Features menu unlock on a paid tier.
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {PAID_TIER_PRICES.map((t) => (
@@ -248,6 +235,35 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             </div>
           )}
 
+          {/* Stays in General Information per the task's own instruction
+              (everything else Premium moved to its own sidebar category) —
+              always visible, greyed out below Blue+/Enterprise rather than
+              hidden outright, so a lower-tier owner sees what they're
+              missing instead of nothing at all. */}
+          <label className="mt-2 text-xs font-medium text-muted-foreground">
+            Banner image
+            <div className="mt-1">
+              {bannerAllowed ? (
+                <BannerUploader
+                  uploadPath={`/my-companies/${props.companyId}/banner`}
+                  value={props.bannerImageUrl}
+                  onChange={props.setBannerImageUrl}
+                />
+              ) : (
+                <div className="rounded-lg border border-dashed border-border bg-surface-muted/60 p-3 opacity-75">
+                  <p className="text-xs text-muted-foreground">Upgrade to Blue+ or Enterprise to add a banner image.</p>
+                  <button
+                    type="button"
+                    onClick={() => props.onStartUpgrade("BLUE_PLUS")}
+                    className="mt-2 rounded-lg border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
+                  >
+                    Blue+ — 499,99₺
+                  </button>
+                </div>
+              )}
+            </div>
+          </label>
+
           <button
             onClick={props.onSaveGeneralInfo}
             disabled={props.generalInfoSaving}
@@ -259,112 +275,6 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
           {props.generalInfoError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{props.generalInfoError}</p>}
         </div>
       </DashboardBox>
-
-      {props.hasActivePaidTier && (
-        <DashboardBox
-          title="Premium Features"
-          className="border-amber-300 bg-amber-50/20 dark:border-amber-700/50 dark:bg-amber-950/10"
-        >
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Custom banner image</label>
-              <div className="mt-1">
-                {bannerAllowed ? (
-                  <BannerUploader
-                    uploadPath={`/my-companies/${props.companyId}/banner`}
-                    value={props.bannerImageUrl}
-                    onChange={props.setBannerImageUrl}
-                  />
-                ) : (
-                  <div className="rounded-lg border border-dashed border-border p-3">
-                    <p className="text-xs text-muted-foreground">Upgrade to Blue+ or Enterprise to add a banner image.</p>
-                    <button
-                      type="button"
-                      onClick={() => props.onStartUpgrade("BLUE_PLUS")}
-                      className="mt-2 rounded-lg border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
-                    >
-                      Blue+ — 499,99₺
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <label className="text-xs font-medium text-muted-foreground">
-              Featured review spotlight
-              <div className="mt-1">
-                <SingleSelectDropdown
-                  value={props.featuredReviewId}
-                  onChange={props.setFeaturedReviewId}
-                  placeholder="Choose a published review to feature"
-                  options={publishedOwnReviews.map((r) => ({
-                    value: r.id,
-                    label: `${r.generalThoughts ? r.generalThoughts.slice(0, 60) : "(no comment)"}${
-                      r.generalThoughts && r.generalThoughts.length > 60 ? "…" : ""
-                    }`,
-                  }))}
-                />
-              </div>
-            </label>
-
-            <button
-              onClick={props.onSavePremium}
-              disabled={props.premiumSaving}
-              className="self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              Save Premium Features
-            </button>
-            {props.premiumStatus && <p className="text-sm text-green-700 dark:text-green-400">{props.premiumStatus}</p>}
-            {props.premiumError && <p className="text-sm text-red-600 dark:text-red-400">{props.premiumError}</p>}
-
-            <div className="border-t border-border pt-4">
-              <h4 className="mb-1 text-sm font-semibold text-foreground">Priority response</h4>
-              <span
-                className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  priorityResponse
-                    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                    : "bg-surface-muted text-muted-foreground"
-                }`}
-              >
-                {priorityResponse ? "Priority — 4 hour response" : "Standard"}
-              </span>
-            </div>
-
-            <div className="border-t border-border pt-4">
-              <h4 className="mb-1 text-sm font-semibold text-foreground">Competitor benchmark</h4>
-              <p className="mb-3 text-sm text-muted-foreground">
-                See how another company compares — overall rating, most agreed/disputed questions, and workplace vibe
-                flags, delivered as a PDF to your inbox.
-              </p>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => props.setShowRivalAnalytics(true)}
-                  className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
-                >
-                  Request Rival Analytics
-                </button>
-                {props.hasFreeRivalAnalyticsRequest && (
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                    1 Free Request available
-                  </span>
-                )}
-              </div>
-              {props.showRivalAnalytics && (
-                <RivalAnalyticsRequestModal
-                  requestingCompanyId={props.companyId}
-                  rivalAnalyticsTier={props.claim.rivalAnalyticsTier}
-                  rivalAnalyticsFreeRequestUsed={props.rivalAnalyticsFreeRequestUsed}
-                  onClose={() => props.setShowRivalAnalytics(false)}
-                  onFreeCreditUsed={props.onFreeCreditUsed}
-                />
-              )}
-            </div>
-
-            <PremiumFeaturesPanel tierKey={tierKeyFromOwnerTier(props.claim.tier)} onOpenPricing={props.onOpenPricing} />
-          </div>
-        </DashboardBox>
-      )}
     </div>
   );
 }

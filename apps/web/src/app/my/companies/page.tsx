@@ -20,6 +20,7 @@ import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
 import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
+import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
 import { ContactSocialCategory } from "@/components/owner/sections/ContactSocialCategory";
 import { ReviewsRatingsCategory } from "@/components/owner/sections/ReviewsRatingsCategory";
 
@@ -218,6 +219,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [generalInfoStatus, setGeneralInfoStatus] = useState<string | null>(null);
   const [generalInfoError, setGeneralInfoError] = useState<string | null>(null);
   const [pendingUpgradeTier, setPendingUpgradeTier] = useState<PaidOwnerTier | null>(null);
+  const [workplaceTypesSaving, setWorkplaceTypesSaving] = useState(false);
+  const [workplaceTypesStatus, setWorkplaceTypesStatus] = useState<string | null>(null);
+  const [workplaceTypesError, setWorkplaceTypesError] = useState<string | null>(null);
 
   // Premium Features (Box 2)
   const [bannerImageUrl, setBannerImageUrl] = useState("");
@@ -324,9 +328,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     try {
       const body: Record<string, unknown> = {};
       if (name.trim() && name.trim() !== detail?.company.name) body.name = name.trim();
-      if (workplaceTypes.length > 0 && !sameWorkplaceTypes(workplaceTypes, detail?.company.workplaceTypes ?? [])) {
-        body.workplaceTypes = workplaceTypes;
-      }
       if (category && category !== detail?.company.category) body.category = category;
       if (mainPhotoUrl.trim() && mainPhotoUrl.trim() !== detail?.company.mainPhotoUrl) body.mainPhotoUrl = mainPhotoUrl.trim();
       if (city) {
@@ -344,6 +345,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       if (isHiring !== (detail?.company.isHiring ?? false)) {
         body.isHiring = isHiring;
       }
+      if (bannerImageUrl.trim() && bannerImageUrl.trim() !== detail?.company.bannerImageUrl) {
+        body.bannerImageUrl = bannerImageUrl.trim();
+      }
       if (Object.keys(body).length === 0) {
         setGeneralInfoError("Change at least one field before saving.");
         return;
@@ -358,15 +362,35 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     }
   }
 
+  // Decoupled from saveGeneralInfo's shared button — once submitted, a
+  // workplaceTypes change can become permanently locked (both types
+  // reviewed), which makes it a higher-stakes, single-purpose edit rather
+  // than something to bundle in with routine name/city changes.
+  async function saveWorkplaceTypes() {
+    setWorkplaceTypesSaving(true);
+    setWorkplaceTypesError(null);
+    setWorkplaceTypesStatus(null);
+    try {
+      if (workplaceTypes.length === 0 || sameWorkplaceTypes(workplaceTypes, detail?.company.workplaceTypes ?? [])) {
+        setWorkplaceTypesError("Change the workplace types before saving.");
+        return;
+      }
+      await apiPatch(`/my-companies/${claim.companyId}`, { workplaceTypes });
+      await loadDetail("general");
+      setWorkplaceTypesStatus("Saved.");
+    } catch (err) {
+      setWorkplaceTypesError(err instanceof ApiError ? err.message : "Couldn't save work types.");
+    } finally {
+      setWorkplaceTypesSaving(false);
+    }
+  }
+
   async function savePremium() {
     setPremiumSaving(true);
     setPremiumError(null);
     setPremiumStatus(null);
     try {
       const body: Record<string, unknown> = {};
-      if (bannerImageUrl.trim() && bannerImageUrl.trim() !== detail?.company.bannerImageUrl) {
-        body.bannerImageUrl = bannerImageUrl.trim();
-      }
       if (featuredReviewId !== (detail?.company.featuredReviewId ?? null)) {
         body.featuredReviewId = featuredReviewId;
       }
@@ -470,67 +494,72 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
         <div className="min-w-0 flex-1">
           {activeCategory === "general-info" && (
-            <>
-              <GeneralInfoCategory
-                claim={claim}
-                detail={detail}
-                companySlug={claim.companySlug}
-                companyId={claim.companyId}
-                companyName={claim.companyName}
-                name={name}
-                setName={setName}
-                workplaceTypes={workplaceTypes}
-                toggleWorkplaceType={toggleWorkplaceType}
-                onResetWorkplaceTypes={() => {
-                  setWorkplaceTypes([]);
-                  setCategory(null);
-                }}
-                category={category}
-                setCategory={setCategory}
-                sectorOptions={sectorOptions}
-                mainPhotoUrl={mainPhotoUrl}
-                setMainPhotoUrl={setMainPhotoUrl}
-                city={city}
-                setCity={setCity}
-                district={district}
-                setDistrict={setDistrict}
-                cityOptions={cityOptions}
-                districtOptions={districtOptions}
-                isHiring={isHiring}
-                setIsHiring={setIsHiring}
-                description={description}
-                setDescription={setDescription}
-                website={website}
-                setWebsite={setWebsite}
-                hasActivePaidTier={hasActivePaidTier}
-                onSaveGeneralInfo={saveGeneralInfo}
-                generalInfoSaving={generalInfoSaving}
-                generalInfoStatus={generalInfoStatus}
-                generalInfoError={generalInfoError}
-                onStartUpgrade={setPendingUpgradeTier}
-                bannerImageUrl={bannerImageUrl}
-                setBannerImageUrl={setBannerImageUrl}
-                featuredReviewId={featuredReviewId}
-                setFeaturedReviewId={setFeaturedReviewId}
-                onSavePremium={savePremium}
-                premiumSaving={premiumSaving}
-                premiumStatus={premiumStatus}
-                premiumError={premiumError}
-                showRivalAnalytics={showRivalAnalytics}
-                setShowRivalAnalytics={setShowRivalAnalytics}
-                hasFreeRivalAnalyticsRequest={hasFreeRivalAnalyticsRequest}
-                rivalAnalyticsFreeRequestUsed={rivalAnalyticsFreeRequestUsed}
-                onFreeCreditUsed={() => setFreeRivalAnalyticsRequestJustUsed(true)}
-                onOpenPricing={() => setShowPricing(true)}
-              />
-              {pendingUpgradeTier && (
-                <UpgradeCheckout
-                  companyId={claim.companyId}
-                  initialTier={pendingUpgradeTier}
-                  onClose={() => setPendingUpgradeTier(null)}
-                />
-              )}
-            </>
+            <GeneralInfoCategory
+              claim={claim}
+              detail={detail}
+              companySlug={claim.companySlug}
+              companyId={claim.companyId}
+              companyName={claim.companyName}
+              name={name}
+              setName={setName}
+              workplaceTypes={workplaceTypes}
+              toggleWorkplaceType={toggleWorkplaceType}
+              onResetWorkplaceTypes={() => {
+                setWorkplaceTypes([]);
+                setCategory(null);
+              }}
+              onSaveWorkplaceTypes={saveWorkplaceTypes}
+              workplaceTypesSaving={workplaceTypesSaving}
+              workplaceTypesStatus={workplaceTypesStatus}
+              workplaceTypesError={workplaceTypesError}
+              category={category}
+              setCategory={setCategory}
+              sectorOptions={sectorOptions}
+              mainPhotoUrl={mainPhotoUrl}
+              setMainPhotoUrl={setMainPhotoUrl}
+              city={city}
+              setCity={setCity}
+              district={district}
+              setDistrict={setDistrict}
+              cityOptions={cityOptions}
+              districtOptions={districtOptions}
+              isHiring={isHiring}
+              setIsHiring={setIsHiring}
+              description={description}
+              setDescription={setDescription}
+              website={website}
+              setWebsite={setWebsite}
+              bannerImageUrl={bannerImageUrl}
+              setBannerImageUrl={setBannerImageUrl}
+              hasActivePaidTier={hasActivePaidTier}
+              onSaveGeneralInfo={saveGeneralInfo}
+              generalInfoSaving={generalInfoSaving}
+              generalInfoStatus={generalInfoStatus}
+              generalInfoError={generalInfoError}
+              onStartUpgrade={setPendingUpgradeTier}
+            />
+          )}
+
+          {activeCategory === "premium-features" && (
+            <PremiumFeaturesCategory
+              claim={claim}
+              companySlug={claim.companySlug}
+              companyId={claim.companyId}
+              hasActivePaidTier={hasActivePaidTier}
+              onStartUpgrade={setPendingUpgradeTier}
+              featuredReviewId={featuredReviewId}
+              setFeaturedReviewId={setFeaturedReviewId}
+              onSavePremium={savePremium}
+              premiumSaving={premiumSaving}
+              premiumStatus={premiumStatus}
+              premiumError={premiumError}
+              showRivalAnalytics={showRivalAnalytics}
+              setShowRivalAnalytics={setShowRivalAnalytics}
+              hasFreeRivalAnalyticsRequest={hasFreeRivalAnalyticsRequest}
+              rivalAnalyticsFreeRequestUsed={rivalAnalyticsFreeRequestUsed}
+              onFreeCreditUsed={() => setFreeRivalAnalyticsRequestJustUsed(true)}
+              onOpenPricing={() => setShowPricing(true)}
+            />
           )}
 
           {activeCategory === "contact-social" && (
@@ -563,6 +592,19 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
           {activeCategory === "reviews-ratings" && (
             <ReviewsRatingsCategory companySlug={claim.companySlug} companyName={detail?.company.name ?? claim.companyName} detail={detail} />
+          )}
+
+          {/* Rendered here (sibling to every activeCategory block, not nested
+              inside general-info's) because both GeneralInfoCategory and
+              PremiumFeaturesCategory can set pendingUpgradeTier via
+              onStartUpgrade — this must show regardless of which tab is
+              active when the upgrade button was clicked. */}
+          {pendingUpgradeTier && (
+            <UpgradeCheckout
+              companyId={claim.companyId}
+              initialTier={pendingUpgradeTier}
+              onClose={() => setPendingUpgradeTier(null)}
+            />
           )}
         </div>
       </div>

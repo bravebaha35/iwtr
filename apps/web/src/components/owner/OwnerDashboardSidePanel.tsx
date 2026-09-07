@@ -1,9 +1,10 @@
 "use client";
 
-export type OwnerDashboardCategory = "general-info" | "contact-social" | "reviews-ratings";
+export type OwnerDashboardCategory = "general-info" | "premium-features" | "contact-social" | "reviews-ratings";
 
 const CATEGORIES: { key: OwnerDashboardCategory; label: string }[] = [
   { key: "general-info", label: "General Information" },
+  { key: "premium-features", label: "Premium Features" },
   { key: "contact-social", label: "Contact & Social Media" },
   { key: "reviews-ratings", label: "Reviews & Ratings" },
 ];
