@@ -317,19 +317,31 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
           eat into that box's fixed proportions. 4:1 keeps the file itself
           light and the strip short relative to the rest of the card. */}
       {showBanner && (
-        <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+        // Same Facebook-style overlap as CompanyWorkCard (rating page) —
+        // logo overlaps the banner's bottom-left corner by half its own
+        // height. Unlike CompanyWorkCard's version, this banner isn't
+        // negative-margined (it already sits flush at this card's own top
+        // edge), so the content box below gets extra top padding (pt-5,
+        // added to the ${showBanner ? ...} branch below) instead of a
+        // margin on the banner wrapper, to clear the protruding logo.
+        <div className="relative aspect-[4/1] w-full overflow-hidden rounded-t-xl">
           {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
           <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
+          <div className="absolute left-3 top-full -translate-y-1/2 rounded-lg ring-4 ring-surface">
+            <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
+          </div>
         </div>
       )}
-      <div className={`flex aspect-[4/5] flex-col p-4 compact:p-3 ${showBanner ? "rounded-b-xl" : "rounded-xl"}`}>
+      <div className={`flex aspect-[4/5] flex-col p-4 compact:p-3 ${showBanner ? "rounded-b-xl pt-5" : "rounded-xl"}`}>
         {/* Top row: logo + name (top-left) ... rating + info button
             (top-right). Name wraps up to 2 lines (was a single truncated
             line that clipped anything past ~20 chars, e.g. "Örnek Perakende
-            M...") rather than cutting a long company name short. */}
+            M...") rather than cutting a long company name short. With a
+            banner, the logo already sits above (overlapping it), so this
+            row is name-only. */}
         <div className="flex items-start justify-between gap-2">
           <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
-            <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
+            {!showBanner && <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />}
             <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">{company.name}</span>
           </Link>
 
