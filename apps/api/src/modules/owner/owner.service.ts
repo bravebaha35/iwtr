@@ -251,6 +251,7 @@ export class OwnerService {
     // plain center crop — a better default for an arbitrary owner-submitted
     // photo than always keeping the geometric middle.
     const resized = await sharp(file.buffer)
+      .rotate()
       .resize(BANNER_OUTPUT_WIDTH_PX, BANNER_OUTPUT_HEIGHT_PX, { fit: "cover", position: "attention" })
       .webp({ quality: 82 })
       .toBuffer();

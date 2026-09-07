@@ -10,6 +10,7 @@ import { httpUrlSchema } from "./company";
 // down to the card's fixed 4:1 banner box.
 export const BANNER_SOURCE_MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 export const BANNER_SOURCE_MIN_DIMENSION_PX = 400;
+export const BANNER_SOURCE_MAX_DIMENSION_PX = 8000;
 
 export interface BannerSourceFileMeta {
   mimeType: string;
@@ -39,6 +40,12 @@ export function validateBannerSourceFile(
     return {
       valid: false,
       error: `Image is too small for a banner — its shorter side must be at least ${BANNER_SOURCE_MIN_DIMENSION_PX}px (got ${meta.width}x${meta.height}px).`,
+    };
+  }
+  if (meta.width > BANNER_SOURCE_MAX_DIMENSION_PX || meta.height > BANNER_SOURCE_MAX_DIMENSION_PX) {
+    return {
+      valid: false,
+      error: `Image is too large for a banner — each side must be under ${BANNER_SOURCE_MAX_DIMENSION_PX}px (got ${meta.width}x${meta.height}px).`,
     };
   }
   return { valid: true };

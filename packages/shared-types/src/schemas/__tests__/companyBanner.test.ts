@@ -1,4 +1,4 @@
-import { validateBannerSourceFile, BANNER_SOURCE_MAX_FILE_SIZE_BYTES, BANNER_SOURCE_MIN_DIMENSION_PX } from "../companyBanner";
+import { validateBannerSourceFile, BANNER_SOURCE_MAX_FILE_SIZE_BYTES, BANNER_SOURCE_MIN_DIMENSION_PX, BANNER_SOURCE_MAX_DIMENSION_PX } from "../companyBanner";
 
 describe("validateBannerSourceFile", () => {
   const validMeta = { mimeType: "image/jpeg", sizeBytes: 500_000, width: 1600, height: 900 };
@@ -26,6 +26,15 @@ describe("validateBannerSourceFile", () => {
     const result = validateBannerSourceFile({
       ...validMeta,
       width: BANNER_SOURCE_MIN_DIMENSION_PX - 1,
+      height: 900,
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects an image whose dimension exceeds the maximum", () => {
+    const result = validateBannerSourceFile({
+      ...validMeta,
+      width: BANNER_SOURCE_MAX_DIMENSION_PX + 1,
       height: 900,
     });
     expect(result.valid).toBe(false);

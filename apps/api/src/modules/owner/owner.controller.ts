@@ -17,6 +17,7 @@ import {
   contactAdminInputSchema,
   ownerClaimStatusSchema,
   updateCompanyInputSchema,
+  BANNER_SOURCE_MAX_FILE_SIZE_BYTES,
   type ClaimCompanyInput,
   type ContactAdminInput,
   type OwnerClaimStatus,
@@ -74,7 +75,7 @@ export class OwnerController {
   }
 
   @Post("my-companies/:companyId/banner")
-  @UseInterceptors(FileInterceptor("file"))
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: BANNER_SOURCE_MAX_FILE_SIZE_BYTES } }))
   uploadBanner(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,

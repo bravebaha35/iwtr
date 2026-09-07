@@ -1,4 +1,4 @@
-﻿generator client {
+generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
 }
@@ -379,11 +379,13 @@ model Company {
   createdAt        DateTime        @default(now())
 
   // See the StructureType/TurkeyRegion enum comments above. Admin-only
-  // (AdminCompaniesService/CompaniesService.createByAdmin), same as
-  // workplaceTypes — never owner-self-editable. Exactly one of
-  // {city, region} is meaningful depending on structureType, enforced in
-  // shared-types' adminCreateCompanyInputSchema/adminUpdateCompanyInputSchema,
-  // not at the DB layer (Prisma has no portable cross-field constraint).
+  // (AdminCompaniesService/CompaniesService.createByAdmin) — unlike the
+  // owner-editable fields below (isHiring, contact/socials, Premium
+  // Features box), structureType/region are never owner-self-editable.
+  // Exactly one of {city, region} is meaningful depending on structureType,
+  // enforced in shared-types' adminCreateCompanyInputSchema/
+  // adminUpdateCompanyInputSchema, not at the DB layer (Prisma has no
+  // portable cross-field constraint).
   structureType StructureType @default(SETTLED)
   region        TurkeyRegion?
 
