@@ -3,7 +3,8 @@ import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { imageSize } from "image-size";
-import { validateLogoFile, type LogoUploadResult } from "@iwtr/shared-types";
+import sharp from "sharp";
+import { validateLogoFile, validateBannerSourceFile, type LogoUploadResult, type BannerUploadResult } from "@iwtr/shared-types";
 import type {
   AdminOwnerClaim,
   ClaimCompanyInput,
@@ -23,6 +24,9 @@ import { ReviewsService } from "../reviews/reviews.service";
 import { resolveLocation } from "../companies/resolve-location.util";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads", "company-logos");
+const BANNER_UPLOADS_DIR = join(process.cwd(), "uploads", "company-banners");
+const BANNER_OUTPUT_WIDTH_PX = 1200;
+const BANNER_OUTPUT_HEIGHT_PX = 300; // fixed 4:1 — matches CompanyWorkCard's aspect-[4/1] banner box
 
 function sameWorkplaceTypes(a: WorkplaceType[], b: WorkplaceType[]): boolean {
   return a.length === b.length && a.every((v) => b.includes(v));
@@ -212,12 +216,16 @@ export class OwnerService {
     return { url: `${origin}/uploads/company-logos/${filename}` };
   }
 
-  // Same validation/storage path as the logo — a wide banner image is just a
-  // second upload target, gated to Blue+ (Pro) and Enterprise only (unlike
-  // the logo, which is free-tier, and unlike the rest of the Premium
-  // Features box, which Blue/Starter can already use) since a banner is
-  // specifically a Pro/Enterprise privilege in the pricing matrix.
-  async uploadBanner(userId: string, companyId: string, file: Express.Multer.File | undefined): Promise<LogoUploadResult> {
+  // Its own uploads/company-banners directory (not the logo one) — a banner
+  // is always re-encoded to a fixed 1200x300 WebP server-side regardless of
+  // the source image's shape (see the sharp.resize call below), so it never
+  // needs to share the logo's exact-square rule. Dimensions are read from
+  // the uploaded buffer via `image-size` (never trusted from the client) and
+  // checked against validateBannerSourceFile — deliberately looser than the
+  // logo's rule, since the resize step crops+scales whatever shape comes in.
+  // This is what lets an owner upload literally any reasonably-sized photo
+  // without pre-cropping it themselves.
+  async uploadBanner(userId: string, companyId: string, file: Express.Multer.File | undefined): Promise<BannerUploadResult> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
     const hasBannerTier = ownership.tier === "BLUE_PLUS" || ownership.tier === "ENTERPRISE";
     if (!hasBannerTier || ownership.planStatus !== "ACTIVE") {
@@ -228,7 +236,7 @@ export class OwnerService {
     }
 
     const { width, height } = imageSize(file.buffer);
-    const check = validateLogoFile({
+    const check = validateBannerSourceFile({
       mimeType: file.mimetype,
       sizeBytes: file.buffer.length,
       width: width ?? 0,
@@ -238,12 +246,21 @@ export class OwnerService {
       throw new BadRequestException(check.error);
     }
 
-    await mkdir(UPLOADS_DIR, { recursive: true });
-    const filename = `${randomUUID()}.png`;
-    await writeFile(join(UPLOADS_DIR, filename), file.buffer);
+    // "position: attention" picks the crop window using sharp's
+    // saliency/entropy heuristic (busiest region of the image) rather than a
+    // plain center crop — a better default for an arbitrary owner-submitted
+    // photo than always keeping the geometric middle.
+    const resized = await sharp(file.buffer)
+      .resize(BANNER_OUTPUT_WIDTH_PX, BANNER_OUTPUT_HEIGHT_PX, { fit: "cover", position: "attention" })
+      .webp({ quality: 82 })
+      .toBuffer();
+
+    await mkdir(BANNER_UPLOADS_DIR, { recursive: true });
+    const filename = `${randomUUID()}.webp`;
+    await writeFile(join(BANNER_UPLOADS_DIR, filename), resized);
 
     const origin = process.env.API_PUBLIC_ORIGIN ?? `http://localhost:${process.env.PORT ?? 3001}`;
-    return { url: `${origin}/uploads/company-logos/${filename}` };
+    return { url: `${origin}/uploads/company-banners/${filename}` };
   }
 
   async contactAdmin(userId: string, companyId: string, input: ContactAdminInput): Promise<void> {
