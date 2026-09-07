@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
 }
@@ -50,8 +50,8 @@ enum EduLevel {
 // used to flag as open (see project memory, 2026-09-06 decision): FREE plus
 // exactly the 3 paid ranks from the CEO-finalized Free/Starter/Pro/Enterprise
 // matrix (apps/web/src/lib/pricingTiers.ts), renamed here to match the badge
-// each rank grants (Blue/Blue+/Enterprise — the top rank keeps the name
-// "Enterprise" from that matrix, whose badge is "Gold", not a 4th name).
+// each rank grants (Blue/Blue+/Enterprise — the top rank's badge is named
+// "Enterprise Badge", same as the tier itself).
 // tierKeyFromOwnerTier (apps/web/src/lib/pricingTiers.ts,
 // apps/api/src/modules/job-postings/decideBoostAccess.ts) maps this 1:1 onto
 // that matrix's free/starter/pro/enterprise keys — the matrix's own content
@@ -371,8 +371,8 @@ model Company {
   // Denormalized copy of the approved owner's OwnerTier, kept in sync in the
   // same place isVerifiedBadge already is (PaymentsService.
   // applySubscriptionStatus) — needed alongside the boolean because the
-  // public badge now has 4 distinct looks (none/Blue/Blue+/Gold), not just
-  // yes/no. Never read CompanyOwner.tier directly for public display; this
+  // public badge now has 4 distinct looks (none/Blue/Blue+/Enterprise), not
+  // just yes/no. Never read CompanyOwner.tier directly for public display; this
   // is the public-safe copy of it.
   badgeTier        OwnerTier       @default(FREE)
   createdByAdminId String?
