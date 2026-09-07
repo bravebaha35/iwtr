@@ -8,6 +8,7 @@ export * from "./schemas/payment";
 export * from "./schemas/employerProfile";
 export * from "./schemas/turkishPhone";
 export * from "./schemas/companyLogo";
+export * from "./schemas/companyBanner";
 export * from "./schemas/notification";
 export * from "./schemas/jobPosting";
 export * from "./schemas/avatarPhoto";
