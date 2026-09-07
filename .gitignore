@@ -14,3 +14,4 @@ apps/api/uploads/
 graphify-out/
 .worktrees/
 .superpowers/
+.semgrep/
