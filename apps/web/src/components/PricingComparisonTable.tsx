@@ -33,7 +33,7 @@ function PriceCell({ price, annualNote }: { price: string; annualNote?: string }
 const BADGE_STYLES: Record<string, string> = {
   Blue: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   "Blue+": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  Gold: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  Enterprise: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
 };
 
 function BadgeCell({ value }: { value: string }) {

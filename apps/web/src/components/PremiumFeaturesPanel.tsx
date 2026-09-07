@@ -10,7 +10,7 @@ const MENU_ITEMS = PRICING_FEATURE_ROWS.filter((row) => row.id !== "target-scale
 const BADGE_STYLES: Record<string, string> = {
   Blue: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   "Blue+": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  Gold: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  Enterprise: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
 };
 
 // A small honesty tag on every panel below — none of this is backed by real
