@@ -245,6 +245,9 @@ model User {
   // when PiiVault deliberately doesn't.
   employerProfile         EmployerProfile?
   jobPostings             JobPosting[]
+  socialPosts     SocialPost[]     @relation("SocialPostAuthor")
+  socialComments  SocialComment[]  @relation("SocialCommentAuthor")
+  socialPostLikes SocialPostLike[] @relation("SocialPostLiker")
 
   @@schema("public")
 }
@@ -443,6 +446,7 @@ model Company {
   ownerContactMessages OwnerContactMessage[]
   replies              CompanyReply[]
   jobPostings          JobPosting[]
+  socialPosts          SocialPost[]
 
   // name: helps the case-insensitive exact-match duplicate check
   // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
@@ -866,6 +870,68 @@ model RefreshToken {
 // 1 year, not more than 2 — the exact figure is set by regulation, confirm
 // with counsel before relying on a number here). No automatic purge job
 // exists yet — add one once that number is confirmed.
+
+// IWT Social - a company posts photos/updates under its corporate identity
+// (authorUserId is audit-only, never exposed publicly - a post is attributed
+// to the Company, exactly like CompanyReply). Employees comment and like
+// with full anonymity (see SocialComment).
+model SocialPost {
+  id           String   @id @default(uuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  authorUserId String
+  authorUser   User     @relation("SocialPostAuthor", fields: [authorUserId], references: [id])
+  // Server-produced compressed WebP URL under /uploads/social/ (see
+  // social-image.util.ts) - never a client-supplied URL.
+  imageUrl     String
+  // Optional "Tell us what you think !" text, run through
+  // ModerationService.checkContent before persist (hard-reject on violation).
+  caption      String?
+  createdAt    DateTime @default(now())
+
+  comments SocialComment[]
+  likes    SocialPostLike[]
+
+  @@index([companyId])
+  @@index([authorUserId])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+// An employee's comment on a post. Anonymity model is identical to Review:
+// authorUserId is audit-only and NEVER on the public shape; the displayed
+// handle/avatar come from User.reviewUsername + avatarKey/avatarGradient via
+// an explicit select (see SocialService.serializeComments / REVIEW.md).
+model SocialComment {
+  id           String     @id @default(uuid())
+  postId       String
+  post         SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorUserId String
+  authorUser   User       @relation("SocialCommentAuthor", fields: [authorUserId], references: [id])
+  body         String
+  createdAt    DateTime   @default(now())
+
+  @@index([postId])
+  @@index([authorUserId])
+  @@schema("public")
+}
+
+// One like per (post, user). Post-level only - there is deliberately no
+// CommentLike model (see the backend spec's decision log).
+model SocialPostLike {
+  id        String     @id @default(uuid())
+  postId    String
+  post      SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation("SocialPostLiker", fields: [userId], references: [id])
+  createdAt DateTime   @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@schema("public")
+}
+
+
 model TrafficLog {
   id         String   @id @default(uuid())
   encIp      Bytes
