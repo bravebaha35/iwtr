@@ -211,6 +211,38 @@ describe("SocialService comments + likes", () => {
     expect(out.every((c) => !("authorUserId" in c) && !("userId" in c))).toBe(true);
   });
 
+  it("serializes a deleted author's comment with a null identity and never a userId key", async () => {
+    const rows = [
+      { id: "cm1", postId: "p1", body: "kept", createdAt: new Date(1), authorUserId: null },
+      { id: "cm2", postId: "p1", body: "mine", createdAt: new Date(2), authorUserId: "viewer-1" },
+    ];
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      socialComment: { findMany: jest.fn().mockResolvedValue(rows) },
+      user: { findMany: jest.fn().mockResolvedValue([
+        { id: "viewer-1", avatarKey: "a2", avatarGradient: "g2", reviewUsername: "Viewer" },
+      ]) },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).listComments("viewer-1", "p1");
+
+    // null authorUserIds are filtered out before the user lookup, not passed as `null`.
+    expect((prisma as any).user.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ["viewer-1"] } },
+      select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
+    });
+    const orphan = out.find((c) => c.id === "cm1") as any;
+    expect(orphan).toMatchObject({
+      body: "kept",
+      displayUsername: null,
+      avatarKey: null,
+      avatarGradient: null,
+      mine: false,
+    });
+    expect(orphan).not.toHaveProperty("authorUserId");
+    expect(orphan).not.toHaveProperty("userId");
+    expect((out.find((c) => c.id === "cm2") as any).mine).toBe(true);
+  });
+
   it("toggleLike adds then removes", async () => {
     const like = { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn(), count: jest.fn() };
     const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;

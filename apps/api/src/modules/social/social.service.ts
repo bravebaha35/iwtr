@@ -278,17 +278,21 @@ export class SocialService {
   // leak REVIEW.md's red flag #1 warns about. The returned shape carries no
   // authorUserId / userId; the only per-viewer field is `mine`.
   private async serializeComments(
-    rows: Array<{ id: string; postId: string; body: string; createdAt: Date; authorUserId: string }>,
+    rows: Array<{ id: string; postId: string; body: string; createdAt: Date; authorUserId: string | null }>,
     viewerUserId: string | undefined,
   ): Promise<PublicSocialComment[]> {
-    const authorIds = [...new Set(rows.map((r) => r.authorUserId))];
+    // authorUserId is null when the comment's author has since deleted their
+    // account (SocialComment.authorUserId is onDelete: SetNull). The comment
+    // keeps its body but serializes with a null handle/avatar, and is never
+    // "mine" - so filter the nulls out before the author lookup.
+    const authorIds = [...new Set(rows.map((r) => r.authorUserId).filter((id): id is string => id !== null))];
     const authors = await this.prisma.user.findMany({
       where: { id: { in: authorIds } },
       select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
     });
     const byId = new Map(authors.map((a) => [a.id, a]));
     return rows.map((r) => {
-      const a = byId.get(r.authorUserId);
+      const a = r.authorUserId !== null ? byId.get(r.authorUserId) : undefined;
       return {
         id: r.id,
         postId: r.postId,

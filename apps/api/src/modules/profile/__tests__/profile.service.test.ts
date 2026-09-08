@@ -48,9 +48,14 @@ describe("ProfileService.changePassword", () => {
 });
 
 describe("ProfileService.deleteAccount", () => {
-  // deleteAccount clears every Restrict-FK child row inside a
-  // $transaction(async (tx) => ...) callback (not the array form
-  // changePassword uses), then deletes the user row last.
+  // deleteAccount hand-deletes the child rows whose User FK would otherwise
+  // block tx.user.delete, inside a $transaction(async (tx) => ...) callback
+  // (not the array form changePassword uses), then deletes the user row last.
+  // The three IWT Social FKs (SocialPost/SocialComment.authorUserId,
+  // SocialPostLike.userId) are deliberately NOT in that list: they are
+  // onDelete: SetNull, so the DB detaches them when the user row goes. That
+  // SetNull cascade is verified by `prisma db push` against the schema, not
+  // reproducible against these in-memory mocks.
   function makeDeleteAccountPrisma() {
     const tx = {
       review: {
@@ -82,22 +87,28 @@ describe("ProfileService.deleteAccount", () => {
     return { prisma, tx };
   }
 
-  it("clears the user's IWT Social posts, comments and likes before deleting the user", async () => {
+  it("completes without throwing and deletes the user row last", async () => {
+    const { prisma, tx } = makeDeleteAccountPrisma();
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await expect(service.deleteAccount("user-1")).resolves.toBeUndefined();
+
+    expect(tx.user.delete).toHaveBeenCalledWith({ where: { id: "user-1" } });
+    expect(tx.piiVault.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
+  });
+
+  it("does NOT hand-delete IWT Social posts/comments/likes (relies on onDelete: SetNull)", async () => {
     const { prisma, tx } = makeDeleteAccountPrisma();
     const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
 
     await service.deleteAccount("user-1");
 
-    expect(tx.socialPostLike.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
-    expect(tx.socialComment.deleteMany).toHaveBeenCalledWith({ where: { authorUserId: "user-1" } });
-    expect(tx.socialPost.deleteMany).toHaveBeenCalledWith({ where: { authorUserId: "user-1" } });
-
-    // All three are Restrict FKs on User (SocialPost/SocialComment.authorUserId,
-    // SocialPostLike.userId) - a user.delete before any of them is the P2003 500
-    // this regression test exists to catch.
-    const order = (m: jest.Mock) => m.mock.invocationCallOrder[0];
-    expect(order(tx.socialPostLike.deleteMany)).toBeLessThan(order(tx.user.delete));
-    expect(order(tx.socialComment.deleteMany)).toBeLessThan(order(tx.user.delete));
-    expect(order(tx.socialPost.deleteMany)).toBeLessThan(order(tx.user.delete));
+    // The author/user columns on these three tables are onDelete: SetNull, so
+    // tx.user.delete detaches them at the DB level - deleteAccount must not
+    // hand-delete the content. The SetNull cascade itself is DB behavior
+    // verified by `prisma db push` against the schema, not unit-testable here.
+    expect(tx.socialPost.deleteMany).not.toHaveBeenCalled();
+    expect(tx.socialComment.deleteMany).not.toHaveBeenCalled();
+    expect(tx.socialPostLike.deleteMany).not.toHaveBeenCalled();
   });
 });

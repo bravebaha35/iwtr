@@ -851,12 +851,17 @@ model RefreshToken {
 // (authorUserId is audit-only, never exposed publicly - a post is attributed
 // to the Company, exactly like CompanyReply). Employees comment and like
 // with full anonymity (see SocialComment).
+//
+// authorUserId is nullable + onDelete: SetNull: a company owner never
+// self-deletes, but an ordinary user who owns a company can delete their
+// personal account. When they do the post is retained (it belongs to the
+// Company, not the person) and only the audit-only author link detaches.
 model SocialPost {
   id           String   @id @default(uuid())
   companyId    String
   company      Company  @relation(fields: [companyId], references: [id])
-  authorUserId String
-  authorUser   User     @relation("SocialPostAuthor", fields: [authorUserId], references: [id])
+  authorUserId String?
+  authorUser   User?    @relation("SocialPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
   // Server-produced compressed WebP URL under /uploads/social/ (see
   // social-image.util.ts) - never a client-supplied URL.
   imageUrl     String
@@ -878,12 +883,16 @@ model SocialPost {
 // authorUserId is audit-only and NEVER on the public shape; the displayed
 // handle/avatar come from User.reviewUsername + avatarKey/avatarGradient via
 // an explicit select (see SocialService.serializeComments / REVIEW.md).
+//
+// authorUserId is nullable + onDelete: SetNull: if the comment's author later
+// deletes their personal account the comment text is retained and only the
+// audit-only author link detaches (it then serializes with a null handle/avatar).
 model SocialComment {
   id           String     @id @default(uuid())
   postId       String
   post         SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorUserId String
-  authorUser   User       @relation("SocialCommentAuthor", fields: [authorUserId], references: [id])
+  authorUserId String?
+  authorUser   User?      @relation("SocialCommentAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
   body         String
   createdAt    DateTime   @default(now())
 
@@ -894,12 +903,18 @@ model SocialComment {
 
 // One like per (post, user). Post-level only - there is deliberately no
 // CommentLike model (see the backend spec's decision log).
+//
+// userId is nullable + onDelete: SetNull: a liker who deletes their personal
+// account leaves the like row in place with userId = NULL, so the post's like
+// count stays honest. Postgres treats NULLs as distinct in @@unique([postId,
+// userId]), so two deleted likers on one post just leave two (postId, NULL)
+// rows - still correct.
 model SocialPostLike {
   id        String     @id @default(uuid())
   postId    String
   post      SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User       @relation("SocialPostLiker", fields: [userId], references: [id])
+  userId    String?
+  user      User?      @relation("SocialPostLiker", fields: [userId], references: [id], onDelete: SetNull)
   createdAt DateTime   @default(now())
 
   @@unique([postId, userId])

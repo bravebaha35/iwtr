@@ -241,13 +241,16 @@ export class ProfileService {
   }
 
   // Hard deletes the account and everything that would otherwise block the
-  // FK constraints on User (none of those relations declare onDelete —
-  // see schema.prisma) — reviews, employment/education history, and the
-  // user's IWT Social posts/comments/likes included, per the account-options
-  // copy promising reviews are lost. AuditLog rows are nullified rather than
-  // deleted (an audit trail should outlive the account it's about), and
-  // PiiVault (separate schema, no FK to User by design) is cleaned up
-  // explicitly in the same transaction since nothing would cascade into it.
+  // FK constraints on User - reviews, employment/education history, owner
+  // rows, phone/refresh tokens (none of those relations declare onDelete, see
+  // schema.prisma), per the account-options copy promising reviews are lost.
+  // The user's IWT Social posts/comments/likes are deliberately NOT deleted
+  // here: those three FKs are onDelete: SetNull, so the tx.user.delete below
+  // detaches the audit-only author link and the content itself is retained.
+  // AuditLog rows are nullified rather than deleted (an audit trail should
+  // outlive the account it's about), and PiiVault (separate schema, no FK to
+  // User by design) is cleaned up explicitly in the same transaction since
+  // nothing would cascade into it.
   async deleteAccount(userId: string): Promise<void> {
     await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
@@ -267,11 +270,9 @@ export class ProfileService {
       await tx.refreshToken.deleteMany({ where: { userId } });
       await tx.ownerContactMessage.deleteMany({ where: { ownerId: userId } });
       await tx.companyOwner.deleteMany({ where: { userId } });
-      // IWT Social rows: the user's own likes and comments first, then their
-      // posts - deleting a post cascades to every user's comments/likes on it.
-      await tx.socialPostLike.deleteMany({ where: { userId } });
-      await tx.socialComment.deleteMany({ where: { authorUserId: userId } });
-      await tx.socialPost.deleteMany({ where: { authorUserId: userId } });
+      // SocialPost/SocialComment.authorUserId and SocialPostLike.userId are
+      // onDelete: SetNull (see schema.prisma) - tx.user.delete below detaches
+      // the author link on those rows; the posts/comments/likes are retained.
       await tx.auditLog.updateMany({ where: { actorUserId: userId }, data: { actorUserId: null } });
       await tx.auditLog.create({
         data: { actorUserId: null, action: "ACCOUNT_DELETED", targetType: "User", targetId: userId },
