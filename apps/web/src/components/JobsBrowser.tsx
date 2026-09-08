@@ -421,7 +421,6 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
       <div className="border-t border-border px-3 py-2 compact:px-2 compact:py-1.5">
         <p className="truncate text-xs text-muted-foreground">
           {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")}
-          {company.isVerifiedBadge ? " · Verified" : ""}
           {company.isChainStore ? " · Chain store" : ""}
           {" · "}
           {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}

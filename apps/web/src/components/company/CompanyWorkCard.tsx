@@ -5,7 +5,7 @@ import Link from "next/link";
 import { scoreBandLabel, type OwnerTier, type WorkplaceType } from "@iwtr/shared-types";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
-import { canUseBanner, tickSrcForOwnerTier } from "@/lib/pricingTiers";
+import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 
 export interface CompanyWorkCardData {
@@ -70,7 +70,6 @@ function useIsMultiline(ref: React.RefObject<HTMLElement | null>, watch: unknown
  * browse-grid cell, or a fixed-width wrapper around the dashboard preview.
  */
 export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardData; href?: string }) {
-  const tickSrc = tickSrcForOwnerTier(company.badgeTier);
   const nameRef = useRef<HTMLParagraphElement>(null);
   const isWrapped = useIsMultiline(nameRef, company.name);
   const showBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
@@ -101,25 +100,13 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
           against it, wrapped 2-line name top-aligns so its first line lines
           up with the logo's top edge). With a banner, the logo has already
           been placed above it, overlapping its bottom-left corner, so this
-          row is just the name + tick. The name <p> is NOT flex-1 — that stretched
-          it full-width and shoved the tick out to the card's right edge. */}
+          row is just the name. Membership badges no longer appear on this
+          card; they show only on a company's own profile page. */}
       <div className={`flex gap-3 ${showBanner || isWrapped ? "items-start" : "items-center"}`}>
         {!showBanner && <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />}
-        <div className="flex min-w-0 flex-1 items-start gap-1.5">
-          <p ref={nameRef} className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
-            {company.name}
-          </p>
-          {tickSrc && (
-            // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static badge art
-            <img
-              src={tickSrc}
-              alt={`${company.badgeTier === "ENTERPRISE" ? "Enterprise" : company.badgeTier === "BLUE_PLUS" ? "Blue+" : "Blue"} verified badge`}
-              width={company.badgeTier === "ENTERPRISE" ? 26 : 18}
-              height={company.badgeTier === "ENTERPRISE" ? 26 : 18}
-              className="mt-0.5 inline-flex shrink-0 items-center"
-            />
-          )}
-        </div>
+        <p ref={nameRef} className="line-clamp-2 min-w-0 flex-1 font-semibold leading-snug text-foreground">
+          {company.name}
+        </p>
       </div>
 
       <p className="text-xs text-muted-foreground">

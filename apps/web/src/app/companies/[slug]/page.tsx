@@ -11,7 +11,7 @@ import { AdSlot } from "@/components/AdSlot";
 import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { ratingImageSrc } from "@/lib/ratingNarrative";
-import { badgeLabelForOwnerTier, canUseBanner } from "@/lib/pricingTiers";
+import { badgeLabelForOwnerTier, canUseBanner, tickSrcForOwnerTier } from "@/lib/pricingTiers";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -213,10 +213,15 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             <div>
               <h1 className="text-2xl font-bold text-foreground">
                 {company.name}
-                {badgeLabelForOwnerTier(company.badgeTier) && (
-                  <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-                    {badgeLabelForOwnerTier(company.badgeTier)} Badge
-                  </span>
+                {tickSrcForOwnerTier(company.badgeTier) && (
+                  // eslint-disable-next-line @next/next/no-img-element -- small local static badge asset
+                  <img
+                    src={tickSrcForOwnerTier(company.badgeTier)!}
+                    alt={`${badgeLabelForOwnerTier(company.badgeTier)} verified employer badge`}
+                    width={26}
+                    height={26}
+                    className="ml-2 inline-block align-middle"
+                  />
                 )}
               </h1>
               <p className="text-sm text-muted-foreground">
