@@ -101,11 +101,12 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
           against it, wrapped 2-line name top-aligns so its first line lines
           up with the logo's top edge). With a banner, the logo has already
           been placed above it, overlapping its bottom-left corner, so this
-          row is just the name + tick. */}
+          row is just the name + tick. The name <p> is NOT flex-1 — that stretched
+          it full-width and shoved the tick out to the card's right edge. */}
       <div className={`flex gap-3 ${showBanner || isWrapped ? "items-start" : "items-center"}`}>
         {!showBanner && <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />}
         <div className="flex min-w-0 flex-1 items-start gap-1.5">
-          <p ref={nameRef} className="line-clamp-2 min-w-0 flex-1 font-semibold leading-snug text-foreground">
+          <p ref={nameRef} className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
             {company.name}
           </p>
           {tickSrc && (

@@ -192,8 +192,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
           // for a full-width detail-page hero — ring-background (not
           // ring-surface) since this header sits directly on the page's own
           // background, not inside a bg-surface card.
-          <div className="relative mb-10">
-            <div className="aspect-[4/1] w-full overflow-hidden rounded-xl">
+          <div className="relative mb-14">
+            {/* 5:1, not 4:1 — on this full-width hero a 4:1 slab ran ~290px
+                tall and read as a wall; 5:1 keeps it a cover strip. mb-14
+                clears the half of the lg logo that hangs below it. */}
+            <div className="aspect-[5/1] w-full overflow-hidden rounded-xl">
               {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
               <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
             </div>
