@@ -210,7 +210,7 @@ export class SocialService {
 
   // Author-only. A non-author (or an anonymous caller, caught by the guard
   // before here) gets 403; an unknown id gets 404.
-  async deleteComment(userId: string, commentId: string): Promise<void> {
+  async deleteComment(userId: string, commentId: string): Promise<{ success: true }> {
     const comment = await this.prisma.socialComment.findUnique({ where: { id: commentId } });
     if (!comment) throw new NotFoundException("Comment not found");
     if (comment.authorUserId !== userId) {
@@ -225,6 +225,7 @@ export class SocialService {
         throw err;
       }
     }
+    return { success: true };
   }
 
   // --- Likes. Post-level only (there is deliberately no CommentLike). One

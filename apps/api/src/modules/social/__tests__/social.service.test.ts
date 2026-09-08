@@ -184,11 +184,12 @@ describe("SocialService comments + likes", () => {
     await expect(new SocialService(prisma, moderationPass).deleteComment("u1", "nope")).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("deleteComment deletes the caller's own comment", async () => {
+  it("deleteComment deletes the caller's own comment and returns { success: true }", async () => {
     const del = jest.fn().mockResolvedValue(undefined);
     const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "u1" }), delete: del } } as never;
-    await new SocialService(prisma, moderationPass).deleteComment("u1", "cm1");
+    const result = await new SocialService(prisma, moderationPass).deleteComment("u1", "cm1");
     expect(del).toHaveBeenCalledWith({ where: { id: "cm1" } });
+    expect(result).toEqual({ success: true });
   });
 
   it("listComments returns oldest-first, mine:false for an anonymous viewer, no userId", async () => {
