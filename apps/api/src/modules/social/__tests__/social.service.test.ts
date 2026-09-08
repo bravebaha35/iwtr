@@ -78,7 +78,7 @@ describe("SocialService.createPost", () => {
     );
   });
 
-  it("runs the caption through moderation with the name + job-title checks skipped", async () => {
+  it("runs the caption through moderation with the name, job-title and shouting checks skipped", async () => {
     const prisma = makePrisma();
     (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
     const checkContent = jest.fn().mockReturnValue({ violates: false, violationTypes: [], confidence: 0.95 });
@@ -91,11 +91,11 @@ describe("SocialService.createPost", () => {
 
     expect(checkContent).toHaveBeenCalledWith(
       ["Welcome our new Warehouse Manager Jane Doe"],
-      { skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"] },
+      { skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"] },
     );
   });
 
-  it("with the real ModerationService: accepts a caption naming staff + a role, still rejects profanity", async () => {
+  it("with the real ModerationService: accepts a caption naming staff + a role + all-caps, still rejects profanity", async () => {
     const prisma = makePrisma();
     (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
     const moderation = new ModerationService() as never;
@@ -106,6 +106,13 @@ describe("SocialService.createPost", () => {
       jpegFile,
     );
     expect(ok).toEqual({ id: "post-1" });
+
+    const caps = await new SocialService(prisma, moderation).createPost(
+      "u1",
+      { companyId: CID, caption: "GRAND OPENING THIS SATURDAY COME AND SEE US" },
+      jpegFile,
+    );
+    expect(caps).toEqual({ id: "post-1" });
 
     await expect(
       new SocialService(prisma, moderation).createPost(

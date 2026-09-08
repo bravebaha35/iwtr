@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-// The content-rule categories checkContent can flag, pulled out into their
-// own enum so a caller can opt specific ones out. An employer's own IWT
-// Social post caption passes ["NAME_OR_SURNAME", "JOB_TITLE"] to
-// ModerationService.checkContent's options.skipViolationTypes - it is allowed
-// to name its own staff and job roles. Profanity, sexual content, phone
-// numbers and shouting are never skippable.
+// The content-rule categories checkContent can flag.
 export const contentViolationTypeSchema = z.enum([
   "NAME_OR_SURNAME",
   "JOB_TITLE",
@@ -14,6 +9,18 @@ export const contentViolationTypeSchema = z.enum([
   "PII_PHONE_NUMBER",
 ]);
 export type ContentViolationType = z.infer<typeof contentViolationTypeSchema>;
+
+// The subset a caller may opt out of via ModerationService.checkContent's
+// options.skipViolationTypes. An employer's own IWT Social post caption
+// passes all three (SocialService.createPost): it may name its own staff,
+// name a job role, and write an all-caps announcement in its own post.
+// PROFANITY and PII_PHONE_NUMBER are deliberately NOT skippable.
+export const skippableViolationTypeSchema = z.enum([
+  "NAME_OR_SURNAME",
+  "JOB_TITLE",
+  "ABUSE_OR_INSULT",
+]);
+export type SkippableViolationType = z.infer<typeof skippableViolationTypeSchema>;
 
 // Output of the content-rule check stage (names, titles, curse words, insults).
 export const contentCheckResultSchema = z.object({

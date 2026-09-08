@@ -1,15 +1,17 @@
 import { ModerationService } from "../moderation.service";
-import type { ContentViolationType } from "@iwtr/shared-types";
+import type { SkippableViolationType } from "@iwtr/shared-types";
 
-// COMMIT 2: checkContent gained an optional { skipViolationTypes } opt-out so
-// an employer's own IWT Social post caption can name its own staff and job
-// roles. Only NAME_OR_SURNAME / JOB_TITLE are softenable; profanity, sexual
-// content, phone numbers and the shouting/caps check always apply. Comment
-// bodies (SocialService.addComment) still get the full ruleset.
+// checkContent has an optional { skipViolationTypes } opt-out so an employer's
+// own IWT Social post caption can name its own staff, name a job role, and
+// write an all-caps announcement. Only NAME_OR_SURNAME / JOB_TITLE /
+// ABUSE_OR_INSULT are skippable; PROFANITY, sexual content (folded into
+// PROFANITY) and PII_PHONE_NUMBER always apply. Comment bodies
+// (SocialService.addComment) still get the full ruleset.
 describe("ModerationService.checkContent", () => {
   const svc = new ModerationService();
-  const SKIP: { skipViolationTypes: ContentViolationType[] } = {
-    skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"],
+  // Exactly what SocialService.createPost passes for a caption.
+  const SKIP: { skipViolationTypes: SkippableViolationType[] } = {
+    skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"],
   };
 
   describe("default behaviour is unchanged (no options)", () => {
@@ -29,6 +31,12 @@ describe("ModerationService.checkContent", () => {
       });
     });
 
+    it("still rejects a long all-caps string with no options", () => {
+      const r = svc.checkContent(["WE ARE THRILLED TO WELCOME EVERYONE THIS WEEKEND"]);
+      expect(r.violates).toBe(true);
+      expect(r.violationTypes).toContain("ABUSE_OR_INSULT");
+    });
+
     it("is byte-identical whether options is omitted, empty, or an empty skip list", () => {
       const a = svc.checkContent(["New Office"]);
       const b = svc.checkContent(["New Office"], {});
@@ -38,7 +46,7 @@ describe("ModerationService.checkContent", () => {
     });
   });
 
-  describe("with skipViolationTypes: names + job titles are allowed", () => {
+  describe("with the caption skip list: names, job titles and all-caps are allowed", () => {
     it("allows a two-word capitalised phrase that looks like a name", () => {
       expect(svc.checkContent(["New Office"]).violates).toBe(true);
       expect(svc.checkContent(["New Office"], SKIP)).toEqual({
@@ -62,9 +70,26 @@ describe("ModerationService.checkContent", () => {
       expect(svc.checkContent(["OUR MUDUR"]).violationTypes).toContain("JOB_TITLE");
       expect(svc.checkContent(["OUR MUDUR"], SKIP).violates).toBe(false);
     });
+
+    it("allows a long all-caps announcement", () => {
+      expect(
+        svc.checkContent(["COME VISIT OUR BRAND NEW FLAGSHIP STORE THIS WEEKEND"]).violationTypes,
+      ).toContain("ABUSE_OR_INSULT");
+      expect(svc.checkContent(["COME VISIT OUR BRAND NEW FLAGSHIP STORE THIS WEEKEND"], SKIP).violates).toBe(false);
+    });
   });
 
-  describe("with skipViolationTypes: everything else still hard-rejects", () => {
+  describe("each skippable type is gated independently", () => {
+    it("a skip list without ABUSE_OR_INSULT still rejects a long all-caps string", () => {
+      const r = svc.checkContent(["WE ARE THRILLED TO OPEN OUR NEW OFFICE TODAY"], {
+        skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"],
+      });
+      expect(r.violates).toBe(true);
+      expect(r.violationTypes).toContain("ABUSE_OR_INSULT");
+    });
+  });
+
+  describe("with the caption skip list: profanity and PII still hard-reject", () => {
     it("still rejects profanity", () => {
       const r = svc.checkContent(["this office is shit"], SKIP);
       expect(r.violates).toBe(true);
@@ -75,12 +100,6 @@ describe("ModerationService.checkContent", () => {
       const r = svc.checkContent(["call us on 0555 123 45 67"], SKIP);
       expect(r.violates).toBe(true);
       expect(r.violationTypes).toContain("PII_PHONE_NUMBER");
-    });
-
-    it("still rejects shouting / all-caps", () => {
-      const r = svc.checkContent(["WE ARE THRILLED TO OPEN OUR NEW OFFICE TODAY"], SKIP);
-      expect(r.violates).toBe(true);
-      expect(r.violationTypes).toContain("ABUSE_OR_INSULT");
     });
 
     it("filters only the skipped types out of a mixed result", () => {

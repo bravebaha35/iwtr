@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { ContentCheckResult, ContentViolationType, TrustScoreResult } from "@iwtr/shared-types";
+import type { ContentCheckResult, SkippableViolationType, TrustScoreResult } from "@iwtr/shared-types";
 
 // Small, deliberately simple word lists for the Phase 1 stand-in. Swap this
 // whole class for a Claude-backed implementation later (see plan) — nothing
@@ -163,14 +163,16 @@ function looksLikeSpacedName(candidate: string): boolean {
 export class ModerationService {
   checkContent(
     texts: string[],
-    options?: { skipViolationTypes?: ContentViolationType[] },
+    options?: { skipViolationTypes?: SkippableViolationType[] },
   ): ContentCheckResult {
     // Categories the caller opts out of. SocialService.createPost passes
-    // ["NAME_OR_SURNAME", "JOB_TITLE"] for an employer's own post caption so
-    // it may name its own staff and job roles. Only those two are honored
-    // here - profanity, sexual content, phone numbers and shouting always
-    // apply. With no options this stays byte-identical to the original.
-    const skip = new Set<ContentViolationType>(options?.skipViolationTypes ?? []);
+    // ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"] for an employer's own
+    // post caption: it may name its own staff and job roles and write an
+    // all-caps announcement in its own post. Only those three are opt-outable
+    // (see SkippableViolationType) - profanity, sexual content and phone
+    // numbers always apply. With no options this stays byte-identical to the
+    // original.
+    const skip = new Set<SkippableViolationType>(options?.skipViolationTypes ?? []);
     const combined = texts.filter(Boolean).join(" \n ");
     const lower = combined.toLowerCase();
     const layoutFolded = foldTurkishLayout(combined);
@@ -213,8 +215,13 @@ export class ModerationService {
       violationTypes.push("PII_PHONE_NUMBER");
     }
 
+    // Gated by skipViolationTypes: an employer's own caption may be an all-caps
+    // announcement ("GRAND OPENING THIS SATURDAY") - the shouting heuristic is
+    // tuned for an employee venting in a review, not this.
     const shoutingRatio = this.shoutingRatio(combined);
-    if (shoutingRatio > 0.6 && combined.length > 20) violationTypes.push("ABUSE_OR_INSULT");
+    if (shoutingRatio > 0.6 && combined.length > 20 && !skip.has("ABUSE_OR_INSULT")) {
+      violationTypes.push("ABUSE_OR_INSULT");
+    }
 
     if (violationTypes.length === 0) {
       return { violates: false, violationTypes: [], confidence: 0.95 };
