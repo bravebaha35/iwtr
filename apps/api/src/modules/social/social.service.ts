@@ -14,6 +14,7 @@ import {
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
+import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "../companies/company-visibility";
 import { processSocialImage } from "./social-image.util";
 
 // Local disk, dev-safe - same pattern as OwnerService.uploadLogo. Served at
@@ -84,20 +85,28 @@ export class SocialService {
     viewerUserId: string | undefined,
     opts: { cursor?: string; q?: string },
   ): Promise<SocialFeedPage> {
-    const where: Prisma.SocialPostWhereInput = opts.q?.trim()
-      ? { company: { name: { contains: opts.q.trim(), mode: "insensitive" } } }
-      : {};
+    // The global feed is always gated on the post's company being publicly
+    // visible — a company an ADMIN has hidden (Company.hiddenAt) drops out
+    // of the feed entirely, same as it does from search / its detail page.
+    const companyWhere = {
+      ...PUBLIC_COMPANY_WHERE,
+      ...(opts.q?.trim() ? { name: { contains: opts.q.trim(), mode: "insensitive" as const } } : {}),
+    };
+    const where: Prisma.SocialPostWhereInput = { company: companyWhere };
     return this.pageFromWhere(viewerUserId, where, opts.cursor);
   }
 
-  // One company's feed, addressed by slug. 404s on an unknown slug.
+  // One company's feed, addressed by slug. 404s on an unknown — or hidden — slug.
   async companyFeed(
     viewerUserId: string | undefined,
     slug: string,
     opts: { cursor?: string },
   ): Promise<SocialFeedPage> {
-    const company = await this.prisma.company.findUnique({ where: { slug }, select: { id: true } });
-    if (!company) throw new NotFoundException("Company not found");
+    const company = await this.prisma.company.findUnique({
+      where: { slug },
+      select: { id: true, hiddenAt: true },
+    });
+    assertCompanyVisibleOrThrow(company);
     return this.pageFromWhere(viewerUserId, { companyId: company.id }, opts.cursor);
   }
 

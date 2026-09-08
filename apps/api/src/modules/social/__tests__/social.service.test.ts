@@ -163,9 +163,12 @@ describe("SocialService.feed", () => {
 
   it("companyFeed resolves the slug then returns that company's posts", async () => {
     const prisma = feedPrisma();
-    (prisma as any).company = { findUnique: jest.fn().mockResolvedValue({ id: "c1" }) };
+    (prisma as any).company = { findUnique: jest.fn().mockResolvedValue({ id: "c1", hiddenAt: null }) };
     const page = await new SocialService(prisma, moderationPass).companyFeed(undefined, "acme", {});
-    expect((prisma as any).company.findUnique).toHaveBeenCalledWith({ where: { slug: "acme" }, select: { id: true } });
+    expect((prisma as any).company.findUnique).toHaveBeenCalledWith({
+      where: { slug: "acme" },
+      select: { id: true, hiddenAt: true },
+    });
     expect(page.posts.map((p) => p.id)).toEqual(["p2", "p1"]);
   });
 
@@ -174,6 +177,24 @@ describe("SocialService.feed", () => {
     (prisma as any).company = { findUnique: jest.fn().mockResolvedValue(null) };
     await expect(
       new SocialService(prisma, moderationPass).companyFeed(undefined, "ghost", {}),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("excludes a hidden company's posts from the global feed", async () => {
+    const prisma = feedPrisma();
+    await new SocialService(prisma, moderationPass).feed(undefined, {});
+    expect((prisma as any).socialPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ company: expect.objectContaining({ hiddenAt: null }) }),
+      }),
+    );
+  });
+
+  it("companyFeed 404s for a hidden company", async () => {
+    const prisma = feedPrisma();
+    (prisma as any).company = { findUnique: jest.fn().mockResolvedValue({ id: "c1", hiddenAt: new Date() }) };
+    await expect(
+      new SocialService(prisma, moderationPass).companyFeed(undefined, "hidden-co", {}),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 

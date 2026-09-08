@@ -178,4 +178,22 @@ describe("CompaniesService — hidden companies stay out of public reads", () =>
     await expect(service.getBySlug("co")).rejects.toThrow("Company not found");
     expect(reviews.areAllWorkplaceTypesReviewed).not.toHaveBeenCalled();
   });
+
+  it("the /jobs job-posting cards read is itself gated on a visible company", async () => {
+    const prisma = makePrisma({
+      company: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "c1", slug: "c1", name: "Co", category: "Software", workplaceTypes: ["OFFICE"], aggregate: null },
+        ]),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    await service.search({ ...baseQuery(), includeJobTitles: true });
+
+    expect(prisma.jobPosting.findMany.mock.calls[0][0].where).toMatchObject({
+      company: { hiddenAt: null },
+      status: "PUBLISHED",
+    });
+  });
 });

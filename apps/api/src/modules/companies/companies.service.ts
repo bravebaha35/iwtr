@@ -216,7 +216,11 @@ export class CompaniesService {
     if (companyIds.length === 0) return new Map();
 
     const rows = await this.prisma.jobPosting.findMany({
-      where: { companyId: { in: companyIds }, status: "PUBLISHED" },
+      // The public /jobs browser is this service's `search` + these postings;
+      // `search` already drops hidden companies, but gate the posting read
+      // itself too so a hidden company's job cards can never leak here
+      // regardless of how the caller built `companyIds`.
+      where: { company: { ...PUBLIC_COMPANY_WHERE }, companyId: { in: companyIds }, status: "PUBLISHED" },
       select: { companyId: true, jobTitle: true, description: true },
       orderBy: { createdAt: "desc" },
     });
