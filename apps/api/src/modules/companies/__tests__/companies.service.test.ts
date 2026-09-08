@@ -102,6 +102,7 @@ describe("CompaniesService.getBySlug — workplaceTypesLocked", () => {
           name: "Co",
           category: "Software",
           workplaceTypes: ["OFFICE", "SERVICE"],
+          hiddenAt: null,
           aggregate: null,
         }),
       },
@@ -124,6 +125,7 @@ describe("CompaniesService.getBySlug — workplaceTypesLocked", () => {
           name: "Co",
           category: "Software",
           workplaceTypes: ["OFFICE", "SERVICE"],
+          hiddenAt: null,
           aggregate: null,
         }),
       },
@@ -134,5 +136,46 @@ describe("CompaniesService.getBySlug — workplaceTypesLocked", () => {
     const result = await service.getBySlug("co");
 
     expect(result.company.workplaceTypesLocked).toBe(false);
+  });
+});
+
+describe("CompaniesService — hidden companies stay out of public reads", () => {
+  it("search filters to non-hidden companies", async () => {
+    const prisma = makePrisma();
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    await service.search(baseQuery());
+
+    expect(prisma.company.findMany.mock.calls[0][0].where).toMatchObject({ hiddenAt: null });
+  });
+
+  it("the cities filter list is scoped to non-hidden companies", async () => {
+    const prisma = makePrisma();
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    await service.listFilters();
+
+    expect(prisma.company.findMany.mock.calls[0][0].where).toMatchObject({ hiddenAt: null });
+  });
+
+  it("getBySlug 404s a hidden company exactly like a missing one", async () => {
+    const prisma = {
+      company: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "c1",
+          slug: "co",
+          name: "Co",
+          category: "Software",
+          workplaceTypes: ["OFFICE"],
+          hiddenAt: new Date(),
+          aggregate: null,
+        }),
+      },
+    };
+    const reviews = { areAllWorkplaceTypesReviewed: jest.fn() };
+    const service = new CompaniesService(prisma as any, reviews as any);
+
+    await expect(service.getBySlug("co")).rejects.toThrow("Company not found");
+    expect(reviews.areAllWorkplaceTypesReviewed).not.toHaveBeenCalled();
   });
 });

@@ -438,6 +438,11 @@ model Company {
   bannerImageUrl   String?
   featuredReviewId String?
 
+  // Set by an ADMIN via PATCH /admin/companies/:id/visibility. A hidden company
+  // vanishes from every public surface (search, detail, filters, job browse,
+  // IWT Social feed) but keeps all its data; unhiding clears this.
+  hiddenAt DateTime?
+
   employmentHistories  EmploymentHistory[]
   reviews              Review[]
   owners               CompanyOwner[]
@@ -457,6 +462,7 @@ model Company {
   @@index([name])
   @@index([city])
   @@index([district])
+  @@index([hiddenAt])
   @@schema("public")
 }
 

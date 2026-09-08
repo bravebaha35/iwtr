@@ -15,6 +15,7 @@ import {
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
+import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "./company-visibility";
 import { slugify } from "./slugify.util";
 import { resolveLocation } from "./resolve-location.util";
 import { classifyJobRole } from "./workplace-classifier/classifyJobRole";
@@ -163,6 +164,9 @@ export class CompaniesService {
 
     const companies = await this.prisma.company.findMany({
       where: {
+        // A hidden company (Company.hiddenAt) is gone from every public
+        // surface — the homepage/jobs browser included.
+        ...PUBLIC_COMPANY_WHERE,
         ...(query.q ? { name: { contains: query.q, mode: "insensitive" } } : {}),
         ...(query.category ? { category: query.category } : {}),
         // hasSome, not has: the sidebar filter is OR semantics across
@@ -295,7 +299,7 @@ export class CompaniesService {
   // enum, so the client reads it directly from shared-types instead.
   async listFilters(): Promise<CompanyFilters> {
     const cities = await this.prisma.company.findMany({
-      where: { city: { not: null } },
+      where: { ...PUBLIC_COMPANY_WHERE, city: { not: null } },
       distinct: ["city"],
       select: { city: true },
       orderBy: { city: "asc" },
@@ -310,9 +314,10 @@ export class CompaniesService {
       where: { slug },
       include: { aggregate: true },
     });
-    if (!company) {
-      throw new NotFoundException("Company not found");
-    }
+    // Subsumes the bare null-check: a hidden company 404s exactly like a
+    // non-existent one, so its detail page (and everything slug-scoped that
+    // hangs off it) disappears for the public.
+    assertCompanyVisibleOrThrow(company);
 
     const workplaceTypesLocked = await this.reviews.areAllWorkplaceTypesReviewed(
       company.id,
