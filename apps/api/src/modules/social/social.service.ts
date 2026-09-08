@@ -216,7 +216,15 @@ export class SocialService {
     if (comment.authorUserId !== userId) {
       throw new ForbiddenException("You can only delete your own comment.");
     }
-    await this.prisma.socialComment.delete({ where: { id: commentId } });
+    try {
+      await this.prisma.socialComment.delete({ where: { id: commentId } });
+    } catch (err) {
+      // A parallel delete already removed it between the read above and here
+      // -> P2025. The caller's intent (comment gone) is already satisfied.
+      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025")) {
+        throw err;
+      }
+    }
   }
 
   // --- Likes. Post-level only (there is deliberately no CommentLike). One
@@ -228,7 +236,16 @@ export class SocialService {
       where: { postId_userId: { postId, userId } },
     });
     if (existing) {
-      await this.prisma.socialPostLike.delete({ where: { id: existing.id } });
+      try {
+        await this.prisma.socialPostLike.delete({ where: { id: existing.id } });
+      } catch (err) {
+        // A parallel unlike (double-clicked button) already removed the row
+        // between the findUnique above and here -> P2025. Idempotent "now
+        // unliked" rather than a 500.
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025")) {
+          throw err;
+        }
+      }
     } else {
       try {
         await this.prisma.socialPostLike.create({ data: { postId, userId } });

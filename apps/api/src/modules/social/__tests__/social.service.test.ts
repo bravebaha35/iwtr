@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { SocialService } from "../social.service";
 
 jest.mock("../social-image.util", () => ({
@@ -178,6 +179,37 @@ describe("SocialService comments + likes", () => {
     await expect(new SocialService(prisma, moderationPass).deleteComment("u1", "cm1")).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it("deleteComment 404s on an unknown id", async () => {
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
+    await expect(new SocialService(prisma, moderationPass).deleteComment("u1", "nope")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("deleteComment deletes the caller's own comment", async () => {
+    const del = jest.fn().mockResolvedValue(undefined);
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "u1" }), delete: del } } as never;
+    await new SocialService(prisma, moderationPass).deleteComment("u1", "cm1");
+    expect(del).toHaveBeenCalledWith({ where: { id: "cm1" } });
+  });
+
+  it("listComments returns oldest-first, mine:false for an anonymous viewer, no userId", async () => {
+    const rows = [
+      { id: "cm1", postId: "p1", body: "first", createdAt: new Date(1), authorUserId: "u1" },
+      { id: "cm2", postId: "p1", body: "second", createdAt: new Date(2), authorUserId: "u2" },
+    ];
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      socialComment: { findMany: jest.fn().mockResolvedValue(rows) },
+      user: { findMany: jest.fn().mockResolvedValue([
+        { id: "u1", avatarKey: "a1", avatarGradient: "g1", reviewUsername: "One" },
+        { id: "u2", avatarKey: "a2", avatarGradient: "g2", reviewUsername: "Two" },
+      ]) },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).listComments(undefined, "p1");
+    expect(out.map((c) => c.id)).toEqual(["cm1", "cm2"]);
+    expect(out.every((c) => c.mine === false)).toBe(true);
+    expect(out.every((c) => !("authorUserId" in c) && !("userId" in c))).toBe(true);
+  });
+
   it("toggleLike adds then removes", async () => {
     const like = { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn(), count: jest.fn() };
     const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;
@@ -193,5 +225,32 @@ describe("SocialService comments + likes", () => {
     const r2 = await new SocialService(prisma, moderationPass).toggleLike("u1", "p1");
     expect(r2).toEqual({ postId: "p1", likeCount: 0, likedByMe: false });
     expect(like.delete).toHaveBeenCalled();
+  });
+
+  it("toggleLike swallows a concurrent-create P2002 and reports now-liked", async () => {
+    const like = {
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "x" }),
+      ),
+      count: jest.fn().mockResolvedValue(1),
+      delete: jest.fn(),
+    };
+    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;
+    const r = await new SocialService(prisma, moderationPass).toggleLike("u1", "p1");
+    expect(r).toEqual({ postId: "p1", likeCount: 1, likedByMe: true });
+  });
+
+  it("toggleLike rethrows a non-P2002 create error", async () => {
+    const like = {
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError("fk", { code: "P2003", clientVersion: "x" }),
+      ),
+      count: jest.fn(),
+      delete: jest.fn(),
+    };
+    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;
+    await expect(new SocialService(prisma, moderationPass).toggleLike("u1", "p1")).rejects.toThrow();
   });
 });
