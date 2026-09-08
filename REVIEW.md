@@ -31,6 +31,12 @@ Concretely, a PR is in scope if it touches any of:
   contracts
 - `apps/web/src/components/ReviewsList.tsx` and any other frontend
   component that renders review data
+- `apps/api/src/modules/social/**` — `SocialComment` is read/serialized under
+  the same rule as `Review`: `SocialService.serializeComments` must stay an
+  explicit `select` of `{ id, avatarKey, avatarGradient, reviewUsername }`,
+  the public `PublicSocialComment` shape must never carry `authorUserId`, and
+  no `prisma.socialComment.*` / `prisma.socialPost.*` query may add
+  `include: { user: true }`.
 
 ## Severity
 
@@ -44,8 +50,9 @@ the severity because the diff is short.
 ## Specific red flags — block the PR if you see these
 
 1. **`include: { user: true }` (or `user: { select: ... }`) added to any
-   `prisma.review.*` / `prisma.moderationQueueItem.*` query.** The `Review`
-   model has a real `user` relation (required for writes), so Prisma will
+   `prisma.review.*` / `prisma.moderationQueueItem.*` / `prisma.socialComment.*`
+   / `prisma.socialPost.*` query.** The `Review` and `SocialComment` models
+   each have a real `user` relation (required for writes), so Prisma will
    happily let you pull back `User.email`/`city`/`district` on a read query.
    Nothing at the schema layer stops this — the manual field-by-field
    mapping in `reviews.service.ts` and `admin-queue.service.ts` is the *only*
@@ -58,7 +65,7 @@ the severity because the diff is short.
 3. **`userId` (or any FK back to `User`) added to a shared-types schema**
    that is used for a public or owner-facing response
    (`publicReviewSchema`, `adminQueueItemSchema`, anything under
-   `owner.ts`).
+   `owner.ts`, anything in `packages/shared-types/src/schemas/social.ts`).
 4. **A new relation from `PiiVault` to `User`** in `schema.prisma`, or any
    code outside `pii-vault/pii-vault.service.ts` that queries
    `prisma.piiVault`.
@@ -98,6 +105,15 @@ the severity because the diff is short.
    date, etc.) to a review response without an equally explicit, separate
    decision — this is a narrow carve-out for exactly these three columns,
    not a precedent for review-author fields in general.
+
+   The same carve-out covers IWT Social: `PublicSocialComment` exposes the
+   author's `reviewUsername` / `avatarKey` / `avatarGradient` on the identical
+   terms (`SocialService.serializeComments`, batched
+   `prisma.user.findMany({ select: { id, avatarKey, avatarGradient, reviewUsername } })`,
+   never `include: { user: true }`). A reviewer's stable `reviewUsername` now
+   links their reviews and their social comments under one anonymous handle —
+   a deliberate, accepted widening of the same tradeoff, not a new decision.
+   No other `User` field may reach a social response.
 
 9. **Company descriptions are assembled entirely on-platform — no third-party
    data sharing.** `apps/api/src/modules/company-narrative` used to send
