@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type { CategoryKey, CompanyNarrative, WorkplaceType } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { assertCompanyVisibleOrThrow } from "../companies/company-visibility";
 import { getQuestionsFor } from "../reviews/survey-questions.data";
 import { tallyQuestions } from "../reviews/survey-tally.util";
 import { FlagCalculatorService } from "../flags/flag-calculator.service";
@@ -31,11 +32,10 @@ export class CompanyNarrativeService {
   async getNarrative(slug: string): Promise<CompanyNarrative> {
     const company = await this.prisma.company.findUnique({
       where: { slug },
-      select: { id: true, slug: true, workplaceTypes: true },
+      select: { id: true, slug: true, workplaceTypes: true, hiddenAt: true },
     });
-    if (!company) {
-      throw new NotFoundException("Company not found");
-    }
+    // A hidden company 404s on every public read, this one included.
+    assertCompanyVisibleOrThrow(company);
 
     const workplaceType = company.workplaceTypes[0] as WorkplaceType;
 

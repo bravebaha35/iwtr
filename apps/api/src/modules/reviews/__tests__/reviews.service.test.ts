@@ -1,4 +1,4 @@
-import { ConflictException } from "@nestjs/common";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type { CreateReviewInput } from "@iwtr/shared-types";
 import { ReviewsService } from "../reviews.service";
@@ -300,5 +300,13 @@ describe("ReviewsService.listForCompany — district/city k-anonymity", () => {
     const result = await service.listForCompany("acme");
 
     expect(result[0].city).toBeNull();
+  });
+
+  it("404s for a company an admin has hidden - its reviews must not stay pullable by slug", async () => {
+    const prisma = makePrisma([], [], []);
+    prisma.company.findUnique.mockResolvedValue({ id: "company-1", slug: "acme", hiddenAt: new Date() });
+    const service = new ReviewsService(prisma as any, new ModerationService(), {} as any);
+
+    await expect(service.listForCompany("acme")).rejects.toBeInstanceOf(NotFoundException);
   });
 });

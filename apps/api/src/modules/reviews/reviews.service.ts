@@ -36,6 +36,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
+import { assertCompanyVisibleOrThrow } from "../companies/company-visibility";
 import { getQuestionsFor } from "./survey-questions.data";
 import { pickRandomDisplayUsername } from "./randomized-identity.util";
 import { tallyQuestions, tallyContradictionPairs, type ContradictionPairMatchCount } from "./survey-tally.util";
@@ -659,9 +660,9 @@ export class ReviewsService {
 
   async listForCompany(companySlug: string, viewerUserId?: string): Promise<PublicReview[]> {
     const company = await this.prisma.company.findUnique({ where: { slug: companySlug } });
-    if (!company) {
-      throw new NotFoundException("Company not found");
-    }
+    // A company an ADMIN has hidden 404s on all its public read surfaces, not
+    // just its detail page — its reviews must not stay pullable by slug.
+    assertCompanyVisibleOrThrow(company);
 
     const reviews = await this.prisma.review.findMany({
       where: { companyId: company.id, status: "PUBLISHED" },
@@ -848,9 +849,8 @@ export class ReviewsService {
     companySlug: string,
   ): Promise<{ workplaceType: WorkplaceType; reviews: { surveyAnswers: Prisma.JsonValue }[] }[]> {
     const company = await this.prisma.company.findUnique({ where: { slug: companySlug } });
-    if (!company) {
-      throw new NotFoundException("Company not found");
-    }
+    // Hidden companies 404 here too — this feeds survey-stats AND vibe-flags.
+    assertCompanyVisibleOrThrow(company);
 
     const published = await this.prisma.review.findMany({
       where: { companyId: company.id, status: "PUBLISHED" },

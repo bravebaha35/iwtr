@@ -4,10 +4,15 @@ import { NotFoundException } from "@nestjs/common";
 // invisible to everyone except an ADMIN and (flagged) its own owner.
 export const PUBLIC_COMPANY_WHERE = { hiddenAt: null } as const;
 
-export function assertCompanyVisibleOrThrow(
-  company: { hiddenAt: Date | null } | null,
-): asserts company is { hiddenAt: null } {
-  if (!company || company.hiddenAt !== null) {
+// Accepts a company row (or null). Throws NotFoundException if the row is
+// missing OR hidden. Generic so the caller keeps the row's full type after
+// the assertion. `hiddenAt` may be absent from the object entirely (a partial
+// `select` that didn't ask for it, or a test mock) — that counts as visible;
+// only a truthy `hiddenAt` (a real Date) means hidden.
+export function assertCompanyVisibleOrThrow<T extends { hiddenAt?: Date | null }>(
+  company: T | null,
+): asserts company is T {
+  if (!company || company.hiddenAt) {
     throw new NotFoundException("Company not found");
   }
 }

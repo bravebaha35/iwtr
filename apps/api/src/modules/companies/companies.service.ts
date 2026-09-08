@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import {
   findProvinceByCityName,
   workplaceTypeSchema,
@@ -242,10 +242,11 @@ export class CompaniesService {
   // at that finer granularity to key off directly (see JobSector's own
   // comment in workplaceCategories.ts).
   async jobTitleSuggestionsForSlug(slug: string): Promise<string[]> {
-    const company = await this.prisma.company.findUnique({ where: { slug }, select: { workplaceTypes: true } });
-    if (!company) {
-      throw new NotFoundException("Company not found");
-    }
+    const company = await this.prisma.company.findUnique({
+      where: { slug },
+      select: { workplaceTypes: true, hiddenAt: true },
+    });
+    assertCompanyVisibleOrThrow(company);
     const titles = new Set<string>();
     for (const workplaceType of company.workplaceTypes as WorkplaceType[]) {
       for (const group of WORKPLACE_CATEGORY_MAP[workplaceType]) {
