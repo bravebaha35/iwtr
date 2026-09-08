@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { SocialService } from "../social.service";
 
 jest.mock("../social-image.util", () => ({
@@ -112,5 +112,33 @@ describe("SocialService.feed", () => {
     const page = await new SocialService(prisma, moderationPass).feed("viewer-1", {});
     expect(page.posts.find((p) => p.id === "p1")?.likedByMe).toBe(true);
     expect(page.posts.find((p) => p.id === "p2")?.likedByMe).toBe(false);
+  });
+
+  it("companyFeed resolves the slug then returns that company's posts", async () => {
+    const prisma = feedPrisma();
+    (prisma as any).company = { findUnique: jest.fn().mockResolvedValue({ id: "c1" }) };
+    const page = await new SocialService(prisma, moderationPass).companyFeed(undefined, "acme", {});
+    expect((prisma as any).company.findUnique).toHaveBeenCalledWith({ where: { slug: "acme" }, select: { id: true } });
+    expect(page.posts.map((p) => p.id)).toEqual(["p2", "p1"]);
+  });
+
+  it("companyFeed 404s on an unknown slug", async () => {
+    const prisma = feedPrisma();
+    (prisma as any).company = { findUnique: jest.fn().mockResolvedValue(null) };
+    await expect(
+      new SocialService(prisma, moderationPass).companyFeed(undefined, "ghost", {}),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("sets nextCursor and trims to PAGE_SIZE when a full-plus-one page comes back", async () => {
+    const overflow = Array.from({ length: 11 }, (_, i) => ({
+      id: `x${i}`, companyId: "c1", imageUrl: `/u/${i}.webp`, caption: null, createdAt: new Date(now - i * 1000),
+      company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE" },
+    }));
+    const prisma = feedPrisma();
+    (prisma as any).socialPost.findMany.mockResolvedValue(overflow);
+    const page = await new SocialService(prisma, moderationPass).feed(undefined, {});
+    expect(page.posts).toHaveLength(10);
+    expect(page.nextCursor).toBe("x9");
   });
 });

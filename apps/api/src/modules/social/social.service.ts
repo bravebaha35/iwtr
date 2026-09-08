@@ -75,7 +75,7 @@ export class SocialService {
     opts: { cursor?: string; q?: string },
   ): Promise<SocialFeedPage> {
     const where: Prisma.SocialPostWhereInput = opts.q?.trim()
-      ? { company: { name: { contains: opts.q.trim(), mode: "insensitive" as const } } }
+      ? { company: { name: { contains: opts.q.trim(), mode: "insensitive" } } }
       : {};
     return this.pageFromWhere(viewerUserId, where, opts.cursor);
   }
@@ -100,7 +100,10 @@ export class SocialService {
   ): Promise<SocialFeedPage> {
     const rows = await this.prisma.socialPost.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      // id is the tie-breaker: createdAt alone is not unique (same-millisecond
+      // posts from a seed script or a burst) and an unstable sort drops or
+      // duplicates rows across a cursor page seam.
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: SOCIAL_FEED_PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true } } },
