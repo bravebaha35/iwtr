@@ -5,7 +5,7 @@ import Link from "next/link";
 import { scoreBandLabel, type OwnerTier, type WorkplaceType } from "@iwtr/shared-types";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
-import { canUseBanner, tickSrcForOwnerTier } from "@/lib/pricingTiers";
+import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 
 export interface CompanyWorkCardData {
@@ -70,7 +70,6 @@ function useIsMultiline(ref: React.RefObject<HTMLElement | null>, watch: unknown
  * browse-grid cell, or a fixed-width wrapper around the dashboard preview.
  */
 export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardData; href?: string }) {
-  const tickSrc = tickSrcForOwnerTier(company.badgeTier);
   const nameRef = useRef<HTMLParagraphElement>(null);
   const isWrapped = useIsMultiline(nameRef, company.name);
   const showBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
@@ -78,36 +77,36 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
   const content = (
     <>
       {showBanner && (
-        // Bleeds to the card's outer edges (negative margin cancels the
-        // card's own p-4) so the banner reaches the rounded top corners
-        // instead of sitting inset inside a padded box. 4:1 keeps the file
-        // itself light and the strip short relative to the rest of the card.
-        <div className="-mx-4 -mt-4 aspect-[4/1] w-[calc(100%+2rem)] overflow-hidden rounded-t-xl">
-          {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
-          <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
+        // Facebook-style cover-photo layout: the banner bleeds to the
+        // card's outer edges (negative margin cancels the card's own p-4)
+        // and the logo overlaps its bottom-left corner by half its own
+        // height (top-full + -translate-y-1/2, anchored against this
+        // *relative* wrapper) — mb-6 reserves room below the banner for the
+        // half of the logo that hangs past it, so the name row below never
+        // collides with it. 4:1 keeps the banner file itself light and the
+        // strip short relative to the rest of the card.
+        <div className="relative -mx-4 -mt-4 mb-6 w-[calc(100%+2rem)]">
+          <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
+            <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
+          </div>
+          <div className="absolute left-4 top-full -translate-y-1/2 rounded-lg ring-4 ring-surface">
+            <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
+          </div>
         </div>
       )}
 
-      {/* Single line -> centered against the logo; wrapped 2-line name ->
-          top-aligned, so the first line lines up with the logo's top edge
-          instead of the whole 2-line block floating centered past it. */}
-      <div className={`flex gap-3 ${isWrapped ? "items-start" : "items-center"}`}>
-        <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
-        <div className="flex min-w-0 flex-1 items-start gap-1.5">
-          <p ref={nameRef} className="line-clamp-2 min-w-0 flex-1 font-semibold leading-snug text-foreground">
-            {company.name}
-          </p>
-          {tickSrc && (
-            // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static badge art
-            <img
-              src={tickSrc}
-              alt={`${company.badgeTier === "ENTERPRISE" ? "Gold" : company.badgeTier === "BLUE_PLUS" ? "Blue+" : "Blue"} verified badge`}
-              width={18}
-              height={18}
-              className="mt-0.5 inline-flex shrink-0 items-center"
-            />
-          )}
-        </div>
+      {/* No banner: logo sits inline beside the name (single line centers
+          against it, wrapped 2-line name top-aligns so its first line lines
+          up with the logo's top edge). With a banner, the logo has already
+          been placed above it, overlapping its bottom-left corner, so this
+          row is just the name. Membership badges no longer appear on this
+          card; they show only on a company's own profile page. */}
+      <div className={`flex gap-3 ${showBanner || isWrapped ? "items-start" : "items-center"}`}>
+        {!showBanner && <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />}
+        <p ref={nameRef} className="line-clamp-2 min-w-0 flex-1 font-semibold leading-snug text-foreground">
+          {company.name}
+        </p>
       </div>
 
       <p className="text-xs text-muted-foreground">

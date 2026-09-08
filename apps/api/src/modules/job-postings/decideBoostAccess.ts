@@ -2,9 +2,9 @@ import type { MembershipTierKey, OwnerTier } from "@iwtr/shared-types";
 
 // The real, DB-backed OwnerTier axis (see its schema.prisma comment) mapped
 // onto the same free/starter/pro/enterprise MembershipTierKey buckets the
-// job-ads pricing-matrix row already uses — GOLD doesn't exist as a
-// standalone tier name (see OwnerTier), it's ENTERPRISE's badge, so
-// ENTERPRISE alone maps onto the matrix's top "enterprise" bucket.
+// job-ads pricing-matrix row already uses — ENTERPRISE alone maps onto the
+// matrix's top "enterprise" bucket (it's the only tier whose badge and tier
+// name are the same word).
 export function tierKeyFromOwnerTier(tier: OwnerTier): MembershipTierKey {
   if (tier === "BLUE") return "starter";
   if (tier === "BLUE_PLUS") return "pro";

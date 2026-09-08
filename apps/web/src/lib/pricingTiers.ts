@@ -34,9 +34,8 @@ export function tierRank(key: PricingTierKey): number {
 
 // The real, DB-backed OwnerTier axis (FREE/BLUE/BLUE_PLUS/ENTERPRISE — see
 // its schema.prisma comment) mapped onto this file's free/starter/pro/
-// enterprise keys. GOLD isn't a tier name — it's the badge ENTERPRISE grants
-// (see the "verified-badge" row below) — so ENTERPRISE alone maps onto the
-// matrix's top "enterprise" bucket.
+// enterprise keys — ENTERPRISE alone maps onto the matrix's top "enterprise"
+// bucket (see the "verified-badge" row below for the badge it grants).
 export function tierKeyFromOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): PricingTierKey {
   if (tier === "BLUE") return "starter";
   if (tier === "BLUE_PLUS") return "pro";
@@ -98,7 +97,7 @@ export const PRICING_FEATURE_ROWS: PricingFeatureRow[] = [
   {
     id: "verified-badge",
     label: "Verified Employer Badge",
-    values: { free: "No", starter: "Blue", pro: "Blue+", enterprise: "Gold" },
+    values: { free: "No", starter: "Blue", pro: "Blue+", enterprise: "Enterprise" },
     lockedBelowRank: 1,
   },
   {

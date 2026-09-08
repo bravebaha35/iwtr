@@ -16,7 +16,7 @@ export function ReviewsRatingsCategory({
 }) {
   const aggregate = detail?.aggregate;
   return (
-    <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
+    <div className="rounded-xl border border-border p-6">
       <h3 className="mb-4 font-semibold text-foreground">Reviews & Ratings</h3>
 
       {aggregate && aggregate.reviewCount > 0 ? (

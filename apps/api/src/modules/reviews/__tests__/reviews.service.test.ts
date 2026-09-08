@@ -12,6 +12,34 @@ function prismaError(code: string) {
   });
 }
 
+
+describe("ReviewsService.areAllWorkplaceTypesReviewed", () => {
+  it("is false for a single-workplaceType company regardless of review count", async () => {
+    const prisma = { review: { findMany: jest.fn().mockResolvedValue([{ workplaceType: "OFFICE" }]) } };
+    const service = new ReviewsService(prisma as any, new ModerationService(), { purgeTcKimlikNoIfPresent: jest.fn() } as any);
+
+    await expect(service.areAllWorkplaceTypesReviewed("company-1", ["OFFICE"])).resolves.toBe(false);
+    expect(prisma.review.findMany).not.toHaveBeenCalled();
+  });
+
+  it("is true only once every one of the given workplaceTypes has a published review", async () => {
+    const prisma = {
+      review: {
+        findMany: jest.fn().mockResolvedValue([{ workplaceType: "OFFICE" }, { workplaceType: "SERVICE" }]),
+      },
+    };
+    const service = new ReviewsService(prisma as any, new ModerationService(), { purgeTcKimlikNoIfPresent: jest.fn() } as any);
+
+    await expect(service.areAllWorkplaceTypesReviewed("company-1", ["OFFICE", "SERVICE"])).resolves.toBe(true);
+  });
+
+  it("is false when only one of the two workplaceTypes has a published review", async () => {
+    const prisma = { review: { findMany: jest.fn().mockResolvedValue([{ workplaceType: "OFFICE" }]) } };
+    const service = new ReviewsService(prisma as any, new ModerationService(), { purgeTcKimlikNoIfPresent: jest.fn() } as any);
+
+    await expect(service.areAllWorkplaceTypesReviewed("company-1", ["OFFICE", "SERVICE"])).resolves.toBe(false);
+  });
+});
 describe("ReviewsService.submitReview", () => {
   it("throws a friendly ConflictException when two concurrent submissions race past the duplicate-review check", async () => {
     const userId = "user-1";

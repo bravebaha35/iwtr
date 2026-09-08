@@ -113,6 +113,7 @@ export function MultiFilterPillGroup<T extends string>({
   // opt-in only, so every existing consumer (default "pill") is unaffected.
   // Currently used only by the WorkType filter on the homepage/jobs page.
   variant = "pill",
+  disabled = false,
 }: {
   heading: string;
   options: { value: T; label: string }[];
@@ -132,6 +133,10 @@ export function MultiFilterPillGroup<T extends string>({
   pillColorClassName?: (value: T, active: boolean) => string;
   showHeading?: boolean;
   variant?: "pill" | "track";
+  // Renders every pill inert and muted — used by the owner dashboard's
+  // Work-Type picker once Company.workplaceTypesLocked is true. No other
+  // existing consumer passes this, so every one is unaffected.
+  disabled?: boolean;
 }) {
   const isTrack = variant === "track";
   const layoutClassName =
@@ -158,8 +163,9 @@ export function MultiFilterPillGroup<T extends string>({
         } else {
           className = direction === "grid" ? gridPillClass(active) : pillClass(active);
         }
+        if (disabled) className += " cursor-not-allowed opacity-50";
         return (
-          <button key={o.value} type="button" onClick={() => onToggle(o.value)} className={className}>
+          <button key={o.value} type="button" disabled={disabled} onClick={() => onToggle(o.value)} className={className}>
             {o.label}
           </button>
         );
@@ -171,7 +177,7 @@ export function MultiFilterPillGroup<T extends string>({
       {showHeading && (
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
-          <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} />
+          <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} disabled={disabled} />
         </div>
       )}
       {isTrack ? <div className={trackWrapperClass}>{pills}</div> : pills}

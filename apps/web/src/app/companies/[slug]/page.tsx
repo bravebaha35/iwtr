@@ -11,7 +11,7 @@ import { AdSlot } from "@/components/AdSlot";
 import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { ratingImageSrc } from "@/lib/ratingNarrative";
-import { badgeLabelForOwnerTier } from "@/lib/pricingTiers";
+import { badgeLabelForOwnerTier, canUseBanner, tickSrcForOwnerTier } from "@/lib/pricingTiers";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -165,6 +165,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
   }
 
   const { company, aggregate } = detail;
+  const showBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
 
   // Server-side fetch purely for RatingNarrativeBox. The endpoint always
   // returns 200 with { workplaceType, reviewCount, description } for a valid
@@ -186,16 +187,41 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
       <AdSlot />
 
       <div className="w-full max-w-6xl">
+        {showBanner && (
+          // Same Facebook-style overlap as the browse-grid card, scaled up
+          // for a full-width detail-page hero — ring-background (not
+          // ring-surface) since this header sits directly on the page's own
+          // background, not inside a bg-surface card.
+          <div className="relative mb-14">
+            {/* 5:1, not 4:1 — on this full-width hero a 4:1 slab ran ~290px
+                tall and read as a wall; 5:1 keeps it a cover strip. mb-14
+                clears the half of the lg logo that hangs below it. */}
+            <div className="aspect-[5/1] w-full overflow-hidden rounded-xl">
+              {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
+              <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
+            </div>
+            <div className="absolute left-6 top-full -translate-y-1/2 rounded-xl ring-4 ring-background">
+              <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
+            {!showBanner && (
+              <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
+            )}
             <div>
               <h1 className="text-2xl font-bold text-foreground">
                 {company.name}
-                {badgeLabelForOwnerTier(company.badgeTier) && (
-                  <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-                    {badgeLabelForOwnerTier(company.badgeTier)} Badge
-                  </span>
+                {tickSrcForOwnerTier(company.badgeTier) && (
+                  // eslint-disable-next-line @next/next/no-img-element -- small local static badge asset
+                  <img
+                    src={tickSrcForOwnerTier(company.badgeTier)!}
+                    alt={`${badgeLabelForOwnerTier(company.badgeTier)} verified employer badge`}
+                    width={26}
+                    height={26}
+                    className="ml-2 inline-block align-middle"
+                  />
                 )}
               </h1>
               <p className="text-sm text-muted-foreground">

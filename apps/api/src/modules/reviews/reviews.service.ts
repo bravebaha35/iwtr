@@ -820,6 +820,24 @@ export class ReviewsService {
   }
 
   /**
+   * True when every one of the given workplaceTypes already has at least one
+   * PUBLISHED review — the trigger condition for locking
+   * Company.workplaceTypes against further owner edits
+   * (OwnerService.updateMyCompany). A company with only one workplaceType,
+   * or with any unreviewed type among the given ones, is never locked.
+   */
+  async areAllWorkplaceTypesReviewed(companyId: string, workplaceTypes: WorkplaceType[]): Promise<boolean> {
+    if (workplaceTypes.length < 2) return false;
+    const published = await this.prisma.review.findMany({
+      where: { companyId, status: "PUBLISHED", workplaceType: { in: workplaceTypes } },
+      select: { workplaceType: true },
+      distinct: ["workplaceType"],
+    });
+    const reviewedTypes = new Set(published.map((r) => r.workplaceType));
+    return workplaceTypes.every((t) => reviewedTypes.has(t));
+  }
+
+  /**
    * Shared "fetch this company's published reviews, split by
    * workplaceType" step behind both getSurveyStats above and
    * getVibeFlagsInput below — factored out so the two never drift on which

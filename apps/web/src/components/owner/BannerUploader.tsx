@@ -1,15 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { LogoUploadResult } from "@iwtr/shared-types";
+import type { BannerUploadResult } from "@iwtr/shared-types";
 import { apiUpload, ApiError } from "@/lib/api-client";
 
 /**
  * Premium Features box's banner image field — unlike CompanyLogoUploader,
  * this is a wide image with no fixed aspect ratio, so it skips the
  * square-crop step entirely: pick a file (uploaded as-is) or paste a URL.
- * Server-side validation (OwnerService.uploadBanner) is the same
- * validateLogoFile check the logo uploader already relies on.
+ * Server-side, the upload is resized and compressed to a fixed 1200x300
+ * WebP regardless of the source image's shape or resolution
+ * (OwnerService.uploadBanner) — there's no client-side crop step because
+ * the server handles it.
  */
 export function BannerUploader({
   uploadPath,
@@ -31,7 +33,7 @@ export function BannerUploader({
     try {
       const formData = new FormData();
       formData.append("file", file, file.name || "banner.png");
-      const result = await apiUpload<LogoUploadResult>(uploadPath, formData);
+      const result = await apiUpload<BannerUploadResult>(uploadPath, formData);
       onChange(result.url);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't upload that file.");
@@ -50,7 +52,7 @@ export function BannerUploader({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/png,image/jpeg"
+          accept="image/png,image/jpeg,image/webp"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
