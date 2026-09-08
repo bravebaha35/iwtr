@@ -51,7 +51,7 @@ export class SocialService {
     const imageUrl = `${origin}/uploads/social/${filename}`;
 
     const post = await this.prisma.socialPost.create({
-      data: { companyId: input.companyId, authorUserId: userId, imageUrl, caption: input.caption ?? null },
+      data: { companyId: input.companyId, authorUserId: userId, imageUrl, caption: input.caption || null },
       select: { id: true },
     });
     return { id: post.id };

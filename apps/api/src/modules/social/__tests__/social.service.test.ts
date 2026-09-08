@@ -66,4 +66,13 @@ describe("SocialService.createPost", () => {
       expect.objectContaining({ data: expect.objectContaining({ companyId: CID, authorUserId: "u1", caption: "new office" }) }),
     );
   });
+
+  it("stores a whitespace-only caption as null", async () => {
+    const prisma = makePrisma();
+    (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
+    await new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID, caption: "" }, jpegFile);
+    expect((prisma as any).socialPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ caption: null }) }),
+    );
+  });
 });
