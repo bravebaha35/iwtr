@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { SocialService } from "../social.service";
+import { ModerationService } from "../../moderation/moderation.service";
 
 jest.mock("../social-image.util", () => ({
   processSocialImage: jest.fn().mockResolvedValue(Buffer.alloc(64, 9)),
@@ -75,6 +76,44 @@ describe("SocialService.createPost", () => {
     expect((prisma as any).socialPost.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ caption: null }) }),
     );
+  });
+
+  it("runs the caption through moderation with the name + job-title checks skipped", async () => {
+    const prisma = makePrisma();
+    (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
+    const checkContent = jest.fn().mockReturnValue({ violates: false, violationTypes: [], confidence: 0.95 });
+
+    await new SocialService(prisma, { checkContent } as never).createPost(
+      "u1",
+      { companyId: CID, caption: "Welcome our new Warehouse Manager Jane Doe" },
+      jpegFile,
+    );
+
+    expect(checkContent).toHaveBeenCalledWith(
+      ["Welcome our new Warehouse Manager Jane Doe"],
+      { skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"] },
+    );
+  });
+
+  it("with the real ModerationService: accepts a caption naming staff + a role, still rejects profanity", async () => {
+    const prisma = makePrisma();
+    (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
+    const moderation = new ModerationService() as never;
+
+    const ok = await new SocialService(prisma, moderation).createPost(
+      "u1",
+      { companyId: CID, caption: "Welcome our new Warehouse Manager Jane Doe" },
+      jpegFile,
+    );
+    expect(ok).toEqual({ id: "post-1" });
+
+    await expect(
+      new SocialService(prisma, moderation).createPost(
+        "u1",
+        { companyId: CID, caption: "this new place is shit" },
+        jpegFile,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
 

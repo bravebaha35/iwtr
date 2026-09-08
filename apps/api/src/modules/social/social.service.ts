@@ -48,10 +48,17 @@ export class SocialService {
     }
 
     if (input.caption) {
-      const result = this.moderation.checkContent([input.caption]);
+      // An employer captioning its own post may name its own staff and job
+      // roles - the NAME_OR_SURNAME / JOB_TITLE rules exist to stop an
+      // anonymous employee naming their boss in a review, not this. Profanity,
+      // sexual content, phone numbers and shouting still hard-reject.
+      // addComment below keeps the full ruleset for comment bodies.
+      const result = this.moderation.checkContent([input.caption], {
+        skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"],
+      });
       if (result.violates) {
         throw new BadRequestException(
-          "That caption looks like it names a person or breaks our content rules - please reword it.",
+          "That caption breaks our content rules (profanity, contact details, or all-caps) - please reword it.",
         );
       }
     }

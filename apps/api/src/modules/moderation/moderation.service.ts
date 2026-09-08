@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { ContentCheckResult, TrustScoreResult } from "@iwtr/shared-types";
+import type { ContentCheckResult, ContentViolationType, TrustScoreResult } from "@iwtr/shared-types";
 
 // Small, deliberately simple word lists for the Phase 1 stand-in. Swap this
 // whole class for a Claude-backed implementation later (see plan) — nothing
@@ -161,7 +161,16 @@ function looksLikeSpacedName(candidate: string): boolean {
 
 @Injectable()
 export class ModerationService {
-  checkContent(texts: string[]): ContentCheckResult {
+  checkContent(
+    texts: string[],
+    options?: { skipViolationTypes?: ContentViolationType[] },
+  ): ContentCheckResult {
+    // Categories the caller opts out of. SocialService.createPost passes
+    // ["NAME_OR_SURNAME", "JOB_TITLE"] for an employer's own post caption so
+    // it may name its own staff and job roles. Only those two are honored
+    // here - profanity, sexual content, phone numbers and shouting always
+    // apply. With no options this stays byte-identical to the original.
+    const skip = new Set<ContentViolationType>(options?.skipViolationTypes ?? []);
     const combined = texts.filter(Boolean).join(" \n ");
     const lower = combined.toLowerCase();
     const layoutFolded = foldTurkishLayout(combined);
@@ -182,7 +191,8 @@ export class ModerationService {
       JOB_TITLE_WORDS.some((w) => matchesAsWord(lower, w)) ||
       JOB_TITLE_PHRASES.some((p) => matchesAsPhrase(layoutFolded, p));
     const hasEvasiveJobTitle = SPACE_AGNOSTIC_JOB_TITLE_PATTERNS.some((p) => p.test(layoutFolded));
-    if (hasPlainJobTitle || hasEvasiveJobTitle) violationTypes.push("JOB_TITLE");
+    // Gated by skipViolationTypes: an employer may name a role in its own caption.
+    if ((hasPlainJobTitle || hasEvasiveJobTitle) && !skip.has("JOB_TITLE")) violationTypes.push("JOB_TITLE");
 
     // --- Names/surnames: existing two-capitalized-words heuristic, plus the
     // open-ended spaced-out single-word variant.
@@ -195,7 +205,8 @@ export class ModerationService {
         break;
       }
     }
-    if (hasPlainNameLike || hasEvasiveName) violationTypes.push("NAME_OR_SURNAME");
+    // Gated by skipViolationTypes: an employer may name its own staff in its own caption.
+    if ((hasPlainNameLike || hasEvasiveName) && !skip.has("NAME_OR_SURNAME")) violationTypes.push("NAME_OR_SURNAME");
 
     // --- Phone numbers: dedicated shape-based PII check, not a keyword.
     if (PHONE_PATTERN.test(combined)) {
