@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, unlink, writeFile } from "fs/promises";
 import { join } from "path";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
@@ -108,6 +108,67 @@ export class SocialService {
     });
     assertCompanyVisibleOrThrow(company);
     return this.pageFromWhere(viewerUserId, { companyId: company.id }, opts.cursor);
+  }
+
+  // --- ADMIN content moderation (AdminSocialController, ADMIN-only). A hard
+  // delete: SocialComment / SocialPostLike are onDelete: Cascade on the post
+  // (see schema.prisma), so removing a post takes its whole thread + likes
+  // with it. Each removed post's WebP file is unlinked from uploads/social/
+  // best-effort. Operates on SocialPost by id / companyId only — never reads
+  // or logs a post/comment author (REVIEW.md anonymity scope).
+
+  async adminRemovePost(adminUserId: string, postId: string): Promise<{ success: true }> {
+    const post = await this.prisma.socialPost.findUnique({
+      where: { id: postId },
+      select: { id: true, companyId: true, imageUrl: true },
+    });
+    if (!post) throw new NotFoundException("Post not found");
+
+    await this.prisma.socialPost.delete({ where: { id: postId } }); // cascades comments + likes
+    await this.unlinkSocialImage(post.imageUrl);
+    await this.prisma.auditLog.create({
+      data: {
+        actorUserId: adminUserId,
+        action: "SOCIAL_POST_REMOVED",
+        targetType: "SocialPost",
+        targetId: postId,
+        metadata: { companyId: post.companyId },
+      },
+    });
+    return { success: true };
+  }
+
+  async adminWipeCompanyFeed(adminUserId: string, companyId: string): Promise<{ deletedCount: number }> {
+    const posts = await this.prisma.socialPost.findMany({
+      where: { companyId },
+      select: { id: true, imageUrl: true },
+    });
+
+    await this.prisma.socialPost.deleteMany({ where: { companyId } }); // cascades each post's comments + likes
+    await Promise.all(posts.map((p) => this.unlinkSocialImage(p.imageUrl)));
+    await this.prisma.auditLog.create({
+      data: {
+        actorUserId: adminUserId,
+        action: "SOCIAL_FEED_WIPED",
+        targetType: "Company",
+        targetId: companyId,
+        metadata: { deletedCount: posts.length },
+      },
+    });
+    return { deletedCount: posts.length };
+  }
+
+  // Maps a stored imageUrl (`${origin}/uploads/social/<uuid>.webp`) back to
+  // its path on disk and removes it. Best-effort: a file that's already gone
+  // (or a URL that somehow lacks the prefix) is not an error.
+  private async unlinkSocialImage(imageUrl: string): Promise<void> {
+    const name = imageUrl.split("/uploads/social/")[1];
+    if (!name) return;
+    try {
+      await unlink(join(SOCIAL_UPLOADS_DIR, name));
+    } catch {
+      // Already gone — nothing to clean up.
+    }
   }
 
   // Cursor = the previous page's last post id. Fetch PAGE_SIZE + 1 to learn

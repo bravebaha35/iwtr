@@ -4,9 +4,11 @@ import {
   adminUpdateCompanyInputSchema,
   dismissCompanySuggestionInputSchema,
   mergeCompaniesInputSchema,
+  setCompanyVisibilityInputSchema,
   type AdminUpdateCompanyInput,
   type DismissCompanySuggestionInput,
   type MergeCompaniesInput,
+  type SetCompanyVisibilityInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -68,5 +70,17 @@ export class AdminCompaniesController {
     @Body(new ZodValidationPipe(adminUpdateCompanyInputSchema)) body: AdminUpdateCompanyInput,
   ) {
     return this.adminCompanies.update(user.id, id, body);
+  }
+
+  // Hide (hidden: true) or restore (hidden: false) an entire company. A hidden
+  // company keeps all its data but disappears from every public surface.
+  // Route path: PATCH admin/companies/:id/visibility.
+  @Patch(":id/visibility")
+  setVisibility(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(setCompanyVisibilityInputSchema)) body: SetCompanyVisibilityInput,
+  ) {
+    return this.adminCompanies.setVisibility(user.id, id, body.hidden);
   }
 }

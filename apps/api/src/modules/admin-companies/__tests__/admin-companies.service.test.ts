@@ -209,3 +209,59 @@ describe("AdminCompaniesService.dismissSuggestion", () => {
     expect(prisma.employmentHistory.findMany).not.toHaveBeenCalled();
   });
 });
+
+describe("AdminCompaniesService.setVisibility", () => {
+  it("stamps hiddenAt with a Date and writes a COMPANY_HIDDEN audit log when hidden=true", async () => {
+    const prisma = makePrisma({
+      company: {
+        findUnique: jest.fn().mockResolvedValue({ id: "c1" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    });
+    const service = new AdminCompaniesService(prisma as any, {} as any);
+
+    await service.setVisibility("admin-1", "c1", true);
+
+    expect(prisma.company.update).toHaveBeenCalledWith({
+      where: { id: "c1" },
+      data: { hiddenAt: expect.any(Date) },
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        actorUserId: "admin-1",
+        action: "COMPANY_HIDDEN",
+        targetType: "Company",
+        targetId: "c1",
+      },
+    });
+  });
+
+  it("clears hiddenAt to null and writes a COMPANY_UNHIDDEN audit log when hidden=false", async () => {
+    const prisma = makePrisma({
+      company: {
+        findUnique: jest.fn().mockResolvedValue({ id: "c1" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    });
+    const service = new AdminCompaniesService(prisma as any, {} as any);
+
+    await service.setVisibility("admin-1", "c1", false);
+
+    expect(prisma.company.update).toHaveBeenCalledWith({
+      where: { id: "c1" },
+      data: { hiddenAt: null },
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "COMPANY_UNHIDDEN" }) }),
+    );
+  });
+
+  it("throws NotFoundException for an unknown company id and never updates", async () => {
+    const prisma = makePrisma({ company: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn() } });
+    const service = new AdminCompaniesService(prisma as any, {} as any);
+
+    await expect(service.setVisibility("admin-1", "nope", true)).rejects.toThrow(NotFoundException);
+    expect(prisma.company.update).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+});

@@ -239,6 +239,14 @@ export const adminUpdateCompanyInputSchema = z.object({
 });
 export type AdminUpdateCompanyInput = z.infer<typeof adminUpdateCompanyInputSchema>;
 
+// PATCH /admin/companies/:id/visibility — an ADMIN hides an entire company
+// (hidden: true stamps Company.hiddenAt) or restores it (hidden: false clears
+// it). A hidden company keeps all its data but vanishes from every public
+// surface via the shared PUBLIC_COMPANY_WHERE / assertCompanyVisibleOrThrow
+// gate. See AdminCompaniesService.setVisibility.
+export const setCompanyVisibilityInputSchema = z.object({ hidden: z.boolean() });
+export type SetCompanyVisibilityInput = z.infer<typeof setCompanyVisibilityInputSchema>;
+
 // A lightweight row for the admin dashboard's search-and-edit list and the
 // two "Merge Duplicates" dropdowns — not the full public Company shape,
 // just enough to identify one in a list.

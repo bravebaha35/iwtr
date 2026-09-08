@@ -1,3 +1,5 @@
+import { join } from "path";
+import { unlink } from "fs/promises";
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { SocialService } from "../social.service";
@@ -10,11 +12,15 @@ jest.mock("../social-image.util", () => ({
 
 // Keep the "happy path" test hermetic - no real mkdir/writeFile into
 // apps/api/uploads/social/ (Ruling C). The other three cases reject before
-// the write is ever reached.
+// the write is ever reached. `unlink` is here for the admin-moderation
+// suite below (post/feed removal unlinks each WebP file best-effort).
 jest.mock("fs/promises", () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
   writeFile: jest.fn().mockResolvedValue(undefined),
+  unlink: jest.fn().mockResolvedValue(undefined),
 }));
+
+const mockUnlink = unlink as jest.MockedFunction<typeof unlink>;
 
 const moderationPass = {
   checkContent: jest.fn().mockReturnValue({ violates: false, violationTypes: [], confidence: 0.95 }),
@@ -352,5 +358,118 @@ describe("SocialService comments + likes", () => {
     };
     const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;
     await expect(new SocialService(prisma, moderationPass).toggleLike("u1", "p1")).rejects.toThrow();
+  });
+});
+
+describe("SocialService admin moderation", () => {
+  const socialDir = join(process.cwd(), "uploads", "social");
+
+  beforeEach(() => {
+    mockUnlink.mockClear();
+  });
+
+  it("adminRemovePost deletes the post, unlinks its WebP file, writes a SOCIAL_POST_REMOVED audit log", async () => {
+    const prisma = {
+      socialPost: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "post-1",
+          companyId: "c1",
+          imageUrl: "http://localhost:3011/uploads/social/abc-123.webp",
+        }),
+        delete: jest.fn().mockResolvedValue({}),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as never;
+
+    const result = await new SocialService(prisma, moderationPass).adminRemovePost("admin-1", "post-1");
+
+    expect(result).toEqual({ success: true });
+    expect((prisma as any).socialPost.delete).toHaveBeenCalledWith({ where: { id: "post-1" } });
+    expect(mockUnlink).toHaveBeenCalledWith(join(socialDir, "abc-123.webp"));
+    expect((prisma as any).auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actorUserId: "admin-1",
+          action: "SOCIAL_POST_REMOVED",
+          targetType: "SocialPost",
+          targetId: "post-1",
+        }),
+      }),
+    );
+  });
+
+  it("adminRemovePost 404s a missing post and never deletes or unlinks", async () => {
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue(null), delete: jest.fn() },
+      auditLog: { create: jest.fn() },
+    } as never;
+
+    await expect(
+      new SocialService(prisma, moderationPass).adminRemovePost("admin-1", "ghost"),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect((prisma as any).socialPost.delete).not.toHaveBeenCalled();
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
+  it("adminRemovePost still resolves when the file is already gone (unlink rejects)", async () => {
+    mockUnlink.mockRejectedValueOnce(new Error("ENOENT"));
+    const prisma = {
+      socialPost: {
+        findUnique: jest.fn().mockResolvedValue({ id: "p1", companyId: "c1", imageUrl: "x/uploads/social/gone.webp" }),
+        delete: jest.fn().mockResolvedValue({}),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as never;
+
+    await expect(new SocialService(prisma, moderationPass).adminRemovePost("admin-1", "p1")).resolves.toEqual({
+      success: true,
+    });
+  });
+
+  it("adminWipeCompanyFeed deletes every post for the company, unlinks each file, returns the count", async () => {
+    const prisma = {
+      socialPost: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "p1", imageUrl: "http://localhost:3011/uploads/social/one.webp" },
+          { id: "p2", imageUrl: "http://localhost:3011/uploads/social/two.webp" },
+        ]),
+        deleteMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as never;
+
+    const result = await new SocialService(prisma, moderationPass).adminWipeCompanyFeed("admin-1", "c1");
+
+    expect(result).toEqual({ deletedCount: 2 });
+    expect((prisma as any).socialPost.deleteMany).toHaveBeenCalledWith({ where: { companyId: "c1" } });
+    expect(mockUnlink).toHaveBeenCalledTimes(2);
+    expect(mockUnlink).toHaveBeenCalledWith(join(socialDir, "one.webp"));
+    expect(mockUnlink).toHaveBeenCalledWith(join(socialDir, "two.webp"));
+    expect((prisma as any).auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actorUserId: "admin-1",
+          action: "SOCIAL_FEED_WIPED",
+          targetType: "Company",
+          targetId: "c1",
+        }),
+      }),
+    );
+  });
+
+  it("adminWipeCompanyFeed on an empty feed returns { deletedCount: 0 } without unlinking, still calls deleteMany", async () => {
+    const prisma = {
+      socialPost: {
+        findMany: jest.fn().mockResolvedValue([]),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    } as never;
+
+    const result = await new SocialService(prisma, moderationPass).adminWipeCompanyFeed("admin-1", "c1");
+
+    expect(result).toEqual({ deletedCount: 0 });
+    expect((prisma as any).socialPost.deleteMany).toHaveBeenCalledWith({ where: { companyId: "c1" } });
+    expect(mockUnlink).not.toHaveBeenCalled();
   });
 });

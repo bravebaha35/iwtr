@@ -172,6 +172,37 @@ export class AdminCompaniesService {
     return company;
   }
 
+  // PATCH /admin/companies/:id/visibility. Hiding stamps Company.hiddenAt —
+  // the shared PUBLIC_COMPANY_WHERE / assertCompanyVisibleOrThrow gate then
+  // drops the company from every public surface (search, detail, filters, job
+  // cards, the IWT Social feed); unhiding clears it. None of the company's
+  // own data is touched either way. The update and its AuditLog land in one
+  // transaction, the same shape merge() above uses.
+  async setVisibility(adminUserId: string, companyId: string, hidden: boolean): Promise<void> {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { id: true },
+    });
+    if (!company) {
+      throw new NotFoundException("Company not found");
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.company.update({
+        where: { id: companyId },
+        data: { hiddenAt: hidden ? new Date() : null },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          actorUserId: adminUserId,
+          action: hidden ? "COMPANY_HIDDEN" : "COMPANY_UNHIDDEN",
+          targetType: "Company",
+          targetId: companyId,
+        },
+      }),
+    ]);
+  }
+
   // Companion to CompaniesController's admin logo upload — deliberately
   // id-less (unlike OwnerService.uploadLogo, which is scoped to an existing
   // owned company): the admin "Create New Company" form needs to upload a
