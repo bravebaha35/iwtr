@@ -245,9 +245,9 @@ model User {
   // when PiiVault deliberately doesn't.
   employerProfile         EmployerProfile?
   jobPostings             JobPosting[]
-  socialPosts     SocialPost[]     @relation("SocialPostAuthor")
-  socialComments  SocialComment[]  @relation("SocialCommentAuthor")
-  socialPostLikes SocialPostLike[] @relation("SocialPostLiker")
+  socialPosts             SocialPost[]             @relation("SocialPostAuthor")
+  socialComments          SocialComment[]          @relation("SocialCommentAuthor")
+  socialPostLikes         SocialPostLike[]         @relation("SocialPostLiker")
 
   @@schema("public")
 }
@@ -687,10 +687,10 @@ model CompanyNarrative {
   companyId        String
   company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   workplaceType    WorkplaceType
-  description      String        // Postgres text; <=600 chars enforced in app code
+  description      String // Postgres text; <=600 chars enforced in app code
   reviewCountAtGen Int
-  model            String        // e.g. "claude-haiku-4-5" (= NARRATIVE_MODEL) — mismatch forces regen
-  promptVersion    Int           // bumped in-repo when the prompt changes materially
+  model            String // e.g. "claude-haiku-4-5" (= NARRATIVE_MODEL) — mismatch forces regen
+  promptVersion    Int // bumped in-repo when the prompt changes materially
   generatedAt      DateTime      @default(now())
 
   @@unique([companyId, workplaceType])
@@ -847,30 +847,6 @@ model RefreshToken {
   @@schema("public")
 }
 
-// Law No. 5651 ("Yer Sağlayıcı Yükümlülükleri") traffic-log record. Written
-// automatically by TrafficLogInterceptor (apps/api/src/modules/traffic-log/)
-// for a fixed allowlist of endpoints (auth register/login/google/apple,
-// review submission) — never written to from anywhere else.
-//
-// ipAddress is reversibly encrypted (not just hashed) on purpose: the law's
-// actual purpose is letting a court order trace an action back to a real IP,
-// which a one-way hash can never do. ipHash is a separate non-reversible
-// fingerprint kept alongside it purely for internal abuse-pattern lookups
-// (e.g. "same IP hit register 20 times") without ever decrypting the real
-// value. Same encrypt+hash pairing already used for TCKN/phone elsewhere in
-// this schema — but with its own key/pepper (see traffic-log/crypto.util.ts),
-// deliberately never the pii-vault or phone-verification ones.
-//
-// No Prisma relation to User, and no FK — this must survive account
-// deletion (ProfileService.deleteAccount) since the retention obligation is
-// independent of whether the account still exists. userId is best-effort
-// context only.
-//
-// Retention: the law requires keeping this for a fixed window (not less than
-// 1 year, not more than 2 — the exact figure is set by regulation, confirm
-// with counsel before relying on a number here). No automatic purge job
-// exists yet — add one once that number is confirmed.
-
 // IWT Social - a company posts photos/updates under its corporate identity
 // (authorUserId is audit-only, never exposed publicly - a post is attributed
 // to the Company, exactly like CompanyReply). Employees comment and like
@@ -931,6 +907,29 @@ model SocialPostLike {
   @@schema("public")
 }
 
+// Law No. 5651 ("Yer Sağlayıcı Yükümlülükleri") traffic-log record. Written
+// automatically by TrafficLogInterceptor (apps/api/src/modules/traffic-log/)
+// for a fixed allowlist of endpoints (auth register/login/google/apple,
+// review submission) — never written to from anywhere else.
+//
+// ipAddress is reversibly encrypted (not just hashed) on purpose: the law's
+// actual purpose is letting a court order trace an action back to a real IP,
+// which a one-way hash can never do. ipHash is a separate non-reversible
+// fingerprint kept alongside it purely for internal abuse-pattern lookups
+// (e.g. "same IP hit register 20 times") without ever decrypting the real
+// value. Same encrypt+hash pairing already used for TCKN/phone elsewhere in
+// this schema — but with its own key/pepper (see traffic-log/crypto.util.ts),
+// deliberately never the pii-vault or phone-verification ones.
+//
+// No Prisma relation to User, and no FK — this must survive account
+// deletion (ProfileService.deleteAccount) since the retention obligation is
+// independent of whether the account still exists. userId is best-effort
+// context only.
+//
+// Retention: the law requires keeping this for a fixed window (not less than
+// 1 year, not more than 2 — the exact figure is set by regulation, confirm
+// with counsel before relying on a number here). No automatic purge job
+// exists yet — add one once that number is confirmed.
 
 model TrafficLog {
   id         String   @id @default(uuid())
