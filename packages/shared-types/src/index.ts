@@ -1,4 +1,4 @@
-export * from "./schemas/auth";
+﻿export * from "./schemas/auth";
 export * from "./schemas/user";
 export * from "./schemas/company";
 export * from "./schemas/review";
@@ -11,6 +11,7 @@ export * from "./schemas/companyLogo";
 export * from "./schemas/companyBanner";
 export * from "./schemas/notification";
 export * from "./schemas/jobPosting";
+export * from "./schemas/social";
 export * from "./schemas/avatarPhoto";
 export * from "./geo/turkey";
 export * from "./geo/turkeyAreaCodes";
