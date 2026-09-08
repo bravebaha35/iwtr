@@ -76,3 +76,41 @@ describe("SocialService.createPost", () => {
     );
   });
 });
+
+describe("SocialService.feed", () => {
+  const now = Date.now();
+  const rows = [
+    { id: "p2", companyId: "c1", imageUrl: "/u/2.webp", caption: null, createdAt: new Date(now - 1000),
+      company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE" } },
+    { id: "p1", companyId: "c1", imageUrl: "/u/1.webp", caption: "hi", createdAt: new Date(now - 2000),
+      company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE" } },
+  ];
+
+  function feedPrisma() {
+    return {
+      socialPost: { findMany: jest.fn().mockResolvedValue(rows) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([{ postId: "p1", _count: { _all: 3 } }]) },
+      socialPostLike: {
+        groupBy: jest.fn().mockResolvedValue([{ postId: "p1", _count: { _all: 5 } }]),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    } as never;
+  }
+
+  it("returns posts newest-first with counts, nextCursor null on a short page, likedByMe null when anonymous", async () => {
+    const page = await new SocialService(feedPrisma(), moderationPass).feed(undefined, {});
+    expect(page.posts.map((p) => p.id)).toEqual(["p2", "p1"]);
+    expect(page.posts.find((p) => p.id === "p1")?.likeCount).toBe(5);
+    expect(page.posts.find((p) => p.id === "p1")?.commentCount).toBe(3);
+    expect(page.posts[0].likedByMe).toBeNull();
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("sets likedByMe boolean for an authenticated viewer", async () => {
+    const prisma = feedPrisma();
+    (prisma as any).socialPostLike.findMany.mockResolvedValue([{ postId: "p1" }]);
+    const page = await new SocialService(prisma, moderationPass).feed("viewer-1", {});
+    expect(page.posts.find((p) => p.id === "p1")?.likedByMe).toBe(true);
+    expect(page.posts.find((p) => p.id === "p2")?.likedByMe).toBe(false);
+  });
+});
