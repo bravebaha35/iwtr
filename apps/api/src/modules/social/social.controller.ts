@@ -1,7 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Throttle } from "@nestjs/throttler";
-import { createSocialPostInputSchema, SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES, type CreateSocialPostInput } from "@iwtr/shared-types";
+import {
+  createSocialCommentInputSchema,
+  createSocialPostInputSchema,
+  SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES,
+  type CreateSocialCommentInput,
+  type CreateSocialPostInput,
+} from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guard";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -50,5 +56,43 @@ export class SocialController {
     @Query("cursor") cursor?: string,
   ) {
     return this.social.companyFeed(user?.id, slug, { cursor });
+  }
+
+  // Add an anonymous comment to a post. Body is moderated - a violation is a
+  // hard 400, never an admin queue. Tighter throttle than the global 100/min.
+  @Post("posts/:id/comments")
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  addComment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") postId: string,
+    @Body(new ZodValidationPipe(createSocialCommentInputSchema)) body: CreateSocialCommentInput,
+  ) {
+    return this.social.addComment(user.id, postId, body);
+  }
+
+  // A post's comment thread, oldest-first. Optional auth: a signed-in caller
+  // gets mine: true on their own comments, an anonymous one gets mine: false.
+  @Get("posts/:id/comments")
+  @UseGuards(OptionalJwtAuthGuard)
+  listComments(
+    @OptionalCurrentUser() user: AuthenticatedUser | undefined,
+    @Param("id") postId: string,
+  ) {
+    return this.social.listComments(user?.id, postId);
+  }
+
+  // Author-only delete. A non-author gets 403.
+  @Delete("comments/:id")
+  @UseGuards(JwtAuthGuard)
+  deleteComment(@CurrentUser() user: AuthenticatedUser, @Param("id") commentId: string) {
+    return this.social.deleteComment(user.id, commentId);
+  }
+
+  // Toggle the current user's like on a post. Returns the fresh like count.
+  @Post("posts/:id/like")
+  @UseGuards(JwtAuthGuard)
+  toggleLike(@CurrentUser() user: AuthenticatedUser, @Param("id") postId: string) {
+    return this.social.toggleLike(user.id, postId);
   }
 }

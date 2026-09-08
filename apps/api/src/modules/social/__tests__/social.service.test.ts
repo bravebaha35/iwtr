@@ -142,3 +142,56 @@ describe("SocialService.feed", () => {
     expect(page.nextCursor).toBe("x9");
   });
 });
+
+describe("SocialService comments + likes", () => {
+  it("hard-rejects a comment that fails moderation (400, not queued)", async () => {
+    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) } } as never;
+    const moderationFail = {
+      checkContent: jest.fn().mockReturnValue({ violates: true, violationTypes: ["PROFANITY"], confidence: 0.95 }),
+    } as never;
+    await expect(
+      new SocialService(prisma, moderationFail).addComment("u1", "p1", { body: "this place is shit" }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("serializes a comment with the author's anonymous handle, never their userId", async () => {
+    const created = { id: "cm1", postId: "p1", body: "nice", createdAt: new Date(), authorUserId: "u1" };
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      socialComment: { create: jest.fn().mockResolvedValue(created) },
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "u1", avatarKey: "office_1", avatarGradient: "dawn", reviewUsername: "Spreadsheet Spelunker" },
+        ]),
+      },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).addComment("u1", "p1", { body: "nice" });
+    expect(out).toMatchObject({
+      id: "cm1", body: "nice", displayUsername: "Spreadsheet Spelunker", avatarKey: "office_1", mine: true,
+    });
+    expect(out).not.toHaveProperty("authorUserId");
+    expect(out).not.toHaveProperty("userId");
+  });
+
+  it("deleteComment refuses a non-author", async () => {
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "other" }) } } as never;
+    await expect(new SocialService(prisma, moderationPass).deleteComment("u1", "cm1")).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("toggleLike adds then removes", async () => {
+    const like = { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn(), count: jest.fn() };
+    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;
+
+    like.findUnique.mockResolvedValueOnce(null);
+    like.count.mockResolvedValue(1);
+    const r1 = await new SocialService(prisma, moderationPass).toggleLike("u1", "p1");
+    expect(r1).toEqual({ postId: "p1", likeCount: 1, likedByMe: true });
+    expect(like.create).toHaveBeenCalled();
+
+    like.findUnique.mockResolvedValueOnce({ id: "like-1" });
+    like.count.mockResolvedValue(0);
+    const r2 = await new SocialService(prisma, moderationPass).toggleLike("u1", "p1");
+    expect(r2).toEqual({ postId: "p1", likeCount: 0, likedByMe: false });
+    expect(like.delete).toHaveBeenCalled();
+  });
+});

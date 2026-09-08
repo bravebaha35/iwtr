@@ -5,9 +5,12 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from "@prisma/client";
 import {
   validateSocialImageUpload,
+  type CreateSocialCommentInput,
   type CreateSocialPostInput,
+  type PublicSocialComment,
   type PublicSocialPost,
   type SocialFeedPage,
+  type SocialPostLikeResult,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
@@ -167,5 +170,117 @@ export class SocialService {
       throw new ForbiddenException("You are not an approved owner of this company.");
     }
     return ownership;
+  }
+
+  // --- Comments. Any member may comment on any post; the body is run through
+  // the same ModerationService.checkContent gate as a review/caption and a
+  // violation is a hard 400 (never an admin queue - see the backend spec).
+  async addComment(
+    userId: string,
+    postId: string,
+    input: CreateSocialCommentInput,
+  ): Promise<PublicSocialComment> {
+    await this.requirePost(postId);
+    const result = this.moderation.checkContent([input.body]);
+    if (result.violates) {
+      throw new BadRequestException(
+        "That comment looks like it names a person or breaks our content rules - please reword it.",
+      );
+    }
+    const row = await this.prisma.socialComment.create({
+      data: { postId, authorUserId: userId, body: input.body },
+    });
+    const [serialized] = await this.serializeComments([row], userId);
+    return serialized;
+  }
+
+  // Oldest-first (a comment thread reads top-to-bottom). Optional auth: an
+  // anonymous viewer just gets mine: false on every row.
+  async listComments(
+    viewerUserId: string | undefined,
+    postId: string,
+  ): Promise<PublicSocialComment[]> {
+    await this.requirePost(postId);
+    const rows = await this.prisma.socialComment.findMany({
+      where: { postId },
+      orderBy: { createdAt: "asc" },
+    });
+    return this.serializeComments(rows, viewerUserId);
+  }
+
+  // Author-only. A non-author (or an anonymous caller, caught by the guard
+  // before here) gets 403; an unknown id gets 404.
+  async deleteComment(userId: string, commentId: string): Promise<void> {
+    const comment = await this.prisma.socialComment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new NotFoundException("Comment not found");
+    if (comment.authorUserId !== userId) {
+      throw new ForbiddenException("You can only delete your own comment.");
+    }
+    await this.prisma.socialComment.delete({ where: { id: commentId } });
+  }
+
+  // --- Likes. Post-level only (there is deliberately no CommentLike). One
+  // call toggles: like if not liked, unlike if already liked. Returns the
+  // fresh count so the caller never has to re-fetch the post.
+  async toggleLike(userId: string, postId: string): Promise<SocialPostLikeResult> {
+    await this.requirePost(postId);
+    const existing = await this.prisma.socialPostLike.findUnique({
+      where: { postId_userId: { postId, userId } },
+    });
+    if (existing) {
+      await this.prisma.socialPostLike.delete({ where: { id: existing.id } });
+    } else {
+      try {
+        await this.prisma.socialPostLike.create({ data: { postId, userId } });
+      } catch (err) {
+        // Concurrent double-like: a parallel request won the create and this
+        // one hit @@unique([postId, userId]). The row exists either way, so
+        // treat it as an idempotent "now liked" instead of a 500.
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {
+          throw err;
+        }
+      }
+    }
+    const likeCount = await this.prisma.socialPostLike.count({ where: { postId } });
+    return { postId, likeCount, likedByMe: !existing };
+  }
+
+  private async requirePost(postId: string) {
+    const post = await this.prisma.socialPost.findUnique({
+      where: { id: postId },
+      select: { id: true },
+    });
+    if (!post) throw new NotFoundException("Post not found");
+    return post;
+  }
+
+  // REVIEW.md-adjacent: identical shape to ReviewsService.listForCompany's
+  // author lookup. Explicit `select`, never `include: { user: true }` - that
+  // would pull email/city/etc. onto a comment-shaped payload, exactly the
+  // leak REVIEW.md's red flag #1 warns about. The returned shape carries no
+  // authorUserId / userId; the only per-viewer field is `mine`.
+  private async serializeComments(
+    rows: Array<{ id: string; postId: string; body: string; createdAt: Date; authorUserId: string }>,
+    viewerUserId: string | undefined,
+  ): Promise<PublicSocialComment[]> {
+    const authorIds = [...new Set(rows.map((r) => r.authorUserId))];
+    const authors = await this.prisma.user.findMany({
+      where: { id: { in: authorIds } },
+      select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
+    });
+    const byId = new Map(authors.map((a) => [a.id, a]));
+    return rows.map((r) => {
+      const a = byId.get(r.authorUserId);
+      return {
+        id: r.id,
+        postId: r.postId,
+        body: r.body,
+        createdAt: r.createdAt.toISOString(),
+        displayUsername: a?.reviewUsername ?? null,
+        avatarKey: a?.avatarKey ?? null,
+        avatarGradient: a?.avatarGradient ?? null,
+        mine: viewerUserId !== undefined && r.authorUserId === viewerUserId,
+      };
+    });
   }
 }
