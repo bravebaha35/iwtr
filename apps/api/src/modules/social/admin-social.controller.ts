@@ -1,4 +1,4 @@
-import { Controller, Delete, Param, ParseUUIDPipe, UseGuards } from "@nestjs/common";
+import { Controller, Delete, Get, Param, ParseUUIDPipe, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
@@ -21,6 +21,15 @@ import { SocialService } from "./social.service";
 @Roles("ADMIN")
 export class AdminSocialController {
   constructor(private readonly social: SocialService) {}
+
+  // GET admin/social/companies/:id/posts — that company's feed, bypassing the
+  // hidden-company visibility gate so a hidden company's posts stay visible
+  // and removable from here (the public GET /social/companies/:slug/posts
+  // 404s once a company is hidden, for everyone, by design).
+  @Get("companies/:id/posts")
+  companyFeed(@Param("id", new ParseUUIDPipe()) id: string, @Query("cursor") cursor?: string) {
+    return this.social.adminCompanyFeed(id, { cursor });
+  }
 
   // DELETE admin/social/posts/:id — remove one post (cascades its comments +
   // likes), unlink its file, AuditLog "SOCIAL_POST_REMOVED". 404 if missing.

@@ -110,6 +110,19 @@ export class SocialService {
     return this.pageFromWhere(viewerUserId, { companyId: company.id }, opts.cursor);
   }
 
+  // ADMIN-only: one company's feed by id, bypassing the hidden-company gate.
+  // Without this, hiding a company (the expected first moderation step) would
+  // 404 the public companyFeed for the admin too, leaving no way to see post
+  // ids to remove or to confirm a feed wipe worked while the company stays
+  // hidden. Existence-checked (404 unknown id) but never visibility-checked.
+  async adminCompanyFeed(companyId: string, opts: { cursor?: string }): Promise<SocialFeedPage> {
+    const company = await this.prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
+    if (!company) {
+      throw new NotFoundException("Company not found");
+    }
+    return this.pageFromWhere(undefined, { companyId: company.id }, opts.cursor);
+  }
+
   // --- ADMIN content moderation (AdminSocialController, ADMIN-only). A hard
   // delete: SocialComment / SocialPostLike are onDelete: Cascade on the post
   // (see schema.prisma), so removing a post takes its whole thread + likes

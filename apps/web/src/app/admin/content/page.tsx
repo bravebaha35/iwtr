@@ -6,9 +6,11 @@ import { useAuth } from "@/lib/auth-context";
 import { apiDelete, apiGet, apiPatch, ApiError } from "@/lib/api-client";
 
 // One company's expanded IWT Social feed — fetched lazily (only once its row
-// is expanded) via the same public GET /social/companies/:slug/posts every
-// visitor's company page already uses; "Remove" calls the ADMIN-only
-// DELETE /admin/social/posts/:id (see AdminSocialController).
+// is expanded) via the ADMIN-only GET /admin/social/companies/:id/posts,
+// which (unlike the public GET /social/companies/:slug/posts) still works
+// once the company is hidden, so a hidden company's posts stay manageable
+// from here. "Remove" calls the ADMIN-only DELETE /admin/social/posts/:id
+// (see AdminSocialController).
 function CompanyPostsPanel({
   company,
   onWiped,
@@ -23,12 +25,12 @@ function CompanyPostsPanel({
   const load = useCallback(async () => {
     setError(null);
     try {
-      const page = await apiGet<SocialFeedPage>(`/social/companies/${company.slug}/posts`);
+      const page = await apiGet<SocialFeedPage>(`/admin/social/companies/${company.id}/posts`);
       setPosts(page.posts);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load this company's IWT Social posts.");
     }
-  }, [company.slug]);
+  }, [company.id]);
 
   useEffect(() => {
     void load();
