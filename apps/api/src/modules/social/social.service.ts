@@ -9,8 +9,10 @@ import {
   type CreateSocialPostInput,
   type PublicSocialComment,
   type PublicSocialPost,
+  type SavedPostToggleResult,
   type SocialFeedPage,
   type SocialPostLikeResult,
+  type WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
@@ -79,11 +81,14 @@ export class SocialService {
   }
 
   // Global feed - newest post first across every company. `q` (optional) is a
-  // case-insensitive substring match on the company name. Anonymous viewers
-  // (viewerUserId undefined) get likedByMe: null on every post.
+  // case-insensitive substring match on the company name. `workplaceTypes`
+  // ("Job Category") and `categories` ("Industry Tags") filter on the post's
+  // own company - both optional, both AND'd together with `q` when present.
+  // Anonymous viewers (viewerUserId undefined) get likedByMe/savedByMe: null
+  // on every post.
   async feed(
     viewerUserId: string | undefined,
-    opts: { cursor?: string; q?: string },
+    opts: { cursor?: string; q?: string; workplaceTypes?: WorkplaceType[]; categories?: string[] },
   ): Promise<SocialFeedPage> {
     // The global feed is always gated on the post's company being publicly
     // visible — a company an ADMIN has hidden (Company.hiddenAt) drops out
@@ -91,6 +96,16 @@ export class SocialService {
     const companyWhere = {
       ...PUBLIC_COMPANY_WHERE,
       ...(opts.q?.trim() ? { name: { contains: opts.q.trim(), mode: "insensitive" as const } } : {}),
+      // hasSome: the post's company matches if it carries ANY of the
+      // requested job categories - mirrors CompaniesService.search's own
+      // workplaceTypes filter (a company can span up to 2 tags).
+      ...(opts.workplaceTypes && opts.workplaceTypes.length > 0
+        ? { workplaceTypes: { hasSome: opts.workplaceTypes } }
+        : {}),
+      // Company.category is free-text (admin-curated, not a fixed enum - see
+      // its schema.prisma doc comment), so this is an exact-match `in`
+      // against whatever values the caller sends, not a hardcoded list.
+      ...(opts.categories && opts.categories.length > 0 ? { category: { in: opts.categories } } : {}),
     };
     const where: Prisma.SocialPostWhereInput = { company: companyWhere };
     return this.pageFromWhere(viewerUserId, where, opts.cursor);
@@ -124,11 +139,12 @@ export class SocialService {
   }
 
   // --- ADMIN content moderation (AdminSocialController, ADMIN-only). A hard
-  // delete: SocialComment / SocialPostLike are onDelete: Cascade on the post
-  // (see schema.prisma), so removing a post takes its whole thread + likes
-  // with it. Each removed post's WebP file is unlinked from uploads/social/
-  // best-effort. Operates on SocialPost by id / companyId only — never reads
-  // or logs a post/comment author (REVIEW.md anonymity scope).
+  // delete: SocialComment / SocialPostLike / SavedPost are onDelete: Cascade
+  // on the post (see schema.prisma), so removing a post takes its whole
+  // thread + likes + every user's saved-post row with it. Each removed
+  // post's WebP file is unlinked from uploads/social/ best-effort. Operates
+  // on SocialPost by id / companyId only — never reads or logs a post/
+  // comment author (REVIEW.md anonymity scope).
 
   async adminRemovePost(adminUserId: string, postId: string): Promise<{ success: true }> {
     const post = await this.prisma.socialPost.findUnique({
@@ -137,7 +153,7 @@ export class SocialService {
     });
     if (!post) throw new NotFoundException("Post not found");
 
-    await this.prisma.socialPost.delete({ where: { id: postId } }); // cascades comments + likes
+    await this.prisma.socialPost.delete({ where: { id: postId } }); // cascades comments + likes + saves
     await this.unlinkSocialImage(post.imageUrl);
     await this.prisma.auditLog.create({
       data: {
@@ -157,7 +173,7 @@ export class SocialService {
       select: { id: true, imageUrl: true },
     });
 
-    await this.prisma.socialPost.deleteMany({ where: { companyId } }); // cascades each post's comments + likes
+    await this.prisma.socialPost.deleteMany({ where: { companyId } }); // cascades each post's comments + likes + saves
     await Promise.all(posts.map((p) => this.unlinkSocialImage(p.imageUrl)));
     await this.prisma.auditLog.create({
       data: {
@@ -207,11 +223,11 @@ export class SocialService {
     return { posts, nextCursor: hasMore ? pageRows[pageRows.length - 1].id : null };
   }
 
-  // Shared serializer for both feed shapes. Fans out into three grouped
+  // Shared serializer for both feed shapes. Fans out into four grouped
   // aggregate reads (like count, comment count, and - only for an
-  // authenticated viewer - that viewer's own likes) rather than N+1 per post.
-  // NOTE (REVIEW.md-adjacent): never selects authorUserId; the viewer's-own-
-  // likes query stays select: { postId: true }.
+  // authenticated viewer - that viewer's own likes and saves) rather than
+  // N+1 per post. NOTE (REVIEW.md-adjacent): never selects authorUserId; the
+  // viewer's-own-likes/saves queries stay select: { postId: true }.
   private async serializePosts(
     rows: Array<{
       id: string; companyId: string; imageUrl: string; caption: string | null; createdAt: Date;
@@ -220,7 +236,7 @@ export class SocialService {
     viewerUserId: string | undefined,
   ): Promise<PublicSocialPost[]> {
     const ids = rows.map((r) => r.id);
-    const [likeCounts, commentCounts, myLikes] = await Promise.all([
+    const [likeCounts, commentCounts, myLikes, mySaves] = await Promise.all([
       this.prisma.socialPostLike.groupBy({ by: ["postId"], where: { postId: { in: ids } }, _count: { _all: true } }),
       this.prisma.socialComment.groupBy({ by: ["postId"], where: { postId: { in: ids } }, _count: { _all: true } }),
       viewerUserId
@@ -229,10 +245,17 @@ export class SocialService {
             select: { postId: true },
           })
         : Promise.resolve([]),
+      viewerUserId
+        ? this.prisma.savedPost.findMany({
+            where: { postId: { in: ids }, userId: viewerUserId },
+            select: { postId: true },
+          })
+        : Promise.resolve([]),
     ]);
     const likeByPost = new Map(likeCounts.map((r) => [r.postId, r._count._all]));
     const commentByPost = new Map(commentCounts.map((r) => [r.postId, r._count._all]));
     const likedByMe = new Set(myLikes.map((r) => r.postId));
+    const savedByMe = new Set(mySaves.map((r) => r.postId));
 
     return rows.map((r) => ({
       id: r.id,
@@ -247,6 +270,7 @@ export class SocialService {
       likeCount: likeByPost.get(r.id) ?? 0,
       commentCount: commentByPost.get(r.id) ?? 0,
       likedByMe: viewerUserId ? likedByMe.has(r.id) : null,
+      savedByMe: viewerUserId ? savedByMe.has(r.id) : null,
     }));
   }
 
@@ -351,6 +375,59 @@ export class SocialService {
     }
     const likeCount = await this.prisma.socialPostLike.count({ where: { postId } });
     return { postId, likeCount, likedByMe: !existing };
+  }
+
+  // --- Saves. Post-level, private bookmark - no public save count or "who
+  // saved this" surface exists anywhere (unlike likes). Same race-safe
+  // toggle shape as toggleLike above.
+  async toggleSave(userId: string, postId: string): Promise<SavedPostToggleResult> {
+    await this.requirePost(postId);
+    const existing = await this.prisma.savedPost.findUnique({
+      where: { userId_postId: { userId, postId } },
+    });
+    if (existing) {
+      try {
+        await this.prisma.savedPost.delete({ where: { id: existing.id } });
+      } catch (err) {
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025")) {
+          throw err;
+        }
+      }
+    } else {
+      try {
+        await this.prisma.savedPost.create({ data: { userId, postId } });
+      } catch (err) {
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {
+          throw err;
+        }
+      }
+    }
+    return { postId, saved: !existing };
+  }
+
+  // The caller's own saved posts, most-recently-saved first (not most-
+  // recently-posted — SavedPost.createdAt, not SocialPost.createdAt).
+  // Excludes posts whose company has since been hidden, same as every other
+  // public-shaped feed. Cursor = the previous page's last SavedPost id.
+  async listSavedPosts(userId: string, cursor: string | undefined): Promise<SocialFeedPage> {
+    const rows = await this.prisma.savedPost.findMany({
+      where: { userId, post: { company: PUBLIC_COMPANY_WHERE } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: SOCIAL_FEED_PAGE_SIZE + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: {
+        post: {
+          include: { company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true } } },
+        },
+      },
+    });
+    const hasMore = rows.length > SOCIAL_FEED_PAGE_SIZE;
+    const pageRows = hasMore ? rows.slice(0, SOCIAL_FEED_PAGE_SIZE) : rows;
+    const posts = await this.serializePosts(
+      pageRows.map((r) => r.post),
+      userId,
+    );
+    return { posts, nextCursor: hasMore ? pageRows[pageRows.length - 1].id : null };
   }
 
   private async requirePost(postId: string) {

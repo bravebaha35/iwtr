@@ -147,6 +147,7 @@ describe("SocialService.feed", () => {
         groupBy: jest.fn().mockResolvedValue([{ postId: "p1", _count: { _all: 5 } }]),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
     } as never;
   }
 
@@ -358,6 +359,124 @@ describe("SocialService comments + likes", () => {
     };
     const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;
     await expect(new SocialService(prisma, moderationPass).toggleLike("u1", "p1")).rejects.toThrow();
+  });
+});
+
+describe("SocialService.toggleSave", () => {
+  it("saves then unsaves (toggle)", async () => {
+    const save = { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn() };
+    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, savedPost: save } as never;
+
+    save.findUnique.mockResolvedValueOnce(null);
+    const r1 = await new SocialService(prisma, moderationPass).toggleSave("u1", "p1");
+    expect(r1).toEqual({ postId: "p1", saved: true });
+    expect(save.create).toHaveBeenCalledWith({ data: { userId: "u1", postId: "p1" } });
+
+    save.findUnique.mockResolvedValueOnce({ id: "save-1" });
+    const r2 = await new SocialService(prisma, moderationPass).toggleSave("u1", "p1");
+    expect(r2).toEqual({ postId: "p1", saved: false });
+    expect(save.delete).toHaveBeenCalled();
+  });
+
+  it("404s on an unknown post", async () => {
+    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
+    await expect(new SocialService(prisma, moderationPass).toggleSave("u1", "ghost")).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it("swallows a concurrent-save P2002 and reports now-saved", async () => {
+    const save = {
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "x" }),
+      ),
+      delete: jest.fn(),
+    };
+    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, savedPost: save } as never;
+    const r = await new SocialService(prisma, moderationPass).toggleSave("u1", "p1");
+    expect(r).toEqual({ postId: "p1", saved: true });
+  });
+});
+
+describe("SocialService.feed filters", () => {
+  it("passes workplaceTypes as a hasSome filter on the company", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      socialPost: { findMany },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    await new SocialService(prisma, moderationPass).feed(undefined, { workplaceTypes: ["OFFICE", "SERVICE"] });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          company: expect.objectContaining({ workplaceTypes: { hasSome: ["OFFICE", "SERVICE"] } }),
+        }),
+      }),
+    );
+  });
+
+  it("passes categories as an exact-match `in` filter on the company", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      socialPost: { findMany },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    await new SocialService(prisma, moderationPass).feed(undefined, { categories: ["Supermarket", "Logistics"] });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          company: expect.objectContaining({ category: { in: ["Supermarket", "Logistics"] } }),
+        }),
+      }),
+    );
+  });
+
+  it("omits both filter keys entirely when no filters are given", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      socialPost: { findMany },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    await new SocialService(prisma, moderationPass).feed(undefined, {});
+    const call = findMany.mock.calls[0][0];
+    expect(call.where.company).not.toHaveProperty("workplaceTypes");
+    expect(call.where.company).not.toHaveProperty("category");
+  });
+});
+
+describe("SocialService.listSavedPosts", () => {
+  it("orders by SavedPost.createdAt (not the post's own createdAt) and excludes hidden companies", async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: "save-1",
+        post: {
+          id: "p1", companyId: "c1", imageUrl: "/u/1.webp", caption: null, createdAt: new Date("2020-01-01"),
+          company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE" },
+        },
+      },
+    ]);
+    const prisma = {
+      savedPost: { findMany },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+    } as never;
+
+    const page = await new SocialService(prisma, moderationPass).listSavedPosts("u1", undefined);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "u1", post: { company: expect.objectContaining({ hiddenAt: null }) } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    );
+    expect(page.posts.map((p) => p.id)).toEqual(["p1"]);
   });
 });
 

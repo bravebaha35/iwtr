@@ -4,6 +4,7 @@ import { ModerationModule } from "../moderation/moderation.module";
 import { AuthModule } from "../auth/auth.module";
 import { SocialController } from "./social.controller";
 import { AdminSocialController } from "./admin-social.controller";
+import { SavedPostsController } from "./saved-posts.controller";
 import { SocialService } from "./social.service";
 
 @Module({
@@ -11,7 +12,7 @@ import { SocialService } from "./social.service";
   // OptionalJwtAuthGuard) inject - every peer feature module that uses these
   // guards imports it too (owner.module.ts, companies.module.ts).
   imports: [PrismaModule, ModerationModule, AuthModule],
-  controllers: [SocialController, AdminSocialController],
+  controllers: [SocialController, AdminSocialController, SavedPostsController],
   providers: [SocialService],
 })
 export class SocialModule {}

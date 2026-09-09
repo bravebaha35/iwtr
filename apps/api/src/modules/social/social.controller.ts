@@ -4,17 +4,40 @@ import { Throttle } from "@nestjs/throttler";
 import {
   createSocialCommentInputSchema,
   createSocialPostInputSchema,
+  workplaceTypeSchema,
   SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES,
   type CreateSocialCommentInput,
   type CreateSocialPostInput,
+  type WorkplaceType,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guard";
+import { RolesGuard } from "../../common/guards/roles.guard";
+import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { OptionalCurrentUser } from "../../common/decorators/optional-current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { SocialService } from "./social.service";
+
+// Unrecognized tokens are dropped rather than rejected — same rule as
+// CompaniesService.search's own workplaceTypes parsing — so a stale client
+// sending a since-removed job category doesn't 400 the whole feed request.
+function parseWorkplaceTypes(raw: string | undefined): WorkplaceType[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t): t is WorkplaceType => (workplaceTypeSchema.options as string[]).includes(t));
+}
+
+// Company.category is free-text (admin-curated, no fixed enum), so this just
+// splits/trims/dedupes — validity is "does a company have this category",
+// checked by the query itself, not by a hardcoded allowlist here.
+function parseCategories(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return [...new Set(raw.split(",").map((c) => c.trim()).filter(Boolean))];
+}
 
 @Controller("social")
 export class SocialController {
@@ -35,16 +58,26 @@ export class SocialController {
   }
 
   // Public global feed, newest-first, cursor-paginated. Optional auth: a
-  // signed-in caller gets a real likedByMe boolean, an anonymous one gets
-  // null. `q` filters by company name (case-insensitive substring).
+  // signed-in caller gets real likedByMe/savedByMe booleans, an anonymous
+  // one gets null for both. `q` filters by company name (case-insensitive
+  // substring); `workplaceTypes` ("Job Category") and `categories`
+  // ("Industry Tags") are comma-separated, same convention as
+  // CompaniesService.search's own filter params.
   @Get("feed")
   @UseGuards(OptionalJwtAuthGuard)
   feed(
     @OptionalCurrentUser() user: AuthenticatedUser | undefined,
     @Query("cursor") cursor?: string,
     @Query("q") q?: string,
+    @Query("workplaceTypes") workplaceTypes?: string,
+    @Query("categories") categories?: string,
   ) {
-    return this.social.feed(user?.id, { cursor, q });
+    return this.social.feed(user?.id, {
+      cursor,
+      q,
+      workplaceTypes: parseWorkplaceTypes(workplaceTypes),
+      categories: parseCategories(categories),
+    });
   }
 
   // Public per-company feed, addressed by slug. Same optional-auth rule.
@@ -94,5 +127,14 @@ export class SocialController {
   @UseGuards(JwtAuthGuard)
   toggleLike(@CurrentUser() user: AuthenticatedUser, @Param("id") postId: string) {
     return this.social.toggleLike(user.id, postId);
+  }
+
+  // Toggle the current user's private bookmark on a post. Employee-only
+  // (MEMBER) - an owner/admin saving a post isn't part of this feature.
+  @Post("posts/:id/save")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("MEMBER")
+  toggleSave(@CurrentUser() user: AuthenticatedUser, @Param("id") postId: string) {
+    return this.social.toggleSave(user.id, postId);
   }
 }
