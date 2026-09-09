@@ -20,6 +20,7 @@ import { RivalAnalyticsModule } from "./modules/rival-analytics/rival-analytics.
 import { InvestorApiModule } from "./modules/investor-api/investor-api.module";
 import { JobPostingsModule } from "./modules/job-postings/job-postings.module";
 import { SocialModule } from "./modules/social/social.module";
+import { FollowsModule } from "./modules/follows/follows.module";
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { SocialModule } from "./modules/social/social.module";
     InvestorApiModule,
     JobPostingsModule,
     SocialModule,
+    FollowsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
