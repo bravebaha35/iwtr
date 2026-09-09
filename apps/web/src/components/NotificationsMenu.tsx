@@ -9,19 +9,21 @@ import { apiGet } from "@/lib/api-client";
 // ---------------------------------------------------------------------------
 // Notification model
 //
-// apps/api's GET /me/notifications (NotificationsService.list) only derives
-// 4 of the 12 kinds below — VOTE_HELPFUL, VOTE_NOT_HELPFUL, COMPANY_REPLY,
-// JOB_POSTING_PUBLISHED — from real ReviewVote/CompanyReply/JobPosting rows.
-// The other 8 (review moderation outcomes, account verification, IWT
-// Social, and 2 of the 3 employer kinds) have no backend event source yet.
-// Per this task's brief ("do not touch backend/DB"), this file is frontend
-// UI only: it fetches the 4 real kinds and merges in a small labeled sample
-// set (SAMPLE_NOTIFICATIONS below) so every kind's copy/icon/category/link
-// logic is complete and visible today. Swapping to a fully real feed later
-// is a one-line change — delete the SAMPLE_NOTIFICATIONS merge once the
-// backend grows the other event sources; everything else (describe/href/
-// icon/category, unread state, the employer filter) is already correct for
-// whatever NotificationsService.list eventually returns.
+// apps/api's GET /me/notifications (NotificationsService.list) derives 7 of
+// the 15 kinds below from real rows — VOTE_HELPFUL, VOTE_NOT_HELPFUL,
+// COMPANY_REPLY, JOB_POSTING_PUBLISHED (ReviewVote/CompanyReply/JobPosting),
+// plus COMPANY_STATUS_UPDATE/COMPANY_NEW_SOCIAL_POST/COMPANY_HIRING (derived
+// from the caller's CompanyFollow rows joined against
+// CompanyAggregateScore/SocialPost/JobPosting — see notification.ts). The
+// other 8 (review moderation outcomes, account verification, and 2 of the 3
+// employer kinds) have no backend event source yet. This file fetches the
+// real kinds and merges in a small labeled sample set (SAMPLE_NOTIFICATIONS
+// below) so every kind's copy/icon/category/link logic is complete and
+// visible today. Swapping to a fully real feed later is a one-line change —
+// delete the SAMPLE_NOTIFICATIONS merge once the backend grows the other
+// event sources; everything else (describe/href/icon/category, unread
+// state, the employer filter) is already correct for whatever
+// NotificationsService.list eventually returns.
 // ---------------------------------------------------------------------------
 
 type NotificationCategory = "SOCIAL" | "SYSTEM" | "EMPLOYER";
@@ -38,6 +40,13 @@ type NotificationKind =
   | "VERIFY_ACCOUNT"
   | "REVIEW_REMOVED"
   | "IWT_SOCIAL_UPDATE"
+  // Followed-company events (IWT Social) - real, derived by
+  // NotificationsService.list from CompanyFollow joined against
+  // CompanyAggregateScore/SocialPost/JobPosting. See notification.ts's
+  // file-header comment for the exact copy/link this implements.
+  | "COMPANY_STATUS_UPDATE"
+  | "COMPANY_NEW_SOCIAL_POST"
+  | "COMPANY_HIRING"
   // Employer only
   | "JOB_POSTING_PUBLISHED"
   | "COMPANY_REVIEWED"
@@ -53,6 +62,9 @@ const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   VERIFY_ACCOUNT: "SYSTEM",
   REVIEW_REMOVED: "SYSTEM",
   IWT_SOCIAL_UPDATE: "SYSTEM",
+  COMPANY_STATUS_UPDATE: "SOCIAL",
+  COMPANY_NEW_SOCIAL_POST: "SOCIAL",
+  COMPANY_HIRING: "SOCIAL",
   JOB_POSTING_PUBLISHED: "EMPLOYER",
   COMPANY_REVIEWED: "EMPLOYER",
   JOB_POSTING_NEEDS_INFO: "EMPLOYER",
@@ -94,6 +106,12 @@ function describeNotification(n: AppNotification): string {
       return "Your review is removed.";
     case "IWT_SOCIAL_UPDATE":
       return "Check out new updates on 'IWT Social'!";
+    case "COMPANY_STATUS_UPDATE":
+      return `See how ${company} doing!`;
+    case "COMPANY_NEW_SOCIAL_POST":
+      return `${company} just posted a new post !`;
+    case "COMPANY_HIRING":
+      return `${company} hiring now check it out !`;
     case "JOB_POSTING_PUBLISHED":
       return "Your job posting is up!";
     case "COMPANY_REVIEWED":
@@ -117,6 +135,15 @@ function hrefForNotification(n: AppNotification): string {
       return "/me";
     case "IWT_SOCIAL_UPDATE":
       return "/social";
+    // Company status update -> the rating page (that company's profile).
+    case "COMPANY_STATUS_UPDATE":
+      return n.companySlug ? `/companies/${n.companySlug}` : "/social";
+    // New post from a followed company -> that company's IWT Social page.
+    case "COMPANY_NEW_SOCIAL_POST":
+      return n.companySlug ? `/social/${n.companySlug}` : "/social";
+    // Followed company is hiring -> the hiring page.
+    case "COMPANY_HIRING":
+      return "/jobs";
     case "JOB_POSTING_PUBLISHED":
     case "JOB_POSTING_NEEDS_INFO":
       return "/jobs";

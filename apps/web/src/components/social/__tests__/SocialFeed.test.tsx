@@ -26,10 +26,28 @@ describe("SocialFeed (all)", () => {
     expect(screen.getAllByText("Ad space")).toHaveLength(1);
   });
 
-  it("has a company-name search box and no sort/filter controls", async () => {
+  it("renders no search box or sort control itself - both now live in SocialSidebar", async () => {
     (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [], nextCursor: null });
     render(<SocialFeed scope={{ kind: "all" }} />);
-    expect(await screen.findByPlaceholderText(/search .*compan/i)).toBeInTheDocument();
+    await waitFor(() => expect(apiClient.apiGet).toHaveBeenCalled());
+    expect(screen.queryByPlaceholderText(/search .*compan/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/sort/i)).not.toBeInTheDocument();
+  });
+
+  it("sends q/workplaceTypes/categories filters through to the feed endpoint", async () => {
+    (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [], nextCursor: null });
+    render(<SocialFeed scope={{ kind: "all" }} q="acme" workplaceType="OFFICE" category="Logistics" />);
+    await waitFor(() =>
+      expect(apiClient.apiGet).toHaveBeenCalledWith("/social/feed?q=acme&workplaceTypes=OFFICE&categories=Logistics"),
+    );
+  });
+});
+
+describe("SocialFeed (saved)", () => {
+  it("fetches /me/saved-posts and shows a saved-specific empty state", async () => {
+    (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [], nextCursor: null });
+    render(<SocialFeed scope={{ kind: "saved" }} />);
+    await waitFor(() => expect(apiClient.apiGet).toHaveBeenCalledWith("/me/saved-posts"));
+    expect(await screen.findByText(/haven't saved any posts yet/i)).toBeInTheDocument();
   });
 });
