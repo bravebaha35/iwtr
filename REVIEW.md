@@ -37,6 +37,15 @@ Concretely, a PR is in scope if it touches any of:
   the public `PublicSocialComment` shape must never carry `authorUserId`, and
   no `prisma.socialComment.*` / `prisma.socialPost.*` query may add
   `include: { user: true }`.
+- `apps/api/src/modules/follows/**`, `packages/shared-types/src/schemas/follow.ts`
+  — the `CompanyFollow`/`UserFollow`/`SavedPost` social-graph surface.
+  **`FollowsService.companyFollowerCount` may only ever return `{ count }`**
+  — no code path anywhere may select `CompanyFollow.userId` (or any
+  follower's identity) for a company/owner-facing response; there is no
+  "list of followers" endpoint and there must never be one. `UserFollow`
+  responses (if a future endpoint ever surfaces one) may project only the
+  counterparty's `reviewUsername`/`avatarKey`/`avatarGradient` — the same
+  carve-out as `SocialComment`, never a raw `followerId`/`followingId`.
 
 ## Severity
 

@@ -12,9 +12,11 @@ export class NotificationsService {
    * Derived, not stored (see notification.ts in shared-types) — pulled live
    * from ReviewVote and CompanyReply rows attached to the caller's own
    * reviews, plus (independently — a job posting has nothing to do with the
-   * caller's own reviews) their own published JobPosting rows, merged and
-   * re-sorted every time the dropdown opens. No read/unread state yet, just
-   * the most recent events across all sources.
+   * caller's own reviews) their own published JobPosting rows, plus
+   * (independently again) the 3 COMPANY_* kinds derived from companies the
+   * caller follows (CompanyFollow) — merged and re-sorted every time the
+   * dropdown opens. No read/unread state yet, just the most recent events
+   * across all sources.
    */
   async list(userId: string): Promise<Notification[]> {
     const myReviews = await this.prisma.review.findMany({
@@ -24,7 +26,13 @@ export class NotificationsService {
     const reviewIds = myReviews.map((r) => r.id);
     const companyByReview = new Map(myReviews.map((r) => [r.id, r.company]));
 
-    const [votes, replies, jobPostings] = await Promise.all([
+    const follows = await this.prisma.companyFollow.findMany({
+      where: { userId },
+      select: { companyId: true },
+    });
+    const followedCompanyIds = follows.map((f) => f.companyId);
+
+    const [votes, replies, jobPostings, followedStatusUpdates, followedPosts, followedHiring] = await Promise.all([
       reviewIds.length > 0
         ? this.prisma.reviewVote.findMany({
             where: { reviewId: { in: reviewIds } },
@@ -49,6 +57,34 @@ export class NotificationsService {
         orderBy: { createdAt: "desc" },
         take: MAX_NOTIFICATIONS,
       }),
+      // "Status update" = the followed company's CompanyAggregateScore was
+      // recomputed (a new review published) — a singleton row per company,
+      // so this is inherently "the latest update" already, never a log of
+      // every past one. A hidden company never surfaces here.
+      followedCompanyIds.length > 0
+        ? this.prisma.companyAggregateScore.findMany({
+            where: { companyId: { in: followedCompanyIds }, company: { hiddenAt: null } },
+            select: { companyId: true, updatedAt: true, company: { select: { name: true, slug: true } } },
+            orderBy: { updatedAt: "desc" },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
+      followedCompanyIds.length > 0
+        ? this.prisma.socialPost.findMany({
+            where: { companyId: { in: followedCompanyIds }, company: { hiddenAt: null } },
+            select: { id: true, createdAt: true, company: { select: { name: true, slug: true } } },
+            orderBy: { createdAt: "desc" },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
+      followedCompanyIds.length > 0
+        ? this.prisma.jobPosting.findMany({
+            where: { companyId: { in: followedCompanyIds }, status: "PUBLISHED", company: { hiddenAt: null } },
+            select: { id: true, createdAt: true, company: { select: { name: true, slug: true } } },
+            orderBy: { createdAt: "desc" },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
     ]);
 
     const events: Notification[] = [
@@ -72,6 +108,27 @@ export class NotificationsService {
         companyName: p.company.name,
         companySlug: p.company.slug,
         createdAt: p.createdAt.toISOString(),
+      })),
+      ...followedStatusUpdates.map((a) => ({
+        id: `company-status-${a.companyId}-${a.updatedAt.getTime()}`,
+        type: "COMPANY_STATUS_UPDATE" as NotificationType,
+        companyName: a.company.name,
+        companySlug: a.company.slug,
+        createdAt: a.updatedAt.toISOString(),
+      })),
+      ...followedPosts.map((p) => ({
+        id: `company-post-${p.id}`,
+        type: "COMPANY_NEW_SOCIAL_POST" as NotificationType,
+        companyName: p.company.name,
+        companySlug: p.company.slug,
+        createdAt: p.createdAt.toISOString(),
+      })),
+      ...followedHiring.map((j) => ({
+        id: `company-hiring-${j.id}`,
+        type: "COMPANY_HIRING" as NotificationType,
+        companyName: j.company.name,
+        companySlug: j.company.slug,
+        createdAt: j.createdAt.toISOString(),
       })),
     ];
 
