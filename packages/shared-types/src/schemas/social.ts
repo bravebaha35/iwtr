@@ -62,6 +62,9 @@ export const publicSocialPostSchema = z.object({
   commentCount: z.number().int(),
   // null when the viewer is anonymous; boolean when authenticated.
   likedByMe: z.boolean().nullable(),
+  // Same null-when-anonymous convention as likedByMe (see SocialService.
+  // serializePosts) - a private bookmark flag, never a public save count.
+  savedByMe: z.boolean().nullable(),
 });
 export type PublicSocialPost = z.infer<typeof publicSocialPostSchema>;
 

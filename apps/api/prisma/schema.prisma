@@ -248,6 +248,10 @@ model User {
   socialPosts             SocialPost[]             @relation("SocialPostAuthor")
   socialComments          SocialComment[]          @relation("SocialCommentAuthor")
   socialPostLikes         SocialPostLike[]         @relation("SocialPostLiker")
+  companyFollows          CompanyFollow[]
+  followedUsers           UserFollow[]             @relation("UserFollowFollower")
+  followedByUsers         UserFollow[]             @relation("UserFollowFollowing")
+  savedPosts              SavedPost[]
 
   @@schema("public")
 }
@@ -452,6 +456,7 @@ model Company {
   replies              CompanyReply[]
   jobPostings          JobPosting[]
   socialPosts          SocialPost[]
+  followers            CompanyFollow[]
 
   // name: helps the case-insensitive exact-match duplicate check
   // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
@@ -878,6 +883,7 @@ model SocialPost {
 
   comments SocialComment[]
   likes    SocialPostLike[]
+  savedBy  SavedPost[]
 
   @@index([companyId])
   @@index([authorUserId])
@@ -925,6 +931,72 @@ model SocialPostLike {
 
   @@unique([postId, userId])
   @@index([userId])
+  @@schema("public")
+}
+
+// An employee following a company (drives the derived notification feed —
+// see NotificationsService — and an owner's own follower COUNT). Cascade on
+// both sides: unlike SocialPost/Comment/Like, a follow is a private
+// relationship record with no public visibility of its own, so there is
+// nothing to preserve if either side is deleted — full delete, not SetNull.
+//
+// SECURITY: a company may only ever learn its follower COUNT
+// (FollowsService.companyFollowerCount → prisma.companyFollow.count), never
+// the follower list — no code path anywhere may select userId out of this
+// table for a company-facing response. See REVIEW.md.
+//
+// Role check ("owners cannot follow as an employee") is enforced by
+// FollowsController's @Roles("MEMBER") guard, not here — Prisma has no
+// cross-table constraint that could check User.role at the schema layer.
+model CompanyFollow {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@schema("public")
+}
+
+// One employee following another, by their pseudonymous handle only — same
+// anonymity model as SocialComment (REVIEW.md). This table stores real
+// userIds (needed for the relation + the unique constraint), but any
+// endpoint that returns a UserFollow row to anyone but the two users
+// involved must project only the counterparty's reviewUsername/avatarKey/
+// avatarGradient, exactly like ReviewsService/SocialService already do —
+// never a raw userId. Both sides target User directly (not "the anonymous
+// review identity"), so followedId must be role MEMBER — enforced in
+// FollowsService, since Prisma can't express "the target row's role column
+// must equal X" as a schema constraint.
+model UserFollow {
+  id          String   @id @default(uuid())
+  followerId  String
+  follower    User     @relation("UserFollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("UserFollowFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@schema("public")
+}
+
+// A private bookmark. Unlike SocialPostLike, there is deliberately no public
+// "save count" or "who saved this" surface anywhere in the API — only the
+// saver can ever list their own saved posts (SocialService.listSavedPosts).
+model SavedPost {
+  id        String     @id @default(uuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([userId, postId])
+  @@index([postId])
   @@schema("public")
 }
 

@@ -12,6 +12,7 @@ export * from "./schemas/companyBanner";
 export * from "./schemas/notification";
 export * from "./schemas/jobPosting";
 export * from "./schemas/social";
+export * from "./schemas/follow";
 export * from "./schemas/avatarPhoto";
 export * from "./geo/turkey";
 export * from "./geo/turkeyAreaCodes";
