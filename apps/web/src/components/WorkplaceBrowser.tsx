@@ -17,26 +17,9 @@ import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
 import { CompanyWorkCard } from "@/components/company/CompanyWorkCard";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
+import { RATING_TICKS, activeMoodIndex } from "@/lib/beaverRating";
 
 type Geo = { lat: number; lng: number } | "denied" | null;
-
-// Custom mood art for the 0/2.5/5 rating-slider ticks (apps/web/public),
-// replacing the placeholder emojis.
-const RATING_TICKS: { value: number; src: string; alt: string }[] = [
-  { value: 0, src: "/1LowMood.png", alt: "Low rating" },
-  { value: 2.5, src: "/3MidMood.png", alt: "Mid rating" },
-  { value: 5, src: "/5HighMood.png", alt: "High rating" },
-];
-
-// Which of the 3 mood mascots is "live" for the current slider value — an
-// even 3-way split of the 0-5 range (not tied to the ticks' exact anchor
-// values), so the red mascot owns the left third of the track, the middle
-// one the middle third, and the green one the right third.
-function activeMoodIndex(value: number): number {
-  if (value < 5 / 3) return 0;
-  if (value < 10 / 3) return 1;
-  return 2;
-}
 
 // "ratingAsc"/"ratingDesc" are two separate states (not one "rating" value
 // the Rating button just flips) because the button cycles through three
