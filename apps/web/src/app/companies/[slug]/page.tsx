@@ -3,6 +3,7 @@ import type { Company, CompanyDetail, CompanyNarrative } from "@iwtr/shared-type
 import { scoreBandLabel } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
+import { SocialCrossPromoBanner } from "@/components/social/SocialCrossPromoBanner";
 import { WorkplaceVibeFlags } from "@/components/WorkplaceVibeFlags";
 import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 import { CompanyLogo } from "@/components/CompanyLogo";
@@ -301,7 +302,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             the actual review text people are here to read, so it gets the
             most room. */}
         <div className="mt-8">
-          <ReviewsList companySlug={slug} workplaceTypes={company.workplaceTypes} companyName={company.name} />
+          <ReviewsList
+            companySlug={slug}
+            workplaceTypes={company.workplaceTypes}
+            companyName={company.name}
+            initialVisibleCount={3}
+          />
+          <SocialCrossPromoBanner companySlug={slug} companyName={company.name} />
         </div>
 
         <div className="mt-8">

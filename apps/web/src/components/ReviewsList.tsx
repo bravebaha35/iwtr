@@ -22,6 +22,7 @@ export function ReviewsList({
   workplaceTypes,
   companyName,
   canReply = false,
+  initialVisibleCount,
 }: {
   companySlug: string;
   // The company's own (up to 2) workplace-type tags, passed down from the
@@ -37,9 +38,14 @@ export function ReviewsList({
   // public reply a review can have. Everyone else sees an existing reply
   // read-only; false renders exactly the old public-page behavior.
   canReply?: boolean;
+  // When set, only the first N reviews render, behind a "See them all"
+  // toggle - used by the rating page's cross-promotion collapse. Omitted
+  // elsewhere = render all.
+  initialVisibleCount?: number;
 }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Distinguishes "the request failed" from "this company genuinely has no
   // published reviews yet" — both used to render as nothing at all (see the
@@ -138,6 +144,8 @@ export function ReviewsList({
   // so the tabs (and their color-coding) simply don't render.
   const collarOptions = WORKPLACE_TYPES.filter((t) => workplaceTypes?.includes(t.value));
   const filteredReviews = activeCollar ? reviews.filter((r) => r.workplaceType === activeCollar) : reviews;
+  const collapsed = initialVisibleCount !== undefined && !expanded && filteredReviews.length > initialVisibleCount;
+  const visibleReviews = collapsed ? filteredReviews.slice(0, initialVisibleCount) : filteredReviews;
 
   return (
     <div className="flex flex-col gap-4 compact:gap-2">
@@ -157,7 +165,7 @@ export function ReviewsList({
         <p className="text-sm text-muted-foreground">No reviews for this workplace type yet.</p>
       )}
 
-      {filteredReviews.map((review) => (
+      {visibleReviews.map((review) => (
         <div
           key={review.id}
           className={`rounded-xl border border-border border-l-4 bg-surface p-5 compact:p-3 ${collarBorderClass(review.workplaceType)}`}
@@ -288,6 +296,30 @@ export function ReviewsList({
           )}
         </div>
       ))}
+
+      {initialVisibleCount !== undefined && filteredReviews.length > initialVisibleCount && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mx-auto flex items-center gap-1 rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-muted"
+        >
+          {collapsed ? (
+            <>
+              See them all
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </>
+          ) : (
+            <>
+              Show fewer
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
