@@ -10,3 +10,13 @@ class IntersectionObserverStub {
   disconnect() {}
 }
 (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = IntersectionObserverStub;
+
+// jsdom also has no URL.createObjectURL/revokeObjectURL - used by
+// SocialComposer local file preview.
+if (typeof URL.createObjectURL !== "function") {
+  URL.createObjectURL = () => "blob:mock-url";
+}
+if (typeof URL.revokeObjectURL !== "function") {
+  URL.revokeObjectURL = () => {};
+}
+
