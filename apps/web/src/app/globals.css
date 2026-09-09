@@ -78,8 +78,10 @@
   --color-surface-muted: var(--surface-muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  /* Plus Jakarta Sans is the only typeface this app loads or uses — every
+     text element renders through --font-sans below, with no second
+     (monospace or otherwise) family wired in anywhere. */
   --font-sans: var(--font-plus-jakarta-sans);
-  --font-mono: var(--font-geist-mono);
 
   /* Brand accent — a single place to retune the whole site's color later.
      Anchored on #AE4712 (brand-600, the resting color of every filled CTA —

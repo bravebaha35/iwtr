@@ -692,7 +692,7 @@ export default function ProfilePage() {
                       {phoneDevCode && (
                         <p className="rounded-lg border border-dashed border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-700 dark:border-brand-700 dark:bg-brand-950 dark:text-brand-300">
                           No SMS provider is configured yet — dev mode code:{" "}
-                          <span className="font-mono font-semibold">{phoneDevCode}</span>
+                          <span className="font-semibold">{phoneDevCode}</span>
                         </p>
                       )}
                       <input

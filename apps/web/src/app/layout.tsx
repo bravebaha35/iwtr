@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { BackButton } from "@/components/BackButton";
@@ -37,11 +37,6 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "I Worked There",
   description: "Anonymous, honest workplace reviews.",
@@ -64,7 +59,7 @@ export default function RootLayout({
       // --font-sans resolves to nothing and every font-sans/body font-family
       // rule silently falls back to the browser default (verified live: this
       // exact failure happened when the variable was only on <body>).
-      className={`${geistMono.variable} ${plusJakartaSans.variable} h-full antialiased`}
+      className={`${plusJakartaSans.variable} h-full antialiased`}
       // The boot script below sets `.dark`/`data-density` synchronously,
       // before React hydrates, so the server-rendered markup never matches —
       // that's expected (it's what avoids a flash of the wrong theme), so

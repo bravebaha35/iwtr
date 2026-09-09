@@ -113,9 +113,16 @@ export function GlobalHeader() {
         </span>
       </div>
 
-      <div className="ml-auto flex items-center gap-4">
+      {/* min-w-0 lets this row shrink below its content's natural width
+          (flex items default to min-width: auto, which is exactly what was
+          forcing the whole page wider at <=1024px) — but only the nav-icon
+          cluster below scrolls internally when it doesn't fit. ThemeToggle
+          and the avatar/logout (or login) controls stay outside that
+          scrollable region and shrink-0, so they're always visible rather
+          than something a visitor has to know to scroll sideways to find. */}
+      <div className="ml-auto flex min-w-0 items-center gap-4">
         {showAccountControls && role === "ADMIN" && (
-          <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+          <nav className="flex min-w-0 shrink items-center gap-4 overflow-x-auto no-scrollbar text-sm text-muted-foreground">
             <Link href="/admin/dashboard" className="hover:text-brand-600 dark:hover:text-brand-400">
               Admin Portal
             </Link>
@@ -134,7 +141,7 @@ export function GlobalHeader() {
           </nav>
         )}
 
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 shrink items-center gap-1 overflow-x-auto thin-scrollbar">
           <NavIconLink href="/" label="Home" title="Home">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -179,16 +186,22 @@ export function GlobalHeader() {
           </NavIconLink>
         </div>
 
-        <ThemeToggle />
+        <div className="shrink-0">
+          <ThemeToggle />
+        </div>
 
         {showAccountControls && onboardingStatus && (
-          <>
+          <div className="flex min-w-0 items-center gap-4">
             <Link
               href="/me"
-              className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted"
+              className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted"
             >
               <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
-              <span className="text-sm font-medium text-foreground">
+              {/* truncate (not shrink-0 like the icon/button siblings) - a
+                  long employer display name is the one piece of this row
+                  with no fixed size of its own, so it should give up width
+                  first rather than pushing the page wider. */}
+              <span className="max-w-[9rem] truncate text-sm font-medium text-foreground">
                 {employerDisplayName || onboardingStatus.reviewUsername || avatarLabel(onboardingStatus.avatarKey) || "Anonymous"}
               </span>
             </Link>
@@ -196,7 +209,7 @@ export function GlobalHeader() {
               onClick={logout}
               aria-label="Log out"
               title="Log out"
-              className="text-muted-foreground transition hover:text-foreground"
+              className="shrink-0 text-muted-foreground transition hover:text-foreground"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -204,7 +217,7 @@ export function GlobalHeader() {
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
             </button>
-          </>
+          </div>
         )}
 
         {/* Logged-out visitor's equivalent of the avatar/edit-profile slot
@@ -214,7 +227,7 @@ export function GlobalHeader() {
           <button
             type="button"
             onClick={() => openAuthModal()}
-            className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            className="shrink-0 rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
           >
             Login/Register
           </button>

@@ -139,7 +139,7 @@ export function EmailVerificationScreen({
             Bypass verification (dev only)
           </button>
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Dev mode code: <span className="font-mono">{expectedCode}</span>
+            Dev mode code: <span className="font-semibold">{expectedCode}</span>
           </p>
         </>
       )}

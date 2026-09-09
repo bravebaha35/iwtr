@@ -92,7 +92,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
             {devCode && (
               <p className="mb-3 rounded-lg border border-dashed border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-700 dark:border-brand-700 dark:bg-brand-950 dark:text-brand-300">
                 No SMS provider is configured yet, so real texts aren&apos;t sent — dev mode code:{" "}
-                <span className="font-mono font-semibold">{devCode}</span>
+                <span className="font-semibold">{devCode}</span>
               </p>
             )}
 

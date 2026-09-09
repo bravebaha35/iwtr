@@ -337,7 +337,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                 <button
                   type="button"
                   onClick={() => removeJob(i)}
-                  className="self-start text-xs text-red-500 hover:underline"
+                  className="self-start text-xs text-red-600 hover:underline dark:text-red-400"
                 >
                   Remove
                 </button>
