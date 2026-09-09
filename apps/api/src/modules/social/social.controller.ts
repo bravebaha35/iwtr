@@ -33,10 +33,25 @@ function parseWorkplaceTypes(raw: string | undefined): WorkplaceType[] {
 
 // Company.category is free-text (admin-curated, no fixed enum), so this just
 // splits/trims/dedupes — validity is "does a company have this category",
-// checked by the query itself, not by a hardcoded allowlist here.
+// checked by the query itself, not by a hardcoded allowlist here. Capped
+// (unlike workplaceTypes, which is implicitly bounded by its fixed enum)
+// since an unconstrained free-text array has no other size limit before it
+// reaches a Postgres IN clause - defense in depth, not a fix for a live
+// exploit (the global ThrottlerGuard + HTTP header-size limits already
+// bound this in practice).
+const MAX_CATEGORY_FILTERS = 20;
+const MAX_CATEGORY_LENGTH = 100;
 function parseCategories(raw: string | undefined): string[] {
   if (!raw) return [];
-  return [...new Set(raw.split(",").map((c) => c.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      raw
+        .split(",")
+        .slice(0, MAX_CATEGORY_FILTERS)
+        .map((c) => c.trim().slice(0, MAX_CATEGORY_LENGTH))
+        .filter(Boolean),
+    ),
+  ];
 }
 
 @Controller("social")

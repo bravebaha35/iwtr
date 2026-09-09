@@ -415,9 +415,21 @@ export class SocialService {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: SOCIAL_FEED_PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: {
+      // Explicit select (not include) all the way down - same structural
+      // defense as pageFromWhere/serializeComments (REVIEW.md): the post's
+      // authorUserId must never be pulled into memory here, not just never
+      // be forwarded in the response.
+      select: {
+        id: true,
         post: {
-          include: { company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true } } },
+          select: {
+            id: true,
+            companyId: true,
+            imageUrl: true,
+            caption: true,
+            createdAt: true,
+            company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true } },
+          },
         },
       },
     });
