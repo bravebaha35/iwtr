@@ -77,12 +77,13 @@ export class AdminCompaniesService {
   // per-keystroke server round trip, so this errs high; real pagination is
   // a later step once the directory outgrows it.
   async search(q?: string): Promise<AdminCompanySummary[]> {
-    return this.prisma.company.findMany({
+    const rows = await this.prisma.company.findMany({
       where: q ? { name: { contains: q, mode: "insensitive" } } : {},
-      select: { id: true, slug: true, name: true, city: true, district: true },
+      select: { id: true, slug: true, name: true, city: true, district: true, hiddenAt: true },
       orderBy: { name: "asc" },
       take: 2000,
     });
+    return rows.map(({ hiddenAt, ...rest }) => ({ ...rest, hidden: hiddenAt !== null }));
   }
 
   async update(adminUserId: string, companyId: string, input: AdminUpdateCompanyInput): Promise<Company> {

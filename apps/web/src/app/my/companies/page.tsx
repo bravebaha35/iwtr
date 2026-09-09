@@ -501,7 +501,17 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
       {detailError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{detailError}</p>}
 
-      <div className="flex flex-col gap-6 sm:flex-row">
+      {claim.hidden && (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
+          This company is currently hidden by an administrator. Contact support at{" "}
+          <a href="mailto:iworkedthere@hotmail.com" className="font-medium underline">
+            iworkedthere@hotmail.com
+          </a>
+          .
+        </div>
+      )}
+
+      <fieldset disabled={claim.hidden} className="flex flex-col gap-6 sm:flex-row">
         <OwnerDashboardSidePanel active={activeCategory} onChange={setActiveCategory} />
 
         <div className="min-w-0 flex-1">
@@ -618,7 +628,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             />
           )}
         </div>
-      </div>
+      </fieldset>
 
       <div className="mt-5 border-t border-border pt-4">
         <label className="text-xs font-medium text-muted-foreground">

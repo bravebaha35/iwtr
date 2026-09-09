@@ -368,7 +368,7 @@ export class OwnerService {
       rivalAnalyticsTier: RivalAnalyticsTier | null;
       rivalAnalyticsFreeRequestUsed: boolean;
     },
-    company: { name: string; slug: string; isVerifiedBadge: boolean },
+    company: { name: string; slug: string; isVerifiedBadge: boolean; hiddenAt: Date | null },
   ): MyCompanyClaim {
     return {
       id: row.id,
@@ -378,6 +378,7 @@ export class OwnerService {
       tier: row.tier,
       planStatus: row.planStatus,
       isVerifiedBadge: company.isVerifiedBadge,
+      hidden: company.hiddenAt !== null,
       claimStatus: row.claimStatus,
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt?.toISOString() ?? null,

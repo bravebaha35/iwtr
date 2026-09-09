@@ -33,6 +33,7 @@ const claim: MyCompanyClaim = {
   resolvedAt: null,
   rivalAnalyticsTier: null,
   rivalAnalyticsFreeRequestUsed: false,
+  hidden: false,
 };
 
 const detail: CompanyDetail = {

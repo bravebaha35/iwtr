@@ -256,6 +256,10 @@ export const adminCompanySummarySchema = z.object({
   name: z.string(),
   city: z.string().nullable(),
   district: z.string().nullable(),
+  // True when an ADMIN has hidden this company (Company.hiddenAt !== null) --
+  // drives the Hide/Unhide toggle on the admin content-moderation page
+  // (apps/web/src/app/admin/content). See AdminCompaniesService.search.
+  hidden: z.boolean(),
 });
 export type AdminCompanySummary = z.infer<typeof adminCompanySummarySchema>;
 

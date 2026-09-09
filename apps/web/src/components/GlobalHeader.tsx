@@ -126,6 +126,9 @@ export function GlobalHeader() {
             <Link href="/admin/job-postings" className="hover:text-brand-600 dark:hover:text-brand-400">
               Job Postings
             </Link>
+            <Link href="/admin/content" className="hover:text-brand-600 dark:hover:text-brand-400">
+              Content
+            </Link>
           </nav>
         )}
 

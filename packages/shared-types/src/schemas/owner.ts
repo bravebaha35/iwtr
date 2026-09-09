@@ -36,6 +36,12 @@ export const myCompanyClaimSchema = z.object({
   // nullable column it mirrors (CompanyOwner.rivalAnalyticsTier).
   rivalAnalyticsTier: rivalAnalyticsTierSchema.nullable(),
   rivalAnalyticsFreeRequestUsed: z.boolean(),
+  // True when an ADMIN has hidden this company (Company.hiddenAt !== null --
+  // see setCompanyVisibilityInputSchema in company.ts). The company keeps
+  // all its data but is invisible on every public surface; the owner's
+  // dashboard uses this to show a "hidden by admin" notice and lock the
+  // edit form rather than let them keep editing a company nobody can see.
+  hidden: z.boolean(),
 });
 export type MyCompanyClaim = z.infer<typeof myCompanyClaimSchema>;
 
