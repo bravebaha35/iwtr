@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const COOKIE_NAME = "iwtr_forbidden_notice";
 
@@ -34,9 +34,20 @@ const wasForbidden = typeof document !== "undefined" && readAndClearCookie();
 // endpoint's own RolesGuard); this is just telling the visitor why they
 // landed back here instead of leaving them guessing.
 export function ForbiddenBanner() {
+  const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  if (!wasForbidden || dismissed) return null;
+  // The server always renders null (no `document`, so `wasForbidden` is
+  // always false there). Using `wasForbidden` directly in the first client
+  // render would make that render disagree with the server's — a hydration
+  // mismatch — since the module-level cookie read above can resolve `true`
+  // before hydration finishes. Rendering `show=false` on mount matches the
+  // server exactly, then this effect flips it after hydration completes.
+  useEffect(() => {
+    if (wasForbidden) setShow(true);
+  }, []);
+
+  if (!show || dismissed) return null;
 
   return (
     <div className="flex items-center justify-between gap-3 bg-red-50 px-4 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
