@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
+import type { CategoryGroup } from "@/lib/categoryGroups";
 import { SocialSidebar } from "./SocialSidebar";
 import { SocialComposerSlot } from "./SocialComposerSlot";
 import { SocialWelcomeDialog } from "./SocialWelcomeDialog";
@@ -20,7 +21,7 @@ export function SocialShell() {
 
   const [query, setQuery] = useState("");
   const [workplaceType, setWorkplaceType] = useState<WorkplaceType | null>(null);
-  const [category, setCategory] = useState<string | null>(null);
+  const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
   const [savedView, setSavedView] = useState(false);
 
   return (
@@ -34,19 +35,24 @@ export function SocialShell() {
           onQueryChange={setQuery}
           workplaceType={workplaceType}
           onWorkplaceTypeChange={setWorkplaceType}
-          category={category}
-          onCategoryChange={setCategory}
+          categoryGroup={categoryGroup}
+          onCategoryGroupChange={setCategoryGroup}
           savedView={savedView}
           onToggleSavedView={() => setSavedView((v) => !v)}
           isMember={isMember}
         />
 
-        <div className="min-w-0 flex-1">
-          {savedView ? (
-            <SocialFeed scope={{ kind: "saved" }} />
-          ) : (
-            <SocialFeed scope={{ kind: "all" }} q={query} workplaceType={workplaceType} category={category} />
-          )}
+        {/* The sidebar stays pinned to its own width on the left; the posts
+            themselves are a fixed-width column centered in whatever space
+            is left, Instagram-style, rather than stretching edge to edge. */}
+        <div className="flex min-w-0 flex-1 justify-center">
+          <div className="w-full max-w-xl">
+            {savedView ? (
+              <SocialFeed scope={{ kind: "saved" }} />
+            ) : (
+              <SocialFeed scope={{ kind: "all" }} q={query} workplaceType={workplaceType} categoryGroup={categoryGroup} />
+            )}
+          </div>
         </div>
       </div>
     </>

@@ -11,7 +11,7 @@ let mockFollowed: { followedIds: Set<string>; canFollow: boolean; toggleFollow: 
 
 const basePost = {
   id: "p1", companyId: "c1", companySlug: "acme", companyName: "Acme", companyLogoUrl: null, companyBadgeTier: "FREE" as const,
-  imageUrl: "/u/p1.webp", caption: "hi", createdAt: new Date().toISOString(), likeCount: 2, commentCount: 0, likedByMe: false,
+  imageUrls: ["/u/p1.webp"], caption: "hi", createdAt: new Date().toISOString(), likeCount: 2, commentCount: 0, likedByMe: false,
   savedByMe: false,
 };
 
@@ -80,4 +80,24 @@ it("hides the Follow button entirely for a signed-in non-MEMBER (e.g. an owner)"
   mockFollowed = { followedIds: new Set(), canFollow: false, toggleFollow };
   render(<SocialPostCard post={basePost} />);
   expect(screen.queryByRole("button", { name: /follow/i })).not.toBeInTheDocument();
+});
+
+it("shows no arrows for a single-photo post", () => {
+  mockAuth = { isAuthenticated: false, openAuthModal };
+  render(<SocialPostCard post={basePost} />);
+  expect(screen.queryByRole("button", { name: /next photo/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /previous photo/i })).not.toBeInTheDocument();
+});
+
+it("a multi-photo post shows a Next arrow first, then a Previous arrow after advancing, and stops at the last photo", () => {
+  mockAuth = { isAuthenticated: false, openAuthModal };
+  const multi = { ...basePost, imageUrls: ["/u/1.webp", "/u/2.webp", "/u/3.webp"] };
+  render(<SocialPostCard post={multi} />);
+
+  expect(screen.queryByRole("button", { name: /previous photo/i })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /next photo/i }));
+  expect(screen.getByRole("button", { name: /previous photo/i })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: /next photo/i }));
+  expect(screen.queryByRole("button", { name: /next photo/i })).not.toBeInTheDocument();
 });

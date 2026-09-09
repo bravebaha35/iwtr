@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PublicSocialPost, SocialFeedPage, WorkplaceType } from "@iwtr/shared-types";
+import type { CategoryGroup } from "@/lib/categoryGroups";
 import { apiGet, ApiError } from "@/lib/api-client";
 import { AdSlot } from "@/components/AdSlot";
 import { SocialPostCard } from "./SocialPostCard";
@@ -20,12 +21,12 @@ export function SocialFeed({
   scope,
   q,
   workplaceType,
-  category,
+  categoryGroup,
 }: {
   scope: Scope;
   q?: string;
   workplaceType?: WorkplaceType | null;
-  category?: string | null;
+  categoryGroup?: CategoryGroup | null;
 }) {
   const [posts, setPosts] = useState<PublicSocialPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -41,13 +42,13 @@ export function SocialFeed({
       if (scope.kind === "all") {
         if (q?.trim()) params.set("q", q.trim());
         if (workplaceType) params.set("workplaceTypes", workplaceType);
-        if (category) params.set("categories", category);
+        if (categoryGroup) params.set("categoryGroup", categoryGroup);
       }
       const base =
         scope.kind === "all" ? "/social/feed" : scope.kind === "saved" ? "/me/saved-posts" : `/social/companies/${scope.slug}/posts`;
       return `${base}${params.toString() ? `?${params}` : ""}`;
     },
-    [scope, q, workplaceType, category],
+    [scope, q, workplaceType, categoryGroup],
   );
 
   // Reset + reload whenever scope or any filter changes (all-scope filters

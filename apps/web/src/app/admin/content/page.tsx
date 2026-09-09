@@ -91,7 +91,7 @@ function CompanyPostsPanel({
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- owner/user-submitted photo, not a static asset */}
                 <img
-                  src={post.imageUrl}
+                  src={post.imageUrls[0]}
                   alt=""
                   className="h-14 w-14 shrink-0 rounded-md object-cover"
                 />

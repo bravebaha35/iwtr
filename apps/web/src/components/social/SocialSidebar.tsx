@@ -3,20 +3,11 @@
 import Link from "next/link";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-import { SingleSelectDropdown } from "@/components/Dropdown";
-import { SingleSelectPillTabs } from "@/components/FilterPillGroup";
+import { collarSegmentClassName } from "@/lib/collarColors";
+import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
+import { CategoryGroupFilter, type CategoryGroup } from "@/lib/categoryGroups";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
-
-// Same category strings CategoryGroupFilter/matchesCategoryGroup already use
-// for Company.category (categoryGroups.tsx) - a narrow, named subset of
-// those (per the brief's exact 4 example tags) rather than a new taxonomy.
-const QUICK_SELECT_OPTIONS: { value: string; label: string }[] = [
-  { value: "Supermarket", label: "Supermarkets" },
-  { value: "Fuel & Energy", label: "Oil Companies" },
-  { value: "Logistics", label: "Logistics" },
-  { value: "Clothing Retail", label: "Clothing" },
-];
 
 function BookmarkIcon({ className }: { className?: string }) {
   return (
@@ -61,8 +52,8 @@ export function SocialSidebar({
   onQueryChange,
   workplaceType,
   onWorkplaceTypeChange,
-  category,
-  onCategoryChange,
+  categoryGroup,
+  onCategoryGroupChange,
   savedView,
   onToggleSavedView,
   isMember,
@@ -71,12 +62,21 @@ export function SocialSidebar({
   onQueryChange: (q: string) => void;
   workplaceType: WorkplaceType | null;
   onWorkplaceTypeChange: (v: WorkplaceType | null) => void;
-  category: string | null;
-  onCategoryChange: (v: string | null) => void;
+  categoryGroup: CategoryGroup | null;
+  onCategoryGroupChange: (v: CategoryGroup | null) => void;
   savedView: boolean;
   onToggleSavedView: () => void;
   isMember: boolean;
 }) {
+  // "Only show me:" is single-select (unlike the rating/jobs pages' up-to-2
+  // Work-Type filter), so this wraps MultiFilterPillGroup's onToggle contract
+  // (one value in/out at a time) into a plain replace-or-clear toggle -
+  // same track/segmented-control look and colors (collarSegmentClassName) as
+  // those two pages, just one selection instead of two.
+  function toggleWorkplaceType(value: WorkplaceType) {
+    onWorkplaceTypeChange(workplaceType === value ? null : value);
+  }
+
   return (
     <aside className="flex shrink-0 flex-col gap-5 sm:w-56">
       {/* Same search-a-company-by-name box the feed used to render inline -
@@ -91,15 +91,19 @@ export function SocialSidebar({
 
       {isMember && <FollowingList />}
 
-      <div>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Only show me:</h3>
-        <SingleSelectDropdown
-          value={workplaceType}
-          options={WORKPLACE_TYPES}
-          placeholder="Only show me:"
-          onChange={(v) => onWorkplaceTypeChange(v as WorkplaceType | null)}
-        />
-      </div>
+      {/* Same visual language as the rating/jobs pages' Work-Type filter -
+          straight segmented pills, not a dropdown (see MultiFilterPillGroup's
+          variant="track" + collarSegmentClassName). */}
+      <MultiFilterPillGroup
+        heading="Only Show Me"
+        options={WORKPLACE_TYPES}
+        selected={workplaceType ? [workplaceType] : []}
+        onToggle={toggleWorkplaceType}
+        onReset={() => onWorkplaceTypeChange(null)}
+        direction="grid"
+        variant="track"
+        pillColorClassName={collarSegmentClassName}
+      />
 
       {isMember && (
         <button
@@ -119,7 +123,9 @@ export function SocialSidebar({
 
       <div>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Select</h3>
-        <SingleSelectPillTabs options={QUICK_SELECT_OPTIONS} selected={category} onSelect={onCategoryChange} />
+        {/* The exact same icon-pill row as the rating homepage/jobs page
+            (CategoryGroupFilter) - all 7 buckets, same icons/tooltips. */}
+        <CategoryGroupFilter value={categoryGroup} onChange={onCategoryGroupChange} />
       </div>
     </aside>
   );

@@ -9,7 +9,7 @@ jest.mock("@/lib/useIsCompanyOwner", () => ({ useIsCompanyOwner: () => false }))
 function post(id: string, name = "Acme"): any {
   return {
     id, companyId: "c1", companySlug: "acme", companyName: name, companyLogoUrl: null, companyBadgeTier: "FREE",
-    imageUrl: `/u/${id}.webp`, caption: null, createdAt: new Date().toISOString(),
+    imageUrls: [`/u/${id}.webp`], caption: null, createdAt: new Date().toISOString(),
     likeCount: 0, commentCount: 0, likedByMe: null,
   };
 }
@@ -34,11 +34,11 @@ describe("SocialFeed (all)", () => {
     expect(screen.queryByText(/sort/i)).not.toBeInTheDocument();
   });
 
-  it("sends q/workplaceTypes/categories filters through to the feed endpoint", async () => {
+  it("sends q/workplaceTypes/categoryGroup filters through to the feed endpoint", async () => {
     (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [], nextCursor: null });
-    render(<SocialFeed scope={{ kind: "all" }} q="acme" workplaceType="OFFICE" category="Logistics" />);
+    render(<SocialFeed scope={{ kind: "all" }} q="acme" workplaceType="OFFICE" categoryGroup="LOGISTICS" />);
     await waitFor(() =>
-      expect(apiClient.apiGet).toHaveBeenCalledWith("/social/feed?q=acme&workplaceTypes=OFFICE&categories=Logistics"),
+      expect(apiClient.apiGet).toHaveBeenCalledWith("/social/feed?q=acme&workplaceTypes=OFFICE&categoryGroup=LOGISTICS"),
     );
   });
 });

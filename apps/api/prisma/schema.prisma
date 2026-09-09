@@ -248,6 +248,7 @@ model User {
   socialPosts             SocialPost[]             @relation("SocialPostAuthor")
   socialComments          SocialComment[]          @relation("SocialCommentAuthor")
   socialPostLikes         SocialPostLike[]         @relation("SocialPostLiker")
+  socialCommentVotes      SocialCommentVote[]      @relation("SocialCommentVoter")
   companyFollows          CompanyFollow[]
   followedUsers           UserFollow[]             @relation("UserFollowFollower")
   followedByUsers         UserFollow[]             @relation("UserFollowFollowing")
@@ -873,9 +874,11 @@ model SocialPost {
   company      Company  @relation(fields: [companyId], references: [id])
   authorUserId String?
   authorUser   User?    @relation("SocialPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
-  // Server-produced compressed WebP URL under /uploads/social/ (see
-  // social-image.util.ts) - never a client-supplied URL.
-  imageUrl     String
+  // Server-produced compressed WebP URLs under /uploads/social/ (see
+  // social-image.util.ts) - never client-supplied URLs. Instagram-style
+  // multi-photo carousel: 1 to MAX_SOCIAL_POST_IMAGES (social-image.util.ts),
+  // ordered as uploaded.
+  imageUrls    String[] @default([])
   // Optional "Tell us what you think !" text, run through
   // ModerationService.checkContent before persist (hard-reject on violation).
   caption      String?
@@ -908,8 +911,36 @@ model SocialComment {
   body         String
   createdAt    DateTime   @default(now())
 
+  votes SocialCommentVote[]
+
   @@index([postId])
   @@index([authorUserId])
+  @@schema("public")
+}
+
+// A helpful/not-helpful vote on a comment - same shape and semantics as
+// ReviewVote (value 1 = Helpful, -1 = Not Helpful; one vote per (comment,
+// user), toggle-to-remove on a repeat click of the same value). This
+// supersedes the original IWT Social backend spec's v1 scoping decision
+// ("no CommentLike model" - see SocialPostLike's doc comment above) per an
+// explicit later product request for comment-level Helpful/Not-Helpful.
+//
+// Cascade on commentId (unlike ReviewVote, SocialComment rows ARE hard-
+// deleted by SocialService.deleteComment, so votes must go with them).
+// userId nullable + SetNull, same reasoning as SocialPostLike.userId: a
+// voter who deletes their account leaves the vote in place so the
+// helpful/not-helpful tally stays honest.
+model SocialCommentVote {
+  id        String        @id @default(uuid())
+  commentId String
+  comment   SocialComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?         @relation("SocialCommentVoter", fields: [userId], references: [id], onDelete: SetNull)
+  value     Int
+  createdAt DateTime      @default(now())
+
+  @@unique([commentId, userId])
+  @@index([userId])
   @@schema("public")
 }
 

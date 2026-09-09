@@ -9,8 +9,8 @@ const baseProps = {
   onQueryChange: jest.fn(),
   workplaceType: null,
   onWorkplaceTypeChange: jest.fn(),
-  category: null,
-  onCategoryChange: jest.fn(),
+  categoryGroup: null,
+  onCategoryGroupChange: jest.fn(),
   savedView: false,
   onToggleSavedView: jest.fn(),
 };
@@ -20,12 +20,27 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it("renders the moved search box and the 4 quick-select chips + All", () => {
+it("renders the moved search box and all 7 Quick Select icon buttons, matching the rating/jobs pages", () => {
   render(<SocialSidebar {...baseProps} isMember={false} />);
   expect(screen.getByPlaceholderText(/search a company by name/i)).toBeInTheDocument();
-  for (const label of ["Supermarkets", "Oil Companies", "Logistics", "Clothing", "All"]) {
+  for (const label of ["Firms", "Supermarket", "Franchises", "Logistics", "Clothing", "Service Providers", "Oil & Energy"]) {
+    expect(screen.getByRole("radio", { name: label })).toBeInTheDocument();
+  }
+});
+
+it("renders 'Only Show Me' as straight pills (Office/Hybrid-Remote/Service/Manual-Labour), not a dropdown", () => {
+  render(<SocialSidebar {...baseProps} isMember={false} />);
+  expect(screen.queryByRole("button", { name: "Only show me:" })).not.toBeInTheDocument();
+  for (const label of ["Office", "Hybrid/Remote", "Service", "Manual-Labour"]) {
     expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
   }
+});
+
+it("'Only Show Me' is single-select: picking a second option replaces the first", () => {
+  const onWorkplaceTypeChange = jest.fn();
+  render(<SocialSidebar {...baseProps} isMember={false} onWorkplaceTypeChange={onWorkplaceTypeChange} />);
+  fireEvent.click(screen.getByRole("button", { name: "Office" }));
+  expect(onWorkplaceTypeChange).toHaveBeenCalledWith("OFFICE");
 });
 
 it("hides Following and Saved Posts for a non-MEMBER (anonymous or owner)", () => {
@@ -42,9 +57,9 @@ it("shows Following + Saved Posts for a MEMBER and toggles the saved view", () =
   expect(onToggleSavedView).toHaveBeenCalledTimes(1);
 });
 
-it("picking a quick-select chip reports the underlying Company.category value, not the display label", () => {
-  const onCategoryChange = jest.fn();
-  render(<SocialSidebar {...baseProps} isMember={false} onCategoryChange={onCategoryChange} />);
-  fireEvent.click(screen.getByRole("button", { name: "Oil Companies" }));
-  expect(onCategoryChange).toHaveBeenCalledWith("Fuel & Energy");
+it("picking a Quick Select icon reports the underlying CategoryGroup value", () => {
+  const onCategoryGroupChange = jest.fn();
+  render(<SocialSidebar {...baseProps} isMember={false} onCategoryGroupChange={onCategoryGroupChange} />);
+  fireEvent.click(screen.getByRole("radio", { name: "Oil & Energy" }));
+  expect(onCategoryGroupChange).toHaveBeenCalledWith("OIL_ENERGY");
 });

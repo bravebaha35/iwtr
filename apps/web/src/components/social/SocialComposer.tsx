@@ -2,8 +2,13 @@
 
 import { useRef, useState } from "react";
 import type { OwnedCompany } from "@iwtr/shared-types";
-import { validateSocialImageUpload } from "@iwtr/shared-types";
+import { validateSocialImageUpload, MAX_SOCIAL_POST_IMAGES } from "@iwtr/shared-types";
 import { apiUpload, ApiError } from "@/lib/api-client";
+
+interface Picked {
+  file: File;
+  previewUrl: string;
+}
 
 export function SocialComposer({
   companies,
@@ -16,27 +21,45 @@ export function SocialComposer({
 }) {
   const [companyId, setCompanyId] = useState(companies[0]?.companyId ?? "");
   const [caption, setCaption] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Picked[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function pickFile(f: File | undefined) {
-    if (!f) return;
-    const check = validateSocialImageUpload({ mimeType: f.type, sizeBytes: f.size });
-    if (!check.valid) {
-      setError(check.error);
+  // Instagram-style multi-photo picker: each newly chosen batch is appended
+  // to whatever's already picked (up to MAX_SOCIAL_POST_IMAGES), not
+  // replaced - so tapping "Add a photo" again adds more instead of
+  // resetting the selection.
+  function pickFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const room = MAX_SOCIAL_POST_IMAGES - picked.length;
+    if (room <= 0) {
+      setError(`You can add up to ${MAX_SOCIAL_POST_IMAGES} photos.`);
       return;
     }
+    const next: Picked[] = [];
+    for (const f of Array.from(files).slice(0, room)) {
+      const check = validateSocialImageUpload({ mimeType: f.type, sizeBytes: f.size });
+      if (!check.valid) {
+        setError(check.error);
+        return;
+      }
+      next.push({ file: f, previewUrl: URL.createObjectURL(f) });
+    }
     setError(null);
-    setFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
+    setPicked((prev) => [...prev, ...next]);
+  }
+
+  function removePicked(index: number) {
+    setPicked((prev) => {
+      URL.revokeObjectURL(prev[index].previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   async function submit() {
-    if (!file) {
-      setError("Add a photo to post.");
+    if (picked.length === 0) {
+      setError("Add at least one photo to post.");
       return;
     }
     setBusy(true);
@@ -45,11 +68,11 @@ export function SocialComposer({
       const fd = new FormData();
       fd.set("companyId", companyId);
       if (caption.trim()) fd.set("caption", caption.trim());
-      fd.set("file", file);
+      for (const p of picked) fd.append("files", p.file);
       await apiUpload<{ id: string }>("/social/posts", fd);
+      picked.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       setCaption("");
-      setFile(null);
-      setPreviewUrl(null);
+      setPicked([]);
       onPosted();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't post that.");
@@ -84,20 +107,38 @@ export function SocialComposer({
       />
 
       <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-muted">
-        <span className="text-lg leading-none">+</span> Add a photo
+        <span className="text-lg leading-none">+</span> Add a photo{picked.length > 0 ? "" : " (or a few)"}
         <input
           ref={fileRef}
           type="file"
+          multiple
           accept="image/jpeg,image/png,image/heic,image/heif"
           aria-label="Add a photo"
           className="hidden"
-          onChange={(e) => pickFile(e.target.files?.[0])}
+          onChange={(e) => {
+            pickFiles(e.target.files);
+            e.target.value = "";
+          }}
         />
       </label>
 
-      {previewUrl && (
-        // eslint-disable-next-line @next/next/no-img-element -- local object URL preview
-        <img src={previewUrl} alt="" className="mt-2 max-h-64 w-full rounded-lg object-cover" />
+      {picked.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {picked.map((p, i) => (
+            <div key={`${i}-${p.previewUrl}`} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
+              <img src={p.previewUrl} alt="" className="h-20 w-20 rounded-lg object-cover" />
+              <button
+                type="button"
+                onClick={() => removePicked(i)}
+                aria-label="Remove this photo"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background shadow"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
       )}
 
       {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}

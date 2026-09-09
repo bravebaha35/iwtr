@@ -15,8 +15,7 @@ import { SocialComments } from "./SocialComments";
 // text buttons - heart/speech-bubble/bookmark, filled once active. No save
 // *count* is shown next to the bookmark: PublicSocialPost has no such field
 // (SavedPost is a private per-user preference on the API side, never a
-// public tally - see REVIEW.md) and this task's own top constraint is not
-// to touch backend code, so there is no real number to display here.
+// public tally - see REVIEW.md).
 function HeartIcon({ className, filled }: { className?: string; filled: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -36,6 +35,69 @@ function BookmarkIcon({ className, filled }: { className?: string; filled: boole
     <svg viewBox="0 0 24 24" className={className} fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4-7 4V4.5a1 1 0 0 1 1-1Z" />
     </svg>
+  );
+}
+function ChevronIcon({ className, direction }: { className?: string; direction: "left" | "right" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d={direction === "left" ? "M15 5 8 12l7 7" : "M9 5l7 7-7 7"} />
+    </svg>
+  );
+}
+
+// Minimum horizontal drag distance (px) before a touch gesture counts as a
+// swipe rather than a tap - low enough to feel responsive, high enough that
+// a slightly wobbly tap on the image itself doesn't flip pages.
+const SWIPE_THRESHOLD_PX = 40;
+
+// Instagram-style photo carousel - a left/right arrow on each side, both
+// vertically centered on the image, plus a touch-swipe gesture. Arrows only
+// render once there's more than one photo; a single-photo post is just a
+// plain image, unchanged from before.
+function PostImageCarousel({ imageUrls, alt }: { imageUrls: string[]; alt: string }) {
+  const [index, setIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const many = imageUrls.length > 1;
+
+  function go(delta: number) {
+    setIndex((i) => Math.min(imageUrls.length - 1, Math.max(0, i + delta)));
+  }
+
+  return (
+    <div
+      className="relative"
+      onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
+      onTouchEnd={(e) => {
+        if (touchStartX === null) return;
+        const delta = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(delta) >= SWIPE_THRESHOLD_PX) go(delta < 0 ? 1 : -1);
+        setTouchStartX(null);
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- server-produced WebP under our own /uploads */}
+      <img src={imageUrls[index]} alt={alt} className="w-full bg-surface-muted object-cover" />
+
+      {many && index > 0 && (
+        <button
+          type="button"
+          onClick={() => go(-1)}
+          aria-label="Previous photo"
+          className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
+        >
+          <ChevronIcon className="h-5 w-5" direction="left" />
+        </button>
+      )}
+      {many && index < imageUrls.length - 1 && (
+        <button
+          type="button"
+          onClick={() => go(1)}
+          aria-label="Next photo"
+          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
+        >
+          <ChevronIcon className="h-5 w-5" direction="right" />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -112,7 +174,10 @@ export function SocialPostCard({
   const tickSrc = tickSrcForOwnerTier(post.companyBadgeTier);
 
   return (
-    <article className="overflow-hidden rounded-xl border border-border bg-surface">
+    // No border/background (per design feedback) - the post now blends into
+    // the page instead of sitting in a boxed card. overflow-hidden +
+    // rounded-xl stay so the photo itself still reads as one rounded shape.
+    <article className="overflow-hidden rounded-xl">
       <header className="flex items-center justify-between gap-3 p-3">
         <Link href={`/social/${post.companySlug}`} className="flex min-w-0 items-center gap-3">
           <CompanyLogo name={post.companyName} mainPhotoUrl={post.companyLogoUrl} size="sm" />
@@ -144,8 +209,7 @@ export function SocialPostCard({
         )}
       </header>
 
-      {/* eslint-disable-next-line @next/next/no-img-element -- server-produced WebP under our own /uploads */}
-      <img src={post.imageUrl} alt={post.caption ?? `${post.companyName} post`} className="w-full bg-surface-muted object-cover" />
+      <PostImageCarousel imageUrls={post.imageUrls} alt={post.caption ?? `${post.companyName} post`} />
 
       {post.caption && <p className="whitespace-pre-wrap px-3 pt-3 text-sm text-foreground">{post.caption}</p>}
 

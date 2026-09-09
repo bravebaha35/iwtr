@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { ownerTierSchema } from "./company";
+import { voteValueSchema } from "./review";
+
+// Instagram-style multi-photo carousel cap - enforced both by the file
+// picker (client-side UX) and FilesInterceptor's maxCount (server-side,
+// authoritative).
+export const MAX_SOCIAL_POST_IMAGES = 10;
 
 // --- Upload validation (mime + size only; dimensions are not constrained -
 // sharp downscales anything oversized). Pure/environment-agnostic so the
@@ -45,6 +51,13 @@ export const createSocialCommentInputSchema = z.object({
 });
 export type CreateSocialCommentInput = z.infer<typeof createSocialCommentInputSchema>;
 
+// Same value/semantics as a review vote - reused directly rather than a
+// duplicate literal-union type.
+export const voteSocialCommentInputSchema = z.object({
+  value: voteValueSchema,
+});
+export type VoteSocialCommentInput = z.infer<typeof voteSocialCommentInputSchema>;
+
 // --- Public read shapes. NOTE (REVIEW.md-adjacent): no authorUserId / userId
 // on either shape. The comment's identity fields are the same anonymous
 // triple a review exposes (avatarKey/avatarGradient/displayUsername).
@@ -55,7 +68,8 @@ export const publicSocialPostSchema = z.object({
   companyName: z.string(),
   companyLogoUrl: z.string().nullable(),
   companyBadgeTier: ownerTierSchema,
-  imageUrl: z.string(),
+  // Instagram-style carousel - always at least 1 (see MAX_SOCIAL_POST_IMAGES).
+  imageUrls: z.array(z.string()).min(1),
   caption: z.string().nullable(),
   createdAt: z.string().datetime(),
   likeCount: z.number().int(),
@@ -79,8 +93,21 @@ export const publicSocialCommentSchema = z.object({
   // True only for the currently-authenticated viewer's own comments, so the
   // frontend can show a delete affordance. Never reveals other authors.
   mine: z.boolean(),
+  // Same value/semantics as a review vote (1 = Helpful, -1 = Not Helpful).
+  // null when the viewer is anonymous or authenticated-but-hasn't-voted.
+  helpfulCount: z.number().int(),
+  notHelpfulCount: z.number().int(),
+  myVote: voteValueSchema.nullable(),
 });
 export type PublicSocialComment = z.infer<typeof publicSocialCommentSchema>;
+
+export const socialCommentVoteResultSchema = z.object({
+  commentId: z.string(),
+  helpfulCount: z.number().int(),
+  notHelpfulCount: z.number().int(),
+  myVote: voteValueSchema.nullable(),
+});
+export type SocialCommentVoteResult = z.infer<typeof socialCommentVoteResultSchema>;
 
 export const socialFeedPageSchema = z.object({
   posts: z.array(publicSocialPostSchema),

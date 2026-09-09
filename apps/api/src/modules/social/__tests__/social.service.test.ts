@@ -41,7 +41,7 @@ describe("SocialService.createPost", () => {
   it("rejects a caller who is not an approved owner", async () => {
     const prisma = makePrisma();
     (prisma as any).companyOwner.findUnique.mockResolvedValue(null);
-    await expect(new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID }, jpegFile)).rejects.toBeInstanceOf(
+    await expect(new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID }, [jpegFile])).rejects.toBeInstanceOf(
       ForbiddenException,
     );
   });
@@ -53,14 +53,17 @@ describe("SocialService.createPost", () => {
       checkContent: jest.fn().mockReturnValue({ violates: true, violationTypes: ["NAME_OR_SURNAME"], confidence: 0.5 }),
     } as never;
     await expect(
-      new SocialService(prisma, moderationFail).createPost("u1", { companyId: CID, caption: "call Ahmet Yilmaz" }, jpegFile),
+      new SocialService(prisma, moderationFail).createPost("u1", { companyId: CID, caption: "call Ahmet Yilmaz" }, [jpegFile]),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it("rejects when no file is attached", async () => {
+  it("rejects when no files are attached", async () => {
     const prisma = makePrisma();
     (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
     await expect(new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID }, undefined)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID }, [])).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -68,17 +71,26 @@ describe("SocialService.createPost", () => {
   it("creates a post for an approved owner with a clean caption", async () => {
     const prisma = makePrisma();
     (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
-    const result = await new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID, caption: "new office" }, jpegFile);
+    const result = await new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID, caption: "new office" }, [jpegFile]);
     expect(result).toEqual({ id: "post-1" });
     expect((prisma as any).socialPost.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ companyId: CID, authorUserId: "u1", caption: "new office" }) }),
     );
   });
 
+  it("builds imageUrls with one entry per uploaded file, in order", async () => {
+    const prisma = makePrisma();
+    (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
+    await new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID }, [jpegFile, jpegFile, jpegFile]);
+    const data = (prisma as any).socialPost.create.mock.calls[0][0].data;
+    expect(data.imageUrls).toHaveLength(3);
+    expect(data.imageUrls.every((u: string) => typeof u === "string" && u.length > 0)).toBe(true);
+  });
+
   it("stores a whitespace-only caption as null", async () => {
     const prisma = makePrisma();
     (prisma as any).companyOwner.findUnique.mockResolvedValue({ claimStatus: "APPROVED" });
-    await new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID, caption: "" }, jpegFile);
+    await new SocialService(prisma, moderationPass).createPost("u1", { companyId: CID, caption: "" }, [jpegFile]);
     expect((prisma as any).socialPost.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ caption: null }) }),
     );
@@ -92,7 +104,7 @@ describe("SocialService.createPost", () => {
     await new SocialService(prisma, { checkContent } as never).createPost(
       "u1",
       { companyId: CID, caption: "Welcome our new Warehouse Manager Jane Doe" },
-      jpegFile,
+      [jpegFile],
     );
 
     expect(checkContent).toHaveBeenCalledWith(
@@ -109,14 +121,14 @@ describe("SocialService.createPost", () => {
     const ok = await new SocialService(prisma, moderation).createPost(
       "u1",
       { companyId: CID, caption: "Welcome our new Warehouse Manager Jane Doe" },
-      jpegFile,
+      [jpegFile],
     );
     expect(ok).toEqual({ id: "post-1" });
 
     const caps = await new SocialService(prisma, moderation).createPost(
       "u1",
       { companyId: CID, caption: "GRAND OPENING THIS SATURDAY COME AND SEE US" },
-      jpegFile,
+      [jpegFile],
     );
     expect(caps).toEqual({ id: "post-1" });
 
@@ -124,7 +136,7 @@ describe("SocialService.createPost", () => {
       new SocialService(prisma, moderation).createPost(
         "u1",
         { companyId: CID, caption: "this new place is shit" },
-        jpegFile,
+        [jpegFile],
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -133,9 +145,9 @@ describe("SocialService.createPost", () => {
 describe("SocialService.feed", () => {
   const now = Date.now();
   const rows = [
-    { id: "p2", companyId: "c1", imageUrl: "/u/2.webp", caption: null, createdAt: new Date(now - 1000),
+    { id: "p2", companyId: "c1", imageUrls: ["/u/2.webp"], caption: null, createdAt: new Date(now - 1000),
       company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE" } },
-    { id: "p1", companyId: "c1", imageUrl: "/u/1.webp", caption: "hi", createdAt: new Date(now - 2000),
+    { id: "p1", companyId: "c1", imageUrls: ["/u/1.webp"], caption: "hi", createdAt: new Date(now - 2000),
       company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE" } },
   ];
 
@@ -157,6 +169,7 @@ describe("SocialService.feed", () => {
     expect(page.posts.find((p) => p.id === "p1")?.likeCount).toBe(5);
     expect(page.posts.find((p) => p.id === "p1")?.commentCount).toBe(3);
     expect(page.posts[0].likedByMe).toBeNull();
+    expect(page.posts[0].imageUrls).toEqual(["/u/2.webp"]);
     expect(page.nextCursor).toBeNull();
   });
 
@@ -207,7 +220,7 @@ describe("SocialService.feed", () => {
 
   it("sets nextCursor and trims to PAGE_SIZE when a full-plus-one page comes back", async () => {
     const overflow = Array.from({ length: 11 }, (_, i) => ({
-      id: `x${i}`, companyId: "c1", imageUrl: `/u/${i}.webp`, caption: null, createdAt: new Date(now - i * 1000),
+      id: `x${i}`, companyId: "c1", imageUrls: [`/u/${i}.webp`], caption: null, createdAt: new Date(now - i * 1000),
       company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE" },
     }));
     const prisma = feedPrisma();
@@ -229,11 +242,15 @@ describe("SocialService comments + likes", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it("serializes a comment with the author's anonymous handle, never their userId", async () => {
+  it("serializes a comment with the author's anonymous handle, never their userId, with zero votes", async () => {
     const created = { id: "cm1", postId: "p1", body: "nice", createdAt: new Date(), authorUserId: "u1" };
     const prisma = {
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
       socialComment: { create: jest.fn().mockResolvedValue(created) },
+      socialCommentVote: {
+        groupBy: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       user: {
         findMany: jest.fn().mockResolvedValue([
           { id: "u1", avatarKey: "office_1", avatarGradient: "dawn", reviewUsername: "Spreadsheet Spelunker" },
@@ -243,6 +260,7 @@ describe("SocialService comments + likes", () => {
     const out = await new SocialService(prisma, moderationPass).addComment("u1", "p1", { body: "nice" });
     expect(out).toMatchObject({
       id: "cm1", body: "nice", displayUsername: "Spreadsheet Spelunker", avatarKey: "office_1", mine: true,
+      helpfulCount: 0, notHelpfulCount: 0, myVote: null,
     });
     expect(out).not.toHaveProperty("authorUserId");
     expect(out).not.toHaveProperty("userId");
@@ -266,7 +284,7 @@ describe("SocialService comments + likes", () => {
     expect(result).toEqual({ success: true });
   });
 
-  it("listComments returns oldest-first, mine:false for an anonymous viewer, no userId", async () => {
+  it("listComments returns oldest-first, mine:false for an anonymous viewer, no userId, myVote null", async () => {
     const rows = [
       { id: "cm1", postId: "p1", body: "first", createdAt: new Date(1), authorUserId: "u1" },
       { id: "cm2", postId: "p1", body: "second", createdAt: new Date(2), authorUserId: "u2" },
@@ -274,6 +292,10 @@ describe("SocialService comments + likes", () => {
     const prisma = {
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
       socialComment: { findMany: jest.fn().mockResolvedValue(rows) },
+      socialCommentVote: {
+        groupBy: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       user: { findMany: jest.fn().mockResolvedValue([
         { id: "u1", avatarKey: "a1", avatarGradient: "g1", reviewUsername: "One" },
         { id: "u2", avatarKey: "a2", avatarGradient: "g2", reviewUsername: "Two" },
@@ -282,7 +304,35 @@ describe("SocialService comments + likes", () => {
     const out = await new SocialService(prisma, moderationPass).listComments(undefined, "p1");
     expect(out.map((c) => c.id)).toEqual(["cm1", "cm2"]);
     expect(out.every((c) => c.mine === false)).toBe(true);
+    expect(out.every((c) => c.myVote === null)).toBe(true);
     expect(out.every((c) => !("authorUserId" in c) && !("userId" in c))).toBe(true);
+  });
+
+  it("listComments tallies helpful/not-helpful counts and the viewer's own vote per comment", async () => {
+    const rows = [
+      { id: "cm1", postId: "p1", body: "first", createdAt: new Date(1), authorUserId: "u1" },
+      { id: "cm2", postId: "p1", body: "second", createdAt: new Date(2), authorUserId: "u2" },
+    ];
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      socialComment: { findMany: jest.fn().mockResolvedValue(rows) },
+      socialCommentVote: {
+        groupBy: jest.fn().mockImplementation(({ where }: any) => {
+          if (where.value === 1) return Promise.resolve([{ commentId: "cm1", _count: { _all: 4 } }]);
+          return Promise.resolve([{ commentId: "cm2", _count: { _all: 2 } }]);
+        }),
+        findMany: jest.fn().mockResolvedValue([{ commentId: "cm1", value: 1 }]),
+      },
+      user: { findMany: jest.fn().mockResolvedValue([
+        { id: "u1", avatarKey: "a1", avatarGradient: "g1", reviewUsername: "One" },
+        { id: "u2", avatarKey: "a2", avatarGradient: "g2", reviewUsername: "Two" },
+      ]) },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).listComments("viewer-1", "p1");
+    const cm1 = out.find((c) => c.id === "cm1")!;
+    const cm2 = out.find((c) => c.id === "cm2")!;
+    expect(cm1).toMatchObject({ helpfulCount: 4, notHelpfulCount: 0, myVote: 1 });
+    expect(cm2).toMatchObject({ helpfulCount: 0, notHelpfulCount: 2, myVote: null });
   });
 
   it("serializes a deleted author's comment with a null identity and never a userId key", async () => {
@@ -293,6 +343,10 @@ describe("SocialService comments + likes", () => {
     const prisma = {
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
       socialComment: { findMany: jest.fn().mockResolvedValue(rows) },
+      socialCommentVote: {
+        groupBy: jest.fn().mockResolvedValue([]),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       user: { findMany: jest.fn().mockResolvedValue([
         { id: "viewer-1", avatarKey: "a2", avatarGradient: "g2", reviewUsername: "Viewer" },
       ]) },
@@ -362,6 +416,71 @@ describe("SocialService comments + likes", () => {
   });
 });
 
+describe("SocialService.voteComment", () => {
+  it("casts Helpful, then casting Helpful again removes it", async () => {
+    const vote = { findUnique: jest.fn(), delete: jest.fn(), update: jest.fn(), create: jest.fn() };
+    const prisma = {
+      socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1" }) },
+      socialCommentVote: {
+        ...vote,
+        count: jest.fn(),
+      },
+    } as never;
+
+    (prisma as any).socialCommentVote.findUnique.mockResolvedValueOnce(null);
+    (prisma as any).socialCommentVote.count.mockImplementation(({ where }: any) =>
+      Promise.resolve(where.value === 1 ? 1 : 0),
+    );
+    const r1 = await new SocialService(prisma, moderationPass).voteComment("u1", "cm1", 1);
+    expect(r1).toEqual({ commentId: "cm1", helpfulCount: 1, notHelpfulCount: 0, myVote: 1 });
+    expect((prisma as any).socialCommentVote.create).toHaveBeenCalledWith({ data: { commentId: "cm1", userId: "u1", value: 1 } });
+
+    (prisma as any).socialCommentVote.findUnique.mockResolvedValueOnce({ id: "v1", value: 1 });
+    (prisma as any).socialCommentVote.count.mockResolvedValue(0);
+    const r2 = await new SocialService(prisma, moderationPass).voteComment("u1", "cm1", 1);
+    expect(r2).toEqual({ commentId: "cm1", helpfulCount: 0, notHelpfulCount: 0, myVote: null });
+    expect((prisma as any).socialCommentVote.delete).toHaveBeenCalledWith({ where: { id: "v1" } });
+  });
+
+  it("switching from Helpful to Not Helpful updates the existing row's value", async () => {
+    const prisma = {
+      socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1" }) },
+      socialCommentVote: {
+        findUnique: jest.fn()
+          .mockResolvedValueOnce({ id: "v1", value: 1 })
+          .mockResolvedValueOnce({ id: "v1", value: -1 }),
+        update: jest.fn().mockResolvedValue({}),
+        count: jest.fn().mockImplementation(({ where }: any) => Promise.resolve(where.value === -1 ? 1 : 0)),
+      },
+    } as never;
+    const r = await new SocialService(prisma, moderationPass).voteComment("u1", "cm1", -1);
+    expect((prisma as any).socialCommentVote.update).toHaveBeenCalledWith({ where: { id: "v1" }, data: { value: -1 } });
+    expect(r).toEqual({ commentId: "cm1", helpfulCount: 0, notHelpfulCount: 1, myVote: -1 });
+  });
+
+  it("404s on an unknown comment", async () => {
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
+    await expect(new SocialService(prisma, moderationPass).voteComment("u1", "ghost", 1)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it("swallows a concurrent-create P2002 and still returns fresh counts", async () => {
+    const prisma = {
+      socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1" }) },
+      socialCommentVote: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockRejectedValue(
+          new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "x" }),
+        ),
+        count: jest.fn().mockImplementation(({ where }: any) => Promise.resolve(where.value === 1 ? 1 : 0)),
+      },
+    } as never;
+    const r = await new SocialService(prisma, moderationPass).voteComment("u1", "cm1", 1);
+    expect(r).toEqual({ commentId: "cm1", helpfulCount: 1, notHelpfulCount: 0, myVote: null });
+  });
+});
+
 describe("SocialService.toggleSave", () => {
   it("saves then unsaves (toggle)", async () => {
     const save = { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn() };
@@ -418,7 +537,7 @@ describe("SocialService.feed filters", () => {
     );
   });
 
-  it("passes categories as an exact-match `in` filter on the company", async () => {
+  it("passes a narrow categoryGroup as an exact-match category filter on the company", async () => {
     const findMany = jest.fn().mockResolvedValue([]);
     const prisma = {
       socialPost: { findMany },
@@ -426,11 +545,31 @@ describe("SocialService.feed filters", () => {
       socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
       savedPost: { findMany: jest.fn().mockResolvedValue([]) },
     } as never;
-    await new SocialService(prisma, moderationPass).feed(undefined, { categories: ["Supermarket", "Logistics"] });
+    await new SocialService(prisma, moderationPass).feed(undefined, { categoryGroup: "SUPERMARKET" });
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          company: expect.objectContaining({ category: { in: ["Supermarket", "Logistics"] } }),
+          company: expect.objectContaining({ category: "Supermarket" }),
+        }),
+      }),
+    );
+  });
+
+  it("passes the FIRMS categoryGroup as a notIn filter excluding every narrow bucket", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      socialPost: { findMany },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    await new SocialService(prisma, moderationPass).feed(undefined, { categoryGroup: "FIRMS" });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          company: expect.objectContaining({
+            category: { notIn: ["Supermarket", "Franchise", "Logistics", "Clothing Retail", "Telecom", "Fuel & Energy"] },
+          }),
         }),
       }),
     );
@@ -457,7 +596,7 @@ describe("SocialService.listSavedPosts", () => {
       {
         id: "save-1",
         post: {
-          id: "p1", companyId: "c1", imageUrl: "/u/1.webp", caption: null, createdAt: new Date("2020-01-01"),
+          id: "p1", companyId: "c1", imageUrls: ["/u/1.webp"], caption: null, createdAt: new Date("2020-01-01"),
           company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE" },
         },
       },
@@ -477,6 +616,7 @@ describe("SocialService.listSavedPosts", () => {
       }),
     );
     expect(page.posts.map((p) => p.id)).toEqual(["p1"]);
+    expect(page.posts[0].imageUrls).toEqual(["/u/1.webp"]);
   });
 });
 
@@ -487,13 +627,16 @@ describe("SocialService admin moderation", () => {
     mockUnlink.mockClear();
   });
 
-  it("adminRemovePost deletes the post, unlinks its WebP file, writes a SOCIAL_POST_REMOVED audit log", async () => {
+  it("adminRemovePost deletes the post, unlinks every WebP file, writes a SOCIAL_POST_REMOVED audit log", async () => {
     const prisma = {
       socialPost: {
         findUnique: jest.fn().mockResolvedValue({
           id: "post-1",
           companyId: "c1",
-          imageUrl: "http://localhost:3011/uploads/social/abc-123.webp",
+          imageUrls: [
+            "http://localhost:3011/uploads/social/abc-123.webp",
+            "http://localhost:3011/uploads/social/def-456.webp",
+          ],
         }),
         delete: jest.fn().mockResolvedValue({}),
       },
@@ -505,6 +648,7 @@ describe("SocialService admin moderation", () => {
     expect(result).toEqual({ success: true });
     expect((prisma as any).socialPost.delete).toHaveBeenCalledWith({ where: { id: "post-1" } });
     expect(mockUnlink).toHaveBeenCalledWith(join(socialDir, "abc-123.webp"));
+    expect(mockUnlink).toHaveBeenCalledWith(join(socialDir, "def-456.webp"));
     expect((prisma as any).auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -530,11 +674,11 @@ describe("SocialService admin moderation", () => {
     expect(mockUnlink).not.toHaveBeenCalled();
   });
 
-  it("adminRemovePost still resolves when the file is already gone (unlink rejects)", async () => {
+  it("adminRemovePost still resolves when a file is already gone (unlink rejects)", async () => {
     mockUnlink.mockRejectedValueOnce(new Error("ENOENT"));
     const prisma = {
       socialPost: {
-        findUnique: jest.fn().mockResolvedValue({ id: "p1", companyId: "c1", imageUrl: "x/uploads/social/gone.webp" }),
+        findUnique: jest.fn().mockResolvedValue({ id: "p1", companyId: "c1", imageUrls: ["x/uploads/social/gone.webp"] }),
         delete: jest.fn().mockResolvedValue({}),
       },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
@@ -549,8 +693,8 @@ describe("SocialService admin moderation", () => {
     const prisma = {
       socialPost: {
         findMany: jest.fn().mockResolvedValue([
-          { id: "p1", imageUrl: "http://localhost:3011/uploads/social/one.webp" },
-          { id: "p2", imageUrl: "http://localhost:3011/uploads/social/two.webp" },
+          { id: "p1", imageUrls: ["http://localhost:3011/uploads/social/one.webp"] },
+          { id: "p2", imageUrls: ["http://localhost:3011/uploads/social/two.webp", "http://localhost:3011/uploads/social/three.webp"] },
         ]),
         deleteMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
@@ -561,9 +705,10 @@ describe("SocialService admin moderation", () => {
 
     expect(result).toEqual({ deletedCount: 2 });
     expect((prisma as any).socialPost.deleteMany).toHaveBeenCalledWith({ where: { companyId: "c1" } });
-    expect(mockUnlink).toHaveBeenCalledTimes(2);
+    expect(mockUnlink).toHaveBeenCalledTimes(3);
     expect(mockUnlink).toHaveBeenCalledWith(join(socialDir, "one.webp"));
     expect(mockUnlink).toHaveBeenCalledWith(join(socialDir, "two.webp"));
+    expect(mockUnlink).toHaveBeenCalledWith(join(socialDir, "three.webp"));
     expect((prisma as any).auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

@@ -36,7 +36,10 @@ Concretely, a PR is in scope if it touches any of:
   explicit `select` of `{ id, avatarKey, avatarGradient, reviewUsername }`,
   the public `PublicSocialComment` shape must never carry `authorUserId`, and
   no `prisma.socialComment.*` / `prisma.socialPost.*` query may add
-  `include: { user: true }`.
+  `include: { user: true }`. `SocialCommentVote` (Helpful/Not Helpful) is
+  under the same rule as `SocialPostLike` — `PublicSocialComment.myVote` is
+  the viewer's own vote only; no endpoint may expose who else voted, or a
+  per-voter breakdown, on any comment.
 - `apps/api/src/modules/follows/**`, `packages/shared-types/src/schemas/follow.ts`
   — the `CompanyFollow`/`UserFollow`/`SavedPost` social-graph surface.
   **`FollowsService.companyFollowerCount` may only ever return `{ count }`**

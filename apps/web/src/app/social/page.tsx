@@ -14,7 +14,8 @@ export default function SocialPage() {
     <div className="flex w-full items-start justify-center gap-6 px-4 py-8">
       <AdSlot />
       <div className="w-full max-w-4xl">
-        <h1 className="mb-4 text-2xl font-bold text-foreground">IWT Social</h1>
+        {/* Visible heading removed per design feedback - kept sr-only for a11y/SEO structure. */}
+        <h1 className="sr-only">IWT Social</h1>
         <SocialShell />
       </div>
       <AdSlot />
