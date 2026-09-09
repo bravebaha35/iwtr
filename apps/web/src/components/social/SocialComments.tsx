@@ -31,11 +31,9 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
     setError(null);
     try {
       const created = await apiPost<PublicSocialComment>(`/social/posts/${postId}/comments`, { body: draft.trim() });
-      setComments((prev) => {
-        const next = [...(prev ?? []), created];
-        onCountChange(next.length);
-        return next;
-      });
+      const next = [...(comments ?? []), created];
+      setComments(next);
+      onCountChange(next.length);
       setDraft("");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't post that comment.");
@@ -47,11 +45,9 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
   async function remove(id: string) {
     try {
       await apiDelete(`/social/comments/${id}`);
-      setComments((prev) => {
-        const next = (prev ?? []).filter((c) => c.id !== id);
-        onCountChange(next.length);
-        return next;
-      });
+      const next = (comments ?? []).filter((c) => c.id !== id);
+      setComments(next);
+      onCountChange(next.length);
     } catch {
       /* leave it; a failed delete is non-destructive */
     }
