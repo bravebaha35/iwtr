@@ -11,6 +11,8 @@ import { Avatar } from "@/components/Avatar";
 import { avatarLabel } from "@/lib/avatars";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
+import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
+import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
 // uses (Home, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
@@ -65,7 +67,7 @@ export function GlobalHeader() {
   const { isAuthenticated, role, onboardingStatus, logout, openAuthModal } = useAuth();
   const pathname = usePathname();
   const showAccountControls = isAuthenticated && onboardingStatus?.status === "ACTIVE";
-  const isCompanyOwner = showAccountControls && role === "COMPANY_OWNER";
+  const isCompanyOwner = useIsCompanyOwner();
 
   // Only a claimed+APPROVED owner has this profile at all — GET 403s for
   // everyone else, which is exactly the "verified" gate the real-name header
@@ -172,15 +174,9 @@ export function GlobalHeader() {
             </NavIconLink>
           )}
 
-          {showAccountControls && (
-            <NavIconLink href="/social" label="IWT Social" title="IWT Social — coming soon" disabled>
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-            </NavIconLink>
-          )}
+          <NavIconLink href="/social" label="IWT Social">
+            <IwtSocialIcon className="h-5 w-5" />
+          </NavIconLink>
         </div>
 
         <ThemeToggle />

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { type CompanyListItem, type CompanyVibeFlags, type VibeFlag, type WorkplaceType } from "@iwtr/shared-types";
-import { useAuth } from "@/lib/auth-context";
+import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
@@ -437,8 +437,7 @@ function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number })
 }
 
 export function JobsBrowser() {
-  const { isAuthenticated, role, onboardingStatus } = useAuth();
-  const isCompanyOwner = isAuthenticated && onboardingStatus?.status === "ACTIVE" && role === "COMPANY_OWNER";
+  const isCompanyOwner = useIsCompanyOwner();
   const [jobFlowOpen, setJobFlowOpen] = useState(false);
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
