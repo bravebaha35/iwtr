@@ -198,9 +198,15 @@ export class EmployerProfileService {
   // redaction mode, since the entire point of this table (unlike PiiVault)
   // is that admins can see it in full.
   async adminListProfiles(): Promise<AdminEmployerProfile[]> {
+    // Safety ceiling, not the expected size (same pattern as
+    // AdminCompaniesService.search) — this decrypts every row it reads, so
+    // an unbounded findMany here means unboundedly many PII decryptions in
+    // one request as the verified-employer count grows. Real pagination is
+    // a later step; this just stops the list from growing without limit.
     const rows = await this.prisma.employerProfile.findMany({
       include: { user: { select: { email: true } } },
       orderBy: { updatedAt: "desc" },
+      take: 2000,
     });
     return rows.map((row) => {
       const fields = this.decryptRow(row);

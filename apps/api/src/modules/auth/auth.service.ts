@@ -190,11 +190,25 @@ export class AuthService {
       throw new UnauthorizedException("Refresh token is invalid or expired");
     }
 
-    // Rotate: revoke the used token, issue a new pair.
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
+    // Rotate: revoke the used token conditionally (WHERE revokedAt: null),
+    // not with a plain update. Two concurrent refresh calls on the same
+    // still-valid token would otherwise both pass the revokedAt check above
+    // before either write lands, and both would go on to mint a new pair
+    // from one token. The conditional update lets exactly one caller win the
+    // rotation; a loser (rotated.count === 0) is treated the same as a
+    // replayed token above — kill every live session for this user rather
+    // than silently minting a second pair.
+    const rotated = await this.prisma.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    if (rotated.count === 0) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException("Refresh token is invalid or expired");
+    }
 
     return this.issueTokenPair(user.id, user.role, user.status, stored.deviceLabel ?? undefined);
   }

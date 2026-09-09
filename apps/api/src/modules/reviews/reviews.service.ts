@@ -536,13 +536,28 @@ export class ReviewsService {
       this.prisma.review.count({ where: { userId, status: "REJECTED", id: { not: reviewId } } }),
     ]);
 
-    const { status, queueReason, contentCheck, trustScore } = this.runModerationPipeline(
+    const { status: recomputedStatus, queueReason: recomputedQueueReason, contentCheck, trustScore } = this.runModerationPipeline(
       [input.generalThoughts ?? ""],
       review.employmentHistory,
       user,
       priorPublished,
       priorRejected,
     );
+
+    // A trust-score recompute alone must never silently pull an already-live
+    // review out of public view — trust inputs (account age, prior
+    // published/rejected counts) can legitimately drift below the
+    // auto-publish threshold on a trivial edit (e.g. only toggling the
+    // randomize checkbox) even though nothing about this review got worse.
+    // Only a genuine content-rule hit (checkContent.violates — profanity/
+    // name-pattern/job-title/shouting) may demote a previously-published
+    // review; a >=0.9-confidence hit already threw above and never reaches
+    // here. Un-flagged, purely trust-based demotions are dropped: the
+    // review keeps its PUBLISHED status and no moderation-queue item opens
+    // for it.
+    const softDemotionOnly = wasPublished && recomputedStatus !== "PUBLISHED" && !contentCheck.violates;
+    const status = softDemotionOnly ? "PUBLISHED" : recomputedStatus;
+    const queueReason = softDemotionOnly ? null : recomputedQueueReason;
 
     // Turning the toggle on freshly picks a name; leaving it on (already
     // randomized, still randomized) keeps the SAME name stable across edits
@@ -609,6 +624,11 @@ export class ReviewsService {
   }
 
   async recomputeAggregate(companyId: string): Promise<void> {
+    const previous = await this.prisma.companyAggregateScore.findUnique({
+      where: { companyId },
+      select: { reviewCount: true },
+    });
+
     const published = await this.prisma.review.findMany({
       where: { companyId, status: "PUBLISHED" },
       select: {
@@ -656,6 +676,17 @@ export class ReviewsService {
         reviewCount: count,
       },
     });
+
+    // CompanyNarrative's own staleness check (PatternGeneratorService) only
+    // ever fires on an INCREASE of at least 3 reviews since it was
+    // generated — a review count that FALLS (an edit demoting a review out
+    // of PUBLISHED, an account deletion, a merge dropping a colliding
+    // review) never retriggers it on its own, so the cached description
+    // could keep citing a review population that no longer fully backs it.
+    // Force a regen next view whenever the count drops.
+    if (previous && count < previous.reviewCount) {
+      await this.prisma.companyNarrative.deleteMany({ where: { companyId } });
+    }
   }
 
   async listForCompany(companySlug: string, viewerUserId?: string): Promise<PublicReview[]> {

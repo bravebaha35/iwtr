@@ -287,9 +287,9 @@ export class ProfileService {
     // per company and doesn't need to be atomic with the deletion above; a
     // company's score being briefly stale for a moment after this commits
     // is harmless, and this can't run inside the transaction anyway since
-    // it needs a Review row that's already gone.
-    for (const companyId of publishedCompanyIds) {
-      await this.reviews.recomputeAggregate(companyId);
-    }
+    // it needs a Review row that's already gone. Each company's recompute is
+    // independent of every other's, so run them concurrently instead of one
+    // at a time.
+    await Promise.all(publishedCompanyIds.map((companyId) => this.reviews.recomputeAggregate(companyId)));
   }
 }

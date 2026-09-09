@@ -97,19 +97,35 @@ export class OnboardingService {
         throw new BadRequestException("History has already been submitted for this account");
       }
 
-      for (const entry of input.education) {
-        await tx.educationHistory.create({
-          data: {
+      // Batched into one createMany instead of one create-per-entry — the
+      // return values are never used, so there's no reason to pay for N
+      // round trips instead of 1.
+      if (input.education.length > 0) {
+        await tx.educationHistory.createMany({
+          data: input.education.map((entry) => ({
             userId,
             level: entry.level,
             institutionName: entry.institutionName,
             graduationYear: entry.graduationYear ?? null,
             faculty: entry.faculty ?? null,
             department: entry.department ?? null,
-          },
+          })),
         });
       }
 
+      // The per-entry company-name lookup can't be batched away (each entry
+      // matches independently, and Prisma interactive-transaction queries
+      // must run sequentially on the tx client, not via Promise.all) — but
+      // the writes that follow can: collect every resolved row and insert
+      // them in one createMany instead of one create per entry.
+      const employmentRows: {
+        userId: string;
+        rawCompanyName: string;
+        companyId: string | null;
+        jobTitle: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+      }[] = [];
       for (const entry of input.employment) {
         // First-pass matching: exact, case-insensitive name match against
         // admin-seeded companies. Fuzzy (pg_trgm) backfill matching for
@@ -120,16 +136,17 @@ export class OnboardingService {
           orderBy: { createdAt: "asc" },
         });
 
-        await tx.employmentHistory.create({
-          data: {
-            userId,
-            rawCompanyName: entry.rawCompanyName,
-            companyId: matchedCompany?.id ?? null,
-            jobTitle: entry.jobTitle ?? null,
-            startDate: entry.startDate ? new Date(entry.startDate) : null,
-            endDate: entry.endDate ? new Date(entry.endDate) : null,
-          },
+        employmentRows.push({
+          userId,
+          rawCompanyName: entry.rawCompanyName,
+          companyId: matchedCompany?.id ?? null,
+          jobTitle: entry.jobTitle ?? null,
+          startDate: entry.startDate ? new Date(entry.startDate) : null,
+          endDate: entry.endDate ? new Date(entry.endDate) : null,
         });
+      }
+      if (employmentRows.length > 0) {
+        await tx.employmentHistory.createMany({ data: employmentRows });
       }
     });
   }

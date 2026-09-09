@@ -500,6 +500,10 @@ model CompanyOwner {
   rivalAnalyticsFreeRequestUsed Boolean             @default(false)
 
   @@unique([userId, companyId])
+  // OwnerService's claims-queue list (admin) and EmployerProfileService's
+  // requireVerifiedEmployer check both filter by claimStatus alone — the
+  // @@unique above leads with userId, which doesn't help either query.
+  @@index([claimStatus])
   @@schema("public")
 }
 
@@ -546,6 +550,9 @@ model OwnerContactMessage {
   resolvedAt DateTime?
 
   @@index([companyId])
+  // OwnerService's admin inbox filters unresolved messages by resolvedAt:
+  // null on every load — no index previously covered that filter alone.
+  @@index([resolvedAt])
   @@schema("public")
 }
 
@@ -773,6 +780,9 @@ model ModerationQueueItem {
   createdAt       DateTime    @default(now())
   resolvedAt      DateTime?
 
+  // AdminQueueService.list filters by status alone on every load of the
+  // admin moderation queue — had no index at all before this.
+  @@index([status])
   @@schema("public")
 }
 

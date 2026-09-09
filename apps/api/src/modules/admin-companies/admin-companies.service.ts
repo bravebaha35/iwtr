@@ -370,6 +370,15 @@ export class AdminCompaniesService {
       // master below, this one is just gone.
       this.prisma.companyAggregateScore.deleteMany({ where: { companyId: duplicateId } }),
 
+      // The master's cached narrative can go stale in a way ReviewsService.
+      // recomputeAggregate's own count-drop check can't catch: a merge is a
+      // discrete identity change (new reviews, possibly a new review count
+      // milestone) that should read fresh next view, not wait for the
+      // regen threshold. The duplicate's own narrative rows cascade-delete
+      // automatically via CompanyNarrative's onDelete: Cascade when the
+      // company row below is deleted, so only the master needs this.
+      this.prisma.companyNarrative.deleteMany({ where: { companyId: masterId } }),
+
       this.prisma.company.delete({ where: { id: duplicateId } }),
 
       this.prisma.auditLog.create({

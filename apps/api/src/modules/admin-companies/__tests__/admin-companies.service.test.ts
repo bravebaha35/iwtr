@@ -18,6 +18,7 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
     employmentHistory: { updateMany: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     ownerContactMessage: { updateMany: jest.fn() },
     companyAggregateScore: { deleteMany: jest.fn() },
+    companyNarrative: { deleteMany: jest.fn() },
     companySuggestionDismissal: { findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn() },
     auditLog: { create: jest.fn() },
     $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
