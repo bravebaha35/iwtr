@@ -171,7 +171,15 @@ export class AdminCompaniesService {
       },
     });
 
-    return { ...company, defaultBannerUrl: defaultBannerUrlForWorkplaceType(company.workplaceTypes[0]) };
+    const approvedOwner = await this.prisma.companyOwner.findFirst({
+      where: { companyId, claimStatus: "APPROVED" },
+      select: { id: true },
+    });
+    return {
+      ...company,
+      defaultBannerUrl: defaultBannerUrlForWorkplaceType(company.workplaceTypes[0]),
+      hasApprovedOwner: approvedOwner !== null,
+    };
   }
 
   // PATCH /admin/companies/:id/visibility. Hiding stamps Company.hiddenAt —

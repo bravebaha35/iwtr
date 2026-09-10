@@ -101,7 +101,8 @@ export class CompaniesService {
       },
     });
 
-    return this.toPublicCompany(company);
+    // A freshly-created company has no owner yet.
+    return this.toPublicCompany(company, false);
   }
 
   /**
@@ -202,8 +203,13 @@ export class CompaniesService {
       ? await this.jobPostingsByCompanyId(companies.map((c) => c.id))
       : new Map<string, PublicJobPosting[]>();
 
+    // One grouped read of which of these companies have an approved owner —
+    // drives the "claimed" check-mark and the colour-vs-greyscale default
+    // banner on every browse/job card.
+    const ownedCompanyIds = await this.approvedOwnerCompanyIds(companies.map((c) => c.id));
+
     return companies.map((c) => ({
-      ...this.toPublicCompany(c),
+      ...this.toPublicCompany(c, ownedCompanyIds.has(c.id)),
       overallAvg: c.aggregate?.overallAvg ?? null,
       reviewCount: c.aggregate?.reviewCount ?? 0,
       jobTitles: jobTitlesByCompanyId.get(c.id) ?? [],
@@ -234,6 +240,17 @@ export class CompaniesService {
       byCompany.set(row.companyId, list);
     }
     return byCompany;
+  }
+
+  // Which of the given company ids have at least one APPROVED CompanyOwner.
+  // One grouped query, never N+1 — the same shape jobTitlesByCompanyId uses.
+  private async approvedOwnerCompanyIds(companyIds: string[]): Promise<Set<string>> {
+    if (companyIds.length === 0) return new Set();
+    const rows = await this.prisma.companyOwner.findMany({
+      where: { companyId: { in: companyIds }, claimStatus: "APPROVED" },
+      select: { companyId: true },
+    });
+    return new Set(rows.map((r) => r.companyId));
   }
 
   // Backs GET /companies/:slug/job-postings — the "Job Postings" tab on a
@@ -346,7 +363,7 @@ export class CompaniesService {
   async getBySlug(slug: string): Promise<CompanyDetail> {
     const company = await this.prisma.company.findUnique({
       where: { slug },
-      include: { aggregate: true },
+      include: { aggregate: true, owners: { where: { claimStatus: "APPROVED" }, select: { id: true }, take: 1 } },
     });
     // Subsumes the bare null-check: a hidden company 404s exactly like a
     // non-existent one, so its detail page (and everything slug-scoped that
@@ -359,7 +376,7 @@ export class CompaniesService {
     );
 
     return {
-      company: { ...this.toPublicCompany(company), workplaceTypesLocked },
+      company: { ...this.toPublicCompany(company, company.owners.length > 0), workplaceTypesLocked },
       aggregate: company.aggregate
         ? {
             companyId: company.aggregate.companyId,
@@ -404,7 +421,7 @@ export class CompaniesService {
     glassdoorUrl: string | null;
     bannerImageUrl: string | null;
     featuredReviewId: string | null;
-  }): Company {
+  }, hasApprovedOwner: boolean): Company {
     return {
       id: c.id,
       slug: c.slug,
@@ -435,6 +452,7 @@ export class CompaniesService {
       bannerImageUrl: c.bannerImageUrl,
       defaultBannerUrl: defaultBannerUrlForWorkplaceType(c.workplaceTypes[0]),
       featuredReviewId: c.featuredReviewId,
+      hasApprovedOwner,
     };
   }
 }

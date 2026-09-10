@@ -124,6 +124,11 @@ export const companySchema = z.object({
   // the frontend shows bannerImageUrl when set (a paid-tier custom banner),
   // otherwise this. Computed by the read endpoint, never stored.
   defaultBannerUrl: z.string(),
+  // True when this company has an approved owner (any tier). Drives the
+  // “claimed” signals: a Free-tier owned company gets a minimal check-mark,
+  // and any owned company shows its default banner in colour while an
+  // unowned one is rendered greyscale. Computed, never stored.
+  hasApprovedOwner: z.boolean(),
   featuredReviewId: z.string().uuid().nullable(),
   // Computed (not stored) — true when both of this company's workplaceTypes
   // already have a PUBLISHED review, which locks OwnerService.updateMyCompany

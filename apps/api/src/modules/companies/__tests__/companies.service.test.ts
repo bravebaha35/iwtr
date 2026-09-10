@@ -12,6 +12,9 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
     jobPosting: {
       findMany: jest.fn().mockResolvedValue([]),
     },
+    companyOwner: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   };
   return { ...base, ...overrides };
 }
@@ -104,6 +107,7 @@ describe("CompaniesService.getBySlug — workplaceTypesLocked", () => {
           workplaceTypes: ["OFFICE", "SERVICE"],
           hiddenAt: null,
           aggregate: null,
+          owners: [],
         }),
       },
     };
@@ -127,6 +131,7 @@ describe("CompaniesService.getBySlug — workplaceTypesLocked", () => {
           workplaceTypes: ["OFFICE", "SERVICE"],
           hiddenAt: null,
           aggregate: null,
+          owners: [],
         }),
       },
     };
@@ -269,6 +274,7 @@ describe("CompaniesService — default banner keyed on the primary work-type", (
           workplaceTypes: ["MANUAL_LABOUR", "OFFICE"],
           hiddenAt: null,
           aggregate: null,
+          owners: [],
         }),
       },
     };
@@ -296,5 +302,78 @@ describe("CompaniesService — default banner keyed on the primary work-type", (
 
     expect(results[0].defaultBannerUrl).toBe("/office-default-banner.webp");
     expect(results[1].defaultBannerUrl).toBe("/service-default-banner.webp");
+  });
+});
+
+describe("CompaniesService — hasApprovedOwner (claimed-company signal)", () => {
+  it("getBySlug reports true when the company has an APPROVED owner", async () => {
+    const prisma = {
+      company: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "c1",
+          slug: "co",
+          name: "Co",
+          category: "Software",
+          workplaceTypes: ["OFFICE"],
+          hiddenAt: null,
+          aggregate: null,
+          owners: [{ id: "own-1" }],
+        }),
+      },
+    };
+    const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(false) };
+    const service = new CompaniesService(prisma as any, reviews as any);
+
+    const result = await service.getBySlug("co");
+
+    expect(result.company.hasApprovedOwner).toBe(true);
+    // Only APPROVED claims count.
+    expect(prisma.company.findUnique.mock.calls[0][0].include.owners.where).toEqual({
+      claimStatus: "APPROVED",
+    });
+  });
+
+  it("getBySlug reports false for an unclaimed company", async () => {
+    const prisma = {
+      company: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "c1",
+          slug: "co",
+          name: "Co",
+          category: "Software",
+          workplaceTypes: ["OFFICE"],
+          hiddenAt: null,
+          aggregate: null,
+          owners: [],
+        }),
+      },
+    };
+    const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(false) };
+    const service = new CompaniesService(prisma as any, reviews as any);
+
+    expect((await service.getBySlug("co")).company.hasApprovedOwner).toBe(false);
+  });
+
+  it("search marks only the companies that have an approved owner", async () => {
+    const prisma = makePrisma({
+      company: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "c1", slug: "c1", name: "A", category: "Software", workplaceTypes: ["OFFICE"], aggregate: null },
+          { id: "c2", slug: "c2", name: "B", category: "Cafe", workplaceTypes: ["SERVICE"], aggregate: null },
+        ]),
+      },
+      companyOwner: {
+        findMany: jest.fn().mockResolvedValue([{ companyId: "c2" }]),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    const results = await service.search(baseQuery());
+
+    expect(results.find((r) => r.slug === "c1")!.hasApprovedOwner).toBe(false);
+    expect(results.find((r) => r.slug === "c2")!.hasApprovedOwner).toBe(true);
+    expect(prisma.companyOwner.findMany.mock.calls[0][0].where).toMatchObject({
+      claimStatus: "APPROVED",
+    });
   });
 });

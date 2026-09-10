@@ -14,7 +14,12 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
     reviewVote: { deleteMany: jest.fn() },
     companyReply: { updateMany: jest.fn(), deleteMany: jest.fn() },
     moderationQueueItem: { deleteMany: jest.fn() },
-    companyOwner: { findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn(), deleteMany: jest.fn() },
+    companyOwner: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     employmentHistory: { updateMany: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     ownerContactMessage: { updateMany: jest.fn() },
     companyAggregateScore: { deleteMany: jest.fn() },

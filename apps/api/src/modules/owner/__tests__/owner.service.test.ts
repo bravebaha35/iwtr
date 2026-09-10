@@ -67,8 +67,14 @@ describe("OwnerService — banner membership gate (server-side, do not trust the
     ).rejects.toThrow("Membership upgrade required to change banner");
   });
 
-  it("rejects a bannerImageUrl change on BLUE (paid, but not a banner tier)", async () => {
-    const { service } = buildService("BLUE", "ACTIVE");
+  it("allows a bannerImageUrl change on an ACTIVE BLUE (Starter) tier", async () => {
+    const { service, prisma } = buildService("BLUE", "ACTIVE");
+    await service.updateMyCompany("u1", "c1", { bannerImageUrl: "https://cdn.example.com/b.webp" });
+    expect(prisma.company.update).toHaveBeenCalled();
+  });
+
+  it("rejects a bannerImageUrl change on a FREE tier whose plan somehow reads ACTIVE", async () => {
+    const { service } = buildService("FREE", "ACTIVE");
     await expect(
       service.updateMyCompany("u1", "c1", { bannerImageUrl: "https://cdn.example.com/b.webp" }),
     ).rejects.toThrow(ForbiddenException);

@@ -106,10 +106,10 @@ export class OwnerService {
       throw new ForbiddenException("Upgrade to a paid tier to edit description, website, or featured review.");
     }
 
-    // Banner is a narrower privilege than the rest of the Premium box — Blue
-    // (Starter) doesn't include it, only Blue+ (Pro) and Enterprise do (same
-    // rule as uploadBanner below).
-    const hasBannerTier = ownership.tier === "BLUE_PLUS" || ownership.tier === "ENTERPRISE";
+    // Uploading / replacing a banner needs a paid membership — any tier
+    // above Free (Starter, Blue+ or Enterprise) with an ACTIVE plan. Same
+    // rule as uploadBanner below.
+    const hasBannerTier = ownership.tier !== "FREE";
     if (input.bannerImageUrl !== undefined && !(hasBannerTier && ownership.planStatus === "ACTIVE")) {
       throw new ForbiddenException("Membership upgrade required to change banner");
     }
@@ -227,7 +227,7 @@ export class OwnerService {
   // without pre-cropping it themselves.
   async uploadBanner(userId: string, companyId: string, file: Express.Multer.File | undefined): Promise<BannerUploadResult> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
-    const hasBannerTier = ownership.tier === "BLUE_PLUS" || ownership.tier === "ENTERPRISE";
+    const hasBannerTier = ownership.tier !== "FREE";
     if (!hasBannerTier || ownership.planStatus !== "ACTIVE") {
       throw new ForbiddenException("Membership upgrade required to change banner");
     }
