@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import {
   findProvinceByCityName,
+  defaultBannerUrlForWorkplaceType,
   workplaceTypeSchema,
   type AdminCreateCompanyInput,
   type Company,
@@ -404,6 +405,7 @@ export class CompaniesService {
       youtubeUrl: c.youtubeUrl,
       glassdoorUrl: c.glassdoorUrl,
       bannerImageUrl: c.bannerImageUrl,
+      defaultBannerUrl: defaultBannerUrlForWorkplaceType(c.workplaceTypes[0]),
       featuredReviewId: c.featuredReviewId,
     };
   }

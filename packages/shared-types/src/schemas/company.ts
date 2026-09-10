@@ -28,6 +28,36 @@ export type WorkplaceType = z.infer<typeof workplaceTypeSchema>;
 // picked from this set at rating time.
 export const companyWorkplaceTypesSchema = z.array(workplaceTypeSchema).min(1).max(2);
 
+// The work-type list is capped at 1-2 above. By platform convention item 0
+// is the company's PRIMARY work-type (required) and item 1, when present, the
+// SECONDARY (optional) - the owner picks them as two separate dropdowns and
+// every employee-facing surface renders the primary in bold, the secondary
+// in a normal weight. Kept as one ordered array rather than two columns
+// because the cap already encodes "one required + one optional"; these
+// accessors are the single place that ordering is given meaning.
+export function primaryWorkplaceType(company: { workplaceTypes: WorkplaceType[] }): WorkplaceType {
+  return company.workplaceTypes[0];
+}
+export function secondaryWorkplaceType(company: { workplaceTypes: WorkplaceType[] }): WorkplaceType | null {
+  return company.workplaceTypes[1] ?? null;
+}
+
+// System-assigned default banner, keyed SOLELY on the primary work-type -
+// served by the company read endpoints as Company.defaultBannerUrl and
+// rendered whenever a company has no custom bannerImageUrl. Paths are
+// root-relative to the web app, which serves these files from its public/
+// directory (committed alongside this repo).
+export const DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE: Record<WorkplaceType, string> = {
+  OFFICE: "/office-default-banner.webp",
+  HYBRID_REMOTE: "/hybrid-remote-default-banner.webp",
+  SERVICE: "/service-default-banner.webp",
+  MANUAL_LABOUR: "/manual-labour-default-banner.webp",
+};
+
+export function defaultBannerUrlForWorkplaceType(primary: WorkplaceType): string {
+  return DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE[primary];
+}
+
 // Plain z.string().url() accepts any syntactically valid URL, including
 // `javascript:`/`data:`/`vbscript:` schemes (the WHATWG URL parser doesn't
 // reject those — `new URL("javascript:alert(1)")` doesn't throw). Neither of
@@ -89,6 +119,11 @@ export const companySchema = z.object({
   // Premium Features box (owner dashboard), paid-tier-gated like
   // description/website above.
   bannerImageUrl: httpUrlSchema.nullable(),
+  // System-assigned default banner for this company, keyed on its primary
+  // work-type (see DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE). Always present -
+  // the frontend shows bannerImageUrl when set (a paid-tier custom banner),
+  // otherwise this. Computed by the read endpoint, never stored.
+  defaultBannerUrl: z.string(),
   featuredReviewId: z.string().uuid().nullable(),
   // Computed (not stored) — true when both of this company's workplaceTypes
   // already have a PUBLISHED review, which locks OwnerService.updateMyCompany

@@ -111,7 +111,7 @@ export class OwnerService {
     // rule as uploadBanner below).
     const hasBannerTier = ownership.tier === "BLUE_PLUS" || ownership.tier === "ENTERPRISE";
     if (input.bannerImageUrl !== undefined && !(hasBannerTier && ownership.planStatus === "ACTIVE")) {
-      throw new ForbiddenException("Upgrade to Blue+ or Enterprise to set a banner image.");
+      throw new ForbiddenException("Membership upgrade required to change banner");
     }
 
     // Once a company's (at most 2) workplaceTypes have each collected a
@@ -229,7 +229,7 @@ export class OwnerService {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
     const hasBannerTier = ownership.tier === "BLUE_PLUS" || ownership.tier === "ENTERPRISE";
     if (!hasBannerTier || ownership.planStatus !== "ACTIVE") {
-      throw new ForbiddenException("Upgrade to Blue+ or Enterprise to upload a banner image.");
+      throw new ForbiddenException("Membership upgrade required to change banner");
     }
     if (!file) {
       throw new BadRequestException("No file uploaded.");

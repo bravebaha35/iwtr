@@ -266,7 +266,7 @@ export class SocialService {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: SOCIAL_FEED_PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true } } },
+      include: { company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true, workplaceTypes: true } } },
     });
     const hasMore = rows.length > SOCIAL_FEED_PAGE_SIZE;
     const pageRows = hasMore ? rows.slice(0, SOCIAL_FEED_PAGE_SIZE) : rows;
@@ -282,7 +282,7 @@ export class SocialService {
   private async serializePosts(
     rows: Array<{
       id: string; companyId: string; imageUrls: string[]; caption: string | null; createdAt: Date;
-      company: { slug: string; name: string; mainPhotoUrl: string | null; badgeTier: string };
+      company: { slug: string; name: string; mainPhotoUrl: string | null; badgeTier: string; workplaceTypes: PublicSocialPost["companyWorkplaceTypes"] };
     }>,
     viewerUserId: string | undefined,
   ): Promise<PublicSocialPost[]> {
@@ -315,6 +315,7 @@ export class SocialService {
       companyName: r.company.name,
       companyLogoUrl: r.company.mainPhotoUrl,
       companyBadgeTier: r.company.badgeTier as PublicSocialPost["companyBadgeTier"],
+      companyWorkplaceTypes: r.company.workplaceTypes,
       imageUrls: r.imageUrls,
       caption: r.caption,
       createdAt: r.createdAt.toISOString(),
@@ -473,7 +474,7 @@ export class SocialService {
             imageUrls: true,
             caption: true,
             createdAt: true,
-            company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true } },
+            company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true, workplaceTypes: true } },
           },
         },
       },
