@@ -3,7 +3,7 @@ import type { Company, CompanyDetail, CompanyNarrative } from "@iwtr/shared-type
 import { scoreBandLabel } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
-import { SocialCrossPromoBanner } from "@/components/social/SocialCrossPromoBanner";
+import { CompanyProfileTabs } from "@/components/companies/CompanyProfileTabs";
 import { WorkplaceVibeFlags } from "@/components/WorkplaceVibeFlags";
 import { OwnerClaimPanel } from "@/components/OwnerClaimPanel";
 import { CompanyLogo } from "@/components/CompanyLogo";
@@ -154,8 +154,16 @@ function CompanyDetailsBox({ company }: { company: Company }) {
   );
 }
 
-export default async function CompanyPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CompanyPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
   const { slug } = await params;
+  const { tab } = await searchParams;
+  const initialTab = Array.isArray(tab) ? tab[0] : tab;
 
   let detail: CompanyDetail;
   try {
@@ -241,75 +249,86 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
           />
         </div>
 
-        {/* Rating visuals (left) + the category-breakdown box (right) sit in
-            their own full-width flex row, so there's real room for the
-            dynamic image + text beside the 5 category bars. Workplace Vibe
-            Flags and the new Company Details box get their own row below,
-            side by side. "What reviewers said" (SurveyHighlights, the old
-            Q&A detail box) is intentionally not rendered on this page any
-            more — the component itself is untouched and still available to
-            reuse elsewhere later, it's just not shown here. */}
-        <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3">
-          <RatingNarrativeBox
-            score={aggregate && aggregate.reviewCount > 0 ? aggregate.overallAvg : null}
-            workplaceType={company.workplaceTypes[0]}
-            narrative={narrative}
-          />
+        {/* Everything below the header is split into three tabs (Ratings /
+            IWT Social / Job Postings). The Ratings panel is passed in as
+            server-rendered JSX so it keeps full SSR; the other two panels
+            are client components that fetch their own stream only once
+            their tab is opened. The global "IWT Social" / "Jobs" links in
+            GlobalHeader are a different thing and are left alone. */}
+        <CompanyProfileTabs
+          slug={slug}
+          initialTab={initialTab}
+          ratings={
+            <div className="flex flex-col gap-6">
+              {/* Rating visuals (left) + the category-breakdown box (right)
+                  sit in their own full-width flex row, so there's real room
+                  for the dynamic image + text beside the 5 category bars.
+                  Workplace Vibe Flags and the Company Details box get their
+                  own row below, side by side. "What reviewers said"
+                  (SurveyHighlights, the old Q&A detail box) is intentionally
+                  not rendered here any more — the component itself is
+                  untouched and still available to reuse elsewhere later. */}
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3">
+                <RatingNarrativeBox
+                  score={aggregate && aggregate.reviewCount > 0 ? aggregate.overallAvg : null}
+                  workplaceType={company.workplaceTypes[0]}
+                  narrative={narrative}
+                />
 
-          <div className="flex-1 rounded-xl border border-border bg-surface p-6 font-sans">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Rating Breakdown</h2>
-            {aggregate && aggregate.reviewCount > 0 ? (
-              <div className="flex flex-col gap-2">
-                {CATEGORIES.map((c) => (
-                  <div key={c.key} className="flex items-center gap-3">
-                    <span className="w-40 shrink-0 text-sm text-muted-foreground sm:w-56">{c.label}</span>
-                    <div className="h-1.5 flex-1 rounded-full bg-surface-muted">
-                      <div
-                        className={`h-1.5 rounded-full ${scoreBarColor(aggregate[c.key])}`}
-                        style={{ width: `${(aggregate[c.key] / 5) * 100}%` }}
-                      />
+                <div className="flex-1 rounded-xl border border-border bg-surface p-6 font-sans">
+                  <h2 className="mb-4 text-lg font-semibold text-foreground">Rating Breakdown</h2>
+                  {aggregate && aggregate.reviewCount > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {CATEGORIES.map((c) => (
+                        <div key={c.key} className="flex items-center gap-3">
+                          <span className="w-40 shrink-0 text-sm text-muted-foreground sm:w-56">{c.label}</span>
+                          <div className="h-1.5 flex-1 rounded-full bg-surface-muted">
+                            <div
+                              className={`h-1.5 rounded-full ${scoreBarColor(aggregate[c.key])}`}
+                              style={{ width: `${(aggregate[c.key] / 5) * 100}%` }}
+                            />
+                          </div>
+                          <span className="w-8 text-right text-sm text-muted-foreground">
+                            {aggregate[c.key].toFixed(1)}
+                          </span>
+                        </div>
+                      ))}
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"}
+                      </p>
+                      <div className="mt-3 flex items-baseline gap-2 border-t border-border pt-3">
+                        <span className="text-3xl font-bold text-foreground">{aggregate.overallAvg.toFixed(1)}</span>
+                        <span className="text-sm text-muted-foreground">/ 5.0</span>
+                        <span className={`ml-auto text-sm font-semibold ${scoreTextColor(aggregate.overallAvg)}`}>
+                          {scoreBandLabel(aggregate.overallAvg)}
+                        </span>
+                      </div>
                     </div>
-                    <span className="w-8 text-right text-sm text-muted-foreground">
-                      {aggregate[c.key].toFixed(1)}
-                    </span>
-                  </div>
-                ))}
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"}
-                </p>
-                <div className="mt-3 flex items-baseline gap-2 border-t border-border pt-3">
-                  <span className="text-3xl font-bold text-foreground">{aggregate.overallAvg.toFixed(1)}</span>
-                  <span className="text-sm text-muted-foreground">/ 5.0</span>
-                  <span className={`ml-auto text-sm font-semibold ${scoreTextColor(aggregate.overallAvg)}`}>
-                    {scoreBandLabel(aggregate.overallAvg)}
-                  </span>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No reviews yet. Be the first to rate this workplace if it&apos;s in your work history.
+                    </p>
+                  )}
                 </div>
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No reviews yet. Be the first to rate this workplace if it&apos;s in your work history.
-              </p>
-            )}
-          </div>
-        </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <WorkplaceVibeFlags companySlug={slug} />
-          <CompanyDetailsBox company={company} />
-        </div>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <WorkplaceVibeFlags companySlug={slug} />
+                <CompanyDetailsBox company={company} />
+              </div>
 
-        {/* Full column width, not squeezed into the grid above — this is
-            the actual review text people are here to read, so it gets the
-            most room. */}
-        <div className="mt-8">
-          <ReviewsList
-            companySlug={slug}
-            workplaceTypes={company.workplaceTypes}
-            companyName={company.name}
-            initialVisibleCount={3}
-          />
-          <SocialCrossPromoBanner companySlug={slug} companyName={company.name} />
-        </div>
+              {/* Full column width — this is the actual review text people
+                  are here to read, so it gets the most room. No longer
+                  collapsed to 3: it has its own tab now, not a slice of a
+                  combined page. */}
+              <ReviewsList
+                companySlug={slug}
+                workplaceTypes={company.workplaceTypes}
+                companyName={company.name}
+              />
+            </div>
+          }
+        />
 
         <div className="mt-8">
           <OwnerClaimPanel companySlug={slug} />
