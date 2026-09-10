@@ -63,13 +63,12 @@ export function tickSrcForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTER
   return null;
 }
 
-// Banner image is a narrower privilege than the rest of a paid tier's
-// Premium Features box — Blue (Starter) doesn't include it, only Blue+
-// (Pro) and Enterprise do (matches the "add logo and banner" wording that
-// only appears from the Pro row down in the hr-analytics feature row
-// above). Mirrors the same rule enforced server-side in owner.service.ts.
+// Uploading / replacing a banner needs any paid membership — Starter
+// (Blue), Pro (Blue+) or Enterprise. Only Free is locked out; a Free
+// company keeps the system default banner it was assigned. Mirrors the
+// same rule enforced server-side in owner.service.ts.
 export function canUseBanner(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): boolean {
-  return tier === "BLUE_PLUS" || tier === "ENTERPRISE";
+  return tier !== "FREE";
 }
 
 interface PricingFeatureRow {
@@ -115,7 +114,7 @@ export const PRICING_FEATURE_ROWS: PricingFeatureRow[] = [
     label: "HR Analytics Dashboard Access",
     values: {
       free: `Only see company's "Questions and Answers", change logo, add contact information.`,
-      starter: `See "Questions and Answers", Green Flags & Redflags, add logo, general information, contact information.`,
+      starter: `See "Questions and Answers", Green Flags & Redflags, add logo and banner, general information, contact information.`,
       pro: `See "Questions and Answers", Green Flags & Redflags, Most "Yes" answered question, Most "No" answered question (both in top 5 form), add logo and banner, general information, contact information.`,
       enterprise: `See "Questions and Answers", Green Flags & Redflags, Most "Yes" answered question, Most "No" answered question (both in top 5 form), suggestions about company below top 5, add logo and banner, general information, contact information.`,
     },

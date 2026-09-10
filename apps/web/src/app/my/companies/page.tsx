@@ -15,7 +15,8 @@ import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { AdSlot } from "@/components/AdSlot";
-import { badgeLabelForOwnerTier, canUseBanner, tickSrcForOwnerTier } from "@/lib/pricingTiers";
+import { badgeLabelForOwnerTier, canUseBanner } from "@/lib/pricingTiers";
+import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
@@ -487,16 +488,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           {claim.companyName}
         </Link>
         <div className="flex items-center gap-2">
-          {tickSrcForOwnerTier(claim.tier) && (
-            // eslint-disable-next-line @next/next/no-img-element -- small local static badge asset
-            <img
-              src={tickSrcForOwnerTier(claim.tier)!}
-              alt={`${badgeLabel} verified employer badge`}
-              width={22}
-              height={22}
-              className="shrink-0"
-            />
-          )}
+          {/* The owner is looking at their own company — always claimed. */}
+          <CompanyVerificationTick badgeTier={claim.tier} claimed size={22} />
           <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
             {claim.tier === "FREE" ? "Free Tier" : `${badgeLabel ?? claim.tier} Tier`}
           </span>

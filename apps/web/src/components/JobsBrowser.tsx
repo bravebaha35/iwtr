@@ -16,6 +16,7 @@ import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { JobCreationFlow } from "@/components/jobs/JobCreationFlow";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
@@ -306,10 +307,11 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
   const [infoOpen, setInfoOpen] = useState(false);
   const location = [company.district, company.city].filter(Boolean).join(", ");
   // Every job card shows a banner: the owner's own image when their tier
-  // includes custom banners and one is set, otherwise the system default
-  // keyed on the company's primary work-type (company.defaultBannerUrl).
-  const bannerUrl =
-    canUseBanner(company.badgeTier) && company.bannerImageUrl ? company.bannerImageUrl : company.defaultBannerUrl;
+  // includes custom banners and one is set, otherwise the system default.
+  // A default banner on an unclaimed company renders greyscale.
+  const hasCustomBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
+  const bannerUrl = hasCustomBanner ? company.bannerImageUrl! : company.defaultBannerUrl;
+  const bannerIsGreyscale = !hasCustomBanner && !company.hasApprovedOwner;
 
   return (
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
@@ -326,7 +328,11 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
       <div className="relative">
         <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
           {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
-          <img src={bannerUrl} alt="" className="h-full w-full object-cover" />
+          <img
+            src={bannerUrl}
+            alt=""
+            className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
+          />
         </div>
         <div className="absolute left-3 top-full -translate-y-1/2 rounded-lg ring-4 ring-surface">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
@@ -341,7 +347,15 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
             row is name-only. */}
         <div className="flex items-start justify-between gap-2">
           <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">{company.name}</span>
+            <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
+              {company.name}
+              <CompanyVerificationTick
+                badgeTier={company.badgeTier}
+                claimed={company.hasApprovedOwner}
+                size={14}
+                className="ml-1.5"
+              />
+            </span>
           </Link>
 
           <div className="flex shrink-0 items-center gap-1.5">

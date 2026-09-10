@@ -66,6 +66,7 @@ const detail: CompanyDetail = {
     glassdoorUrl: null,
     bannerImageUrl: null,
     defaultBannerUrl: "/office-default-banner.webp",
+    hasApprovedOwner: true,
     featuredReviewId: null,
   },
   aggregate: null,

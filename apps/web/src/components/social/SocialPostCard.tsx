@@ -6,7 +6,7 @@ import type { PublicSocialPost, SavedPostToggleResult, SocialPostLikeResult } fr
 import { apiPost, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { CompanyLogo } from "@/components/CompanyLogo";
-import { tickSrcForOwnerTier, badgeLabelForOwnerTier } from "@/lib/pricingTiers";
+import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { shortRelativeTime } from "./socialTime";
@@ -172,7 +172,6 @@ export function SocialPostCard({
   // disabled once we know the caller's real role. Anonymous visitors still
   // see it (same "show it, open the auth modal on click" UX as Like).
   const showFollowButton = !isAuthenticated || canFollow;
-  const tickSrc = tickSrcForOwnerTier(post.companyBadgeTier);
 
   return (
     // No border/background (per design feedback) - the post now blends into
@@ -185,10 +184,9 @@ export function SocialPostCard({
           <div className="min-w-0">
             <p className="flex min-w-0 items-center truncate text-sm font-semibold text-foreground">
               {post.companyName}
-              {tickSrc && (
-                // eslint-disable-next-line @next/next/no-img-element -- small local static badge asset
-                <img src={tickSrc} alt={`${badgeLabelForOwnerTier(post.companyBadgeTier)} verified employer badge`} width={16} height={16} className="ml-1.5 inline-block shrink-0 align-middle" />
-              )}
+              {/* A post can only come from an approved owner, so the company
+                  is always claimed — a Free-tier one gets the minimal check-mark. */}
+              <CompanyVerificationTick badgeTier={post.companyBadgeTier} claimed size={16} className="ml-1.5" />
             </p>
             <p className="text-xs text-muted-foreground">
               <WorkTypeLabel workplaceTypes={post.companyWorkplaceTypes} /> &middot; {shortRelativeTime(post.createdAt)}

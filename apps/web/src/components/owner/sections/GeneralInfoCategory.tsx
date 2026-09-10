@@ -85,6 +85,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
     mainPhotoUrl: props.mainPhotoUrl.trim() || null,
     workplaceTypes: props.workplaceTypes.length > 0 ? props.workplaceTypes : (["OFFICE"] as WorkplaceType[]),
     defaultBannerUrl: defaultBannerUrlForWorkplaceType(props.workplaceTypes[0] ?? "OFFICE"),
+    hasApprovedOwner: true,
     category: props.category ?? "",
     city: props.city,
     district: props.district,

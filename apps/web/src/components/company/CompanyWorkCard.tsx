@@ -6,6 +6,7 @@ import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 
 export interface CompanyWorkCardData {
   name: string;
@@ -20,6 +21,9 @@ export interface CompanyWorkCardData {
   // Always set (see companySchema) — the system default keyed on the primary
   // work-type, shown whenever the company has no custom bannerImageUrl.
   defaultBannerUrl: string;
+  // Whether the company has an approved owner: drives the claimed check-mark
+  // and whether a default banner shows in colour or greyscale.
+  hasApprovedOwner: boolean;
   overallAvg: number | null;
   reviewCount: number;
 }
@@ -38,8 +42,10 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
   // Every card shows a banner: the owner's own image when their tier
   // includes custom banners and one is set, otherwise the system default
   // keyed on the primary work-type (company.defaultBannerUrl).
-  const bannerUrl =
-    canUseBanner(company.badgeTier) && company.bannerImageUrl ? company.bannerImageUrl : company.defaultBannerUrl;
+  const hasCustomBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
+  const bannerUrl = hasCustomBanner ? company.bannerImageUrl! : company.defaultBannerUrl;
+  // Greyscale the default banner until the company has been claimed.
+  const bannerIsGreyscale = !hasCustomBanner && !company.hasApprovedOwner;
 
   const content = (
     <>
@@ -53,7 +59,11 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
       <div className="relative -mx-4 -mt-4 mb-6 w-[calc(100%+2rem)]">
         <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
           {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
-          <img src={bannerUrl} alt="" className="h-full w-full object-cover" />
+          <img
+            src={bannerUrl}
+            alt=""
+            className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
+          />
         </div>
         <div className="absolute left-4 top-full -translate-y-1/2 rounded-lg ring-4 ring-surface">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
@@ -61,9 +71,16 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
       </div>
 
       {/* The logo already sits above, overlapping the banner's bottom-left
-          corner, so this row is just the name. Membership badges no longer
-          appear on this card; they show only on a company's own profile page. */}
-      <p className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">{company.name}</p>
+          corner, so this row is just the name + verification tick. */}
+      <p className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
+        {company.name}
+        <CompanyVerificationTick
+          badgeTier={company.badgeTier}
+          claimed={company.hasApprovedOwner}
+          size={15}
+          className="ml-1.5"
+        />
+      </p>
 
       <p className="text-xs text-muted-foreground">
         <WorkTypeLabel workplaceTypes={company.workplaceTypes} /> · {company.category}

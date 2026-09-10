@@ -144,13 +144,3 @@ button:disabled,
 [aria-disabled="true"] {
   cursor: not-allowed;
 }
-
-/* EXPERIMENT (2026-09-10, on request): render the four system-assigned
-   default banners (apps/web/public/*-default-banner.webp) in black & white
-   everywhere they appear — company profile hero, rating-grid cards, job
-   cards, the owner live-preview. Custom (owner-uploaded) banners are
-   unaffected: their src is /uploads/company-banners/... , not this suffix.
-   Revert = delete this rule. */
-img[src$="-default-banner.webp"] {
-  filter: grayscale(1);
-}

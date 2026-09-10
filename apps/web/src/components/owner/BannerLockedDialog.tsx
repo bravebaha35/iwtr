@@ -67,9 +67,8 @@ export function BannerLockedDialog({
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Your profile currently shows a default banner the system picked automatically from your
           primary work-type. Uploading your own banner image needs a{" "}
-          <strong className="font-semibold text-foreground">Blue+</strong> or{" "}
-          <strong className="font-semibold text-foreground">Enterprise</strong>{" "}membership — you can&apos;t change
-          the system-assigned default banner on your current tier.
+          <strong className="font-semibold text-foreground">Starter</strong>{" "}membership or higher — you
+          can&apos;t change the system-assigned default banner on the Free plan.
         </p>
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row-reverse">

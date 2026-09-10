@@ -12,7 +12,8 @@ import { AdSlot } from "@/components/AdSlot";
 import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { ratingImageSrc } from "@/lib/ratingNarrative";
-import { badgeLabelForOwnerTier, canUseBanner, tickSrcForOwnerTier } from "@/lib/pricingTiers";
+import { canUseBanner } from "@/lib/pricingTiers";
+import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -180,6 +181,9 @@ export default async function CompanyPage({
   // work-type (company.defaultBannerUrl). The logo always overlaps it.
   const hasCustomBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
   const bannerUrl = hasCustomBanner ? company.bannerImageUrl! : company.defaultBannerUrl;
+  // A default banner on a company nobody has claimed renders greyscale;
+  // once it has an owner (any tier) it shows in full colour.
+  const bannerIsGreyscale = !hasCustomBanner && !company.hasApprovedOwner;
 
   // Server-side fetch purely for RatingNarrativeBox. The endpoint always
   // returns 200 with { workplaceType, reviewCount, description } for a valid
@@ -211,7 +215,11 @@ export default async function CompanyPage({
               clears the half of the lg logo that hangs below it. */}
           <div className="aspect-[5/1] w-full overflow-hidden rounded-xl">
             {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
-            <img src={bannerUrl} alt="" className="h-full w-full object-cover" />
+            <img
+              src={bannerUrl}
+              alt=""
+              className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
+            />
           </div>
           <div className="absolute left-6 top-full -translate-y-1/2 rounded-xl ring-4 ring-background">
             <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
@@ -222,16 +230,12 @@ export default async function CompanyPage({
             <div>
               <h1 className="text-2xl font-bold text-foreground">
                 {company.name}
-                {tickSrcForOwnerTier(company.badgeTier) && (
-                  // eslint-disable-next-line @next/next/no-img-element -- small local static badge asset
-                  <img
-                    src={tickSrcForOwnerTier(company.badgeTier)!}
-                    alt={`${badgeLabelForOwnerTier(company.badgeTier)} verified employer badge`}
-                    width={26}
-                    height={26}
-                    className="ml-2 inline-block align-middle"
-                  />
-                )}
+                <CompanyVerificationTick
+                  badgeTier={company.badgeTier}
+                  claimed={company.hasApprovedOwner}
+                  size={26}
+                  className="ml-2"
+                />
               </h1>
               <p className="text-sm text-muted-foreground">
                 {company.category} · <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
