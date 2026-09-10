@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { scoreBandLabel, type OwnerTier, type WorkplaceType } from "@iwtr/shared-types";
 import { scoreTextColor } from "@/lib/scoreBandColors";
-import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 
@@ -110,7 +110,7 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")} · {company.category}
+        <WorkTypeLabel workplaceTypes={company.workplaceTypes} /> · {company.category}
       </p>
       {(company.city || company.district) && (
         <p className="truncate text-xs text-muted-foreground">

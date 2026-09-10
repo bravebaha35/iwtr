@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import type { CompanyDetail, MyCompanyClaim, WorkplaceType } from "@iwtr/shared-types";
-import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
 import { BannerUploader } from "@/components/owner/BannerUploader";
+import { BannerLockedDialog } from "@/components/owner/BannerLockedDialog";
 import { CompanyWorkCard, type CompanyWorkCardData } from "@/components/company/CompanyWorkCard";
 import { canUseBanner } from "@/lib/pricingTiers";
 
@@ -24,8 +25,8 @@ export interface GeneralInfoCategoryProps {
   name: string;
   setName: (v: string) => void;
   workplaceTypes: WorkplaceType[];
-  toggleWorkplaceType: (v: WorkplaceType) => void;
-  onResetWorkplaceTypes: () => void;
+  setPrimaryWorkType: (v: WorkplaceType) => void;
+  setSecondaryWorkType: (v: WorkplaceType | null) => void;
   onSaveWorkplaceTypes: () => void;
   workplaceTypesSaving: boolean;
   workplaceTypesStatus: string | null;
@@ -55,6 +56,8 @@ export interface GeneralInfoCategoryProps {
   generalInfoStatus: string | null;
   generalInfoError: string | null;
   onStartUpgrade: (tier: "BLUE" | "BLUE_PLUS" | "ENTERPRISE") => void;
+  // Opens the full pricing comparison (the banner-locked dialog's "See Plans").
+  onSeePlans: () => void;
 }
 
 function DashboardBox({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
@@ -69,6 +72,13 @@ function DashboardBox({ title, className = "", children }: { title: string; clas
 export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
   const bannerAllowed = canUseBanner(props.claim.tier) && props.hasActivePaidTier;
   const workplaceTypesLocked = props.detail?.company.workplaceTypesLocked ?? false;
+  const [bannerDialogOpen, setBannerDialogOpen] = useState(false);
+
+  // workplaceTypes is stored as one ordered array; item 0 is the primary
+  // (required) work-type and item 1, if present, the secondary (optional).
+  const primaryType = props.workplaceTypes[0] ?? null;
+  const secondaryType = props.workplaceTypes[1] ?? null;
+  const secondaryOptions = WORKPLACE_TYPES.filter((t) => t.value !== primaryType);
 
   const livePreview: CompanyWorkCardData = {
     name: props.name || props.companyName,
@@ -115,15 +125,34 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
           </label>
 
           <div>
-            <MultiFilterPillGroup
-              heading="Workplace types (up to 2)"
-              options={WORKPLACE_TYPES}
-              selected={props.workplaceTypes}
-              onToggle={props.toggleWorkplaceType}
-              onReset={props.onResetWorkplaceTypes}
-              direction="grid"
-              disabled={workplaceTypesLocked}
-            />
+            {/* Owner-only terminology: employees never see "primary /
+                secondary", only the bold/normal emphasis it produces on the
+                public cards. */}
+            <p className="text-xs font-medium text-muted-foreground">Primary Work-Type</p>
+            <div className="mt-1">
+              <SingleSelectDropdown
+                value={primaryType}
+                options={WORKPLACE_TYPES}
+                placeholder="Choose your main work-type"
+                ariaLabel="Primary work-type"
+                clearable={false}
+                disabled={workplaceTypesLocked}
+                onChange={(v) => v && props.setPrimaryWorkType(v as WorkplaceType)}
+              />
+            </div>
+            <p className="mt-2 text-xs font-medium text-muted-foreground">
+              Secondary Work-Type <span className="text-muted-foreground/70">(optional)</span>
+            </p>
+            <div className="mt-1">
+              <SingleSelectDropdown
+                value={secondaryType}
+                options={secondaryOptions}
+                placeholder="None"
+                ariaLabel="Secondary work-type"
+                disabled={workplaceTypesLocked || !primaryType}
+                onChange={(v) => props.setSecondaryWorkType((v as WorkplaceType | null) ?? null)}
+              />
+            </div>
             <button
               onClick={props.onSaveWorkplaceTypes}
               disabled={props.workplaceTypesSaving || workplaceTypesLocked}
@@ -249,14 +278,17 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
                   onChange={props.setBannerImageUrl}
                 />
               ) : (
-                <div className="rounded-lg border border-dashed border-border bg-surface-muted/60 p-3 opacity-75">
-                  <p className="text-xs text-muted-foreground">Upgrade to Blue+ or Enterprise to add a banner image.</p>
+                <div className="rounded-lg border border-dashed border-border bg-surface-muted/60 p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Your profile shows a default banner chosen from your primary work-type. Uploading
+                    your own image is a Blue+ / Enterprise feature.
+                  </p>
                   <button
                     type="button"
-                    onClick={() => props.onStartUpgrade("BLUE_PLUS")}
+                    onClick={() => setBannerDialogOpen(true)}
                     className="mt-2 rounded-lg border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
                   >
-                    Blue+ — 499,99₺
+                    Change banner image
                   </button>
                 </div>
               )}
@@ -274,6 +306,16 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
           {props.generalInfoError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{props.generalInfoError}</p>}
         </div>
       </DashboardBox>
+
+      {bannerDialogOpen && (
+        <BannerLockedDialog
+          onClose={() => setBannerDialogOpen(false)}
+          onSeePlans={() => {
+            setBannerDialogOpen(false);
+            props.onSeePlans();
+          }}
+        />
+      )}
     </div>
   );
 }

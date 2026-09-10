@@ -5,6 +5,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { imageSize } from "image-size";
 import {
   validateLogoFile,
+  defaultBannerUrlForWorkplaceType,
   type AdminCompanySummary,
   type AdminUpdateCompanyInput,
   type Company,
@@ -170,7 +171,7 @@ export class AdminCompaniesService {
       },
     });
 
-    return company;
+    return { ...company, defaultBannerUrl: defaultBannerUrlForWorkplaceType(company.workplaceTypes[0]) };
   }
 
   // PATCH /admin/companies/:id/visibility. Hiding stamps Company.hiddenAt —

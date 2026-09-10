@@ -6,7 +6,8 @@ import { type CompanyListItem, type CompanyVibeFlags, type VibeFlag, type Workpl
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
-import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
+import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { collarSegmentClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { canUseBanner } from "@/lib/pricingTiers";
@@ -420,7 +421,7 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
           grid without losing any of the actual info it shows. */}
       <div className="border-t border-border px-3 py-2 compact:px-2 compact:py-1.5">
         <p className="truncate text-xs text-muted-foreground">
-          {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")}
+          <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
           {company.isChainStore ? " · Chain store" : ""}
           {" · "}
           {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}

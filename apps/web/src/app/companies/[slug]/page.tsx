@@ -10,7 +10,7 @@ import { CompanyLogo } from "@/components/CompanyLogo";
 import { RateButton } from "@/components/RateButton";
 import { AdSlot } from "@/components/AdSlot";
 import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
-import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { ratingImageSrc } from "@/lib/ratingNarrative";
 import { badgeLabelForOwnerTier, canUseBanner, tickSrcForOwnerTier } from "@/lib/pricingTiers";
 
@@ -174,7 +174,12 @@ export default async function CompanyPage({
   }
 
   const { company, aggregate } = detail;
-  const showBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
+  // A banner is now always shown: the owner's own uploaded image when their
+  // tier includes custom banners and one is set, otherwise the
+  // system-assigned default the API picked from the company's primary
+  // work-type (company.defaultBannerUrl). The logo always overlaps it.
+  const hasCustomBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
+  const bannerUrl = hasCustomBanner ? company.bannerImageUrl! : company.defaultBannerUrl;
 
   // Server-side fetch purely for RatingNarrativeBox. The endpoint always
   // returns 200 with { workplaceType, reviewCount, description } for a valid
@@ -196,29 +201,24 @@ export default async function CompanyPage({
       <AdSlot />
 
       <div className="w-full max-w-6xl">
-        {showBanner && (
-          // Same Facebook-style overlap as the browse-grid card, scaled up
-          // for a full-width detail-page hero — ring-background (not
-          // ring-surface) since this header sits directly on the page's own
-          // background, not inside a bg-surface card.
-          <div className="relative mb-14">
-            {/* 5:1, not 4:1 — on this full-width hero a 4:1 slab ran ~290px
-                tall and read as a wall; 5:1 keeps it a cover strip. mb-14
-                clears the half of the lg logo that hangs below it. */}
-            <div className="aspect-[5/1] w-full overflow-hidden rounded-xl">
-              {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
-              <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
-            </div>
-            <div className="absolute left-6 top-full -translate-y-1/2 rounded-xl ring-4 ring-background">
-              <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
-            </div>
+        {/* Same Facebook-style overlap as the browse-grid card, scaled up
+            for a full-width detail-page hero — ring-background (not
+            ring-surface) since this header sits directly on the page's own
+            background, not inside a bg-surface card. */}
+        <div className="relative mb-14">
+          {/* 5:1, not 4:1 — on this full-width hero a 4:1 slab ran ~290px
+              tall and read as a wall; 5:1 keeps it a cover strip. mb-14
+              clears the half of the lg logo that hangs below it. */}
+          <div className="aspect-[5/1] w-full overflow-hidden rounded-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
+            <img src={bannerUrl} alt="" className="h-full w-full object-cover" />
           </div>
-        )}
+          <div className="absolute left-6 top-full -translate-y-1/2 rounded-xl ring-4 ring-background">
+            <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
+          </div>
+        </div>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {!showBanner && (
-              <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
-            )}
             <div>
               <h1 className="text-2xl font-bold text-foreground">
                 {company.name}
@@ -234,7 +234,7 @@ export default async function CompanyPage({
                 )}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {company.category} · {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")}
+                {company.category} · <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
                 {company.city ? ` · ${company.city}` : ""}
               </p>
             </div>

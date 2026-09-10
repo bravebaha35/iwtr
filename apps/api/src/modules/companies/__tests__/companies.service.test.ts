@@ -256,3 +256,45 @@ describe("CompaniesService.jobPostingsForSlug — the company profile 'Job Posti
     await expect(service.jobPostingsForSlug("co")).resolves.toEqual({ jobPostings: [], jobTitles: [] });
   });
 });
+
+describe("CompaniesService — default banner keyed on the primary work-type", () => {
+  it("getBySlug returns the default banner for the first (primary) work-type", async () => {
+    const prisma = {
+      company: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "c1",
+          slug: "co",
+          name: "Co",
+          category: "Logistics",
+          workplaceTypes: ["MANUAL_LABOUR", "OFFICE"],
+          hiddenAt: null,
+          aggregate: null,
+        }),
+      },
+    };
+    const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(false) };
+    const service = new CompaniesService(prisma as any, reviews as any);
+
+    const result = await service.getBySlug("co");
+
+    // primary is MANUAL_LABOUR — the secondary (OFFICE) never affects the banner
+    expect(result.company.defaultBannerUrl).toBe("/manual-labour-default-banner.webp");
+  });
+
+  it("search attaches a defaultBannerUrl to every row", async () => {
+    const prisma = makePrisma({
+      company: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "c1", slug: "c1", name: "A", category: "Software", workplaceTypes: ["OFFICE"], aggregate: null },
+          { id: "c2", slug: "c2", name: "B", category: "Cafe", workplaceTypes: ["SERVICE"], aggregate: null },
+        ]),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    const results = await service.search(baseQuery());
+
+    expect(results[0].defaultBannerUrl).toBe("/office-default-banner.webp");
+    expect(results[1].defaultBannerUrl).toBe("/service-default-banner.webp");
+  });
+});

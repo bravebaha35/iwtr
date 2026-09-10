@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ownerTierSchema } from "./company";
+import { ownerTierSchema, companyWorkplaceTypesSchema } from "./company";
 import { voteValueSchema } from "./review";
 
 // Instagram-style multi-photo carousel cap - enforced both by the file
@@ -68,6 +68,11 @@ export const publicSocialPostSchema = z.object({
   companyName: z.string(),
   companyLogoUrl: z.string().nullable(),
   companyBadgeTier: ownerTierSchema,
+  // The post's company work-type tags, primary-first (see
+  // companyWorkplaceTypesSchema) - the feed card renders the primary in
+  // bold and the secondary, if any, in a normal weight, same as the rating
+  // and job surfaces.
+  companyWorkplaceTypes: companyWorkplaceTypesSchema,
   // Instagram-style carousel - always at least 1 (see MAX_SOCIAL_POST_IMAGES).
   imageUrls: z.array(z.string()).min(1),
   caption: z.string().nullable(),

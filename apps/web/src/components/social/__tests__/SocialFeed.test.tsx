@@ -8,7 +8,7 @@ jest.mock("@/lib/useIsCompanyOwner", () => ({ useIsCompanyOwner: () => false }))
 
 function post(id: string, name = "Acme"): any {
   return {
-    id, companyId: "c1", companySlug: "acme", companyName: name, companyLogoUrl: null, companyBadgeTier: "FREE",
+    id, companyId: "c1", companySlug: "acme", companyName: name, companyLogoUrl: null, companyBadgeTier: "FREE", companyWorkplaceTypes: ["OFFICE"],
     imageUrls: [`/u/${id}.webp`], caption: null, createdAt: new Date().toISOString(),
     likeCount: 0, commentCount: 0, likedByMe: null,
   };

@@ -28,7 +28,7 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
 
 describe("AdminCompaniesService.update — structureType/region/city consistency", () => {
   function makeExisting(overrides: Record<string, unknown>) {
-    return { id: "c1", name: "Acme", city: null, district: null, structureType: "SETTLED", region: null, ...overrides };
+    return { id: "c1", name: "Acme", city: null, district: null, structureType: "SETTLED", region: null, workplaceTypes: ["OFFICE"], ...overrides };
   }
 
   it("rejects switching to REGION_BASED without a region", async () => {

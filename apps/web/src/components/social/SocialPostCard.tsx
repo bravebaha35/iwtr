@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { tickSrcForOwnerTier, badgeLabelForOwnerTier } from "@/lib/pricingTiers";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
+import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { shortRelativeTime } from "./socialTime";
 import { SocialComments } from "./SocialComments";
 
@@ -189,7 +190,9 @@ export function SocialPostCard({
                 <img src={tickSrc} alt={`${badgeLabelForOwnerTier(post.companyBadgeTier)} verified employer badge`} width={16} height={16} className="ml-1.5 inline-block shrink-0 align-middle" />
               )}
             </p>
-            <p className="text-xs text-muted-foreground">{shortRelativeTime(post.createdAt)}</p>
+            <p className="text-xs text-muted-foreground">
+              <WorkTypeLabel workplaceTypes={post.companyWorkplaceTypes} /> &middot; {shortRelativeTime(post.createdAt)}
+            </p>
           </div>
         </Link>
 

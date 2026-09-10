@@ -11,6 +11,7 @@ let mockFollowed: { followedIds: Set<string>; canFollow: boolean; toggleFollow: 
 
 const basePost = {
   id: "p1", companyId: "c1", companySlug: "acme", companyName: "Acme", companyLogoUrl: null, companyBadgeTier: "FREE" as const,
+  companyWorkplaceTypes: ["OFFICE" as const],
   imageUrls: ["/u/p1.webp"], caption: "hi", createdAt: new Date().toISOString(), likeCount: 2, commentCount: 0, likedByMe: false,
   savedByMe: false,
 };
