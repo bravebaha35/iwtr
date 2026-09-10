@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CompanyDetail, MyCompanyClaim, WorkplaceType } from "@iwtr/shared-types";
+import { defaultBannerUrlForWorkplaceType, type CompanyDetail, type MyCompanyClaim, type WorkplaceType } from "@iwtr/shared-types";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
@@ -84,6 +84,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
     name: props.name || props.companyName,
     mainPhotoUrl: props.mainPhotoUrl.trim() || null,
     workplaceTypes: props.workplaceTypes.length > 0 ? props.workplaceTypes : (["OFFICE"] as WorkplaceType[]),
+    defaultBannerUrl: defaultBannerUrlForWorkplaceType(props.workplaceTypes[0] ?? "OFFICE"),
     category: props.category ?? "",
     city: props.city,
     district: props.district,

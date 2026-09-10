@@ -305,7 +305,11 @@ function postingsForCard(company: CompanyListItem): CardPosting[] {
 function JobCard({ company, posting }: { company: CompanyListItem; posting: CardPosting }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const location = [company.district, company.city].filter(Boolean).join(", ");
-  const showBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
+  // Every job card shows a banner: the owner's own image when their tier
+  // includes custom banners and one is set, otherwise the system default
+  // keyed on the company's primary work-type (company.defaultBannerUrl).
+  const bannerUrl =
+    canUseBanner(company.badgeTier) && company.bannerImageUrl ? company.bannerImageUrl : company.defaultBannerUrl;
 
   return (
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
@@ -313,29 +317,22 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
     // positioned to spill outside this box, and clipping it would make them
     // invisible.
     <div className="flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700">
-      {/* Banner privilege is Pro/Enterprise only (canUseBanner) — sits above
-          the aspect-square content box rather than inside it, so it doesn't
-          eat into that box's fixed proportions. 4:1 keeps the file itself
-          light and the strip short relative to the rest of the card. */}
-      {showBanner && (
-        // Same Facebook-style overlap as CompanyWorkCard (rating page) —
-        // logo overlaps the banner's bottom-left corner by half its own
-        // height. Unlike CompanyWorkCard's version, this banner isn't
-        // negative-margined (it already sits flush at this card's own top
-        // edge), so the content box below gets extra top padding (pt-5,
-        // added to the ${showBanner ? ...} branch below) instead of a
-        // margin on the banner wrapper, to clear the protruding logo.
-        <div className="relative">
-          <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
-            {/* eslint-disable-next-line @next/next/no-img-element -- owner-submitted URL, not a known remote host */}
-            <img src={company.bannerImageUrl!} alt="" className="h-full w-full object-cover" />
-          </div>
-          <div className="absolute left-3 top-full -translate-y-1/2 rounded-lg ring-4 ring-surface">
-            <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
-          </div>
+      {/* Banner sits above the aspect-square content box (not inside it, so
+          it doesn't eat that box's fixed proportions). Same Facebook-style
+          overlap as CompanyWorkCard — logo over the banner's bottom-left
+          corner. This banner sits flush at the card's own top edge (no
+          negative margin), so the content box below gets pt-5 to clear the
+          protruding logo. 4:1 keeps the strip short. */}
+      <div className="relative">
+        <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
+          <img src={bannerUrl} alt="" className="h-full w-full object-cover" />
         </div>
-      )}
-      <div className={`flex aspect-square flex-col p-4 compact:p-3 ${showBanner ? "rounded-b-xl pt-5" : "rounded-xl"}`}>
+        <div className="absolute left-3 top-full -translate-y-1/2 rounded-lg ring-4 ring-surface">
+          <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
+        </div>
+      </div>
+      <div className="flex aspect-square flex-col rounded-b-xl p-4 pt-5 compact:p-3">
         {/* Top row: logo + name (top-left) ... rating + info button
             (top-right). Name wraps up to 2 lines (was a single truncated
             line that clipped anything past ~20 chars, e.g. "Örnek Perakende
@@ -344,7 +341,6 @@ function JobCard({ company, posting }: { company: CompanyListItem; posting: Card
             row is name-only. */}
         <div className="flex items-start justify-between gap-2">
           <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
-            {!showBanner && <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />}
             <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">{company.name}</span>
           </Link>
 
