@@ -196,4 +196,63 @@ describe("CompaniesService — hidden companies stay out of public reads", () =>
       status: "PUBLISHED",
     });
   });
+
+  it("jobPostingsForSlug 404s a hidden company without reading any job data", async () => {
+    const prisma = makePrisma({
+      company: {
+        findUnique: jest.fn().mockResolvedValue({ id: "c1", hiddenAt: new Date() }),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    await expect(service.jobPostingsForSlug("co")).rejects.toThrow("Company not found");
+    expect(prisma.jobPosting.findMany).not.toHaveBeenCalled();
+    expect(prisma.employmentHistory.groupBy).not.toHaveBeenCalled();
+  });
+});
+
+describe("CompaniesService.jobPostingsForSlug — the company profile 'Job Postings' tab", () => {
+  it("returns owner-authored PUBLISHED postings plus the classified job-title fallback", async () => {
+    const prisma = makePrisma({
+      company: {
+        findUnique: jest.fn().mockResolvedValue({ id: "c1", hiddenAt: null }),
+      },
+      jobPosting: {
+        findMany: jest.fn().mockResolvedValue([
+          { companyId: "c1", jobTitle: "Forklift Operatörü", description: "Depo vardiyası" },
+        ]),
+      },
+      employmentHistory: {
+        groupBy: jest.fn().mockResolvedValue([
+          { companyId: "c1", jobTitle: "Muhasebe", _count: { jobTitle: 3 } },
+          { companyId: "c1", jobTitle: "asdkfjqwer", _count: { jobTitle: 9 } },
+        ]),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    const result = await service.jobPostingsForSlug("co");
+
+    expect(result.jobPostings).toEqual([
+      { jobTitle: "Forklift Operatörü", description: "Depo vardiyası" },
+    ]);
+    // Gibberish that classifyJobRole can't place is dropped, same as /jobs.
+    expect(result.jobTitles).toEqual(["Muhasebe"]);
+    // The posting read itself is still visible-company-gated.
+    expect(prisma.jobPosting.findMany.mock.calls[0][0].where).toMatchObject({
+      company: { hiddenAt: null },
+      status: "PUBLISHED",
+    });
+  });
+
+  it("returns two empty arrays for a visible company with no job data", async () => {
+    const prisma = makePrisma({
+      company: {
+        findUnique: jest.fn().mockResolvedValue({ id: "c1", hiddenAt: null }),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    await expect(service.jobPostingsForSlug("co")).resolves.toEqual({ jobPostings: [], jobTitles: [] });
+  });
 });

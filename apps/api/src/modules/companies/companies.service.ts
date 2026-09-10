@@ -6,6 +6,7 @@ import {
   type Company,
   type CompanyDetail,
   type CompanyFilters,
+  type CompanyJobPostings,
   type CompanyListItem,
   type CompanySearchQuery,
   type PublicJobPosting,
@@ -232,6 +233,33 @@ export class CompaniesService {
       byCompany.set(row.companyId, list);
     }
     return byCompany;
+  }
+
+  // Backs GET /companies/:slug/job-postings — the "Job Postings" tab on a
+  // company's profile page. Deliberately the exact same two arrays a /jobs
+  // browser card renders for this company (see search + CompanyListItem):
+  // owner-authored PUBLISHED postings, plus the auto-classified job-title
+  // fallback. Reuses the batched map helpers above with a single id rather
+  // than a second query path, so the tab and the /jobs grid can never drift.
+  // A hidden company 404s here exactly as it does on every other slug-scoped
+  // read (the posting read itself is also PUBLIC_COMPANY_WHERE-gated inside
+  // jobPostingsByCompanyId).
+  async jobPostingsForSlug(slug: string): Promise<CompanyJobPostings> {
+    const company = await this.prisma.company.findUnique({
+      where: { slug },
+      select: { id: true, hiddenAt: true },
+    });
+    assertCompanyVisibleOrThrow(company);
+
+    const [postingsByCompany, titlesByCompany] = await Promise.all([
+      this.jobPostingsByCompanyId([company.id]),
+      this.jobTitlesByCompanyId([company.id]),
+    ]);
+
+    return {
+      jobPostings: postingsByCompany.get(company.id) ?? [],
+      jobTitles: titlesByCompany.get(company.id) ?? [],
+    };
   }
 
   // Backs GET /companies/:slug/job-title-suggestions — the Job Creation

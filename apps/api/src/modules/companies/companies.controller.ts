@@ -106,4 +106,14 @@ export class CompaniesController {
   jobTitleSuggestions(@Param("slug") slug: string) {
     return this.companies.jobTitleSuggestionsForSlug(slug);
   }
+
+  // Public: the "Job Postings" tab on a company's profile page. Its own
+  // slug-scoped stream, fetched independently of this company's reviews
+  // (companies/:slug/reviews) and social posts (social/companies/:slug/posts)
+  // so no one tab's request pays for another's. Unguarded like vibe-flags /
+  // narrative above — owner-authored job data, carries no reviewer identity.
+  @Get("companies/:slug/job-postings")
+  jobPostings(@Param("slug") slug: string) {
+    return this.companies.jobPostingsForSlug(slug);
+  }
 }
