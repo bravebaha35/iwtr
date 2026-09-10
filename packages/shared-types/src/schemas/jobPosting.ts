@@ -34,6 +34,19 @@ export const publicJobPostingSchema = z.object({
 });
 export type PublicJobPosting = z.infer<typeof publicJobPostingSchema>;
 
+// One company's public job data, served by GET /companies/:slug/job-postings
+// for the "Job Postings" tab on its profile page. The exact two arrays a
+// /jobs card already renders (see companyListItemSchema in company.ts):
+// owner-authored, currently-PUBLISHED postings, plus the auto-classified
+// EmploymentHistory job-title fallback. Kept as its own slug-scoped endpoint
+// (not folded into CompanyDetail) so the tab fetches this stream on its own,
+// independently of the ratings/social streams.
+export const companyJobPostingsSchema = z.object({
+  jobPostings: z.array(publicJobPostingSchema),
+  jobTitles: z.array(z.string()),
+});
+export type CompanyJobPostings = z.infer<typeof companyJobPostingsSchema>;
+
 // boost is null for "Continue without boost". billing is required only when
 // the chosen boost isn't covered by a free monthly allowance — same
 // optional-only-on-the-paid-path shape rivalAnalyticsRequestInputSchema
