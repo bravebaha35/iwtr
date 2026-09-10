@@ -312,11 +312,22 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   // cleared first (same rule as the browse-page Workplace filter). Any
   // change resets Sector, since the previously-picked one might not belong
   // to any of the newly-selected type(s) any more.
-  function toggleWorkplaceType(value: WorkplaceType) {
+  // workplaceTypes is one ordered array: item 0 is the primary work-type,
+  // item 1 (optional) the secondary. The owner edits them as two separate
+  // dropdowns; these keep the ordering consistent. Any change clears the
+  // Sector pick, which may no longer belong to the new type(s).
+  function setPrimaryWorkType(value: WorkplaceType) {
     setWorkplaceTypes((prev) => {
-      if (prev.includes(value)) return prev.filter((v) => v !== value);
-      if (prev.length >= 2) return [value];
-      return [...prev, value];
+      const secondary = prev[1];
+      return secondary && secondary !== value ? [value, secondary] : [value];
+    });
+    setCategory(null);
+  }
+  function setSecondaryWorkType(value: WorkplaceType | null) {
+    setWorkplaceTypes((prev) => {
+      const primary = prev[0];
+      if (!primary) return prev;
+      return value && value !== primary ? [primary, value] : [primary];
     });
     setCategory(null);
   }
@@ -524,11 +535,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
               name={name}
               setName={setName}
               workplaceTypes={workplaceTypes}
-              toggleWorkplaceType={toggleWorkplaceType}
-              onResetWorkplaceTypes={() => {
-                setWorkplaceTypes([]);
-                setCategory(null);
-              }}
+              setPrimaryWorkType={setPrimaryWorkType}
+              setSecondaryWorkType={setSecondaryWorkType}
               onSaveWorkplaceTypes={saveWorkplaceTypes}
               workplaceTypesSaving={workplaceTypesSaving}
               workplaceTypesStatus={workplaceTypesStatus}
@@ -558,6 +566,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
               generalInfoStatus={generalInfoStatus}
               generalInfoError={generalInfoError}
               onStartUpgrade={setPendingUpgradeTier}
+              onSeePlans={() => setShowPricing(true)}
             />
           )}
 

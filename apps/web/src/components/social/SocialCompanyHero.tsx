@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Company } from "@iwtr/shared-types";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { BeaverRatingIcon } from "@/components/BeaverRatingIcon";
-import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
 
 // Mirrors the top of the rating page (logo + banner + work-types + sector +
@@ -30,7 +30,7 @@ export function SocialCompanyHero({
             <h1 className="truncate text-xl font-bold text-foreground">{company.name}</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            {company.category} - {company.workplaceTypes.map(workplaceTypeLabel).join(" / ")}
+            {company.category} - <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
             {company.city ? ` - ${company.city}` : ""}
           </p>
         </div>

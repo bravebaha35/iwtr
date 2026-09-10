@@ -65,6 +65,7 @@ const detail: CompanyDetail = {
     youtubeUrl: null,
     glassdoorUrl: null,
     bannerImageUrl: null,
+    defaultBannerUrl: "/office-default-banner.webp",
     featuredReviewId: null,
   },
   aggregate: null,
@@ -87,10 +88,13 @@ beforeEach(() => {
 // General Information is the default active tab, so waiting on a field only
 // the company-detail fetch populates (workplaceTypes, not carried by the
 // earlier claims-list fetch) confirms the card is fully hydrated before each
-// test interacts with it.
+// test interacts with it. The primary work-type dropdown shows the loaded
+// company's first work-type ("Office") once that fetch resolves.
 async function renderLoadedPage() {
   render(<MyCompaniesPage />);
-  await waitFor(() => expect(screen.getByRole("button", { name: "Office" })).toHaveClass("bg-brand-600"));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Primary work-type" })).toHaveTextContent("Office"),
+  );
 }
 
 function generalInfoBox(): HTMLElement {
@@ -171,26 +175,29 @@ test("saving Contact & Social Media does not discard an unsaved City pick in Gen
   expect(within(generalInfoBox()).getByRole("button", { name: /^Ankara/ })).toBeInTheDocument();
 });
 
-test("picking a 3rd workplace type replaces the selection instead of adding to it", async () => {
+test("secondary work-type dropdown excludes the primary, and changing the primary clears a now-invalid secondary", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
   const box = generalInfoBox();
-  const office = within(box).getByRole("button", { name: "Office" });
-  const hybrid = within(box).getByRole("button", { name: "Hybrid/Remote" });
-  const service = within(box).getByRole("button", { name: "Service" });
+  const primary = within(box).getByRole("button", { name: "Primary work-type" });
+  const secondary = within(box).getByRole("button", { name: "Secondary work-type" });
 
-  // Loaded from the mocked company, which starts with workplaceTypes: ["OFFICE"].
-  expect(office).toHaveClass("bg-brand-600");
+  // Loaded company is workplaceTypes: ["OFFICE"] — primary shows it, secondary is empty.
+  expect(primary).toHaveTextContent("Office");
+  expect(secondary).toHaveTextContent("None");
 
-  await user.click(hybrid);
-  expect(office).toHaveClass("bg-brand-600");
-  expect(hybrid).toHaveClass("bg-brand-600");
+  // The secondary list never offers the current primary.
+  await user.click(secondary);
+  expect(within(box).queryByRole("button", { name: "Office" })).not.toBeInTheDocument();
+  await user.click(within(box).getByRole("button", { name: "Service" }));
+  expect(secondary).toHaveTextContent("Service");
 
-  await user.click(service);
-  expect(office).not.toHaveClass("bg-brand-600");
-  expect(hybrid).not.toHaveClass("bg-brand-600");
-  expect(service).toHaveClass("bg-brand-600");
+  // Switching the primary to what the secondary holds drops the secondary.
+  await user.click(primary);
+  await user.click(within(box).getByRole("button", { name: "Service" }));
+  expect(primary).toHaveTextContent("Service");
+  expect(within(box).getByRole("button", { name: "Secondary work-type" })).toHaveTextContent("None");
 });
 
 test("Sector options narrow to the picked workplace type(s)", async () => {
