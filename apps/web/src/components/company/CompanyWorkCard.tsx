@@ -65,7 +65,7 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
             className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
           />
         </div>
-        <div className="absolute left-4 top-full -translate-y-1/2 rounded-lg ring-4 ring-surface">
+        <div className="absolute left-4 top-full -translate-y-1/2">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
         </div>
       </div>

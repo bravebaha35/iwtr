@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { Company, CompanyAggregateScore } from "@iwtr/shared-types";
 import { SocialFeed } from "@/components/social/SocialFeed";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 
@@ -39,10 +40,17 @@ export function CompanyProfileTabs({
   slug,
   initialTab,
   ratings,
+  company,
+  aggregate,
 }: {
   slug: string;
   initialTab?: string;
   ratings: ReactNode;
+  // Passed straight through to the Job Postings tab's cards, which need the
+  // company's logo / rating / contact / badge — the same CompanyDetail the
+  // page already fetched, so no second request.
+  company: Company;
+  aggregate: CompanyAggregateScore | null;
 }) {
   const [active, setActive] = useState<TabKey>(isTabKey(initialTab) ? initialTab : "ratings");
   // Which panels have been shown at least once — gates the mount of the
@@ -175,7 +183,7 @@ export function CompanyProfileTabs({
           aria-labelledby={tabId.jobs}
           hidden={active !== "jobs"}
         >
-          {visited.has("jobs") && <CompanyJobPostings slug={slug} />}
+          {visited.has("jobs") && <CompanyJobPostings company={company} aggregate={aggregate} />}
         </div>
       </div>
     </div>

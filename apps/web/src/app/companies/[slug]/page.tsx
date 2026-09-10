@@ -206,9 +206,8 @@ export default async function CompanyPage({
 
       <div className="w-full max-w-6xl">
         {/* Same Facebook-style overlap as the browse-grid card, scaled up
-            for a full-width detail-page hero — ring-background (not
-            ring-surface) since this header sits directly on the page's own
-            background, not inside a bg-surface card. */}
+            for a full-width detail-page hero. No ring around the logo — a
+            transparent brand image should read as transparent. */}
         <div className="relative mb-14">
           {/* 5:1, not 4:1 — on this full-width hero a 4:1 slab ran ~290px
               tall and read as a wall; 5:1 keeps it a cover strip. mb-14
@@ -221,7 +220,7 @@ export default async function CompanyPage({
               className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
             />
           </div>
-          <div className="absolute left-6 top-full -translate-y-1/2 rounded-xl ring-4 ring-background">
+          <div className="absolute left-6 top-full -translate-y-1/2">
             <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
           </div>
         </div>
@@ -262,6 +261,8 @@ export default async function CompanyPage({
         <CompanyProfileTabs
           slug={slug}
           initialTab={initialTab}
+          company={company}
+          aggregate={aggregate}
           ratings={
             <div className="flex flex-col gap-6">
               {/* Rating visuals (left) + the category-breakdown box (right)
