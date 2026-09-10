@@ -52,16 +52,6 @@ export function badgeLabelForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "EN
   return value === "No" ? null : value;
 }
 
-// Static asset per paid tier for the Instagram-style inline verified tick
-// (apps/web/public) — null on Free, which shows no tick at all. Kept as its
-// own lookup (not derived from badgeLabelForOwnerTier's text) since the two
-// are rendered completely differently: one is an <img>, the other plain text.
-export function tickSrcForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): string | null {
-  if (tier === "BLUE") return "/blue tick.webp";
-  if (tier === "BLUE_PLUS") return "/blue+ tick.webp";
-  if (tier === "ENTERPRISE") return "/gold tick.webp";
-  return null;
-}
 
 // Uploading / replacing a banner needs any paid membership — Starter
 // (Blue), Pro (Blue+) or Enterprise. Only Free is locked out; a Free

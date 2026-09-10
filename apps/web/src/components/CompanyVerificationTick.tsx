@@ -1,16 +1,26 @@
 import type { OwnerTier } from "@iwtr/shared-types";
-import { badgeLabelForOwnerTier, tickSrcForOwnerTier } from "@/lib/pricingTiers";
 
-// The badge next to a company's name. Three cases:
-//   - a paid tier (Blue / Blue+ / Enterprise) → the coloured tick image
-//   - Free tier, but the company IS claimed (has an approved owner) → a
-//     minimal, colourless check-mark that reads correctly in light and dark
-//   - unclaimed → nothing
+// The badge next to a company's name. One minimal check-mark symbol at every
+// level — only its colour changes with the owner's membership:
+//   - Free tier, company is claimed  → muted (no colour)
+//   - Starter (Blue)                 → blue
+//   - Pro (Blue+)                    → green
+//   - Enterprise                     → gold
+//   - Free tier, unclaimed           → nothing
 //
-// `claimed` is only consulted for the Free-tier case; the paid tick already
-// implies an active paid owner. Callers that render for a context where the
-// company is claimed by definition (the owner's own dashboard, an IWT
-// Social post — you must be an approved owner to post) pass `claimed`.
+// The mark is an inline SVG stroked with `currentColor`, so each colour is a
+// text-colour class with a light/dark pair — it stays legible in both
+// themes. `claimed` is only consulted for the Free case; a paid tier always
+// implies an active paid owner (see Company.badgeTier). Callers whose context
+// guarantees a claim (the owner's own dashboard, an IWT Social post — you
+// must be an approved owner to post) just pass `claimed`.
+const TIER_TICK: Record<OwnerTier, { colorClassName: string; label: string }> = {
+  FREE: { colorClassName: "text-muted-foreground", label: "Claimed by the employer" },
+  BLUE: { colorClassName: "text-blue-600 dark:text-blue-400", label: "Starter member" },
+  BLUE_PLUS: { colorClassName: "text-green-600 dark:text-green-400", label: "Pro member" },
+  ENTERPRISE: { colorClassName: "text-amber-500 dark:text-amber-400", label: "Enterprise member" },
+};
+
 export function CompanyVerificationTick({
   badgeTier,
   claimed,
@@ -22,40 +32,26 @@ export function CompanyVerificationTick({
   size?: number;
   className?: string;
 }) {
-  const tickSrc = tickSrcForOwnerTier(badgeTier);
-  if (tickSrc) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- small local static badge asset
-      <img
-        src={tickSrc}
-        alt={`${badgeLabelForOwnerTier(badgeTier)} verified employer badge`}
-        width={size}
-        height={size}
-        className={`inline-block shrink-0 align-middle ${className}`}
-      />
-    );
-  }
+  if (badgeTier === "FREE" && !claimed) return null;
 
-  if (claimed && badgeTier === "FREE") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        width={size}
-        height={size}
-        role="img"
-        aria-label="Claimed by the employer"
-        className={`inline-block shrink-0 align-middle text-muted-foreground ${className}`}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="9" />
-        <path d="m8.5 12.5 2.5 2.5 4.5-5.5" />
-      </svg>
-    );
-  }
+  const { colorClassName, label } = TIER_TICK[badgeTier];
 
-  return null;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      role="img"
+      aria-label={label}
+      className={`inline-block shrink-0 align-middle ${colorClassName} ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8.5 12.5 2.5 2.5 4.5-5.5" />
+    </svg>
+  );
 }
