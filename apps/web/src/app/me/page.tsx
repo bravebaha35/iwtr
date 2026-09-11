@@ -202,12 +202,19 @@ export default function ProfilePage() {
     setAvatarError(null);
     setAvatarStatus(null);
     try {
-      // Always send all three — avatarKey/avatarGradient/reviewUsername are
-      // always set by the time this button is reachable (onboarding assigns
-      // a starting reviewUsername automatically), so there's no reason to
-      // make "did the value happen to be falsy" a factor in whether a field
-      // gets saved at all.
-      await apiPatch("/me/profile", { reviewUsername, avatarKey, avatarGradient });
+      // Always send avatarKey/avatarGradient — always set by the time this
+      // button is reachable (onboarding assigns a starting reviewUsername
+      // automatically), so there's no reason to make "did the value happen
+      // to be falsy" a factor in whether a field gets saved at all.
+      // reviewUsername is only ever included for a non-owner: the API
+      // rejects any attempt to change it from a COMPANY_OWNER (2026-09-11),
+      // including a harmless resend of the same value, so omitting the key
+      // entirely here is what lets an owner save their avatar at all.
+      await apiPatch("/me/profile", {
+        avatarKey,
+        avatarGradient,
+        ...(role === "COMPANY_OWNER" ? {} : { reviewUsername }),
+      });
       await load();
       // The homepage header reads avatar/name from AuthContext's
       // onboardingStatus, not from this page's own `profile` state — without
@@ -514,23 +521,30 @@ export default function ProfilePage() {
               onChangeWorkType={(type) => setUsernameCategory(type)}
             />
 
-            <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Username</p>
-            <p className="mb-2 text-xs text-muted-foreground">
-              Shown on your own reviews instead of your real name — pick whichever one you like.
-            </p>
-            <SingleSelectDropdown
-              value={reviewUsername}
-              onChange={(v) => v && setReviewUsername(v)}
-              placeholder="Choose a username"
-              clearable={false}
-              searchable={false}
-              maxHeightClassName="max-h-none"
-              options={usernameOptions}
-            />
-            <p className="mt-2 text-xs text-muted-foreground">
-              Want a one-off random name instead, for a single review? You can turn that on at the end of the review
-              itself, when you submit or edit it.
-            </p>
+            {/* Company owners keep whatever anonymous username they already
+                have - restricted to avatar (above) and their real employer
+                photo (below) only, per 2026-09-11 product decision. */}
+            {role !== "COMPANY_OWNER" && (
+              <>
+                <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Username</p>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Shown on your own reviews instead of your real name — pick whichever one you like.
+                </p>
+                <SingleSelectDropdown
+                  value={reviewUsername}
+                  onChange={(v) => v && setReviewUsername(v)}
+                  placeholder="Choose a username"
+                  clearable={false}
+                  searchable={false}
+                  maxHeightClassName="max-h-none"
+                  options={usernameOptions}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Want a one-off random name instead, for a single review? You can turn that on at the end of the review
+                  itself, when you submit or edit it.
+                </p>
+              </>
+            )}
 
             <button
               onClick={saveCustomization}

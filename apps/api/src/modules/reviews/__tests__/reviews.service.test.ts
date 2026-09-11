@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type { CreateReviewInput } from "@iwtr/shared-types";
 import { ReviewsService } from "../reviews.service";
@@ -308,5 +308,48 @@ describe("ReviewsService.listForCompany — district/city k-anonymity", () => {
     const service = new ReviewsService(prisma as any, new ModerationService(), {} as any);
 
     await expect(service.listForCompany("acme")).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe("ReviewsService.submitReview - company owners (2026-09-11)", () => {
+  it("blocks a COMPANY_OWNER from submitting a new review, before even checking employment history", async () => {
+    const prisma = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "owner-1", status: "ACTIVE", role: "COMPANY_OWNER" }) },
+      employmentHistory: { findUnique: jest.fn() },
+    };
+    const piiVault = { purgeTcKimlikNoIfPresent: jest.fn() };
+    const service = new ReviewsService(prisma as any, new ModerationService(), piiVault as any);
+
+    await expect(
+      service.submitReview("owner-1", {
+        companyId: "c1",
+        employmentHistoryId: "emp-1",
+        workplaceType: "OFFICE",
+        answers: [],
+        isRandomizedIdentity: false,
+      } as CreateReviewInput),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.employmentHistory.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("a plain MEMBER is unaffected by the owner check", async () => {
+    const prisma = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "u1", status: "ACTIVE", role: "MEMBER" }) },
+      employmentHistory: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const piiVault = { purgeTcKimlikNoIfPresent: jest.fn() };
+    const service = new ReviewsService(prisma as any, new ModerationService(), piiVault as any);
+
+    await expect(
+      service.submitReview("u1", {
+        companyId: "c1",
+        employmentHistoryId: "emp-1",
+        workplaceType: "OFFICE",
+        answers: [],
+        isRandomizedIdentity: false,
+      } as CreateReviewInput),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    // Got past the role check and reached the real employment-history guard.
+    expect(prisma.employmentHistory.findUnique).toHaveBeenCalled();
   });
 });

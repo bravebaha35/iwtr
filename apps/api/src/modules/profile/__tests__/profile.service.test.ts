@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { ProfileService } from "../profile.service";
 
 describe("ProfileService.changePassword", () => {
@@ -110,5 +110,54 @@ describe("ProfileService.deleteAccount", () => {
     expect(tx.socialPost.deleteMany).not.toHaveBeenCalled();
     expect(tx.socialComment.deleteMany).not.toHaveBeenCalled();
     expect(tx.socialPostLike.deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProfileService.updateProfile - company owners (2026-09-11)", () => {
+  it("rejects a COMPANY_OWNER trying to change their reviewUsername", async () => {
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "owner-1", status: "ACTIVE", role: "COMPANY_OWNER" }),
+        update: jest.fn(),
+      },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await expect(
+      service.updateProfile("owner-1", { reviewUsername: "Chief Happiness Officer" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("still lets a COMPANY_OWNER change just their avatar (no reviewUsername in the request)", async () => {
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "owner-1", status: "ACTIVE", role: "COMPANY_OWNER" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile("owner-1", { avatarKey: "office_1", avatarGradient: "dawn" });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "owner-1" },
+      data: { avatarKey: "office_1", avatarGradient: "dawn" },
+    });
+  });
+
+  it("a plain MEMBER can still change their reviewUsername", async () => {
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "u1", status: "ACTIVE", role: "MEMBER" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile("u1", { reviewUsername: "Chief Happiness Officer" });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { reviewUsername: "Chief Happiness Officer" },
+    });
   });
 });

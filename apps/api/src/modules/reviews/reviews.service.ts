@@ -249,6 +249,14 @@ export class ReviewsService {
     if (user.status !== "ACTIVE") {
       throw new ForbiddenException("Complete onboarding before submitting a review");
     }
+    // Company owners never rate workplaces, to keep the platform fair - they
+    // can still edit their own education/employment history, just not submit
+    // a NEW review. Existing reviews from before someone became an owner are
+    // deliberately left untouched (2026-09-11 product decision) - this only
+    // guards the submission path, never retroactively hides anything.
+    if (user.role === "COMPANY_OWNER") {
+      throw new ForbiddenException("Company owners can't rate workplaces.");
+    }
 
     const employment = await this.prisma.employmentHistory.findUnique({
       where: { id: input.employmentHistoryId },

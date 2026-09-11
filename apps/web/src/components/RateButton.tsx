@@ -145,7 +145,7 @@ export function RateButton({
   city: string | null;
   region: TurkeyRegionKey | null;
 }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, role } = useAuth();
   const router = useRouter();
   const [matchingEntry, setMatchingEntry] = useState<MyEmploymentEntry | null | undefined>(undefined);
   // Only meaningful while logged in — an anonymous visitor or one with no
@@ -302,6 +302,18 @@ export function RateButton({
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Company owners never rate workplaces, to keep the platform fair - a
+  // firm, visible note in place of the button rather than just silently
+  // hiding it (2026-09-11 product decision; the API enforces the same
+  // rule server-side regardless of what renders here).
+  if (role === "COMPANY_OWNER") {
+    return (
+      <p className="rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-muted-foreground">
+        Company owners can&apos;t rate workplaces, to keep ratings fair.
+      </p>
+    );
   }
 
   if (!matchingEntry) {

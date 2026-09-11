@@ -94,7 +94,15 @@ export class ProfileService {
   }
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
-    await this.requireActiveUser(userId);
+    const user = await this.requireActiveUser(userId);
+
+    // Company owners keep whatever anonymous identity they already have -
+    // they're restricted to their avatar (still editable below) and their
+    // real photo (a separate upload, see EmployerProfileService), never a
+    // new random username (2026-09-11 product decision).
+    if (input.reviewUsername !== undefined && user.role === "COMPANY_OWNER") {
+      throw new ForbiddenException("Company owners can't change their anonymous username.");
+    }
 
     // Must be one of the fixed pool, never free text — see
     // updateProfileInputSchema's comment. No moderation check needed (unlike
