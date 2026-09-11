@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Param, ParseUUIDPipe, Query, UseGuards } from "@nestjs/common";
+import { Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
@@ -29,6 +29,32 @@ export class AdminSocialController {
   @Get("companies/:id/posts")
   companyFeed(@Param("id", new ParseUUIDPipe()) id: string, @Query("cursor") cursor?: string) {
     return this.social.adminCompanyFeed(id, { cursor });
+  }
+
+  // GET admin/social/reported-comments — every comment with at least one
+  // report, flagged (crossed 3 reports + matched the content filter) ones
+  // first. No author identity in the response (see SocialService.
+  // listReportedComments).
+  @Get("reported-comments")
+  listReportedComments() {
+    return this.social.listReportedComments();
+  }
+
+  // POST admin/social/comments/:id/dismiss-report — "reviewed, nothing
+  // wrong here", clears the flag without deleting anything.
+  @Post("comments/:id/dismiss-report")
+  dismissReport(@Param("id", new ParseUUIDPipe()) id: string) {
+    return this.social.adminDismissReport(id);
+  }
+
+  // DELETE admin/social/comments/:id — remove one comment,
+  // AuditLog "SOCIAL_COMMENT_REMOVED". 404 if missing.
+  @Delete("comments/:id")
+  removeComment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ) {
+    return this.social.adminRemoveComment(user.id, id);
   }
 
   // DELETE admin/social/posts/:id — remove one post (cascades its comments +

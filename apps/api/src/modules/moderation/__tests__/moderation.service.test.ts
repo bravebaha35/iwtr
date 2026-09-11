@@ -61,14 +61,15 @@ describe("ModerationService.checkContent", () => {
       expect(svc.checkContent(["A H M E T"], SKIP).violates).toBe(false);
     });
 
-    it("allows a plain job-title / department word", () => {
-      expect(svc.checkContent(["our new warehouse manager"]).violationTypes).toContain("JOB_TITLE");
+    it("a bare job-title / department word alone never flags (2026-09-11 product", () => {
+      // decision - JOB_TITLE now requires a name-like span nearby, see
+      // checkContent's own comment). Ordinary workplace vocabulary like
+      // 'manager'/'HR' on its own must never be a violation, skip list or not.
+      expect(svc.checkContent(["our new warehouse manager"]).violates).toBe(false);
       expect(svc.checkContent(["our new warehouse manager"], SKIP).violates).toBe(false);
-    });
-
-    it("allows a job-title word written in caps", () => {
-      expect(svc.checkContent(["OUR MUDUR"]).violationTypes).toContain("JOB_TITLE");
+      expect(svc.checkContent(["OUR MUDUR"]).violates).toBe(false);
       expect(svc.checkContent(["OUR MUDUR"], SKIP).violates).toBe(false);
+      expect(svc.checkContent(["I wish HR handled this better"]).violates).toBe(false);
     });
 
     it("allows a long all-caps announcement", () => {
@@ -111,5 +112,62 @@ describe("ModerationService.checkContent", () => {
       expect(softened.violationTypes).toEqual(["PROFANITY"]);
       expect(softened.confidence).toBe(0.95);
     });
+  });
+});
+
+describe("ModerationService.checkContent - JOB_TITLE requires a nearby name (2026-09-11)", () => {
+  const svc = new ModerationService();
+
+  it("flags a title immediately next to a name-like span", () => {
+    const r = svc.checkContent(["CEO Ahmet Yilmaz is terrible to work for"]);
+    expect(r.violates).toBe(true);
+    expect(r.violationTypes).toContain("JOB_TITLE");
+  });
+
+  it("flags a title a few words from a name-like span", () => {
+    const r = svc.checkContent(["Our CEO, who everyone calls Ahmet Bey, is terrible"]);
+    expect(r.violates).toBe(true);
+    expect(r.violationTypes).toContain("JOB_TITLE");
+  });
+
+  it("does not flag a title far from an unrelated name-like span in the same long comment", () => {
+    const filler = "x".repeat(120);
+    const r = svc.checkContent([`I wish HR handled this better. ${filler} My friend Mehmet Kaya agrees.`]);
+    expect(r.violationTypes).not.toContain("JOB_TITLE");
+    expect(r.violationTypes).toContain("NAME_OR_SURNAME");
+  });
+
+  it("still flags a plain name-like span on its own (NAME_OR_SURNAME is unaffected)", () => {
+    const r = svc.checkContent(["Ahmet Yilmaz used to work here"]);
+    expect(r.violationTypes).toContain("NAME_OR_SURNAME");
+    expect(r.violationTypes).not.toContain("JOB_TITLE");
+  });
+
+  it("catches a spaced-out (evasive) title next to a name", () => {
+    const r = svc.checkContent(["C E O Ahmet Yilmaz is terrible"]);
+    expect(r.violationTypes).toContain("JOB_TITLE");
+  });
+
+  it("a title+name combo is still skippable via skipViolationTypes (employer's own caption)", () => {
+    const r = svc.checkContent(["CEO Ahmet Yilmaz welcomes you"], {
+      skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"],
+    });
+    expect(r.violates).toBe(false);
+  });
+});
+
+describe("ModerationService.checkContent - Turkish profanity list", () => {
+  const svc = new ModerationService();
+
+  it.each(["aptal", "salak", "orospu", "piç", "ibne", "yavşak"])("flags %s", (word) => {
+    expect(svc.checkContent([`bu adam tam bir ${word}`]).violationTypes).toContain("PROFANITY");
+  });
+
+  it("catches a spaced-out (evasion) profanity word", () => {
+    expect(svc.checkContent(["o r o s p u"]).violationTypes).toContain("PROFANITY");
+  });
+
+  it("catches a spaced-out phone number", () => {
+    expect(svc.checkContent(["call me on 5 5 5 5 5 5 5 5 5 5"]).violationTypes).toContain("PII_PHONE_NUMBER");
   });
 });

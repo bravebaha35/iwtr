@@ -4,12 +4,14 @@ import { Throttle } from "@nestjs/throttler";
 import {
   createSocialCommentInputSchema,
   createSocialPostInputSchema,
+  reportSocialCommentInputSchema,
   voteSocialCommentInputSchema,
   workplaceTypeSchema,
   SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES,
   MAX_SOCIAL_POST_IMAGES,
   type CreateSocialCommentInput,
   type CreateSocialPostInput,
+  type ReportSocialCommentInput,
   type VoteSocialCommentInput,
   type WorkplaceType,
 } from "@iwtr/shared-types";
@@ -132,6 +134,29 @@ export class SocialController {
     @Param("id") postId: string,
   ) {
     return this.social.listComments(user?.id, postId);
+  }
+
+  // What the comment composer should show/offer this user on this post -
+  // fetched once when it opens (see SocialCommentIdentityContext).
+  @Get("posts/:id/comment-identity")
+  @UseGuards(JwtAuthGuard)
+  getCommentIdentityContext(@CurrentUser() user: AuthenticatedUser, @Param("id") postId: string) {
+    return this.social.getCommentIdentityContext(user.id, postId);
+  }
+
+  // Any member except the comment's own author. 3+ reports triggers an
+  // automated content re-check that fast-tracks into the admin queue if it
+  // finds anything - never an unreviewed auto-delete (see SocialService.
+  // registerReport).
+  @Post("comments/:id/report")
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  reportComment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") commentId: string,
+    @Body(new ZodValidationPipe(reportSocialCommentInputSchema)) body: ReportSocialCommentInput,
+  ) {
+    return this.social.registerReport(user.id, commentId, body);
   }
 
   // Author-only delete. A non-author gets 403.

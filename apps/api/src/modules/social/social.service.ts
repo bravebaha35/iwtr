@@ -4,12 +4,20 @@ import { join } from "path";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
+  RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
+  RANDOMIZED_IDENTITY_AVATAR_KEY,
   validateSocialImageUpload,
+  workplaceTypeSchema,
+  type CommentIdentityMode,
   type CreateSocialCommentInput,
   type CreateSocialPostInput,
   type PublicSocialComment,
   type PublicSocialPost,
+  type ReportSocialCommentInput,
+  type ReportSocialCommentResult,
+  type AdminReportedSocialComment,
   type SavedPostToggleResult,
+  type SocialCommentIdentityContext,
   type SocialCommentVoteResult,
   type SocialFeedPage,
   type SocialPostLikeResult,
@@ -19,6 +27,8 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "../companies/company-visibility";
+import { decryptField, unwrapDek } from "../employer-profile/crypto.util";
+import { pickRandomDisplayUsername } from "../reviews/randomized-identity.util";
 import { processSocialImage } from "./social-image.util";
 
 // Local disk, dev-safe - same pattern as OwnerService.uploadLogo. Served at
@@ -218,6 +228,59 @@ export class SocialService {
     return { success: true };
   }
 
+  // ADMIN-only: comments with at least one report, flagged ones (crossed 3
+  // reports AND matched the content filter - see registerReport) first,
+  // then most-recent. No author identity in the response, same rule every
+  // other admin/social endpoint already follows.
+  async listReportedComments(): Promise<AdminReportedSocialComment[]> {
+    const rows = await this.prisma.socialComment.findMany({
+      where: { reports: { some: {} } },
+      include: { _count: { select: { reports: true } } },
+      orderBy: [{ flaggedForReview: "desc" }, { createdAt: "desc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      postId: r.postId,
+      body: r.body,
+      createdAt: r.createdAt.toISOString(),
+      reportCount: r._count.reports,
+      flaggedForReview: r.flaggedForReview,
+      flaggedReviewReason: r.flaggedReviewReason,
+    }));
+  }
+
+  // ADMIN dismiss: "reviewed, nothing wrong here" - clears the flag without
+  // touching the comment or its report rows (a dismissed comment can still
+  // be re-flagged later if it gets reported again after this).
+  async adminDismissReport(commentId: string): Promise<{ success: true }> {
+    const comment = await this.prisma.socialComment.findUnique({ where: { id: commentId }, select: { id: true } });
+    if (!comment) throw new NotFoundException("Comment not found");
+    await this.prisma.socialComment.update({
+      where: { id: commentId },
+      data: { flaggedForReview: false, flaggedReviewReason: null },
+    });
+    return { success: true };
+  }
+
+  // ADMIN remove: same hard-delete as the author's own deleteComment, but
+  // callable on ANY comment (that one's author-only) and audit-logged, same
+  // pattern as adminRemovePost.
+  async adminRemoveComment(adminUserId: string, commentId: string): Promise<{ success: true }> {
+    const comment = await this.prisma.socialComment.findUnique({ where: { id: commentId }, select: { id: true, postId: true } });
+    if (!comment) throw new NotFoundException("Comment not found");
+    await this.prisma.socialComment.delete({ where: { id: commentId } });
+    await this.prisma.auditLog.create({
+      data: {
+        actorUserId: adminUserId,
+        action: "SOCIAL_COMMENT_REMOVED",
+        targetType: "SocialComment",
+        targetId: commentId,
+        metadata: { postId: comment.postId },
+      },
+    });
+    return { success: true };
+  }
+
   async adminWipeCompanyFeed(adminUserId: string, companyId: string): Promise<{ deletedCount: number }> {
     const posts = await this.prisma.socialPost.findMany({
       where: { companyId },
@@ -340,7 +403,15 @@ export class SocialService {
 
   // --- Comments. Any member may comment on any post; the body is run through
   // the same ModerationService.checkContent gate as a review/caption and a
-  // violation is a hard 400 (never an admin queue - see the backend spec).
+  // violation is a hard 400 (never an admin queue at submission time - see
+  // registerReport below for the separate post-hoc report path, which does
+  // queue rather than delete).
+  //
+  // Identity: a COMPANY_OWNER always posts as OWNER_REAL_NAME - no choice, no
+  // lock, whatever input.identityMode says is ignored for them (never trusted
+  // from the client either way). A MEMBER picks PERSONAL_CHOSEN (their
+  // permanent reviewUsername) or PERSONAL_RANDOM (a fresh one-off pick,
+  // locked for this post so replies reuse it) - see resolveMemberIdentity.
   async addComment(
     userId: string,
     postId: string,
@@ -353,11 +424,203 @@ export class SocialService {
         "That comment looks like it names a person or breaks our content rules - please reword it.",
       );
     }
+
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    const identity =
+      user.role === "COMPANY_OWNER"
+        ? await this.resolveOwnerIdentity(userId)
+        : await this.resolveMemberIdentity(userId, postId, input.identityMode ?? "PERSONAL_CHOSEN");
+
     const row = await this.prisma.socialComment.create({
-      data: { postId, authorUserId: userId, body: input.body },
+      data: {
+        postId,
+        authorUserId: userId,
+        body: input.body,
+        identityMode: identity.identityMode,
+        randomUsername: identity.randomUsername,
+      },
     });
     const [serialized] = await this.serializeComments([row], userId);
     return serialized;
+  }
+
+  // A COMPANY_OWNER always comments under their real, verified name - never a
+  // choice, never anonymous (explicit product decision, 2026-09-11). Blocks
+  // commenting entirely until their EmployerProfile name is actually filled
+  // in, rather than showing a blank/partial name publicly.
+  private async resolveOwnerIdentity(userId: string): Promise<{ identityMode: "OWNER_REAL_NAME"; randomUsername: null }> {
+    const profile = await this.prisma.employerProfile.findUnique({
+      where: { userId },
+      select: { encFirstName: true, encLastName: true },
+    });
+    if (!profile || !profile.encFirstName || !profile.encLastName) {
+      throw new ForbiddenException(
+        "Complete your employer profile name before commenting - company owners always comment under their real name.",
+      );
+    }
+    return { identityMode: "OWNER_REAL_NAME", randomUsername: null };
+  }
+
+  // A MEMBER's identity for a given post is locked to whichever of
+  // PERSONAL_CHOSEN/PERSONAL_RANDOM they used on their first comment there -
+  // see SocialCommentIdentityLock. A later comment requesting a DIFFERENT
+  // mode is rejected, not silently overwritten. PERSONAL_RANDOM's one-off
+  // username is generated here, server-side, and never trusted from the
+  // client - same pool ReviewsService's per-review randomize feature and
+  // onboarding's permanent reviewUsername both already draw from, picked
+  // from a random WorkplaceType category since a comment isn't tied to one
+  // the way a review is.
+  private async resolveMemberIdentity(
+    userId: string,
+    postId: string,
+    requestedMode: CommentIdentityMode,
+  ): Promise<{ identityMode: "PERSONAL_CHOSEN" | "PERSONAL_RANDOM"; randomUsername: string | null }> {
+    if (requestedMode === "OWNER_REAL_NAME") {
+      throw new ForbiddenException("Only a verified company owner can comment under a real name.");
+    }
+
+    const existingLock = await this.prisma.socialCommentIdentityLock.findUnique({
+      where: { postId_userId: { postId, userId } },
+    });
+    if (existingLock) {
+      if (existingLock.identityMode !== requestedMode) {
+        throw new ForbiddenException(
+          `You already commented on this post as ${
+            existingLock.identityMode === "PERSONAL_RANDOM" ? "a one-off anonymous name" : "your usual name"
+          } - replies stay under that identity.`,
+        );
+      }
+      return { identityMode: existingLock.identityMode as "PERSONAL_CHOSEN" | "PERSONAL_RANDOM", randomUsername: existingLock.randomUsername };
+    }
+
+    if (requestedMode === "PERSONAL_CHOSEN") {
+      await this.prisma.socialCommentIdentityLock.create({ data: { postId, userId, identityMode: "PERSONAL_CHOSEN" } });
+      return { identityMode: "PERSONAL_CHOSEN", randomUsername: null };
+    }
+
+    const workplaceTypes = workplaceTypeSchema.options;
+    const randomUsername = pickRandomDisplayUsername(
+      workplaceTypes[Math.floor(Math.random() * workplaceTypes.length)] as WorkplaceType,
+    );
+    try {
+      await this.prisma.socialCommentIdentityLock.create({
+        data: { postId, userId, identityMode: "PERSONAL_RANDOM", randomUsername },
+      });
+      return { identityMode: "PERSONAL_RANDOM", randomUsername };
+    } catch (err) {
+      // Race: two parallel first-comments from the same user on the same
+      // post both tried to create the lock - whichever lost just reads back
+      // the winner's identity rather than erroring.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        const raced = await this.prisma.socialCommentIdentityLock.findUniqueOrThrow({
+          where: { postId_userId: { postId, userId } },
+        });
+        return { identityMode: raced.identityMode as "PERSONAL_CHOSEN" | "PERSONAL_RANDOM", randomUsername: raced.randomUsername };
+      }
+      throw err;
+    }
+  }
+
+  // What the composer should show/offer for THIS user on THIS post, fetched
+  // once when it opens - see SocialCommentIdentityContext's doc comment.
+  async getCommentIdentityContext(userId: string, postId: string): Promise<SocialCommentIdentityContext> {
+    await this.requirePost(postId);
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { role: true, reviewUsername: true, avatarKey: true, avatarGradient: true },
+    });
+
+    if (user.role === "COMPANY_OWNER") {
+      const profile = await this.prisma.employerProfile.findUnique({ where: { userId } });
+      const { displayUsername, avatarPhotoUrl } = this.resolveOwnerDisplay(profile);
+      return {
+        locked: true,
+        identityMode: "OWNER_REAL_NAME",
+        displayUsername,
+        avatarKey: null,
+        avatarGradient: null,
+        avatarPhotoUrl,
+      };
+    }
+
+    const lock = await this.prisma.socialCommentIdentityLock.findUnique({
+      where: { postId_userId: { postId, userId } },
+    });
+    if (lock?.identityMode === "PERSONAL_RANDOM") {
+      return {
+        locked: true,
+        identityMode: "PERSONAL_RANDOM",
+        displayUsername: lock.randomUsername,
+        avatarKey: RANDOMIZED_IDENTITY_AVATAR_KEY,
+        avatarGradient: RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
+        avatarPhotoUrl: null,
+      };
+    }
+    if (lock) {
+      return {
+        locked: true,
+        identityMode: "PERSONAL_CHOSEN",
+        displayUsername: user.reviewUsername,
+        avatarKey: user.avatarKey,
+        avatarGradient: user.avatarGradient,
+        avatarPhotoUrl: null,
+      };
+    }
+    return {
+      locked: false,
+      chosen: { displayUsername: user.reviewUsername, avatarKey: user.avatarKey, avatarGradient: user.avatarGradient },
+    };
+  }
+
+  // Any member except the comment's own author; repeat reports from the same
+  // person don't inflate the count (unique constraint, caught and ignored
+  // below). Crossing 3 reports for the first time runs the same content
+  // filter used at submission and, if it matches, fast-tracks the comment
+  // into the admin queue pre-flagged - it is NEVER auto-deleted (explicit
+  // product decision, 2026-09-11: a human always confirms before content
+  // disappears via the report path).
+  async registerReport(
+    userId: string,
+    commentId: string,
+    input: ReportSocialCommentInput,
+  ): Promise<ReportSocialCommentResult> {
+    const comment = await this.prisma.socialComment.findUnique({
+      where: { id: commentId },
+      select: { id: true, authorUserId: true, body: true, flaggedForReview: true },
+    });
+    if (!comment) throw new NotFoundException("Comment not found");
+    if (comment.authorUserId === userId) {
+      throw new ForbiddenException("You can't report your own comment.");
+    }
+
+    try {
+      await this.prisma.socialCommentReport.create({
+        data: { commentId, reporterId: userId, reason: input.reason ?? null },
+      });
+    } catch (err) {
+      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {
+        throw err;
+      }
+      // Already reported by this user - not an error, just no new row.
+    }
+
+    const reportCount = await this.prisma.socialCommentReport.count({ where: { commentId } });
+
+    if (reportCount >= 3 && !comment.flaggedForReview) {
+      const check = this.moderation.checkContent([comment.body]);
+      if (check.violates) {
+        await this.prisma.socialComment.update({
+          where: { id: commentId },
+          data: { flaggedForReview: true, flaggedReviewReason: check.violationTypes.join(", ") },
+        });
+      }
+    }
+
+    return { commentId, reportCount };
   }
 
   // Oldest-first (a comment thread reads top-to-bottom). Optional auth: an
@@ -545,13 +808,41 @@ export class SocialService {
     return post;
   }
 
+  // Decrypts just the two name fields off an EmployerProfile row - a small,
+  // deliberate duplication of EmployerProfileService's private decryptRow
+  // rather than a cross-module dependency for two fields (same reasoning as
+  // requireApprovedOwnership above). Never decrypts anything else on the row
+  // (address/phone/T.C. Kimlik No stay untouched) since only the name is
+  // ever meant to be public.
+  private resolveOwnerDisplay(
+    profile: { encFirstName: Buffer | null; encLastName: Buffer | null; profilePictureUrl: string | null; dekWrapped: Buffer } | null,
+  ): { displayUsername: string | null; avatarPhotoUrl: string | null } {
+    if (!profile) return { displayUsername: null, avatarPhotoUrl: null };
+    const dek = unwrapDek(profile.dekWrapped);
+    const first = profile.encFirstName ? decryptField(profile.encFirstName, dek) : null;
+    const last = profile.encLastName ? decryptField(profile.encLastName, dek) : null;
+    const displayUsername = [first, last].filter(Boolean).join(" ") || null;
+    return { displayUsername, avatarPhotoUrl: profile.profilePictureUrl };
+  }
+
   // REVIEW.md-adjacent: identical shape to ReviewsService.listForCompany's
-  // author lookup. Explicit `select`, never `include: { user: true }` - that
-  // would pull email/city/etc. onto a comment-shaped payload, exactly the
-  // leak REVIEW.md's red flag #1 warns about. The returned shape carries no
-  // authorUserId / userId; the only per-viewer fields are `mine`/`myVote`.
+  // author lookup for the PERSONAL_CHOSEN case. Explicit `select`, never
+  // `include: { user: true }` - that would pull email/city/etc. onto a
+  // comment-shaped payload, exactly the leak REVIEW.md's red flag #1 warns
+  // about. The returned shape carries no authorUserId / userId; the only
+  // per-viewer fields are `mine`/`myVote`. Three separate display sources
+  // depending on identityMode - see resolveOwnerDisplay's comment for why
+  // OWNER_REAL_NAME's decrypt happens here rather than being cached anywhere.
   private async serializeComments(
-    rows: Array<{ id: string; postId: string; body: string; createdAt: Date; authorUserId: string | null }>,
+    rows: Array<{
+      id: string;
+      postId: string;
+      body: string;
+      createdAt: Date;
+      authorUserId: string | null;
+      identityMode: CommentIdentityMode;
+      randomUsername: string | null;
+    }>,
     viewerUserId: string | undefined,
   ): Promise<PublicSocialComment[]> {
     // authorUserId is null when the comment's author has since deleted their
@@ -559,12 +850,22 @@ export class SocialService {
     // keeps its body but serializes with a null handle/avatar, and is never
     // "mine" - so filter the nulls out before the author lookup.
     const authorIds = [...new Set(rows.map((r) => r.authorUserId).filter((id): id is string => id !== null))];
+    const ownerAuthorIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.identityMode === "OWNER_REAL_NAME" && r.authorUserId !== null)
+          .map((r) => r.authorUserId as string),
+      ),
+    ];
     const ids = rows.map((r) => r.id);
-    const [authors, helpfulCounts, notHelpfulCounts, myVotes] = await Promise.all([
+    const [authors, employerProfiles, helpfulCounts, notHelpfulCounts, myVotes] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: authorIds } },
         select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
       }),
+      ownerAuthorIds.length > 0
+        ? this.prisma.employerProfile.findMany({ where: { userId: { in: ownerAuthorIds } } })
+        : Promise.resolve([]),
       this.prisma.socialCommentVote.groupBy({ by: ["commentId"], where: { commentId: { in: ids }, value: 1 }, _count: { _all: true } }),
       this.prisma.socialCommentVote.groupBy({ by: ["commentId"], where: { commentId: { in: ids }, value: -1 }, _count: { _all: true } }),
       viewerUserId
@@ -575,19 +876,39 @@ export class SocialService {
         : Promise.resolve([]),
     ]);
     const byId = new Map(authors.map((a) => [a.id, a]));
+    const employerByUserId = new Map(employerProfiles.map((p) => [p.userId, p]));
     const helpfulByComment = new Map(helpfulCounts.map((r) => [r.commentId, r._count._all]));
     const notHelpfulByComment = new Map(notHelpfulCounts.map((r) => [r.commentId, r._count._all]));
     const myVoteByComment = new Map(myVotes.map((r) => [r.commentId, r.value as VoteValue]));
     return rows.map((r) => {
-      const a = r.authorUserId !== null ? byId.get(r.authorUserId) : undefined;
+      let identity: { displayUsername: string | null; avatarKey: string | null; avatarGradient: string | null; avatarPhotoUrl: string | null };
+      if (r.identityMode === "OWNER_REAL_NAME") {
+        const profile = r.authorUserId !== null ? (employerByUserId.get(r.authorUserId) ?? null) : null;
+        const { displayUsername, avatarPhotoUrl } = this.resolveOwnerDisplay(profile);
+        identity = { displayUsername, avatarKey: null, avatarGradient: null, avatarPhotoUrl };
+      } else if (r.identityMode === "PERSONAL_RANDOM") {
+        identity = {
+          displayUsername: r.randomUsername,
+          avatarKey: RANDOMIZED_IDENTITY_AVATAR_KEY,
+          avatarGradient: RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
+          avatarPhotoUrl: null,
+        };
+      } else {
+        const a = r.authorUserId !== null ? byId.get(r.authorUserId) : undefined;
+        identity = {
+          displayUsername: a?.reviewUsername ?? null,
+          avatarKey: a?.avatarKey ?? null,
+          avatarGradient: a?.avatarGradient ?? null,
+          avatarPhotoUrl: null,
+        };
+      }
       return {
         id: r.id,
         postId: r.postId,
         body: r.body,
         createdAt: r.createdAt.toISOString(),
-        displayUsername: a?.reviewUsername ?? null,
-        avatarKey: a?.avatarKey ?? null,
-        avatarGradient: a?.avatarGradient ?? null,
+        identityMode: r.identityMode,
+        ...identity,
         mine: viewerUserId !== undefined && r.authorUserId === viewerUserId,
         helpfulCount: helpfulByComment.get(r.id) ?? 0,
         notHelpfulCount: notHelpfulByComment.get(r.id) ?? 0,

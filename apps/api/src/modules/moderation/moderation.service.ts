@@ -14,9 +14,12 @@ const PROFANITY_WORDS = [
   "orospu",
   "siktir",
   "pic",
+  "piç",
   "gerizekali",
   "salak",
   "aptal",
+  "ibne",
+  "yavşak",
 ];
 
 const SEXUAL_CONTENT_WORDS = ["porn", "sex", "nude", "xxx", "seks", "porno", "çıplak", "yarrak"];
@@ -71,14 +74,6 @@ function matchesAsWord(haystackLower: string, word: string): boolean {
   return pattern.test(haystackLower);
 }
 
-// Same idea as matchesAsWord but for a multi-word phrase — `haystack` must
-// already have its inter-word spacing preserved (see foldTurkishLayout
-// below), since the phrase itself contains spaces.
-function matchesAsPhrase(haystack: string, phrase: string): boolean {
-  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "u");
-  return pattern.test(haystack);
-}
 
 // Turkish-letter fold to plain ASCII, position-preserving (keeps whitespace/
 // punctuation in place, unlike a "strip everything" fold) — needed here
@@ -121,7 +116,55 @@ function buildSpaceAgnosticPattern(literal: string): RegExp {
 }
 
 const SPACE_AGNOSTIC_PROFANITY_PATTERNS = [...PROFANITY_WORDS, ...SEXUAL_CONTENT_WORDS].map(buildSpaceAgnosticPattern);
-const SPACE_AGNOSTIC_JOB_TITLE_PATTERNS = [...JOB_TITLE_WORDS, ...JOB_TITLE_PHRASES].map(buildSpaceAgnosticPattern);
+
+// Global-flag twins of the plain word/phrase boundary patterns, needed only
+// to collect MATCH POSITIONS (matchAll requires 'g') rather than just a
+// yes/no .test() - used by the name-proximity check below, which needs to
+// know WHERE a job-title word sits relative to a name-like span, not just
+// whether either exists anywhere in the text.
+function wordPatternGlobal(word: string): RegExp {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "giu");
+}
+const JOB_TITLE_WORD_PATTERNS_GLOBAL = JOB_TITLE_WORDS.map(wordPatternGlobal);
+const JOB_TITLE_PHRASE_PATTERNS_GLOBAL = JOB_TITLE_PHRASES.map(wordPatternGlobal);
+const SPACE_AGNOSTIC_JOB_TITLE_PATTERNS_GLOBAL = [...JOB_TITLE_WORDS, ...JOB_TITLE_PHRASES].map((w) =>
+  new RegExp(buildSpaceAgnosticPattern(w).source, "gu"),
+);
+
+// How close (in characters) a job-title mention has to be to a name-like
+// span to count as 'naming a specific person's role' rather than just
+// ordinary workplace talk ('I wish HR handled this better' must NOT flag;
+// 'CEO Ahmet Yılmaz is...' must). ~2-3 short sentences' worth either side -
+// generous enough for 'Our CEO, who everyone calls Ahmet Bey, ...' while
+// still excluding two unrelated mentions in the same long comment.
+const NAME_TITLE_PROXIMITY_CHARS = 60;
+
+interface Span {
+  start: number;
+  end: number;
+}
+
+function collectSpans(text: string, patterns: RegExp[]): Span[] {
+  const spans: Span[] = [];
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      if (match.index === undefined) continue;
+      spans.push({ start: match.index, end: match.index + match[0].length });
+    }
+  }
+  return spans;
+}
+
+function anySpanWithin(a: Span[], b: Span[], maxDistance: number): boolean {
+  for (const x of a) {
+    for (const y of b) {
+      const gap = x.start >= y.end ? x.start - y.end : y.start - x.end;
+      if (gap <= maxDistance) return true;
+    }
+  }
+  return false;
+}
 
 // Turkish mobile phone shape: optional leading "0", then "5", then 9 more
 // digits (10-11 significant digits total), with 0-2 optional separator
@@ -186,29 +229,40 @@ export class ModerationService {
     const hasEvasiveProfanity = SPACE_AGNOSTIC_PROFANITY_PATTERNS.some((p) => p.test(layoutFolded));
     if (hasPlainProfanity || hasEvasiveProfanity) violationTypes.push("PROFANITY");
 
-    // --- Job titles / departments: plain word/phrase match plus the
-    // space-agnostic evasion variant (covers "hr", "insan kaynaklari", etc.,
-    // spaced or not).
-    const hasPlainJobTitle =
-      JOB_TITLE_WORDS.some((w) => matchesAsWord(lower, w)) ||
-      JOB_TITLE_PHRASES.some((p) => matchesAsPhrase(layoutFolded, p));
-    const hasEvasiveJobTitle = SPACE_AGNOSTIC_JOB_TITLE_PATTERNS.some((p) => p.test(layoutFolded));
-    // Gated by skipViolationTypes: an employer may name a role in its own caption.
-    if ((hasPlainJobTitle || hasEvasiveJobTitle) && !skip.has("JOB_TITLE")) violationTypes.push("JOB_TITLE");
-
     // --- Names/surnames: existing two-capitalized-words heuristic, plus the
-    // open-ended spaced-out single-word variant.
-    const hasPlainNameLike = NAME_LIKE_PATTERN.test(combined);
-    let hasEvasiveName = false;
+    // open-ended spaced-out single-word variant. Collected as spans (not
+    // just a yes/no) because JOB_TITLE below needs to know WHERE a name-like
+    // mention sits, not just whether one exists anywhere in the text.
+    const nameLikeSpans = collectSpans(combined, [new RegExp(NAME_LIKE_PATTERN.source, "gu")]);
+    const evasiveNameSpans: Span[] = [];
     for (const match of combined.matchAll(EVASION_RUN_PATTERN)) {
       const candidate = match[0].replace(/[\s.\-_]/g, "");
-      if (looksLikeSpacedName(candidate)) {
-        hasEvasiveName = true;
-        break;
+      if (looksLikeSpacedName(candidate) && match.index !== undefined) {
+        evasiveNameSpans.push({ start: match.index, end: match.index + match[0].length });
       }
     }
+    const hasPlainNameLike = nameLikeSpans.length > 0;
+    const hasEvasiveName = evasiveNameSpans.length > 0;
+    const allNameSpans = [...nameLikeSpans, ...evasiveNameSpans];
     // Gated by skipViolationTypes: an employer may name its own staff in its own caption.
     if ((hasPlainNameLike || hasEvasiveName) && !skip.has("NAME_OR_SURNAME")) violationTypes.push("NAME_OR_SURNAME");
+
+    // --- Job titles / departments: only a violation when a title mention
+    // sits close to a name-like span (see NAME_TITLE_PROXIMITY_CHARS) - a
+    // bare title word alone is ordinary workplace vocabulary ("I wish HR
+    // handled this better" must NOT flag), but a title next to what looks
+    // like a real person's name is exactly the doxxing-adjacent pattern this
+    // exists to catch ("CEO Ahmet Yılmaz is..." must). Covers spaced-out
+    // evasion on either side (title, name, or both).
+    const jobTitleSpans = collectSpans(combined, [...JOB_TITLE_WORD_PATTERNS_GLOBAL, ...JOB_TITLE_PHRASE_PATTERNS_GLOBAL]);
+    const evasiveJobTitleSpans = collectSpans(layoutFolded, SPACE_AGNOSTIC_JOB_TITLE_PATTERNS_GLOBAL);
+    const hasJobTitleNearName = anySpanWithin(
+      [...jobTitleSpans, ...evasiveJobTitleSpans],
+      allNameSpans,
+      NAME_TITLE_PROXIMITY_CHARS,
+    );
+    // Gated by skipViolationTypes: an employer may name a role in its own caption.
+    if (hasJobTitleNearName && !skip.has("JOB_TITLE")) violationTypes.push("JOB_TITLE");
 
     // --- Phone numbers: dedicated shape-based PII check, not a keyword.
     if (PHONE_PATTERN.test(combined)) {

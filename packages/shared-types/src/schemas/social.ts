@@ -46,10 +46,32 @@ export const createSocialPostInputSchema = z.object({
 });
 export type CreateSocialPostInput = z.infer<typeof createSocialPostInputSchema>;
 
+// Which identity a comment is posted under. PERSONAL_CHOSEN/PERSONAL_RANDOM
+// are both anonymous - the only two an employee ever picks between.
+// OWNER_REAL_NAME is the only mode a company owner ever gets: no toggle, no
+// anonymous option, per explicit product decision (2026-09-11) - the API
+// rejects anything else from a COMPANY_OWNER regardless of what's sent here.
+export const commentIdentityModeSchema = z.enum(["PERSONAL_CHOSEN", "PERSONAL_RANDOM", "OWNER_REAL_NAME"]);
+export type CommentIdentityMode = z.infer<typeof commentIdentityModeSchema>;
+
 export const createSocialCommentInputSchema = z.object({
-  body: z.string().trim().min(1).max(1000),
+  body: z.string().trim().min(1).max(1250),
+  // Omitted = PERSONAL_CHOSEN (today's only behavior) - existing callers
+  // that don't know about identity modes yet keep working unchanged.
+  identityMode: commentIdentityModeSchema.optional(),
 });
 export type CreateSocialCommentInput = z.infer<typeof createSocialCommentInputSchema>;
+
+export const reportSocialCommentInputSchema = z.object({
+  reason: z.string().trim().max(500).optional(),
+});
+export type ReportSocialCommentInput = z.infer<typeof reportSocialCommentInputSchema>;
+
+export const reportSocialCommentResultSchema = z.object({
+  commentId: z.string(),
+  reportCount: z.number().int(),
+});
+export type ReportSocialCommentResult = z.infer<typeof reportSocialCommentResultSchema>;
 
 // Same value/semantics as a review vote - reused directly rather than a
 // duplicate literal-union type.
@@ -92,9 +114,16 @@ export const publicSocialCommentSchema = z.object({
   postId: z.string(),
   body: z.string(),
   createdAt: z.string().datetime(),
+  identityMode: commentIdentityModeSchema,
+  // For PERSONAL_CHOSEN/PERSONAL_RANDOM: the anonymous handle (reviewUsername
+  // or the locked one-off pick). For OWNER_REAL_NAME: the owner's real,
+  // decrypted name - the one deliberate exception to 'never a real name'.
   displayUsername: z.string().nullable(),
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
+  // Only ever set for OWNER_REAL_NAME (EmployerProfile.profilePictureUrl) -
+  // takes rendering priority over avatarKey/avatarGradient when present.
+  avatarPhotoUrl: z.string().nullable(),
   // True only for the currently-authenticated viewer's own comments, so the
   // frontend can show a delete affordance. Never reveals other authors.
   mine: z.boolean(),
@@ -105,6 +134,33 @@ export const publicSocialCommentSchema = z.object({
   myVote: voteValueSchema.nullable(),
 });
 export type PublicSocialComment = z.infer<typeof publicSocialCommentSchema>;
+
+// What identity a comment composer should show/offer for the CURRENT user
+// on a SPECIFIC post - fetched once when the composer opens. A
+// COMPANY_OWNER always gets locked: true with mode OWNER_REAL_NAME (no
+// choice, ever). A MEMBER gets locked: true (with whichever mode they
+// already used on this post) once they've commented here before, otherwise
+// locked: false plus both choices' preview so the toggle has something to
+// show before the first pick.
+export const socialCommentIdentityContextSchema = z.discriminatedUnion("locked", [
+  z.object({
+    locked: z.literal(true),
+    identityMode: commentIdentityModeSchema,
+    displayUsername: z.string().nullable(),
+    avatarKey: z.string().nullable(),
+    avatarGradient: z.string().nullable(),
+    avatarPhotoUrl: z.string().nullable(),
+  }),
+  z.object({
+    locked: z.literal(false),
+    chosen: z.object({
+      displayUsername: z.string().nullable(),
+      avatarKey: z.string().nullable(),
+      avatarGradient: z.string().nullable(),
+    }),
+  }),
+]);
+export type SocialCommentIdentityContext = z.infer<typeof socialCommentIdentityContextSchema>;
 
 export const socialCommentVoteResultSchema = z.object({
   commentId: z.string(),
@@ -119,6 +175,24 @@ export const socialFeedPageSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 export type SocialFeedPage = z.infer<typeof socialFeedPageSchema>;
+
+// ADMIN-only view of a reported comment. Deliberately excludes any author
+// identity - same anonymity rule every other admin/social endpoint already
+// follows (see REVIEW.md's social scope) - an admin judges the CONTENT,
+// never who wrote it.
+export const adminReportedSocialCommentSchema = z.object({
+  id: z.string(),
+  postId: z.string(),
+  body: z.string(),
+  createdAt: z.string().datetime(),
+  reportCount: z.number().int(),
+  // True once reports crossed 3 AND the automated content check found
+  // something - these sort first, since they're the ones most likely to
+  // need a decision rather than just 'a couple of people didn't like it'.
+  flaggedForReview: z.boolean(),
+  flaggedReviewReason: z.string().nullable(),
+});
+export type AdminReportedSocialComment = z.infer<typeof adminReportedSocialCommentSchema>;
 
 export const socialPostLikeResultSchema = z.object({
   postId: z.string(),

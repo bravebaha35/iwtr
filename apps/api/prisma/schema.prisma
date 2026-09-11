@@ -181,6 +181,19 @@ enum TurkeyRegion {
   @@schema("public")
 }
 
+// Which identity a SocialComment was posted under. PERSONAL_CHOSEN and
+// PERSONAL_RANDOM are both anonymous (the whole point, for an employee);
+// OWNER_REAL_NAME is not, and is the only option a COMPANY_OWNER ever gets —
+// per explicit product decision (2026-09-11), owners always show their real,
+// verified name, never anonymously and never as a separate "company" voice.
+enum CommentIdentityMode {
+  PERSONAL_CHOSEN
+  PERSONAL_RANDOM
+  OWNER_REAL_NAME
+
+  @@schema("public")
+}
+
 model User {
   id              String       @id @default(uuid())
   email           String?      @unique
@@ -253,6 +266,8 @@ model User {
   followedUsers           UserFollow[]             @relation("UserFollowFollower")
   followedByUsers         UserFollow[]             @relation("UserFollowFollowing")
   savedPosts              SavedPost[]
+  socialCommentReports       SocialCommentReport[]
+  socialCommentIdentityLocks SocialCommentIdentityLock[]
 
   @@schema("public")
 }
@@ -897,6 +912,7 @@ model SocialPost {
   comments SocialComment[]
   likes    SocialPostLike[]
   savedBy  SavedPost[]
+  commentIdentityLocks SocialCommentIdentityLock[]
 
   @@index([companyId])
   @@index([authorUserId])
@@ -904,10 +920,14 @@ model SocialPost {
   @@schema("public")
 }
 
-// An employee's comment on a post. Anonymity model is identical to Review:
-// authorUserId is audit-only and NEVER on the public shape; the displayed
-// handle/avatar come from User.reviewUsername + avatarKey/avatarGradient via
-// an explicit select (see SocialService.serializeComments / REVIEW.md).
+// An employee's comment on a post. Anonymity model is identical to Review for
+// the two PERSONAL_* identityModes: authorUserId is audit-only and NEVER on
+// the public shape; the displayed handle/avatar come from either
+// User.reviewUsername + avatarKey/avatarGradient (PERSONAL_CHOSEN) or this
+// row's own locked random* fields (PERSONAL_RANDOM), via an explicit select
+// (see SocialService.serializeComments / REVIEW.md). OWNER_REAL_NAME is the
+// deliberate exception to that whole model - see CommentIdentityMode's
+// comment for why it exists and isn't an oversight.
 //
 // authorUserId is nullable + onDelete: SetNull: if the comment's author later
 // deletes their personal account the comment text is retained and only the
@@ -921,10 +941,70 @@ model SocialComment {
   body         String
   createdAt    DateTime   @default(now())
 
-  votes SocialCommentVote[]
+  // EmployerProfile is one row per USER (not per company), so an owner's
+  // real name never depends on which company a post belongs to - there's no
+  // 'which company am I speaking for' concept to store here at all. Real name
+  // itself is never stored on the comment row; it's decrypted live from
+  // EmployerProfile at read time (see serializeComments), same 'don't cache
+  // PII in plaintext' rule PiiVault already follows elsewhere.
+  identityMode CommentIdentityMode @default(PERSONAL_CHOSEN)
+  // Set only when identityMode is PERSONAL_RANDOM - the one-off handle/avatar
+  // locked for this (user, post) pair the first time it's chosen (see
+  // SocialCommentIdentityLock), copied onto every comment under that lock so
+  // serializeComments never needs to re-derive or re-roll it.
+  randomUsername String?
+
+  votes   SocialCommentVote[]
+  reports SocialCommentReport[]
+  // Set once a comment crosses 3 reports and the automated moderation check
+  // finds something - surfaces it in the admin queue as pre-flagged rather
+  // than auto-deleting (see SocialService.registerReport). Cleared if an
+  // admin dismisses the report.
+  flaggedForReview   Boolean  @default(false)
+  flaggedReviewReason String?
 
   @@index([postId])
   @@index([authorUserId])
+  @@schema("public")
+}
+
+// The identity lock for a (post, user) pair - looked up before accepting a
+// new comment on that post from that user; a mismatched identityMode/
+// random* on a later comment is rejected, not silently overwritten (see
+// SocialService.addComment). One row per pair, created alongside that
+// user's first comment on the post. Only ever written for MEMBER-role
+// commenters choosing between PERSONAL_CHOSEN/PERSONAL_RANDOM - a
+// COMPANY_OWNER's identityMode is always OWNER_REAL_NAME regardless of
+// post, so there's no choice to lock and no row is created for them.
+model SocialCommentIdentityLock {
+  id                   String              @id @default(uuid())
+  postId               String
+  post                 SocialPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId               String
+  user                 User                @relation(fields: [userId], references: [id])
+  identityMode         CommentIdentityMode
+  randomUsername       String?
+  createdAt            DateTime            @default(now())
+
+  @@unique([postId, userId])
+  @@schema("public")
+}
+
+// One report per (comment, reporter) - repeat reports from the same person
+// don't inflate the count (upsert, see SocialService.registerReport).
+// reporterId nullable + SetNull, same 'deleted account leaves the row'
+// pattern as every other social interaction table here.
+model SocialCommentReport {
+  id         String        @id @default(uuid())
+  commentId  String
+  comment    SocialComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reporterId String?
+  reporter   User?         @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  reason     String?
+  createdAt  DateTime      @default(now())
+
+  @@unique([commentId, reporterId])
+  @@index([commentId])
   @@schema("public")
 }
 

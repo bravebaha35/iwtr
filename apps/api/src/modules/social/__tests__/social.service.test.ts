@@ -4,6 +4,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from "@nes
 import { Prisma } from "@prisma/client";
 import { SocialService } from "../social.service";
 import { ModerationService } from "../../moderation/moderation.service";
+import { encryptField, generateDek, wrapDek } from "../../employer-profile/crypto.util";
 
 jest.mock("../social-image.util", () => ({
   processSocialImage: jest.fn().mockResolvedValue(Buffer.alloc(64, 9)),
@@ -243,7 +244,10 @@ describe("SocialService comments + likes", () => {
   });
 
   it("serializes a comment with the author's anonymous handle, never their userId, with zero votes", async () => {
-    const created = { id: "cm1", postId: "p1", body: "nice", createdAt: new Date(), authorUserId: "u1" };
+    const created = {
+      id: "cm1", postId: "p1", body: "nice", createdAt: new Date(), authorUserId: "u1",
+      identityMode: "PERSONAL_CHOSEN", randomUsername: null,
+    };
     const prisma = {
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
       socialComment: { create: jest.fn().mockResolvedValue(created) },
@@ -251,7 +255,12 @@ describe("SocialService comments + likes", () => {
         groupBy: jest.fn().mockResolvedValue([]),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      socialCommentIdentityLock: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({}),
+      },
       user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ role: "MEMBER" }),
         findMany: jest.fn().mockResolvedValue([
           { id: "u1", avatarKey: "office_1", avatarGradient: "dawn", reviewUsername: "Spreadsheet Spelunker" },
         ]),
@@ -735,5 +744,254 @@ describe("SocialService admin moderation", () => {
     expect(result).toEqual({ deletedCount: 0 });
     expect((prisma as any).socialPost.deleteMany).toHaveBeenCalledWith({ where: { companyId: "c1" } });
     expect(mockUnlink).not.toHaveBeenCalled();
+  });
+});
+
+describe("SocialService comment identity (2026-09-11)", () => {
+  const commentBase = { id: "cm1", postId: "p1", body: "nice", createdAt: new Date() };
+
+  it("a COMPANY_OWNER always posts as OWNER_REAL_NAME regardless of what the client requests", async () => {
+    const created = { ...commentBase, authorUserId: "owner-1", identityMode: "OWNER_REAL_NAME", randomUsername: null };
+    const dek = generateDek();
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ role: "COMPANY_OWNER" }), findMany: jest.fn().mockResolvedValue([]) },
+      employerProfile: {
+        findUnique: jest.fn().mockResolvedValue({
+          encFirstName: encryptField("Ahmet", dek),
+          encLastName: encryptField("Yilmaz", dek),
+          profilePictureUrl: null,
+          dekWrapped: wrapDek(dek),
+        }),
+        findMany: jest.fn().mockResolvedValue([{ userId: "owner-1", encFirstName: encryptField("Ahmet", dek), encLastName: encryptField("Yilmaz", dek), profilePictureUrl: null, dekWrapped: wrapDek(dek) }]),
+      },
+      socialComment: { create: jest.fn().mockResolvedValue(created) },
+      socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).addComment("owner-1", "p1", {
+      body: "nice",
+      identityMode: "PERSONAL_RANDOM",
+    });
+    expect((prisma as any).socialComment.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ identityMode: "OWNER_REAL_NAME", randomUsername: null }) }),
+    );
+    expect(out.identityMode).toBe("OWNER_REAL_NAME");
+    expect(out.displayUsername).toBe("Ahmet Yilmaz");
+  });
+
+  it("blocks a COMPANY_OWNER from commenting until their employer profile name is filled in", async () => {
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ role: "COMPANY_OWNER" }), findMany: jest.fn().mockResolvedValue([]) },
+      employerProfile: { findUnique: jest.fn().mockResolvedValue(null) },
+    } as never;
+    await expect(
+      new SocialService(prisma, moderationPass).addComment("owner-1", "p1", { body: "nice" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("a MEMBER's first comment on a post locks their identity for that post", async () => {
+    const created = { ...commentBase, authorUserId: "u1", identityMode: "PERSONAL_CHOSEN", randomUsername: null };
+    const lockCreate = jest.fn().mockResolvedValue({});
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ role: "MEMBER" }),
+        findMany: jest.fn().mockResolvedValue([{ id: "u1", avatarKey: "a", avatarGradient: "g", reviewUsername: "Spreadsheet Spelunker" }]),
+      },
+      socialCommentIdentityLock: { findUnique: jest.fn().mockResolvedValue(null), create: lockCreate },
+      socialComment: { create: jest.fn().mockResolvedValue(created) },
+      socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    await new SocialService(prisma, moderationPass).addComment("u1", "p1", { body: "nice", identityMode: "PERSONAL_CHOSEN" });
+    expect(lockCreate).toHaveBeenCalledWith({ data: { postId: "p1", userId: "u1", identityMode: "PERSONAL_CHOSEN" } });
+  });
+
+  it("a second comment requesting a DIFFERENT identity than the post's existing lock is rejected", async () => {
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ role: "MEMBER" }) },
+      socialCommentIdentityLock: {
+        findUnique: jest.fn().mockResolvedValue({ identityMode: "PERSONAL_CHOSEN", randomUsername: null }),
+      },
+    } as never;
+    await expect(
+      new SocialService(prisma, moderationPass).addComment("u1", "p1", { body: "nice", identityMode: "PERSONAL_RANDOM" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("a second comment matching the post's existing lock succeeds and reuses the locked random identity", async () => {
+    const created = { ...commentBase, authorUserId: "u1", identityMode: "PERSONAL_RANDOM", randomUsername: "Coffee Machine Whisperer" };
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ role: "MEMBER" }), findMany: jest.fn().mockResolvedValue([]) },
+      socialCommentIdentityLock: {
+        findUnique: jest.fn().mockResolvedValue({ identityMode: "PERSONAL_RANDOM", randomUsername: "Coffee Machine Whisperer" }),
+      },
+      socialComment: { create: jest.fn().mockResolvedValue(created) },
+      socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).addComment("u1", "p1", { body: "nice", identityMode: "PERSONAL_RANDOM" });
+    expect((prisma as any).socialComment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ identityMode: "PERSONAL_RANDOM", randomUsername: "Coffee Machine Whisperer" }),
+      }),
+    );
+    expect(out.displayUsername).toBe("Coffee Machine Whisperer");
+    expect(out.avatarKey).toBe("randomized_identity");
+  });
+
+  it("a MEMBER can never request OWNER_REAL_NAME", async () => {
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ role: "MEMBER" }) },
+    } as never;
+    await expect(
+      new SocialService(prisma, moderationPass).addComment("u1", "p1", { body: "nice", identityMode: "OWNER_REAL_NAME" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
+describe("SocialService.registerReport (2026-09-11)", () => {
+  it("refuses to let the author report their own comment", async () => {
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "u1", body: "x", flaggedForReview: false }) } } as never;
+    await expect(new SocialService(prisma, moderationPass).registerReport("u1", "cm1", {})).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("404s on an unknown comment", async () => {
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
+    await expect(new SocialService(prisma, moderationPass).registerReport("u1", "ghost", {})).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("below the 3-report threshold: counts the report, never runs the content check", async () => {
+    const checkContent = jest.fn();
+    const prisma = {
+      socialComment: {
+        findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "other", body: "HR could be better", flaggedForReview: false }),
+        update: jest.fn(),
+      },
+      socialCommentReport: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(2) },
+    } as never;
+    const result = await new SocialService(prisma, { checkContent } as never).registerReport("u1", "cm1", { reason: "spam" });
+    expect(result).toEqual({ commentId: "cm1", reportCount: 2 });
+    expect(checkContent).not.toHaveBeenCalled();
+    expect((prisma as any).socialComment.update).not.toHaveBeenCalled();
+  });
+
+  it("crossing 3 reports with a real violation flags the comment for admin review (never auto-deletes)", async () => {
+    const del = jest.fn();
+    const update = jest.fn().mockResolvedValue({});
+    const prisma = {
+      socialComment: {
+        findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "other", body: "CEO Ahmet Yilmaz is terrible", flaggedForReview: false }),
+        update,
+        delete: del,
+      },
+      socialCommentReport: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(3) },
+    } as never;
+    const moderation = new ModerationService() as never;
+    const result = await new SocialService(prisma, moderation).registerReport("u1", "cm1", {});
+    expect(result).toEqual({ commentId: "cm1", reportCount: 3 });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "cm1" },
+      data: expect.objectContaining({ flaggedForReview: true }),
+    });
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it("crossing 3 reports with clean content does not flag anything", async () => {
+    const update = jest.fn();
+    const prisma = {
+      socialComment: {
+        findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "other", body: "great place to work", flaggedForReview: false }),
+        update,
+      },
+      socialCommentReport: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(4) },
+    } as never;
+    const moderation = new ModerationService() as never;
+    await new SocialService(prisma, moderation).registerReport("u1", "cm1", {});
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("already-flagged comments don't get re-checked on further reports", async () => {
+    const checkContent = jest.fn();
+    const prisma = {
+      socialComment: {
+        findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "other", body: "x", flaggedForReview: true }),
+        update: jest.fn(),
+      },
+      socialCommentReport: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(5) },
+    } as never;
+    await new SocialService(prisma, { checkContent } as never).registerReport("u1", "cm1", {});
+    expect(checkContent).not.toHaveBeenCalled();
+  });
+
+  it("a repeat report from the same user doesn't double-count (P2002 swallowed)", async () => {
+    const prisma = {
+      socialComment: {
+        findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "other", body: "x", flaggedForReview: false }),
+      },
+      socialCommentReport: {
+        create: jest.fn().mockRejectedValue(new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "x" })),
+        count: jest.fn().mockResolvedValue(1),
+      },
+    } as never;
+    const result = await new SocialService(prisma, moderationPass).registerReport("u1", "cm1", {});
+    expect(result).toEqual({ commentId: "cm1", reportCount: 1 });
+  });
+});
+
+describe("SocialService admin report handling (2026-09-11)", () => {
+  it("listReportedComments returns reported comments, flagged-first, without author identity", async () => {
+    const rows = [
+      { id: "cm1", postId: "p1", body: "a", createdAt: new Date(1), flaggedForReview: false, flaggedReviewReason: null, _count: { reports: 2 } },
+      { id: "cm2", postId: "p1", body: "b", createdAt: new Date(2), flaggedForReview: true, flaggedReviewReason: "JOB_TITLE", _count: { reports: 3 } },
+    ];
+    const findMany = jest.fn().mockResolvedValue(rows);
+    const prisma = { socialComment: { findMany } } as never;
+    const out = await new SocialService(prisma, moderationPass).listReportedComments();
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: [{ flaggedForReview: "desc" }, { createdAt: "desc" }] }),
+    );
+    expect(out).toEqual([
+      { id: "cm1", postId: "p1", body: "a", createdAt: rows[0].createdAt.toISOString(), reportCount: 2, flaggedForReview: false, flaggedReviewReason: null },
+      { id: "cm2", postId: "p1", body: "b", createdAt: rows[1].createdAt.toISOString(), reportCount: 3, flaggedForReview: true, flaggedReviewReason: "JOB_TITLE" },
+    ]);
+    expect(out.every((c) => !("authorUserId" in c))).toBe(true);
+  });
+
+  it("adminDismissReport clears the flag without deleting the comment", async () => {
+    const update = jest.fn().mockResolvedValue({});
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1" }), update } } as never;
+    const result = await new SocialService(prisma, moderationPass).adminDismissReport("cm1");
+    expect(update).toHaveBeenCalledWith({ where: { id: "cm1" }, data: { flaggedForReview: false, flaggedReviewReason: null } });
+    expect(result).toEqual({ success: true });
+  });
+
+  it("adminDismissReport 404s on an unknown comment", async () => {
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
+    await expect(new SocialService(prisma, moderationPass).adminDismissReport("ghost")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("adminRemoveComment deletes the comment and writes a SOCIAL_COMMENT_REMOVED audit log", async () => {
+    const del = jest.fn().mockResolvedValue({});
+    const auditCreate = jest.fn().mockResolvedValue({});
+    const prisma = {
+      socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1", postId: "p1" }), delete: del },
+      auditLog: { create: auditCreate },
+    } as never;
+    const result = await new SocialService(prisma, moderationPass).adminRemoveComment("admin-1", "cm1");
+    expect(del).toHaveBeenCalledWith({ where: { id: "cm1" } });
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ actorUserId: "admin-1", action: "SOCIAL_COMMENT_REMOVED", targetType: "SocialComment", targetId: "cm1" }),
+      }),
+    );
+    expect(result).toEqual({ success: true });
+  });
+
+  it("adminRemoveComment 404s on an unknown comment", async () => {
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
+    await expect(new SocialService(prisma, moderationPass).adminRemoveComment("admin-1", "ghost")).rejects.toBeInstanceOf(NotFoundException);
   });
 });
