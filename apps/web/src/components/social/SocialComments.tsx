@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   CommentIdentityMode,
   PublicSocialComment,
@@ -40,6 +40,14 @@ function SwapIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 7h12l-3.5-3.5" />
       <path d="M17 17H5l3.5 3.5" />
+    </svg>
+  );
+}
+// Simple up/down chevron - the top-of-list "show earlier comments" toggle.
+function ChevronIcon({ className, direction }: { className?: string; direction: "up" | "down" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={direction === "up" ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} />
     </svg>
   );
 }
@@ -99,6 +107,20 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
   const [selectedMode, setSelectedMode] = useState<"PERSONAL_CHOSEN" | "PERSONAL_RANDOM">("PERSONAL_CHOSEN");
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
+  // Collapsed by default: only the 3 most recent comments show, with a
+  // toggle above them to reveal the rest (see the render below).
+  const [showAllComments, setShowAllComments] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Grows the composer line-by-line as its content wraps or gains newlines,
+  // instead of scrolling inside a fixed-height box - re-runs on every draft
+  // change, typed or programmatic (e.g. clearing it after a successful post).
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
 
   useEffect(() => {
     apiGet<PublicSocialComment[]>(`/social/posts/${postId}/comments`)
@@ -211,10 +233,25 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
 
   const showIdentityToggle = isAuthenticated && identityContext !== null && !identityContext.locked;
   const preview = composerIdentityPreview(identityContext, selectedMode);
+  // Oldest-first from the API, so "the last 3" (most recent) are the last
+  // 3 array entries - collapsed by default, the rest revealed by the
+  // up-arrow toggle below.
+  const hiddenCount = comments ? Math.max(0, comments.length - 3) : 0;
+  const visibleComments = comments ? (showAllComments ? comments : comments.slice(-3)) : [];
 
   return (
     <div className="flex flex-col gap-3 border-t border-border p-3">
-      {comments?.map((c) => (
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAllComments((v) => !v)}
+          className="flex items-center justify-center gap-1 self-center rounded-full px-3 py-1 text-xs text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+        >
+          <ChevronIcon direction={showAllComments ? "down" : "up"} className="h-3.5 w-3.5" />
+          {showAllComments ? "Show fewer comments" : `Show ${hiddenCount} earlier comment${hiddenCount === 1 ? "" : "s"}`}
+        </button>
+      )}
+      {visibleComments.map((c) => (
         <div key={c.id} className="flex items-start gap-2">
           <Avatar avatarKey={c.avatarKey} avatarGradient={c.avatarGradient} photoUrl={c.avatarPhotoUrl} size="sm" />
           <div className="min-w-0 flex-1">
@@ -328,6 +365,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
           {preview.label && <p className="mb-1 truncate text-[11px] text-muted-foreground">Commenting as {preview.label}</p>}
           <div className="flex items-end gap-2">
             <textarea
+              ref={textareaRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
               onFocus={() => {
@@ -336,7 +374,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
               placeholder="Add a comment..."
               maxLength={MAX_COMMENT_LENGTH}
               rows={1}
-              className="max-h-32 min-h-9 flex-1 resize-none rounded-2xl border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+              className="min-h-9 flex-1 resize-none overflow-hidden rounded-2xl border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
             />
             <button
               type="button"
