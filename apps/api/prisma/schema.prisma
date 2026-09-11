@@ -941,6 +941,15 @@ model SocialComment {
   body         String
   createdAt    DateTime   @default(now())
 
+  // Null = a top-level comment on the post. Set = a reply to another
+  // comment - capped at exactly one level (SocialService.addReply rejects
+  // replying to a comment that is itself a reply), so there's never a
+  // reply-to-a-reply to render. Cascades: deleting a top-level comment
+  // takes its replies with it.
+  parentCommentId String?
+  parentComment   SocialComment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         SocialComment[] @relation("CommentReplies")
+
   // EmployerProfile is one row per USER (not per company), so an owner's
   // real name never depends on which company a post belongs to - there's no
   // 'which company am I speaking for' concept to store here at all. Real name
@@ -965,6 +974,7 @@ model SocialComment {
 
   @@index([postId])
   @@index([authorUserId])
+  @@index([parentCommentId])
   @@schema("public")
 }
 

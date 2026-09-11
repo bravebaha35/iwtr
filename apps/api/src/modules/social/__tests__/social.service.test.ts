@@ -250,7 +250,7 @@ describe("SocialService comments + likes", () => {
     };
     const prisma = {
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
-      socialComment: { create: jest.fn().mockResolvedValue(created) },
+      socialComment: { create: jest.fn().mockResolvedValue(created), groupBy: jest.fn().mockResolvedValue([]) },
       socialCommentVote: {
         groupBy: jest.fn().mockResolvedValue([]),
         findMany: jest.fn().mockResolvedValue([]),
@@ -300,7 +300,7 @@ describe("SocialService comments + likes", () => {
     ];
     const prisma = {
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
-      socialComment: { findMany: jest.fn().mockResolvedValue(rows) },
+      socialComment: { findMany: jest.fn().mockResolvedValue(rows), groupBy: jest.fn().mockResolvedValue([]) },
       socialCommentVote: {
         groupBy: jest.fn().mockResolvedValue([]),
         findMany: jest.fn().mockResolvedValue([]),
@@ -324,7 +324,7 @@ describe("SocialService comments + likes", () => {
     ];
     const prisma = {
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
-      socialComment: { findMany: jest.fn().mockResolvedValue(rows) },
+      socialComment: { findMany: jest.fn().mockResolvedValue(rows), groupBy: jest.fn().mockResolvedValue([]) },
       socialCommentVote: {
         groupBy: jest.fn().mockImplementation(({ where }: any) => {
           if (where.value === 1) return Promise.resolve([{ commentId: "cm1", _count: { _all: 4 } }]);
@@ -351,7 +351,7 @@ describe("SocialService comments + likes", () => {
     ];
     const prisma = {
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
-      socialComment: { findMany: jest.fn().mockResolvedValue(rows) },
+      socialComment: { findMany: jest.fn().mockResolvedValue(rows), groupBy: jest.fn().mockResolvedValue([]) },
       socialCommentVote: {
         groupBy: jest.fn().mockResolvedValue([]),
         findMany: jest.fn().mockResolvedValue([]),
@@ -765,7 +765,7 @@ describe("SocialService comment identity (2026-09-11)", () => {
         }),
         findMany: jest.fn().mockResolvedValue([{ userId: "owner-1", encFirstName: encryptField("Ahmet", dek), encLastName: encryptField("Yilmaz", dek), profilePictureUrl: null, dekWrapped: wrapDek(dek) }]),
       },
-      socialComment: { create: jest.fn().mockResolvedValue(created) },
+      socialComment: { create: jest.fn().mockResolvedValue(created), groupBy: jest.fn().mockResolvedValue([]) },
       socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
     } as never;
     const out = await new SocialService(prisma, moderationPass).addComment("owner-1", "p1", {
@@ -800,7 +800,7 @@ describe("SocialService comment identity (2026-09-11)", () => {
         findMany: jest.fn().mockResolvedValue([{ id: "u1", avatarKey: "a", avatarGradient: "g", reviewUsername: "Spreadsheet Spelunker" }]),
       },
       socialCommentIdentityLock: { findUnique: jest.fn().mockResolvedValue(null), create: lockCreate },
-      socialComment: { create: jest.fn().mockResolvedValue(created) },
+      socialComment: { create: jest.fn().mockResolvedValue(created), groupBy: jest.fn().mockResolvedValue([]) },
       socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
     } as never;
     await new SocialService(prisma, moderationPass).addComment("u1", "p1", { body: "nice", identityMode: "PERSONAL_CHOSEN" });
@@ -828,7 +828,7 @@ describe("SocialService comment identity (2026-09-11)", () => {
       socialCommentIdentityLock: {
         findUnique: jest.fn().mockResolvedValue({ identityMode: "PERSONAL_RANDOM", randomUsername: "Coffee Machine Whisperer" }),
       },
-      socialComment: { create: jest.fn().mockResolvedValue(created) },
+      socialComment: { create: jest.fn().mockResolvedValue(created), groupBy: jest.fn().mockResolvedValue([]) },
       socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
     } as never;
     const out = await new SocialService(prisma, moderationPass).addComment("u1", "p1", { body: "nice", identityMode: "PERSONAL_RANDOM" });
@@ -993,5 +993,105 @@ describe("SocialService admin report handling (2026-09-11)", () => {
   it("adminRemoveComment 404s on an unknown comment", async () => {
     const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
     await expect(new SocialService(prisma, moderationPass).adminRemoveComment("admin-1", "ghost")).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe("SocialService.addReply / listReplies (2026-09-11)", () => {
+  it("addReply 404s on an unknown parent comment", async () => {
+    const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
+    await expect(
+      new SocialService(prisma, moderationPass).addReply("u1", "ghost", { body: "nice" }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("addReply refuses to reply to a reply (capped at one level)", async () => {
+    const prisma = {
+      socialComment: {
+        findUnique: jest.fn().mockResolvedValue({ id: "reply-1", postId: "p1", parentCommentId: "cm1" }),
+      },
+    } as never;
+    await expect(
+      new SocialService(prisma, moderationPass).addReply("u1", "reply-1", { body: "nice" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("addReply on a real top-level comment creates a reply row with parentCommentId set", async () => {
+    const createdReply = {
+      id: "reply-1", postId: "p1", parentCommentId: "cm1", body: "totally agree", createdAt: new Date(),
+      authorUserId: "u1", identityMode: "PERSONAL_CHOSEN", randomUsername: null,
+    };
+    const prisma = {
+      socialComment: {
+        findUnique: jest.fn().mockResolvedValue({ id: "cm1", postId: "p1", parentCommentId: null }),
+        create: jest.fn().mockResolvedValue(createdReply),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ role: "MEMBER" }), findMany: jest.fn().mockResolvedValue([]) },
+      socialCommentIdentityLock: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}) },
+      socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).addReply("u1", "cm1", { body: "totally agree" });
+    expect((prisma as any).socialComment.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ postId: "p1", parentCommentId: "cm1" }) }),
+    );
+    expect(out.id).toBe("reply-1");
+  });
+
+  it("addReply runs the same moderation gate as a top-level comment", async () => {
+    const prisma = {
+      socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1", postId: "p1", parentCommentId: null }) },
+    } as never;
+    const moderationFail = {
+      checkContent: jest.fn().mockReturnValue({ violates: true, violationTypes: ["PROFANITY"], confidence: 0.95 }),
+    } as never;
+    await expect(
+      new SocialService(prisma, moderationFail).addReply("u1", "cm1", { body: "this is shit" }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("listReplies returns a comment's replies oldest-first", async () => {
+    const rows = [
+      { id: "r1", postId: "p1", parentCommentId: "cm1", body: "first reply", createdAt: new Date(1), authorUserId: "u1" },
+      { id: "r2", postId: "p1", parentCommentId: "cm1", body: "second reply", createdAt: new Date(2), authorUserId: "u2" },
+    ];
+    const findMany = jest.fn().mockResolvedValue(rows);
+    const prisma = {
+      socialComment: { findMany, groupBy: jest.fn().mockResolvedValue([]) },
+      socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([
+        { id: "u1", avatarKey: "a1", avatarGradient: "g1", reviewUsername: "One" },
+        { id: "u2", avatarKey: "a2", avatarGradient: "g2", reviewUsername: "Two" },
+      ]) },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).listReplies(undefined, "cm1");
+    expect(findMany).toHaveBeenCalledWith({ where: { parentCommentId: "cm1" }, orderBy: { createdAt: "asc" } });
+    expect(out.map((c) => c.id)).toEqual(["r1", "r2"]);
+  });
+
+  it("listComments only fetches top-level comments (parentCommentId: null)", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      socialComment: { findMany, groupBy: jest.fn().mockResolvedValue([]) },
+      socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([]) },
+    } as never;
+    await new SocialService(prisma, moderationPass).listComments(undefined, "p1");
+    expect(findMany).toHaveBeenCalledWith({ where: { postId: "p1", parentCommentId: null }, orderBy: { createdAt: "asc" } });
+  });
+
+  it("a top-level comment's replyCount reflects how many replies it has; a reply's own replyCount is 0", async () => {
+    const rows = [{ id: "cm1", postId: "p1", body: "parent", createdAt: new Date(), authorUserId: "u1" }];
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) },
+      socialComment: {
+        findMany: jest.fn().mockResolvedValue(rows),
+        groupBy: jest.fn().mockResolvedValue([{ parentCommentId: "cm1", _count: { _all: 3 } }]),
+      },
+      socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: "u1", avatarKey: "a", avatarGradient: "g", reviewUsername: "One" }]) },
+    } as never;
+    const out = await new SocialService(prisma, moderationPass).listComments(undefined, "p1");
+    expect(out[0].replyCount).toBe(3);
   });
 });

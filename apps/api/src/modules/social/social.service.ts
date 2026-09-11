@@ -418,6 +418,36 @@ export class SocialService {
     input: CreateSocialCommentInput,
   ): Promise<PublicSocialComment> {
     await this.requirePost(postId);
+    return this.createCommentRow(userId, postId, null, input);
+  }
+
+  // A reply to a top-level comment - capped at exactly one level deep: the
+  // target must itself be a top-level comment (parentCommentId null), never
+  // another reply, so there's never a reply-to-a-reply to render. Otherwise
+  // identical rules to a top-level comment (moderation, identity resolution
+  // and locking are all per-POST, not per-comment - see resolveMemberIdentity).
+  async addReply(
+    userId: string,
+    parentCommentId: string,
+    input: CreateSocialCommentInput,
+  ): Promise<PublicSocialComment> {
+    const parent = await this.prisma.socialComment.findUnique({
+      where: { id: parentCommentId },
+      select: { id: true, postId: true, parentCommentId: true },
+    });
+    if (!parent) throw new NotFoundException("Comment not found");
+    if (parent.parentCommentId !== null) {
+      throw new ForbiddenException("You can only reply to a top-level comment, not to another reply.");
+    }
+    return this.createCommentRow(userId, parent.postId, parentCommentId, input);
+  }
+
+  private async createCommentRow(
+    userId: string,
+    postId: string,
+    parentCommentId: string | null,
+    input: CreateSocialCommentInput,
+  ): Promise<PublicSocialComment> {
     const result = this.moderation.checkContent([input.body]);
     if (result.violates) {
       throw new BadRequestException(
@@ -438,6 +468,7 @@ export class SocialService {
     const row = await this.prisma.socialComment.create({
       data: {
         postId,
+        parentCommentId,
         authorUserId: userId,
         body: input.body,
         identityMode: identity.identityMode,
@@ -630,8 +661,24 @@ export class SocialService {
     postId: string,
   ): Promise<PublicSocialComment[]> {
     await this.requirePost(postId);
+    // Top-level only - a reply is still a SocialComment row (same table),
+    // but only ever surfaces via listReplies below, never mixed into the
+    // post's own flat list.
     const rows = await this.prisma.socialComment.findMany({
-      where: { postId },
+      where: { postId, parentCommentId: null },
+      orderBy: { createdAt: "asc" },
+    });
+    return this.serializeComments(rows, viewerUserId);
+  }
+
+  // A specific top-level comment's replies, oldest-first - same convention
+  // as listComments. Returns [] for an unknown id rather than 404ing: the
+  // frontend only ever calls this after already rendering the parent
+  // comment from a listComments response, so "the parent vanished between
+  // those two calls" is better read as "no replies" than as an error.
+  async listReplies(viewerUserId: string | undefined, commentId: string): Promise<PublicSocialComment[]> {
+    const rows = await this.prisma.socialComment.findMany({
+      where: { parentCommentId: commentId },
       orderBy: { createdAt: "asc" },
     });
     return this.serializeComments(rows, viewerUserId);
@@ -858,7 +905,7 @@ export class SocialService {
       ),
     ];
     const ids = rows.map((r) => r.id);
-    const [authors, employerProfiles, helpfulCounts, notHelpfulCounts, myVotes] = await Promise.all([
+    const [authors, employerProfiles, helpfulCounts, notHelpfulCounts, myVotes, replyCounts] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: authorIds } },
         select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
@@ -874,12 +921,22 @@ export class SocialService {
             select: { commentId: true, value: true },
           })
         : Promise.resolve([]),
+      // Only ever non-zero for a top-level comment - a reply is capped at
+      // one level, so nothing ever points to a reply as its parent.
+      this.prisma.socialComment.groupBy({
+        by: ["parentCommentId"],
+        where: { parentCommentId: { in: ids } },
+        _count: { _all: true },
+      }),
     ]);
     const byId = new Map(authors.map((a) => [a.id, a]));
     const employerByUserId = new Map(employerProfiles.map((p) => [p.userId, p]));
     const helpfulByComment = new Map(helpfulCounts.map((r) => [r.commentId, r._count._all]));
     const notHelpfulByComment = new Map(notHelpfulCounts.map((r) => [r.commentId, r._count._all]));
     const myVoteByComment = new Map(myVotes.map((r) => [r.commentId, r.value as VoteValue]));
+    const replyCountByComment = new Map(
+      replyCounts.filter((r) => r.parentCommentId !== null).map((r) => [r.parentCommentId as string, r._count._all]),
+    );
     return rows.map((r) => {
       let identity: { displayUsername: string | null; avatarKey: string | null; avatarGradient: string | null; avatarPhotoUrl: string | null };
       if (r.identityMode === "OWNER_REAL_NAME") {
@@ -913,6 +970,7 @@ export class SocialService {
         helpfulCount: helpfulByComment.get(r.id) ?? 0,
         notHelpfulCount: notHelpfulByComment.get(r.id) ?? 0,
         myVote: myVoteByComment.get(r.id) ?? null,
+        replyCount: replyCountByComment.get(r.id) ?? 0,
       };
     });
   }

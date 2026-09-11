@@ -136,6 +136,31 @@ export class SocialController {
     return this.social.listComments(user?.id, postId);
   }
 
+  // A reply to a top-level comment - same moderation/identity rules as a
+  // top-level comment, target must not itself be a reply (see
+  // SocialService.addReply).
+  @Post("comments/:id/replies")
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  addReply(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") commentId: string,
+    @Body(new ZodValidationPipe(createSocialCommentInputSchema)) body: CreateSocialCommentInput,
+  ) {
+    return this.social.addReply(user.id, commentId, body);
+  }
+
+  // A specific comment's replies, oldest-first - same optional-auth shape
+  // as listComments.
+  @Get("comments/:id/replies")
+  @UseGuards(OptionalJwtAuthGuard)
+  listReplies(
+    @OptionalCurrentUser() user: AuthenticatedUser | undefined,
+    @Param("id") commentId: string,
+  ) {
+    return this.social.listReplies(user?.id, commentId);
+  }
+
   // What the comment composer should show/offer this user on this post -
   // fetched once when it opens (see SocialCommentIdentityContext).
   @Get("posts/:id/comment-identity")

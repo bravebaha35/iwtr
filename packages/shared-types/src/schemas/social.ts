@@ -132,6 +132,11 @@ export const publicSocialCommentSchema = z.object({
   helpfulCount: z.number().int(),
   notHelpfulCount: z.number().int(),
   myVote: voteValueSchema.nullable(),
+  // 0 for a reply itself (replies are capped at one level - see
+  // SocialService.addReply - so a reply never has replies of its own).
+  // For a top-level comment, how many replies it has - drives whether the
+  // frontend's down-arrow expand affordance renders at all.
+  replyCount: z.number().int(),
 });
 export type PublicSocialComment = z.infer<typeof publicSocialCommentSchema>;
 
