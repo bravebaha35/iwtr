@@ -15,6 +15,7 @@ import type {
   VerifyAdminOtpInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { isProductionEnv } from "../../config/env";
 import { TokenService } from "./token.service";
 import { AdminLoginOtpService } from "./admin-login-otp.service";
 
@@ -120,7 +121,7 @@ export class AuthService {
   // endpoint must 404 the instant a real deployment exists, since it's an
   // unauthenticated admin-session mint by design.
   async devAdminLogin(email: string): Promise<AuthTokensResponse> {
-    if (process.env.NODE_ENV === "production") {
+    if (isProductionEnv()) {
       throw new NotFoundException();
     }
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -144,7 +145,7 @@ export class AuthService {
   // refusal, same reasoning: this is an unauthenticated session mint by
   // design, so it must 404 the instant a real deployment exists.
   async devOwnerLogin(email: string): Promise<AuthTokensResponse> {
-    if (process.env.NODE_ENV === "production") {
+    if (isProductionEnv()) {
       throw new NotFoundException();
     }
     const user = await this.prisma.user.findUnique({ where: { email } });

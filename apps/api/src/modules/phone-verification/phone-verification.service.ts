@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { isProductionEnv } from "../../config/env";
 import { SMS_PROVIDER, type ISmsProvider } from "./sms-provider.interface";
 import {
   collisionPhoneHash,
@@ -56,8 +57,8 @@ export class PhoneVerificationService {
     // this, anyone testing through just the browser (no server console
     // access) is stuck the moment no real SMS provider is configured, since
     // ConsoleSmsProvider only logs it server-side. Never happens once
-    // NODE_ENV=production (matches ConsoleSmsProvider's own refusal to run there).
-    return process.env.NODE_ENV === "production" ? {} : { devCode: code };
+    // isProductionEnv() is true (matches ConsoleSmsProvider's own refusal to run there).
+    return isProductionEnv() ? {} : { devCode: code };
   }
 
   /**
