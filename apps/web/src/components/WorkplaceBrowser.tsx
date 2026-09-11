@@ -2,11 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { scoreBandLabel, type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
+import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
-import { scoreTextColor } from "@/lib/scoreBandColors";
-import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarSegmentClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { type CategoryGroup, matchesCategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";

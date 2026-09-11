@@ -36,7 +36,6 @@ export function EmailConfirmGate({
   useEffect(() => {
     setExpectedCode(generateMockOtp());
     // Intentionally runs once on mount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

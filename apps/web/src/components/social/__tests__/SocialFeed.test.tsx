@@ -1,16 +1,17 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { SocialFeed } from "../SocialFeed";
 import * as apiClient from "@/lib/api-client";
+import type { PublicSocialPost } from "@iwtr/shared-types";
 
 jest.mock("@/lib/api-client");
 jest.mock("@/lib/auth-context", () => ({ useAuth: () => ({ isAuthenticated: false, openAuthModal: jest.fn() }) }));
 jest.mock("@/lib/useIsCompanyOwner", () => ({ useIsCompanyOwner: () => false }));
 
-function post(id: string, name = "Acme"): any {
+function post(id: string, name = "Acme"): PublicSocialPost {
   return {
     id, companyId: "c1", companySlug: "acme", companyName: name, companyLogoUrl: null, companyBadgeTier: "FREE", companyWorkplaceTypes: ["OFFICE"],
     imageUrls: [`/u/${id}.webp`], caption: null, createdAt: new Date().toISOString(),
-    likeCount: 0, commentCount: 0, likedByMe: null,
+    likeCount: 0, commentCount: 0, likedByMe: null, savedByMe: false,
   };
 }
 

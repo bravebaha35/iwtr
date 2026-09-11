@@ -75,7 +75,6 @@ export function AuthModal() {
       setStep("verify");
     }
     // Intentionally runs once on mount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function switchMode(next: "login" | "register") {

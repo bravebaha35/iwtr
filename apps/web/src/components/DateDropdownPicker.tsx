@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 
 const MONTHS = [
@@ -72,12 +72,18 @@ export function DateDropdownPicker({
   // Follow the parent only when it actually changes `value` out from under
   // us (e.g. a form reset) — doesn't fight an in-progress partial pick,
   // since a partial pick never changes `value` (it stays null until complete).
-  useEffect(() => {
+  // Adjusted during render rather than in a useEffect (React's documented
+  // "adjusting state when a prop changes" pattern) — avoids an extra
+  // render pass, and tracking prevValue is what lets this run only on a
+  // real external change instead of every render.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     const p = parse(value);
     setDay(p.day);
     setMonth(p.month);
     setYear(p.year);
-  }, [value]);
+  }
 
   const maxDay = month && year ? daysInMonth(year, month) : 31;
 

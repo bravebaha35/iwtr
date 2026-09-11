@@ -52,8 +52,9 @@ function RatingNarrativeBox({
     // slot.
     <div className="flex flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:h-[360px] lg:max-w-2xl lg:shrink-0">
       {imageSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a small fixed
-        // set of local /public illustrations, not a remote/arbitrary URL.
+        // A small fixed set of local /public illustrations, not a
+        // remote/arbitrary URL.
+        // eslint-disable-next-line @next/next/no-img-element
         <img src={imageSrc} alt="" className="h-72 w-56 shrink-0 object-contain" />
       ) : (
         <div className="h-72 w-56 shrink-0" aria-hidden="true" />

@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SocialPostCard } from "../SocialPostCard";
+import * as apiClient from "@/lib/api-client";
 
 const openAuthModal = jest.fn();
 const toggleFollow = jest.fn();
@@ -24,7 +25,7 @@ beforeEach(() => {
 
 it("anonymous Like click opens the auth modal and does not call the API", () => {
   mockAuth = { isAuthenticated: false, openAuthModal };
-  const apiPost = require("@/lib/api-client").apiPost as jest.Mock;
+  const apiPost = apiClient.apiPost as jest.Mock;
   render(<SocialPostCard post={basePost} />);
   fireEvent.click(screen.getByRole("button", { name: /like/i }));
   expect(openAuthModal).toHaveBeenCalledTimes(1);
@@ -33,7 +34,7 @@ it("anonymous Like click opens the auth modal and does not call the API", () => 
 
 it("authenticated Like click toggles optimistically and calls the API", async () => {
   mockAuth = { isAuthenticated: true, openAuthModal };
-  const apiPost = require("@/lib/api-client").apiPost as jest.Mock;
+  const apiPost = apiClient.apiPost as jest.Mock;
   apiPost.mockResolvedValue({ postId: "p1", likeCount: 3, likedByMe: true });
   const onChanged = jest.fn();
   render(<SocialPostCard post={basePost} onChanged={onChanged} />);
@@ -48,7 +49,7 @@ it("authenticated Like click toggles optimistically and calls the API", async ()
 
 it("authenticated Save click toggles optimistically and calls the API - no count shown", async () => {
   mockAuth = { isAuthenticated: true, openAuthModal };
-  const apiPost = require("@/lib/api-client").apiPost as jest.Mock;
+  const apiPost = apiClient.apiPost as jest.Mock;
   apiPost.mockResolvedValue({ postId: "p1", saved: true });
   const onChanged = jest.fn();
   render(<SocialPostCard post={basePost} onChanged={onChanged} />);

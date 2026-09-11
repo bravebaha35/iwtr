@@ -31,9 +31,9 @@ export function CompanyLogo({
 
   if (mainPhotoUrl && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- mainPhotoUrl is
-      // an arbitrary owner-submitted URL, not a known set of remote hosts, so
-      // next/image's remotePatterns allowlist doesn't fit here.
+      // mainPhotoUrl is an arbitrary owner-submitted URL, not a known set
+      // of remote hosts, so next/image's remotePatterns allowlist doesn't fit here.
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={mainPhotoUrl}
         alt={`${name} logo`}
