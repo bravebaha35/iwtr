@@ -1,9 +1,103 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { AdminCompanySummary, PublicSocialPost, SocialFeedPage } from "@iwtr/shared-types";
+import type { AdminCompanySummary, AdminReportedSocialComment, PublicSocialPost, SocialFeedPage } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
-import { apiDelete, apiGet, apiPatch, ApiError } from "@/lib/api-client";
+import { apiDelete, apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
+
+// Every comment with at least one report, flagged (crossed 3 reports AND
+// matched the content filter - see SocialService.registerReport) ones
+// first. Dismiss clears the flag without touching the comment; Remove hard-
+// deletes it. Deliberately shows no author identity anywhere - the API
+// itself never returns one for this endpoint (see AdminReportedSocialComment).
+function ReportedCommentsPanel() {
+  const [comments, setComments] = useState<AdminReportedSocialComment[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const rows = await apiGet<AdminReportedSocialComment[]>("/admin/social/reported-comments");
+      setComments(rows);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't load reported comments.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function dismiss(id: string) {
+    setBusyId(id);
+    try {
+      await apiPost(`/admin/social/comments/${id}/dismiss-report`, {});
+      setComments((prev) => (prev ? prev.filter((c) => c.id !== id) : prev));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't dismiss that report.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function removeComment(id: string) {
+    setBusyId(id);
+    try {
+      await apiDelete(`/admin/social/comments/${id}`);
+      setComments((prev) => (prev ? prev.filter((c) => c.id !== id) : prev));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't remove that comment.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (comments === null && !error) return <p className="text-sm text-muted-foreground">Loading reported comments...</p>;
+  if (comments !== null && comments.length === 0) return null;
+
+  return (
+    <div className="mb-8">
+      <h2 className="mb-2 text-lg font-semibold text-foreground">Reported comments</h2>
+      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      <div className="flex flex-col gap-2">
+        {comments?.map((c) => (
+          <div key={c.id} className="rounded-lg border border-border bg-surface p-3">
+            <div className="mb-1 flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                {c.reportCount} report{c.reportCount === 1 ? "" : "s"}
+              </span>
+              {c.flaggedForReview && (
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-950 dark:text-red-300">
+                  Filter match{c.flaggedReviewReason ? `: ${c.flaggedReviewReason}` : ""}
+                </span>
+              )}
+            </div>
+            <p className="whitespace-pre-wrap text-sm text-foreground">{c.body}</p>
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => dismiss(c.id)}
+                disabled={busyId === c.id}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
+              >
+                Dismiss
+              </button>
+              <button
+                type="button"
+                onClick={() => removeComment(c.id)}
+                disabled={busyId === c.id}
+                className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // One company's expanded IWT Social feed — fetched lazily (only once its row
 // is expanded) via the ADMIN-only GET /admin/social/companies/:id/posts,
@@ -246,6 +340,8 @@ export default function AdminContentPage() {
       <p className="mb-6 text-sm text-muted-foreground">
         Hide a company from every public surface, wipe its IWT Social feed, or remove individual posts.
       </p>
+
+      <ReportedCommentsPanel />
 
       <form
         onSubmit={(e) => {
