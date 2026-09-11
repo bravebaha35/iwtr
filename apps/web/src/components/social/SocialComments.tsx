@@ -322,9 +322,9 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
           )}
         </div>
 
-        {/* Narrower than a full-width composer, with the avatar (and its
-            toggle) sitting flush over the input's own outline. */}
-        <div className="w-full max-w-sm flex-1">
+        {/* Full-width like the original composer - only the avatar (and its
+            toggle) sitting flush over the input's own outline is new. */}
+        <div className="min-w-0 flex-1">
           {preview.label && <p className="mb-1 truncate text-[11px] text-muted-foreground">Commenting as {preview.label}</p>}
           <div className="flex items-end gap-2">
             <textarea
