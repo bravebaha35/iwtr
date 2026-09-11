@@ -13,8 +13,10 @@ separate, loosely-coupled systems (see Data Model below).
 
 The full product spec and phased roadmap live in the plan file referenced in project memory; this repo
 currently implements **Phase 0 (foundations)** and **Phase 1 (core loop)** only. Not yet built: the
-paid company "Plus" tier + iyzico payments, contribution-gated like/dislike on reviews, real Google/Apple
-sign-in, and the mobile app.
+paid company "Plus" tier + iyzico payments, real Google/Apple sign-in, and the mobile app. Review
+like/dislike voting *is* built (`ReviewsService.castVote`) and deliberately ungated — a contribution
+requirement existed once but was removed 2026-08-09 per product decision (see the doc comment on
+`castVote`); any logged-in member can vote except on their own review.
 
 ## Commands
 
@@ -96,7 +98,9 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - `reviews/` — review submission. Enforces "you can only rate a company that's in your own employment
   history" server-side (never trusts the client), enforces one review per user per company
   (`@@unique([userId, companyId])`), runs the moderation pipeline, and recomputes `CompanyAggregateScore`
-  on publish.
+  on publish. Also owns helpful/not-helpful voting on published reviews (`castVote`) — any logged-in
+  member except the review's own author, one vote per user per review (`ReviewVote`), toggle-off on a
+  repeat click of the same value.
 - `moderation/` — `ModerationService` is a **deliberate stand-in** for a future AI-backed implementation
   (see class-level comment in `moderation.service.ts`). It does rule-based content checks (profanity/name-
   pattern/job-title/shouting heuristics) and a deterministic trust score (account age, prior review
