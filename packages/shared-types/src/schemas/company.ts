@@ -104,6 +104,12 @@ export const companySchema = z.object({
   // unowned one is rendered greyscale. Computed, never stored.
   hasApprovedOwner: z.boolean(),
   featuredReviewId: z.string().uuid().nullable(),
+  // 0-3. Increments when this company reposts a title+workType that matches
+  // an earlier posting of theirs already marked FILLED — see
+  // JobPostingsService.create. Visible to every worker, by design (the
+  // whole point is public accountability for repost-after-claiming-a-hire
+  // spam).
+  riskScore: z.number().int().min(0).max(3),
   // Computed (not stored) — true when both of this company's workplaceTypes
   // already have a PUBLISHED review, which locks OwnerService.updateMyCompany
   // against further workplaceTypes edits. Only ever computed on the

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { checkoutBillingInputSchema } from "./payment";
+import { workplaceTypeSchema } from "./workplaceType";
 
-export const jobPostingStatusSchema = z.enum(["PUBLISHED", "PENDING_ADMIN", "REJECTED"]);
+export const jobPostingStatusSchema = z.enum(["PUBLISHED", "PENDING_ADMIN", "REJECTED", "FILLED"]);
 export type JobPostingStatus = z.infer<typeof jobPostingStatusSchema>;
 
 export const boostDurationDaysSchema = z.union([z.literal(7), z.literal(14), z.literal(21)]);
@@ -18,6 +19,7 @@ export const jobPostingSchema = z.object({
   companyId: z.string().uuid(),
   jobTitle: z.string(),
   description: z.string(),
+  workType: workplaceTypeSchema.nullable(),
   status: jobPostingStatusSchema,
   boostDurationDays: boostDurationDaysSchema.nullable(),
   boostExpiresAt: z.string().datetime().nullable(),
@@ -29,6 +31,7 @@ export type JobPosting = z.infer<typeof jobPostingSchema>;
 // deliberately thinner than jobPostingSchema above, no id/status/boost
 // internals, those are an owner-facing concern only.
 export const publicJobPostingSchema = z.object({
+  id: z.string().uuid(),
   jobTitle: z.string(),
   description: z.string(),
 });
@@ -53,8 +56,10 @@ export type CompanyJobPostings = z.infer<typeof companyJobPostingsSchema>;
 // already uses for the exact same iyzico one-time-checkout mechanism (see
 // owner.ts), reusing checkoutBillingInputSchema rather than a new billing shape.
 export const createJobPostingInputSchema = z.object({
-  jobTitle: z.string().min(1).max(200),
+  jobTitle: z.string().trim().min(1).max(200),
   description: z.string().min(1).max(600),
+  workType: workplaceTypeSchema,
+  autoReshareEnabled: z.boolean().optional().default(false),
   boost: z
     .object({
       durationDays: boostDurationDaysSchema,
@@ -100,3 +105,12 @@ export const adminJobPostingSchema = jobPostingSchema.extend({
   createdByUserEmail: z.string().nullable(),
 });
 export type AdminJobPosting = z.infer<typeof adminJobPostingSchema>;
+
+// The owner's own view of one of their postings (GET
+// my-companies/:companyId/job-postings) — jobPostingSchema plus how many
+// days are left before it naturally lapses (0 once it's stopped being
+// publicly live, whatever the reason).
+export const ownerJobPostingSchema = jobPostingSchema.extend({
+  daysRemaining: z.number().int().min(0),
+});
+export type OwnerJobPosting = z.infer<typeof ownerJobPostingSchema>;
