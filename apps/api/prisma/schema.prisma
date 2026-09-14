@@ -121,6 +121,7 @@ enum JobPostingStatus {
   PUBLISHED
   PENDING_ADMIN
   REJECTED
+  FILLED
 
   @@schema("public")
 }
@@ -268,6 +269,7 @@ model User {
   savedPosts              SavedPost[]
   socialCommentReports       SocialCommentReport[]
   socialCommentIdentityLocks SocialCommentIdentityLock[]
+  savedJobPostings SavedJobPosting[]
 
   @@schema("public")
 }
@@ -461,7 +463,8 @@ model Company {
   // Set by an ADMIN via PATCH /admin/companies/:id/visibility. A hidden company
   // vanishes from every public surface (search, detail, filters, job browse,
   // IWT Social feed) but keeps all its data; unhiding clears this.
-  hiddenAt DateTime?
+  hiddenAt         DateTime?
+  riskScore        Int             @default(0)
 
   employmentHistories  EmploymentHistory[]
   reviews              Review[]
@@ -540,14 +543,30 @@ model JobPosting {
   jobTitle           String
   description        String
   status             JobPostingStatus              @default(PUBLISHED)
+  // Nullable, not required: adding a required enum column with no default
+  // would fail prisma db push non-interactively against a table that
+  // already has rows (existing demo postings). New postings always set
+  // this (createJobPostingInputSchema requires it) — a null here only ever
+  // means "created before this field existed", and is naturally excluded
+  // from the risk-score match query (it can never `equals` a real enum
+  // value), so no other code needs to special-case it.
+  workType           WorkplaceType?
+  autoReshareEnabled Boolean                       @default(false)
+  lastResharedAt     DateTime?
+  // Set only by JobPostingsService.markFilled — the anchor the 30-day
+  // "still visible to the owner dashboard / a saver's Saved Posts" grace
+  // window counts from for a manually-closed posting (see job-postings.util.ts).
+  filledAt           DateTime?
   boostDurationDays  Int?
   boostIsFree        Boolean                       @default(false)
   boostPaymentStatus JobPostingBoostPaymentStatus?
   boostExpiresAt     DateTime?
   createdAt          DateTime                      @default(now())
+  savedBy            SavedJobPosting[]
 
   @@index([companyId])
   @@index([createdByUserId])
+  @@index([companyId, jobTitle, workType])
   @@schema("public")
 }
 
@@ -1128,6 +1147,21 @@ model SavedPost {
 
   @@unique([userId, postId])
   @@index([postId])
+  @@schema("public")
+}
+
+// A private bookmark on a job posting — same shape/semantics as SavedPost
+// (no public save-count, only the saver can ever list their own saves).
+model SavedJobPosting {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobPostingId String
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, jobPostingId])
+  @@index([jobPostingId])
   @@schema("public")
 }
 
