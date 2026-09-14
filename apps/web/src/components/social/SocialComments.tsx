@@ -5,9 +5,15 @@ import type {
   CommentIdentityMode,
   PublicSocialComment,
   SocialCommentIdentityContext,
+  SocialCommentReportReason,
   SocialCommentVoteResult,
 } from "@iwtr/shared-types";
-import { RANDOMIZED_IDENTITY_AVATAR_GRADIENT, RANDOMIZED_IDENTITY_AVATAR_KEY } from "@iwtr/shared-types";
+import {
+  RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
+  RANDOMIZED_IDENTITY_AVATAR_KEY,
+  SOCIAL_COMMENT_REPORT_REASONS,
+  SOCIAL_COMMENT_REPORT_REASON_LABELS,
+} from "@iwtr/shared-types";
 import { apiGet, apiPost, apiDelete, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar } from "@/components/Avatar";
@@ -334,6 +340,15 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
   const [selectedMode, setSelectedMode] = useState<"PERSONAL_CHOSEN" | "PERSONAL_RANDOM">("PERSONAL_CHOSEN");
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
+  // The comment currently in the "Report" pop-up (null = closed). A reason
+  // must be picked before Submit enables - see reportSocialCommentInputSchema.
+  const [reportTargetId, setReportTargetId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState<SocialCommentReportReason | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  // Brief "Report submitted" confirmation after a successful submit - fades
+  // in on its own, auto-dismisses a couple seconds later.
+  const [showReportToast, setShowReportToast] = useState(false);
   // Collapsed by default: only the 3 most recent comments show, with a
   // toggle above them to reveal the rest (see the render below).
   const [showAllComments, setShowAllComments] = useState(false);
@@ -442,14 +457,45 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
     }
   }
 
-  async function report(id: string) {
+  function openReportModal(id: string) {
     setOpenMenuFor(null);
     if (!isAuthenticated) return openAuthModal();
+    setReportTargetId(id);
+    setReportReason(null);
+    setReportError(null);
+  }
+
+  function closeReportModal() {
+    setReportTargetId(null);
+    setReportReason(null);
+    setReportError(null);
+  }
+
+  // Auto-dismiss the "Report submitted" toast a couple seconds after it appears.
+  useEffect(() => {
+    if (!showReportToast) return;
+    const handle = setTimeout(() => setShowReportToast(false), 2500);
+    return () => clearTimeout(handle);
+  }, [showReportToast]);
+
+  async function submitReport() {
+    if (!reportTargetId || !reportReason) return;
+    setReportBusy(true);
+    setReportError(null);
     try {
-      await apiPost(`/social/comments/${id}/report`, {});
-      setReportedIds((prev) => new Set(prev).add(id));
+      await apiPost(`/social/comments/${reportTargetId}/report`, { reason: reportReason });
+      setReportedIds((prev) => new Set(prev).add(reportTargetId));
+      closeReportModal();
+      setShowReportToast(true);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) openAuthModal();
+      if (e instanceof ApiError && e.status === 401) {
+        closeReportModal();
+        openAuthModal();
+        return;
+      }
+      setReportError(e instanceof ApiError ? e.message : "Couldn't submit that report.");
+    } finally {
+      setReportBusy(false);
     }
   }
 
@@ -507,7 +553,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
             reported={reportedIds.has(c.id)}
             onVote={(id, value) => vote(id, value)}
             onDelete={(id) => remove(id)}
-            onReport={report}
+            onReport={openReportModal}
             onToggleMenu={(id) => setOpenMenuFor((cur) => (cur === id ? null : id))}
           />
 
@@ -548,7 +594,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
                     reported={reportedIds.has(r.id)}
                     onVote={(id, value) => vote(id, value, c.id)}
                     onDelete={(id) => remove(id, c.id)}
-                    onReport={report}
+                    onReport={openReportModal}
                     onToggleMenu={(id) => setOpenMenuFor((cur) => (cur === id ? null : id))}
                   />
                 ))}
@@ -577,6 +623,69 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
         onSubmit={submitComment}
         placeholder="Add a comment..."
       />
+
+      {reportTargetId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={closeReportModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Report this comment"
+            className="w-full max-w-sm rounded-xl bg-surface p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Report this comment</h3>
+            <div className="flex flex-col gap-2">
+              {SOCIAL_COMMENT_REPORT_REASONS.map((reason) => (
+                <label
+                  key={reason}
+                  className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-2 text-sm has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50 dark:has-[:checked]:bg-brand-950"
+                >
+                  <input
+                    type="radio"
+                    name="report-reason"
+                    className="mt-0.5"
+                    checked={reportReason === reason}
+                    onChange={() => setReportReason(reason)}
+                  />
+                  <span className="text-foreground">{SOCIAL_COMMENT_REPORT_REASON_LABELS[reason]}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Reports are anonymous - the comment&apos;s author will never see who reported it.
+            </p>
+            {reportError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{reportError}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeReportModal}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitReport}
+                disabled={!reportReason || reportBusy}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                Submit report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReportToast && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4">
+          <div className="rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-lg">
+            Report submitted
+          </div>
+        </div>
+      )}
     </div>
   );
 }

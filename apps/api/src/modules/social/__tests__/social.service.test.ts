@@ -855,12 +855,16 @@ describe("SocialService comment identity (2026-09-11)", () => {
 describe("SocialService.registerReport (2026-09-11)", () => {
   it("refuses to let the author report their own comment", async () => {
     const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue({ id: "cm1", authorUserId: "u1", body: "x", flaggedForReview: false }) } } as never;
-    await expect(new SocialService(prisma, moderationPass).registerReport("u1", "cm1", {})).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      new SocialService(prisma, moderationPass).registerReport("u1", "cm1", { reason: "CURSE_WORDS" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("404s on an unknown comment", async () => {
     const prisma = { socialComment: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
-    await expect(new SocialService(prisma, moderationPass).registerReport("u1", "ghost", {})).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      new SocialService(prisma, moderationPass).registerReport("u1", "ghost", { reason: "CURSE_WORDS" }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("below the 3-report threshold: counts the report, never runs the content check", async () => {
@@ -872,7 +876,7 @@ describe("SocialService.registerReport (2026-09-11)", () => {
       },
       socialCommentReport: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(2) },
     } as never;
-    const result = await new SocialService(prisma, { checkContent } as never).registerReport("u1", "cm1", { reason: "spam" });
+    const result = await new SocialService(prisma, { checkContent } as never).registerReport("u1", "cm1", { reason: "CURSE_WORDS" });
     expect(result).toEqual({ commentId: "cm1", reportCount: 2 });
     expect(checkContent).not.toHaveBeenCalled();
     expect((prisma as any).socialComment.update).not.toHaveBeenCalled();
@@ -890,7 +894,7 @@ describe("SocialService.registerReport (2026-09-11)", () => {
       socialCommentReport: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(3) },
     } as never;
     const moderation = new ModerationService() as never;
-    const result = await new SocialService(prisma, moderation).registerReport("u1", "cm1", {});
+    const result = await new SocialService(prisma, moderation).registerReport("u1", "cm1", { reason: "THREAT_ABUSE" });
     expect(result).toEqual({ commentId: "cm1", reportCount: 3 });
     expect(update).toHaveBeenCalledWith({
       where: { id: "cm1" },
@@ -909,7 +913,7 @@ describe("SocialService.registerReport (2026-09-11)", () => {
       socialCommentReport: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(4) },
     } as never;
     const moderation = new ModerationService() as never;
-    await new SocialService(prisma, moderation).registerReport("u1", "cm1", {});
+    await new SocialService(prisma, moderation).registerReport("u1", "cm1", { reason: "CURSE_WORDS" });
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -922,7 +926,7 @@ describe("SocialService.registerReport (2026-09-11)", () => {
       },
       socialCommentReport: { create: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(5) },
     } as never;
-    await new SocialService(prisma, { checkContent } as never).registerReport("u1", "cm1", {});
+    await new SocialService(prisma, { checkContent } as never).registerReport("u1", "cm1", { reason: "DISREGARD_ANONYMITY" });
     expect(checkContent).not.toHaveBeenCalled();
   });
 
@@ -936,7 +940,7 @@ describe("SocialService.registerReport (2026-09-11)", () => {
         count: jest.fn().mockResolvedValue(1),
       },
     } as never;
-    const result = await new SocialService(prisma, moderationPass).registerReport("u1", "cm1", {});
+    const result = await new SocialService(prisma, moderationPass).registerReport("u1", "cm1", { reason: "CURSE_WORDS" });
     expect(result).toEqual({ commentId: "cm1", reportCount: 1 });
   });
 });
@@ -948,16 +952,51 @@ describe("SocialService admin report handling (2026-09-11)", () => {
       { id: "cm2", postId: "p1", body: "b", createdAt: new Date(2), flaggedForReview: true, flaggedReviewReason: "JOB_TITLE", _count: { reports: 3 } },
     ];
     const findMany = jest.fn().mockResolvedValue(rows);
-    const prisma = { socialComment: { findMany } } as never;
+    const groupBy = jest.fn().mockResolvedValue([
+      { commentId: "cm1", reason: "CURSE_WORDS", _count: { _all: 2 } },
+      { commentId: "cm2", reason: "THREAT_ABUSE", _count: { _all: 2 } },
+      { commentId: "cm2", reason: null, _count: { _all: 1 } },
+    ]);
+    const prisma = { socialComment: { findMany }, socialCommentReport: { groupBy } } as never;
     const out = await new SocialService(prisma, moderationPass).listReportedComments();
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({ orderBy: [{ flaggedForReview: "desc" }, { createdAt: "desc" }] }),
     );
+    expect(groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ by: ["commentId", "reason"], where: { commentId: { in: ["cm1", "cm2"] } } }),
+    );
     expect(out).toEqual([
-      { id: "cm1", postId: "p1", body: "a", createdAt: rows[0].createdAt.toISOString(), reportCount: 2, flaggedForReview: false, flaggedReviewReason: null },
-      { id: "cm2", postId: "p1", body: "b", createdAt: rows[1].createdAt.toISOString(), reportCount: 3, flaggedForReview: true, flaggedReviewReason: "JOB_TITLE" },
+      {
+        id: "cm1",
+        postId: "p1",
+        body: "a",
+        createdAt: rows[0].createdAt.toISOString(),
+        reportCount: 2,
+        reportReasonCounts: { CURSE_WORDS: 2 },
+        flaggedForReview: false,
+        flaggedReviewReason: null,
+      },
+      {
+        id: "cm2",
+        postId: "p1",
+        body: "b",
+        createdAt: rows[1].createdAt.toISOString(),
+        reportCount: 3,
+        reportReasonCounts: { THREAT_ABUSE: 2, UNSPECIFIED: 1 },
+        flaggedForReview: true,
+        flaggedReviewReason: "JOB_TITLE",
+      },
     ]);
     expect(out.every((c) => !("authorUserId" in c))).toBe(true);
+  });
+
+  it("listReportedComments skips the groupBy query when there are no reported comments", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const groupBy = jest.fn();
+    const prisma = { socialComment: { findMany }, socialCommentReport: { groupBy } } as never;
+    const out = await new SocialService(prisma, moderationPass).listReportedComments();
+    expect(out).toEqual([]);
+    expect(groupBy).not.toHaveBeenCalled();
   });
 
   it("adminDismissReport clears the flag without deleting the comment", async () => {

@@ -238,12 +238,31 @@ export class SocialService {
       include: { _count: { select: { reports: true } } },
       orderBy: [{ flaggedForReview: "desc" }, { createdAt: "desc" }],
     });
+
+    // Per-comment, per-reason tallies in one grouped query rather than N+1 -
+    // reason is nullable on older/legacy report rows, bucketed under
+    // "UNSPECIFIED" so a null never silently drops a report from the count.
+    const reasonGroups = rows.length
+      ? await this.prisma.socialCommentReport.groupBy({
+          by: ["commentId", "reason"],
+          where: { commentId: { in: rows.map((r) => r.id) } },
+          _count: { _all: true },
+        })
+      : [];
+    const reasonCountsByComment = new Map<string, Record<string, number>>();
+    for (const g of reasonGroups) {
+      const bucket = reasonCountsByComment.get(g.commentId) ?? {};
+      bucket[g.reason ?? "UNSPECIFIED"] = g._count._all;
+      reasonCountsByComment.set(g.commentId, bucket);
+    }
+
     return rows.map((r) => ({
       id: r.id,
       postId: r.postId,
       body: r.body,
       createdAt: r.createdAt.toISOString(),
       reportCount: r._count.reports,
+      reportReasonCounts: reasonCountsByComment.get(r.id) ?? {},
       flaggedForReview: r.flaggedForReview,
       flaggedReviewReason: r.flaggedReviewReason,
     }));
@@ -630,7 +649,7 @@ export class SocialService {
 
     try {
       await this.prisma.socialCommentReport.create({
-        data: { commentId, reporterId: userId, reason: input.reason ?? null },
+        data: { commentId, reporterId: userId, reason: input.reason },
       });
     } catch (err) {
       if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {

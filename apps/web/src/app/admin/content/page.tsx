@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { AdminCompanySummary, AdminReportedSocialComment, PublicSocialPost, SocialFeedPage } from "@iwtr/shared-types";
+import { SOCIAL_COMMENT_REPORT_REASON_LABELS } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiDelete, apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
+
+// "UNSPECIFIED" covers reports filed before a reason was required - see
+// SocialService.listReportedComments.
+function reportReasonLabel(reason: string): string {
+  return SOCIAL_COMMENT_REPORT_REASON_LABELS[reason as keyof typeof SOCIAL_COMMENT_REPORT_REASON_LABELS] ?? "No reason given";
+}
 
 // Every comment with at least one report, flagged (crossed 3 reports AND
 // matched the content filter - see SocialService.registerReport) ones
@@ -72,6 +79,16 @@ function ReportedCommentsPanel() {
                   Filter match{c.flaggedReviewReason ? `: ${c.flaggedReviewReason}` : ""}
                 </span>
               )}
+            </div>
+            <div className="mb-1 flex flex-wrap gap-1">
+              {Object.entries(c.reportReasonCounts).map(([reason, count]) => (
+                <span
+                  key={reason}
+                  className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                >
+                  {reportReasonLabel(reason)} x{count}
+                </span>
+              ))}
             </div>
             <p className="whitespace-pre-wrap text-sm text-foreground">{c.body}</p>
             <div className="mt-2 flex justify-end gap-2">

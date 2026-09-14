@@ -62,8 +62,32 @@ export const createSocialCommentInputSchema = z.object({
 });
 export type CreateSocialCommentInput = z.infer<typeof createSocialCommentInputSchema>;
 
+// Fixed set of reasons a reporter must pick from (2026-09-15 product
+// decision) - free text gave admins nothing to group or triage by. Keys are
+// the stable values stored on SocialCommentReport.reason; labels are the
+// exact reporter-facing sentences, shared by the report pop-up and the admin
+// queue's per-reason breakdown.
+export const socialCommentReportReasonSchema = z.enum([
+  "CURSE_WORDS",
+  "DISREGARD_ANONYMITY",
+  "THREAT_ABUSE",
+]);
+export type SocialCommentReportReason = z.infer<typeof socialCommentReportReasonSchema>;
+
+export const SOCIAL_COMMENT_REPORT_REASONS: SocialCommentReportReason[] = [
+  "CURSE_WORDS",
+  "DISREGARD_ANONYMITY",
+  "THREAT_ABUSE",
+];
+
+export const SOCIAL_COMMENT_REPORT_REASON_LABELS: Record<SocialCommentReportReason, string> = {
+  CURSE_WORDS: "Curse words and bad language.",
+  DISREGARD_ANONYMITY: "Disregard for anonymity.",
+  THREAT_ABUSE: "Threat and abuse.",
+};
+
 export const reportSocialCommentInputSchema = z.object({
-  reason: z.string().trim().max(500).optional(),
+  reason: socialCommentReportReasonSchema,
 });
 export type ReportSocialCommentInput = z.infer<typeof reportSocialCommentInputSchema>;
 
@@ -191,6 +215,11 @@ export const adminReportedSocialCommentSchema = z.object({
   body: z.string(),
   createdAt: z.string().datetime(),
   reportCount: z.number().int(),
+  // Per-reason tally (see socialCommentReportReasonSchema) so an admin can
+  // see AT A GLANCE what a comment is being reported for, e.g.
+  // { THREAT_ABUSE: 2, CURSE_WORDS: 1 }. Reports filed before reasons were
+  // required (or otherwise missing one) bucket under "UNSPECIFIED".
+  reportReasonCounts: z.record(z.string(), z.number().int()),
   // True once reports crossed 3 AND the automated content check found
   // something - these sort first, since they're the ones most likely to
   // need a decision rather than just 'a couple of people didn't like it'.
