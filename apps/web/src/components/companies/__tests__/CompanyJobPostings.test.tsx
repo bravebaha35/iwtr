@@ -36,6 +36,7 @@ const company: Company = {
   defaultBannerUrl: "/office-default-banner.webp",
   hasApprovedOwner: false,
   featuredReviewId: null,
+  riskScore: 0,
 };
 
 const aggregate = null;

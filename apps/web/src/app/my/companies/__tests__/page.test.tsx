@@ -68,6 +68,7 @@ const detail: CompanyDetail = {
     defaultBannerUrl: "/office-default-banner.webp",
     hasApprovedOwner: true,
     featuredReviewId: null,
+    riskScore: 0,
   },
   aggregate: null,
 };

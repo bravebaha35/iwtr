@@ -124,9 +124,19 @@ export class JobPostingsService {
 
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
-      select: { workplaceTypes: true, riskScore: true },
+      select: { workplaceTypes: true },
     });
-    if (!company || !(company.workplaceTypes as WorkplaceType[]).includes(input.workType)) {
+    if (!company) {
+      throw new BadRequestException("workType must be one of this company's own work types.");
+    }
+    const workplaceTypes = company.workplaceTypes as WorkplaceType[];
+    // workType is optional on the wire until the frontend's picker ships
+    // (frontend spec decision 4: auto-pick only when unambiguous). A
+    // multi-type company that omits it gets workType: null rather than a
+    // guessed-wrong value.
+    const workType: WorkplaceType | null =
+      input.workType ?? (workplaceTypes.length === 1 ? workplaceTypes[0] : null);
+    if (workType !== null && !workplaceTypes.includes(workType)) {
       throw new BadRequestException("workType must be one of this company's own work types.");
     }
 
@@ -138,33 +148,60 @@ export class JobPostingsService {
     // this company's that was marked FILLED (i.e. they claimed a hire, then
     // reopened the identical role)? A plain repost of a still-open or
     // naturally-expired-but-never-filled posting does NOT count — see
-    // job-lifecycle-risk-score-backend.md's brainstorming section.
-    const priorFilledMatch = await this.prisma.jobPosting.findFirst({
-      where: {
-        companyId,
-        workType: input.workType,
-        status: "FILLED",
-        jobTitle: { equals: input.jobTitle, mode: "insensitive" },
-      },
-      select: { id: true },
-    });
-    if (priorFilledMatch) {
-      await this.prisma.company.update({
-        where: { id: companyId },
-        data: { riskScore: Math.min(3, company.riskScore + 1) },
+    // job-lifecycle-risk-score-backend.md's brainstorming section. Only a
+    // posting that actually goes live (PUBLISHED) can trigger the increment
+    // — one flagged for moderation must not leave a permanent mark. The
+    // create + conditional increment + audit entry run in one transaction so
+    // a crash between them can't leave a bumped score with no posting behind
+    // it, or vice versa. The increment itself is an atomic, capped
+    // updateMany (not a read-modify-write) so two concurrent creates can't
+    // lose an increment racing each other.
+    const posting = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.jobPosting.create({
+        data: {
+          companyId,
+          createdByUserId: userId,
+          jobTitle: input.jobTitle,
+          description: input.description,
+          workType,
+          autoReshareEnabled: input.autoReshareEnabled,
+          status,
+        },
       });
-    }
 
-    const posting = await this.prisma.jobPosting.create({
-      data: {
-        companyId,
-        createdByUserId: userId,
-        jobTitle: input.jobTitle,
-        description: input.description,
-        workType: input.workType,
-        autoReshareEnabled: input.autoReshareEnabled,
-        status,
-      },
+      if (status === "PUBLISHED") {
+        const priorFilledMatch = await tx.jobPosting.findFirst({
+          where: {
+            companyId,
+            workType,
+            status: "FILLED",
+            jobTitle: { equals: input.jobTitle, mode: "insensitive" },
+          },
+          select: { id: true },
+        });
+        if (priorFilledMatch) {
+          await tx.company.updateMany({
+            where: { id: companyId, riskScore: { lt: 3 } },
+            data: { riskScore: { increment: 1 } },
+          });
+          await tx.auditLog.create({
+            data: {
+              actorUserId: userId,
+              action: "RISK_SCORE_INCREMENT",
+              targetType: "Company",
+              targetId: companyId,
+              metadata: {
+                jobPostingId: created.id,
+                matchedPriorPostingId: priorFilledMatch.id,
+                jobTitle: input.jobTitle,
+                workType,
+              },
+            },
+          });
+        }
+      }
+
+      return created;
     });
 
     if (!input.boost) {
@@ -326,7 +363,10 @@ export class JobPostingsService {
   }
 
   async adminApprove(id: string): Promise<JobPostingView> {
-    const updated = await this.updateStatusOrThrow(id, "PUBLISHED");
+    // Reset the 30-day live-window anchor to the moment of approval, not
+    // creation — otherwise time spent waiting in the manual admin queue is
+    // silently deducted from the posting's public days.
+    const updated = await this.updateStatusOrThrow(id, "PUBLISHED", { lastResharedAt: new Date() });
     return toPublic(updated);
   }
 
@@ -335,12 +375,16 @@ export class JobPostingsService {
     return toPublic(updated);
   }
 
-  private async updateStatusOrThrow(id: string, status: JobPostingStatus) {
+  private async updateStatusOrThrow(
+    id: string,
+    status: JobPostingStatus,
+    extraData: { lastResharedAt?: Date } = {},
+  ) {
     const existing = await this.prisma.jobPosting.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException("Job posting not found");
     }
-    return this.prisma.jobPosting.update({ where: { id }, data: { status } });
+    return this.prisma.jobPosting.update({ where: { id }, data: { status, ...extraData } });
   }
 }
 

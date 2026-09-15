@@ -460,8 +460,9 @@ describe("CompaniesService — public job postings lifecycle", () => {
       filledAt: null,
       autoReshareEnabled: true,
     };
-    // Realistic Prisma update() return value: the full row, reshared.
-    const update = jest.fn().mockResolvedValue({ ...posting, lastResharedAt: new Date() });
+    // Batched write: one updateMany covering every stale id in the page,
+    // not a per-row update — see jobPostingsByCompanyId.
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
     const prisma = makePrisma({
       company: {
         findMany: jest.fn().mockResolvedValue([
@@ -470,14 +471,17 @@ describe("CompaniesService — public job postings lifecycle", () => {
       },
       jobPosting: {
         findMany: jest.fn().mockResolvedValue([posting]),
-        update,
+        updateMany,
       },
     });
     const service = new CompaniesService(prisma as any, {} as any);
 
     const results = await service.search({ includeJobTitles: true } as any);
 
-    expect(update).toHaveBeenCalledWith({ where: { id: "jp1" }, data: { lastResharedAt: expect.any(Date) } });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["jp1"] } },
+      data: { lastResharedAt: expect.any(Date) },
+    });
     expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d" }]);
   });
 });

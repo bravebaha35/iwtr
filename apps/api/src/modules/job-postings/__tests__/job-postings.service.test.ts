@@ -9,17 +9,28 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
       findUnique: jest.fn().mockResolvedValue({ userId: "u1", companyId: "c1", claimStatus: "APPROVED", tier: "FREE" }),
     },
     company: {
-      findUnique: jest.fn().mockResolvedValue({ workplaceTypes: ["SERVICE"], riskScore: 0 }),
+      // create() only selects workplaceTypes now — riskScore is no longer
+      // read (the atomic updateMany below doesn't need the prior value).
+      findUnique: jest.fn().mockResolvedValue({ workplaceTypes: ["SERVICE"] }),
       findMany: jest.fn().mockResolvedValue([]), // mentionsCompetitorName's scan
-      update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     jobPosting: {
       findFirst: jest.fn().mockResolvedValue(null), // no prior FILLED match by default
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "p1", createdAt: new Date(), ...data })),
       count: jest.fn().mockResolvedValue(0),
     },
+    auditLog: {
+      create: jest.fn().mockResolvedValue({}),
+    },
   };
-  return { ...base, ...overrides };
+  // create() now runs its create + conditional increment + audit entry
+  // inside prisma.$transaction — `tx` must be the SAME (possibly
+  // test-overridden) mock object the rest of this helper returns, so a
+  // test's jobPosting/company overrides are visible inside the callback too.
+  const merged: Record<string, any> = { ...base, ...overrides };
+  merged.$transaction = jest.fn().mockImplementation((cb: (tx: Record<string, any>) => unknown) => cb(merged));
+  return merged;
 }
 
 function service(prisma: Record<string, any>) {
@@ -76,7 +87,7 @@ describe("JobPostingsService.create — Risk Score", () => {
       autoReshareEnabled: false,
       boost: null,
     });
-    expect(prisma.company.update).not.toHaveBeenCalled();
+    expect(prisma.company.updateMany).not.toHaveBeenCalled();
   });
 
   it("increments riskScore by 1 when a prior FILLED posting matches title+workType", async () => {
@@ -93,7 +104,10 @@ describe("JobPostingsService.create — Risk Score", () => {
       autoReshareEnabled: false,
       boost: null,
     });
-    expect(prisma.company.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { riskScore: 1 } });
+    expect(prisma.company.updateMany).toHaveBeenCalledWith({
+      where: { id: "c1", riskScore: { lt: 3 } },
+      data: { riskScore: { increment: 1 } },
+    });
     expect(prisma.jobPosting.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -104,14 +118,30 @@ describe("JobPostingsService.create — Risk Score", () => {
         }),
       }),
     );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actorUserId: "u1",
+          action: "RISK_SCORE_INCREMENT",
+          targetType: "Company",
+          targetId: "c1",
+        }),
+      }),
+    );
   });
 
   it("caps riskScore at 3", async () => {
+    // The cap itself now lives in the DB (riskScore: { lt: 3 } in the WHERE
+    // clause of the atomic updateMany — see job-postings.service.ts), not in
+    // JS-side Math.min: a real DB no-ops this updateMany once riskScore hits
+    // 3, since {lt: 3} then matches zero rows. This unit test can only prove
+    // create() sends that guard; the actual cap-at-3 enforcement is verified
+    // for real against Postgres by scripts/verify-risk-score.ts.
     const prisma = makePrisma({
       company: {
-        findUnique: jest.fn().mockResolvedValue({ workplaceTypes: ["SERVICE"], riskScore: 3 }),
+        findUnique: jest.fn().mockResolvedValue({ workplaceTypes: ["SERVICE"] }),
         findMany: jest.fn().mockResolvedValue([]),
-        update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       jobPosting: {
         findFirst: jest.fn().mockResolvedValue({ id: "old" }),
@@ -125,7 +155,10 @@ describe("JobPostingsService.create — Risk Score", () => {
       autoReshareEnabled: false,
       boost: null,
     });
-    expect(prisma.company.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { riskScore: 3 } });
+    expect(prisma.company.updateMany).toHaveBeenCalledWith({
+      where: { id: "c1", riskScore: { lt: 3 } },
+      data: { riskScore: { increment: 1 } },
+    });
   });
 });
 

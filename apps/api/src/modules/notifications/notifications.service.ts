@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Notification, NotificationType } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { daysRemaining } from "../job-postings/job-postings.util";
 
 const MAX_NOTIFICATIONS = 30;
 
@@ -78,12 +79,27 @@ export class NotificationsService {
           })
         : Promise.resolve([]),
       followedCompanyIds.length > 0
-        ? this.prisma.jobPosting.findMany({
-            where: { companyId: { in: followedCompanyIds }, status: "PUBLISHED", company: { hiddenAt: null } },
-            select: { id: true, createdAt: true, company: { select: { name: true, slug: true } } },
-            orderBy: { createdAt: "desc" },
-            take: MAX_NOTIFICATIONS,
-          })
+        ? this.prisma.jobPosting
+            .findMany({
+              where: { companyId: { in: followedCompanyIds }, status: "PUBLISHED", company: { hiddenAt: null } },
+              select: {
+                id: true,
+                createdAt: true,
+                lastResharedAt: true,
+                filledAt: true,
+                autoReshareEnabled: true,
+                status: true,
+                company: { select: { name: true, slug: true } },
+              },
+              orderBy: { createdAt: "desc" },
+              // Over-fetch: some rows get filtered out below for having
+              // naturally lapsed (still PUBLISHED in the DB, no longer
+              // live — see job-postings.util.ts). events.slice(0,
+              // MAX_NOTIFICATIONS) at the end of this method still caps the
+              // combined total across all 6 notification sources.
+              take: MAX_NOTIFICATIONS * 3,
+            })
+            .then((rows) => rows.filter((r) => daysRemaining(r) > 0).slice(0, MAX_NOTIFICATIONS))
         : Promise.resolve([]),
     ]);
 

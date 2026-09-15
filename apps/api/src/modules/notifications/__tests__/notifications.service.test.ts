@@ -60,7 +60,18 @@ describe("NotificationsService.list - followed-company events", () => {
     const jobPostingFindMany = jest.fn().mockImplementation((args: any) => {
       if (args.where.companyId) {
         return Promise.resolve([
-          { id: "j1", createdAt: new Date("2026-01-01T00:00:00Z"), company: { name: "Acme", slug: "acme" } },
+          {
+            id: "j1",
+            createdAt: new Date("2026-01-01T00:00:00Z"),
+            // Still genuinely live: PUBLISHED, freshly (re)shared, never
+            // filled — daysRemaining() > 0 is what keeps this event past
+            // the notifications.service.ts lapsed-posting filter.
+            status: "PUBLISHED",
+            lastResharedAt: new Date(),
+            filledAt: null,
+            autoReshareEnabled: false,
+            company: { name: "Acme", slug: "acme" },
+          },
         ]);
       }
       return Promise.resolve([]);

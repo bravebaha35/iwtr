@@ -5,7 +5,9 @@ import { SavedJobPostingsService } from "../saved-job-postings.service";
 function makePrisma(overrides: Partial<Record<string, any>> = {}) {
   const base: Record<string, any> = {
     jobPosting: {
-      findUnique: jest.fn().mockResolvedValue({ id: "jp1" }),
+      // toggle() now gates on PUBLIC_COMPANY_WHERE via findFirst, not a
+      // plain findUnique — see saved-job-postings.service.ts.
+      findFirst: jest.fn().mockResolvedValue({ id: "jp1" }),
     },
     savedJobPosting: {
       findUnique: jest.fn().mockResolvedValue(null),
@@ -19,7 +21,7 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
 
 describe("SavedJobPostingsService.toggle", () => {
   it("404s on an unknown job posting", async () => {
-    const prisma = makePrisma({ jobPosting: { findUnique: jest.fn().mockResolvedValue(null) } });
+    const prisma = makePrisma({ jobPosting: { findFirst: jest.fn().mockResolvedValue(null) } });
     await expect(new SavedJobPostingsService(prisma as any).toggle("u1", "ghost")).rejects.toBeInstanceOf(
       NotFoundException,
     );

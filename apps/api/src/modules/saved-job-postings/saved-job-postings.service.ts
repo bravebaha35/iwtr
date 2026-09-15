@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { SavedJobPosting, SavedJobPostingToggleResult } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { shouldLazyReshare, isWithinSavedGraceWindow, daysRemaining } from "../job-postings/job-postings.util";
+import { PUBLIC_COMPANY_WHERE } from "../companies/company-visibility";
 
 @Injectable()
 export class SavedJobPostingsService {
@@ -12,7 +13,11 @@ export class SavedJobPostingsService {
   // saved-posts.controller.ts's precedent) — a private bookmark, no public
   // save count.
   async toggle(userId: string, jobPostingId: string): Promise<SavedJobPostingToggleResult> {
-    const posting = await this.prisma.jobPosting.findUnique({ where: { id: jobPostingId } });
+    // Gated the same way jobPostingsByCompanyId gates the public feed — a
+    // hidden company's postings must not be saveable (or stay saved) either.
+    const posting = await this.prisma.jobPosting.findFirst({
+      where: { id: jobPostingId, company: PUBLIC_COMPANY_WHERE },
+    });
     if (!posting) {
       throw new NotFoundException("Job posting not found");
     }
@@ -49,7 +54,7 @@ export class SavedJobPostingsService {
   // restore since the underlying JobPosting row is untouched either).
   async list(userId: string): Promise<SavedJobPosting[]> {
     const rows = await this.prisma.savedJobPosting.findMany({
-      where: { userId },
+      where: { userId, jobPosting: { company: PUBLIC_COMPANY_WHERE } },
       include: { jobPosting: true },
       orderBy: { createdAt: "desc" },
     });

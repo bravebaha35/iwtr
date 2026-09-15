@@ -244,23 +244,30 @@ export class CompaniesService {
       orderBy: { createdAt: "desc" },
     });
 
+    const now = new Date();
+    const staleIds: string[] = [];
     const byCompany = new Map<string, PublicJobPosting[]>();
     for (const row of rows) {
-      let current = row;
-      if (shouldLazyReshare(current)) {
-        current = await this.prisma.jobPosting.update({
-          where: { id: current.id },
-          data: { lastResharedAt: new Date() },
-        });
-      } else if (daysRemaining(current) === 0) {
+      if (shouldLazyReshare(row)) {
+        // Reshare-eligible: treat it as live for this response immediately
+        // (matches the semantics below); the actual write is batched once,
+        // after the loop, instead of one await per row.
+        staleIds.push(row.id);
+      } else if (daysRemaining(row) === 0) {
         // Stale and not resharing — gone from the public feed. Still a real
         // row in the DB (no hard deletions) and still visible to the owner
         // dashboard / Saved Posts for their own 30-day grace windows.
         continue;
       }
-      const list = byCompany.get(current.companyId) ?? [];
-      list.push({ id: current.id, jobTitle: current.jobTitle, description: current.description });
-      byCompany.set(current.companyId, list);
+      const list = byCompany.get(row.companyId) ?? [];
+      list.push({ id: row.id, jobTitle: row.jobTitle, description: row.description });
+      byCompany.set(row.companyId, list);
+    }
+    if (staleIds.length > 0) {
+      await this.prisma.jobPosting.updateMany({
+        where: { id: { in: staleIds } },
+        data: { lastResharedAt: now },
+      });
     }
     return byCompany;
   }

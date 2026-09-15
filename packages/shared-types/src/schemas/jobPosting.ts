@@ -58,7 +58,7 @@ export type CompanyJobPostings = z.infer<typeof companyJobPostingsSchema>;
 export const createJobPostingInputSchema = z.object({
   jobTitle: z.string().trim().min(1).max(200),
   description: z.string().min(1).max(600),
-  workType: workplaceTypeSchema,
+  workType: workplaceTypeSchema.optional(),
   autoReshareEnabled: z.boolean().optional().default(false),
   boost: z
     .object({
@@ -67,7 +67,7 @@ export const createJobPostingInputSchema = z.object({
     })
     .nullable(),
 });
-export type CreateJobPostingInput = z.infer<typeof createJobPostingInputSchema>;
+export type CreateJobPostingInput = z.input<typeof createJobPostingInputSchema>;
 
 export const createJobPostingResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("PUBLISHED"), jobPosting: jobPostingSchema }),
