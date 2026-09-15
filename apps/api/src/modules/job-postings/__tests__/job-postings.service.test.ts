@@ -1,4 +1,4 @@
-﻿import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JobPostingsService } from "../job-postings.service";
 
 const moderationPass = { checkContent: jest.fn().mockReturnValue({ violates: false, violationTypes: [] }) } as never;
@@ -26,7 +26,7 @@ function service(prisma: Record<string, any>) {
   return new JobPostingsService(prisma as any, moderationPass, {} as any);
 }
 
-describe("JobPostingsService.create â€” workType validation", () => {
+describe("JobPostingsService.create — workType validation", () => {
   it("rejects a workType the company doesn't have", async () => {
     const prisma = makePrisma();
     await expect(
@@ -66,7 +66,7 @@ describe("JobPostingsService.create â€” workType validation", () => {
   });
 });
 
-describe("JobPostingsService.create â€” Risk Score", () => {
+describe("JobPostingsService.create — Risk Score", () => {
   it("does not increment riskScore when there is no prior FILLED match", async () => {
     const prisma = makePrisma();
     await service(prisma).create("u1", "c1", {
@@ -128,7 +128,6 @@ describe("JobPostingsService.create â€” Risk Score", () => {
     expect(prisma.company.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { riskScore: 3 } });
   });
 });
-
 
 describe("JobPostingsService.markFilled", () => {
   function filledPrisma(overrides: Partial<Record<string, any>> = {}) {
