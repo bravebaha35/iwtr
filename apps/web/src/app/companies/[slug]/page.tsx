@@ -14,6 +14,7 @@ import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { ratingImageSrc } from "@/lib/ratingNarrative";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
+import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -241,6 +242,9 @@ export default async function CompanyPage({
                 {company.category} · <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
                 {company.city ? ` · ${company.city}` : ""}
               </p>
+              <div className="mt-1">
+                <RiskScoreBadge riskScore={company.riskScore} />
+              </div>
             </div>
           </div>
           <RateButton
