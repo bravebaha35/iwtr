@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { CompanyDetail, OwnedCompany } from "@iwtr/shared-types";
+import type { CompanyDetail, OwnedCompany, WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { SingleSelectDropdown } from "@/components/Dropdown";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
 const DESCRIPTION_MAX_LENGTH = 600;
 
 export interface JobSetupData {
   jobTitle: string;
   description: string;
+  workType: WorkplaceType;
 }
 
 function CloseButton({ onClose }: { onClose: () => void }) {
@@ -47,17 +49,27 @@ export function JobSetupModal({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [description, setDescription] = useState("");
+  const [workType, setWorkType] = useState<WorkplaceType | null>(null);
 
   useEffect(() => {
     apiGet<CompanyDetail>(`/companies/${company.companySlug}`)
-      .then(setDetail)
+      .then((d) => {
+        setDetail(d);
+        // Zero added friction for the common case: a single-work-type
+        // company never sees this control at all (see the conditional
+        // render below). A multi-type company must pick explicitly — see
+        // the frontend spec's decision 4.
+        if (d.company.workplaceTypes.length === 1) {
+          setWorkType(d.company.workplaceTypes[0]);
+        }
+      })
       .catch(() => setDetail(null));
     apiGet<string[]>(`/companies/${company.companySlug}/job-title-suggestions`)
       .then(setSuggestions)
       .catch(() => setSuggestions([]));
   }, [company.companySlug]);
 
-  const canContinue = Boolean(jobTitle) && description.trim().length > 0;
+  const canContinue = Boolean(jobTitle) && description.trim().length > 0 && workType !== null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
@@ -82,6 +94,18 @@ export function JobSetupModal({
           />
         </label>
 
+        {detail && detail.company.workplaceTypes.length > 1 && (
+          <label className="mb-4 block">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground">Which type of role is this?</span>
+            <SingleSelectDropdown
+              value={workType}
+              onChange={(v) => setWorkType(v as WorkplaceType | null)}
+              options={detail.company.workplaceTypes.map((t) => ({ value: t, label: workplaceTypeLabel(t) }))}
+              placeholder="Choose a work type"
+            />
+          </label>
+        )}
+
         <label className="mb-6 block">
           <span className="mb-1 flex items-center justify-between text-xs font-medium text-muted-foreground">
             <span>Tell us more</span>
@@ -101,7 +125,7 @@ export function JobSetupModal({
         <button
           type="button"
           disabled={!canContinue}
-          onClick={() => jobTitle && onContinue({ jobTitle, description: description.trim() })}
+          onClick={() => jobTitle && workType && onContinue({ jobTitle, description: description.trim(), workType })}
           className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           Continue
