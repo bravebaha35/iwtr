@@ -221,11 +221,14 @@ export function JobCard({
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
     // button's flag dropdown and the contact popovers are absolutely
     // positioned to spill outside this box, and clipping it would make them
-    // invisible. expired greys the whole card and makes it inert in one
-    // shot — pointer-events-none on this root cascades to every descendant
-    // (Link, ContactButton, the bookmark button), no per-element disabled
-    // prop needed.
+    // invisible. expired greys the whole card and makes it genuinely inert —
+    // the native `inert` attribute (not just pointer-events-none, which only
+    // blocks clicks/taps, not Tab focus or Enter/Space activation on a
+    // nested Link/button) removes every descendant from the tab order and
+    // from assistive-tech traversal too. pointer-events-none + opacity-50
+    // stay for the visual treatment and older-browser defense in depth.
     <div
+      inert={expired}
       aria-disabled={expired}
       className={`flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700 ${expired ? "pointer-events-none opacity-50" : ""}`}
     >
