@@ -481,3 +481,40 @@ describe("CompaniesService — public job postings lifecycle", () => {
     expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d" }]);
   });
 });
+
+describe("CompaniesService — riskScore exposure", () => {
+  it("search() includes each company's riskScore", async () => {
+    const prisma = makePrisma({
+      company: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "c1", slug: "c1", name: "Co", category: "Software", workplaceTypes: ["OFFICE"], aggregate: null, riskScore: 2 },
+        ]),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+    const results = await service.search(baseQuery());
+    expect(results[0].riskScore).toBe(2);
+  });
+
+  it("getBySlug() includes riskScore", async () => {
+    const prisma = {
+      company: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "c1",
+          slug: "co",
+          name: "Co",
+          category: "Software",
+          workplaceTypes: ["OFFICE"],
+          hiddenAt: null,
+          riskScore: 1,
+          aggregate: null,
+          owners: [],
+        }),
+      },
+    };
+    const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(false) };
+    const service = new CompaniesService(prisma as any, reviews as any);
+    const detail = await service.getBySlug("co");
+    expect(detail.company.riskScore).toBe(1);
+  });
+});

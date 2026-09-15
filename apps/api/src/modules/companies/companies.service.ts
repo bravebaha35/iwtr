@@ -444,6 +444,7 @@ export class CompaniesService {
     glassdoorUrl: string | null;
     bannerImageUrl: string | null;
     featuredReviewId: string | null;
+    riskScore: number;
   }, hasApprovedOwner: boolean): Company {
     return {
       id: c.id,
@@ -475,6 +476,7 @@ export class CompaniesService {
       bannerImageUrl: c.bannerImageUrl,
       defaultBannerUrl: defaultBannerUrlForWorkplaceType(c.workplaceTypes[0]),
       featuredReviewId: c.featuredReviewId,
+      riskScore: c.riskScore,
       hasApprovedOwner,
     };
   }

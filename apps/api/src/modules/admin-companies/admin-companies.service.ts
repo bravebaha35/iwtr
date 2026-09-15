@@ -54,6 +54,7 @@ const PUBLIC_COMPANY_SELECT = {
   glassdoorUrl: true,
   bannerImageUrl: true,
   featuredReviewId: true,
+  riskScore: true,
 } as const;
 
 function normalizeNameKey(rawCompanyName: string): string {
