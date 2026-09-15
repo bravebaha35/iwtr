@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+﻿import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   AdminJobPosting,
   CreateJobPostingInput,
@@ -61,7 +61,7 @@ export class JobPostingsService {
     private readonly payments: PaymentsService,
   ) {}
 
-  // Duplicated rather than cross-imported from owner.service.ts — matches
+  // Duplicated rather than cross-imported from owner.service.ts â€” matches
   // this codebase's existing module-per-feature convention (see the
   // identical comment on RivalAnalyticsService's own copy).
   private async requireApprovedOwnership(userId: string, companyId: string) {
@@ -83,7 +83,7 @@ export class JobPostingsService {
     });
   }
 
-  // A plain substring scan against every other company's name — the
+  // A plain substring scan against every other company's name â€” the
   // moderation module itself has no DB dependency by design (pure text-in,
   // verdict-out, see its own class comment), so this competitor-name check
   // lives here rather than inside ModerationService.checkContent. Same
@@ -110,7 +110,7 @@ export class JobPostingsService {
   }
 
   /**
-   * Always creates the posting — a flagged posting still gets a row (status
+   * Always creates the posting â€” a flagged posting still gets a row (status
    * PENDING_ADMIN), it just isn't publicly visible until an admin approves
    * it (see adminApprove below). Boost handling happens after the posting
    * exists, so a boost purchase always has a real jobPostingId to key off of
@@ -135,7 +135,7 @@ export class JobPostingsService {
     // Risk Score: does this exact title+workType match an earlier posting of
     // this company's that was marked FILLED (i.e. they claimed a hire, then
     // reopened the identical role)? A plain repost of a still-open or
-    // naturally-expired-but-never-filled posting does NOT count — see
+    // naturally-expired-but-never-filled posting does NOT count â€” see
     // job-lifecycle-risk-score-backend.md's brainstorming section.
     const priorFilledMatch = await this.prisma.jobPosting.findFirst({
       where: {
@@ -200,7 +200,7 @@ export class JobPostingsService {
 
     // Same "must be this API server's own public address, reachable by
     // iyzico's servers" constraint documented on PaymentsService's Plus
-    // checkout — a tunnel is needed to exercise this locally end-to-end.
+    // checkout â€” a tunnel is needed to exercise this locally end-to-end.
     const apiPublicUrl = process.env.API_PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? 3001}/v1`;
 
     try {
@@ -224,17 +224,40 @@ export class JobPostingsService {
         token: checkout.token,
       };
     } catch {
-      // iyzico not configured (no API keys yet) or a live-call failure —
+      // iyzico not configured (no API keys yet) or a live-call failure â€”
       // same "not set up yet" condition Rival Analytics/Plus checkout
       // already surface as a friendly message instead of a raw 5xx. The
       // posting itself still exists (already published or pending review);
       // only the boost failed, so there's nothing to roll back here.
       throw new BadRequestException(
-        "Payment isn't set up yet — the site owner needs to add iyzico payment credentials first.",
+        "Payment isn't set up yet â€” the site owner needs to add iyzico payment credentials first.",
       );
     }
   }
 
+
+  /**
+   * The soft-delete: the only manual way a posting stops being publicly
+   * live. Never deletes the row — Risk Score's create-time check depends on
+   * FILLED rows persisting forever (see mentionsCompetitorName-adjacent
+   * comment above for the same "never trust the client, always re-verify
+   * ownership" pattern).
+   */
+  async markFilled(userId: string, companyId: string, jobPostingId: string): Promise<JobPostingView> {
+    await this.requireApprovedOwnership(userId, companyId);
+    const posting = await this.prisma.jobPosting.findUnique({ where: { id: jobPostingId } });
+    if (!posting || posting.companyId !== companyId) {
+      throw new NotFoundException("Job posting not found");
+    }
+    if (posting.status !== "PUBLISHED") {
+      throw new BadRequestException("Only a published posting can be marked filled.");
+    }
+    const updated = await this.prisma.jobPosting.update({
+      where: { id: jobPostingId },
+      data: { status: "FILLED", filledAt: new Date() },
+    });
+    return toPublic(updated);
+  }
   /**
    * Called from the public iyzico callback route once the browser lands back
    * from the hosted Checkout Form. Idempotent, same as
@@ -288,3 +311,4 @@ export class JobPostingsService {
     return this.prisma.jobPosting.update({ where: { id }, data: { status } });
   }
 }
+

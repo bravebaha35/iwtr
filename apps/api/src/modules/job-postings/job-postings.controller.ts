@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from "@nestjs/common";
+﻿import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import {
   createJobPostingInputSchema,
@@ -33,8 +33,19 @@ export class JobPostingsController {
     return this.jobPostings.create(user.id, companyId, body);
   }
 
+
+  @Post("my-companies/:companyId/job-postings/:jobPostingId/mark-filled")
+  @UseGuards(JwtAuthGuard)
+  markFilled(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("companyId", new ParseUUIDPipe()) companyId: string,
+    @Param("jobPostingId", new ParseUUIDPipe()) jobPostingId: string,
+  ) {
+    return this.jobPostings.markFilled(user.id, companyId, jobPostingId);
+  }
+
   // Public: this is where the user's *browser* lands after paying on
-  // iyzico's hosted page, not an authenticated API call — same shape as
+  // iyzico's hosted page, not an authenticated API call â€” same shape as
   // PaymentsController.callback and RivalAnalyticsController's own callback.
   // Trustworthiness comes from JobPostingsService immediately calling back
   // into iyzico with our own API secret, never from trusting this body.
@@ -71,3 +82,4 @@ export class JobPostingsController {
     return this.jobPostings.adminReject(id);
   }
 }
+

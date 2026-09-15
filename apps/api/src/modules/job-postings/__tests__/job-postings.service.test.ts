@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+﻿import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JobPostingsService } from "../job-postings.service";
 
 const moderationPass = { checkContent: jest.fn().mockReturnValue({ violates: false, violationTypes: [] }) } as never;
@@ -26,7 +26,7 @@ function service(prisma: Record<string, any>) {
   return new JobPostingsService(prisma as any, moderationPass, {} as any);
 }
 
-describe("JobPostingsService.create — workType validation", () => {
+describe("JobPostingsService.create â€” workType validation", () => {
   it("rejects a workType the company doesn't have", async () => {
     const prisma = makePrisma();
     await expect(
@@ -66,7 +66,7 @@ describe("JobPostingsService.create — workType validation", () => {
   });
 });
 
-describe("JobPostingsService.create — Risk Score", () => {
+describe("JobPostingsService.create â€” Risk Score", () => {
   it("does not increment riskScore when there is no prior FILLED match", async () => {
     const prisma = makePrisma();
     await service(prisma).create("u1", "c1", {
@@ -126,5 +126,55 @@ describe("JobPostingsService.create — Risk Score", () => {
       boost: null,
     });
     expect(prisma.company.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { riskScore: 3 } });
+  });
+});
+
+
+describe("JobPostingsService.markFilled", () => {
+  function filledPrisma(overrides: Partial<Record<string, any>> = {}) {
+    return makePrisma({
+      jobPosting: {
+        findUnique: jest.fn().mockResolvedValue({ id: "p1", companyId: "c1", status: "PUBLISHED" }),
+        update: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ id: "p1", companyId: "c1", createdAt: new Date(), ...data })),
+      },
+      ...overrides,
+    });
+  }
+
+  it("sets status to FILLED and stamps filledAt", async () => {
+    const prisma = filledPrisma();
+    const result = await service(prisma).markFilled("u1", "c1", "p1");
+    expect(result.status).toBe("FILLED");
+    expect(prisma.jobPosting.update).toHaveBeenCalledWith({
+      where: { id: "p1" },
+      data: { status: "FILLED", filledAt: expect.any(Date) },
+    });
+  });
+
+  it("404s when the posting doesn't belong to this company", async () => {
+    const prisma = filledPrisma({
+      jobPosting: {
+        findUnique: jest.fn().mockResolvedValue({ id: "p1", companyId: "OTHER", status: "PUBLISHED" }),
+        update: jest.fn(),
+      },
+    });
+    await expect(service(prisma).markFilled("u1", "c1", "p1")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("refuses to mark an already-non-PUBLISHED posting filled", async () => {
+    const prisma = filledPrisma({
+      jobPosting: {
+        findUnique: jest.fn().mockResolvedValue({ id: "p1", companyId: "c1", status: "FILLED" }),
+        update: jest.fn(),
+      },
+    });
+    await expect(service(prisma).markFilled("u1", "c1", "p1")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("requires approved ownership of the company", async () => {
+    const prisma = filledPrisma({ companyOwner: { findUnique: jest.fn().mockResolvedValue(null) } });
+    await expect(service(prisma).markFilled("u1", "c1", "p1")).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
