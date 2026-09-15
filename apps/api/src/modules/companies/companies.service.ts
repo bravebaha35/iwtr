@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import {
   findProvinceByCityName,
-  defaultBannerUrlForWorkplaceType,
   workplaceTypeSchema,
   type AdminCreateCompanyInput,
   type Company,
@@ -11,14 +10,13 @@ import {
   type CompanyListItem,
   type CompanySearchQuery,
   type PublicJobPosting,
-  type StructureType,
-  type TurkeyRegionKey,
   type WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { shouldLazyReshare, daysRemaining } from "../job-postings/job-postings.util";
 import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "./company-visibility";
+import { toPublicCompany } from "./company-public.util";
 import { slugify } from "./slugify.util";
 import { resolveLocation } from "./resolve-location.util";
 import { classifyJobRole } from "./workplace-classifier/classifyJobRole";
@@ -103,7 +101,7 @@ export class CompaniesService {
     });
 
     // A freshly-created company has no owner yet.
-    return this.toPublicCompany(company, false);
+    return toPublicCompany(company, false);
   }
 
   /**
@@ -210,7 +208,7 @@ export class CompaniesService {
     const ownedCompanyIds = await this.approvedOwnerCompanyIds(companies.map((c) => c.id));
 
     return companies.map((c) => ({
-      ...this.toPublicCompany(c, ownedCompanyIds.has(c.id)),
+      ...toPublicCompany(c, ownedCompanyIds.has(c.id)),
       overallAvg: c.aggregate?.overallAvg ?? null,
       reviewCount: c.aggregate?.reviewCount ?? 0,
       jobTitles: jobTitlesByCompanyId.get(c.id) ?? [],
@@ -406,7 +404,7 @@ export class CompaniesService {
     );
 
     return {
-      company: { ...this.toPublicCompany(company, company.owners.length > 0), workplaceTypesLocked },
+      company: { ...toPublicCompany(company, company.owners.length > 0), workplaceTypesLocked },
       aggregate: company.aggregate
         ? {
             companyId: company.aggregate.companyId,
@@ -422,69 +420,4 @@ export class CompaniesService {
     };
   }
 
-  private toPublicCompany(c: {
-    id: string;
-    slug: string;
-    name: string;
-    category: string;
-    workplaceTypes: WorkplaceType[];
-    mainPhotoUrl: string | null;
-    description: string | null;
-    website: string | null;
-    city: string | null;
-    district: string | null;
-    structureType: StructureType;
-    region: TurkeyRegionKey | null;
-    isVerifiedBadge: boolean;
-    badgeTier: Company["badgeTier"];
-    taxNumber: string | null;
-    isChainStore: boolean;
-    isHiring: boolean;
-    contactEmail: string | null;
-    contactPhone: string | null;
-    facebookUrl: string | null;
-    instagramUrl: string | null;
-    whatsappUrl: string | null;
-    xUrl: string | null;
-    linkedinUrl: string | null;
-    youtubeUrl: string | null;
-    glassdoorUrl: string | null;
-    bannerImageUrl: string | null;
-    featuredReviewId: string | null;
-    riskScore: number;
-  }, hasApprovedOwner: boolean): Company {
-    return {
-      id: c.id,
-      slug: c.slug,
-      name: c.name,
-      category: c.category,
-      workplaceTypes: c.workplaceTypes,
-      mainPhotoUrl: c.mainPhotoUrl,
-      description: c.description,
-      website: c.website,
-      city: c.city,
-      district: c.district,
-      structureType: c.structureType,
-      region: c.region,
-      isVerifiedBadge: c.isVerifiedBadge,
-      badgeTier: c.badgeTier,
-      taxNumber: c.taxNumber,
-      isChainStore: c.isChainStore,
-      isHiring: c.isHiring,
-      contactEmail: c.contactEmail,
-      contactPhone: c.contactPhone,
-      facebookUrl: c.facebookUrl,
-      instagramUrl: c.instagramUrl,
-      whatsappUrl: c.whatsappUrl,
-      xUrl: c.xUrl,
-      linkedinUrl: c.linkedinUrl,
-      youtubeUrl: c.youtubeUrl,
-      glassdoorUrl: c.glassdoorUrl,
-      bannerImageUrl: c.bannerImageUrl,
-      defaultBannerUrl: defaultBannerUrlForWorkplaceType(c.workplaceTypes[0]),
-      featuredReviewId: c.featuredReviewId,
-      riskScore: c.riskScore,
-      hasApprovedOwner,
-    };
-  }
 }
