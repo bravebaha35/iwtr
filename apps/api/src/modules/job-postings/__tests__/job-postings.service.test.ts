@@ -177,3 +177,65 @@ describe("JobPostingsService.markFilled", () => {
     await expect(service(prisma).markFilled("u1", "c1", "p1")).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe("JobPostingsService.listOwnerPostings", () => {
+  function row(overrides: Partial<Record<string, any>> = {}) {
+    return {
+      id: "p1",
+      companyId: "c1",
+      jobTitle: "Cashier",
+      description: "d",
+      workType: "SERVICE",
+      status: "PUBLISHED",
+      boostDurationDays: null,
+      boostExpiresAt: null,
+      createdAt: new Date(),
+      lastResharedAt: null,
+      filledAt: null,
+      autoReshareEnabled: false,
+      ...overrides,
+    };
+  }
+
+  it("includes daysRemaining on each row", async () => {
+    const prisma = makePrisma({ jobPosting: { findMany: jest.fn().mockResolvedValue([row()]) } });
+    const result = await service(prisma).listOwnerPostings("u1", "c1");
+    expect(result[0].daysRemaining).toBeGreaterThan(0);
+    expect(result[0].id).toBe("p1");
+  });
+
+  it("lazily reshares a stale PUBLISHED posting with autoReshareEnabled, instead of dropping it", async () => {
+    const stale = row({
+      createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+      autoReshareEnabled: true,
+    });
+    const update = jest.fn().mockResolvedValue({ ...stale, lastResharedAt: new Date() });
+    const prisma = makePrisma({ jobPosting: { findMany: jest.fn().mockResolvedValue([stale]), update } });
+    const result = await service(prisma).listOwnerPostings("u1", "c1");
+    expect(update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { lastResharedAt: expect.any(Date) } });
+    expect(result[0].daysRemaining).toBe(30);
+  });
+
+  it("drops a posting past its 30-day grace window", async () => {
+    const longGone = row({
+      status: "FILLED",
+      filledAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+    });
+    const prisma = makePrisma({ jobPosting: { findMany: jest.fn().mockResolvedValue([longGone]) } });
+    const result = await service(prisma).listOwnerPostings("u1", "c1");
+    expect(result).toEqual([]);
+  });
+
+  it("keeps a FILLED posting within its 30-day grace window", async () => {
+    const recentlyFilled = row({ status: "FILLED", filledAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) });
+    const prisma = makePrisma({ jobPosting: { findMany: jest.fn().mockResolvedValue([recentlyFilled]) } });
+    const result = await service(prisma).listOwnerPostings("u1", "c1");
+    expect(result).toHaveLength(1);
+    expect(result[0].status).toBe("FILLED");
+  });
+
+  it("requires approved ownership", async () => {
+    const prisma = makePrisma({ companyOwner: { findUnique: jest.fn().mockResolvedValue(null) } });
+    await expect(service(prisma).listOwnerPostings("u1", "c1")).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});

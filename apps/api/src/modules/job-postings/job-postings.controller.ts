@@ -43,6 +43,12 @@ export class JobPostingsController {
     return this.jobPostings.markFilled(user.id, companyId, jobPostingId);
   }
 
+  @Get("my-companies/:companyId/job-postings")
+  @UseGuards(JwtAuthGuard)
+  listOwnerPostings(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
+    return this.jobPostings.listOwnerPostings(user.id, companyId);
+  }
+
   // Public: this is where the user's *browser* lands after paying on
   // iyzico's hosted page, not an authenticated API call — same shape as
   // PaymentsController.callback and RivalAnalyticsController's own callback.

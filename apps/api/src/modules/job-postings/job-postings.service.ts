@@ -12,6 +12,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PaymentsService } from "../payments/payments.service";
 import { decideBoostAccess, freeBoostsRemaining, tierKeyFromOwnerTier } from "./decideBoostAccess";
+import type { OwnerJobPosting } from "@iwtr/shared-types";
+import { shouldLazyReshare, isWithinSavedGraceWindow, daysRemaining } from "./job-postings.util";
 
 const BOOST_PRICING: { durationDays: 7 | 14 | 21; priceTry: string }[] = [
   { durationDays: 7, priceTry: "299.99" },
@@ -256,6 +258,36 @@ export class JobPostingsService {
       data: { status: "FILLED", filledAt: new Date() },
     });
     return toPublic(updated);
+  }
+
+  /**
+   * The owner's own view of every posting they've ever made for this
+   * company — every status, including ones that have left the public feed,
+   * for up to 30 more days (isWithinSavedGraceWindow) so they can still see
+   * their recent history. A stale-but-resharing posting is refreshed right
+   * here (shouldLazyReshare) rather than dropped — the entire "no cron"
+   * mechanism this plan relies on.
+   */
+  async listOwnerPostings(userId: string, companyId: string): Promise<OwnerJobPosting[]> {
+    await this.requireApprovedOwnership(userId, companyId);
+    const rows = await this.prisma.jobPosting.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const result: OwnerJobPosting[] = [];
+    for (const row of rows) {
+      let current = row;
+      if (shouldLazyReshare(current)) {
+        current = await this.prisma.jobPosting.update({
+          where: { id: current.id },
+          data: { lastResharedAt: new Date() },
+        });
+      }
+      if (!isWithinSavedGraceWindow(current)) continue;
+      result.push({ ...toPublic(current), daysRemaining: daysRemaining(current) });
+    }
+    return result;
   }
 
   /**
