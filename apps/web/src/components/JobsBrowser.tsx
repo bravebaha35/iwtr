@@ -15,6 +15,9 @@ import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { JobCard, postingsForCard } from "@/components/jobs/JobCard";
 import { JobCreationFlow } from "@/components/jobs/JobCreationFlow";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
+import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
+import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
+import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
 // rather than a shared-internals refactor of it — the brief asked for the
@@ -124,6 +127,50 @@ function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number })
   return distanceKm(geo.lat, geo.lng, province.lat, province.lng);
 }
 
+// Same data source as SocialSidebar's FollowingList (useFollowedCompanies),
+// but a single-select CLIENT-SIDE FILTER instead of navigation — clicking a
+// name narrows the results grid to that one company; clicking the same name
+// again clears the filter and restores the unfiltered view. Not shared with
+// SocialSidebar's version since the click behavior is genuinely different,
+// matching this file's own standing near-duplicate policy (see the
+// file-header comment above).
+function FollowingFilterList({
+  selectedCompanyId,
+  onSelect,
+}: {
+  selectedCompanyId: string | null;
+  onSelect: (companyId: string | null) => void;
+}) {
+  const { companies, loading } = useFollowedCompanies();
+
+  return (
+    <div>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h3>
+      <div className="flex h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-1.5">
+        {loading && <p className="p-1.5 text-xs text-muted-foreground">Loading...</p>}
+        {!loading && companies.length === 0 && (
+          <p className="p-1.5 text-xs text-muted-foreground">You&apos;re not following any companies yet.</p>
+        )}
+        {companies.map((c) => (
+          <button
+            key={c.companyId}
+            type="button"
+            onClick={() => onSelect(selectedCompanyId === c.companyId ? null : c.companyId)}
+            aria-pressed={selectedCompanyId === c.companyId}
+            className={`truncate rounded-md px-1.5 py-1 text-left text-sm transition ${
+              selectedCompanyId === c.companyId
+                ? "bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300"
+                : "text-foreground hover:bg-surface-muted"
+            }`}
+          >
+            {c.companyName}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function JobsBrowser() {
   const isCompanyOwner = useIsCompanyOwner();
   const [jobFlowOpen, setJobFlowOpen] = useState(false);
@@ -140,6 +187,9 @@ export function JobsBrowser() {
   const [geoRequesting, setGeoRequesting] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [page, setPage] = useState(1);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [savedView, setSavedView] = useState(false);
+  const { postings: savedPostings, loading: savedLoading, canSave } = useSavedJobPostings();
   const sliderTrackRef = useRef<HTMLDivElement>(null);
   const resultsTopRef = useRef<HTMLDivElement>(null);
 
@@ -236,7 +286,8 @@ export function JobsBrowser() {
 
   const visibleCompanies = useMemo(() => {
     if (!companies) return null;
-    let list = selectedCategory ? companies.filter((c) => c.category === selectedCategory) : companies;
+    let list = selectedCompanyId ? companies.filter((c) => c.id === selectedCompanyId) : companies;
+    list = selectedCategory ? list.filter((c) => c.category === selectedCategory) : list;
     list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
 
     if (sortBy === "alphabetical") {
@@ -252,11 +303,21 @@ export function JobsBrowser() {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
     return list;
-  }, [companies, selectedCategory, categoryGroup, geo, sortBy]);
+  }, [companies, selectedCompanyId, selectedCategory, categoryGroup, geo, sortBy]);
 
   useEffect(() => {
     setPage(1);
-  }, [workplaceTypes, selectedCategory, categoryGroup, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
+  }, [
+    workplaceTypes,
+    selectedCategory,
+    categoryGroup,
+    minRating,
+    selectedCities,
+    selectedDistrictKeys,
+    sortBy,
+    query,
+    selectedCompanyId,
+  ]);
 
   const totalPages = visibleCompanies ? Math.max(1, Math.ceil(visibleCompanies.length / RESULTS_PAGE_SIZE)) : 1;
   const pageCompanies = visibleCompanies?.slice((page - 1) * RESULTS_PAGE_SIZE, page * RESULTS_PAGE_SIZE) ?? null;
@@ -303,6 +364,24 @@ export function JobsBrowser() {
 
         <div className="flex flex-col gap-6 sm:flex-row">
           <aside className="flex shrink-0 flex-col gap-6 sm:w-56">
+            {canSave && (
+              <>
+                <FollowingFilterList selectedCompanyId={selectedCompanyId} onSelect={setSelectedCompanyId} />
+                <button
+                  type="button"
+                  onClick={() => setSavedView((v) => !v)}
+                  aria-pressed={savedView}
+                  className={`flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2 text-sm font-semibold transition ${
+                    savedView
+                      ? "border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-400 dark:bg-brand-950 dark:text-brand-300"
+                      : "border-border text-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  <BookmarkIcon className="h-4 w-4" />
+                  Saved Posts
+                </button>
+              </>
+            )}
             <div>
               <MultiFilterPillGroup
                 heading="Work-Type"
@@ -478,34 +557,50 @@ export function JobsBrowser() {
               </p>
             )}
 
-            {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
-            {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
-              <p className="text-sm text-red-600 dark:text-red-400">
-                Couldn&apos;t load workplaces right now — check your connection and try again.
-              </p>
-            )}
-            {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
-              <p className="text-sm text-muted-foreground">
-                No companies are looking for people under these filters yet.
-              </p>
-            )}
-            {/* One card per job (see postingsForCard) — a company with N
-                open postings renders N cards here, not one crowded card. */}
-            <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {pageCompanies?.flatMap((c) =>
-                postingsForCard(c).map((posting, i) => (
-                  <JobCard key={`${c.id}-${posting?.jobTitle ?? "none"}-${i}`} company={c} posting={posting} />
-                )),
-              )}
-            </div>
-
-            {visibleCompanies !== null && visibleCompanies.length > 0 && (
+            {savedView ? (
               <>
-                <p className="mt-4 text-center text-xs text-muted-foreground">
-                  Page {page} of {totalPages} — {visibleCompanies.length} compan
-                  {visibleCompanies.length === 1 ? "y" : "ies"} hiring
-                </p>
-                <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
+                {savedLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
+                {!savedLoading && savedPostings.length === 0 && (
+                  <p className="text-sm text-muted-foreground">You haven&apos;t saved any job postings yet.</p>
+                )}
+                <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {savedPostings.map((p) => (
+                    <JobCard key={p.posting.id} company={p.company} posting={p.posting} expired={p.expired} />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
+                {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    Couldn&apos;t load workplaces right now — check your connection and try again.
+                  </p>
+                )}
+                {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
+                  <p className="text-sm text-muted-foreground">
+                    No companies are looking for people under these filters yet.
+                  </p>
+                )}
+                {/* One card per job (see postingsForCard) — a company with N
+                    open postings renders N cards here, not one crowded card. */}
+                <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {pageCompanies?.flatMap((c) =>
+                    postingsForCard(c).map((posting, i) => (
+                      <JobCard key={`${c.id}-${posting?.jobTitle ?? "none"}-${i}`} company={c} posting={posting} />
+                    )),
+                  )}
+                </div>
+
+                {visibleCompanies !== null && visibleCompanies.length > 0 && (
+                  <>
+                    <p className="mt-4 text-center text-xs text-muted-foreground">
+                      Page {page} of {totalPages} — {visibleCompanies.length} compan
+                      {visibleCompanies.length === 1 ? "y" : "ies"} hiring
+                    </p>
+                    <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
+                  </>
+                )}
               </>
             )}
           </div>
