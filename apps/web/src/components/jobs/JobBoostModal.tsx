@@ -79,6 +79,8 @@ export function JobBoostModal({
   const [result, setResult] = useState<CreateJobPostingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [disclaimerChecked, setDisclaimerChecked] = useState(false);
+  const [autoReshareEnabled, setAutoReshareEnabled] = useState(false);
 
   useEffect(() => {
     apiGet<JobPostingBoostStatus>(`/my-companies/${company.companyId}/job-postings/boost-status`)
@@ -117,7 +119,13 @@ export function JobBoostModal({
               : undefined,
           }
         : null;
-      const body: CreateJobPostingInput = { jobTitle: setupData.jobTitle, description: setupData.description, boost };
+      const body: CreateJobPostingInput = {
+        jobTitle: setupData.jobTitle,
+        description: setupData.description,
+        workType: setupData.workType,
+        autoReshareEnabled,
+        boost,
+      };
       const data = await apiPost<CreateJobPostingResult>(`/my-companies/${company.companyId}/job-postings`, body);
       if (data.status === "CHECKOUT_REQUIRED") {
         setResult(data);
@@ -261,11 +269,37 @@ export function JobBoostModal({
 
             {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
+            <label className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={disclaimerChecked}
+                onChange={(e) => setDisclaimerChecked(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                By publishing this job, you accept our Fair Hiring Rules. To prevent job-board spamming and protect
+                workers from high-turnover roles, posting the exact same position and work-type repeatedly will
+                increase your company&apos;s public &apos;Risk Score&apos; up to a maximum of 3. This score is
+                visible to all workers. You cannot simply post and delete jobs to manipulate the system.
+                Furthermore, all worker applications are anonymous by default; we prioritize direct, bias-free
+                contact by providing only candidate emails and phone numbers.
+              </span>
+            </label>
+
+            <label className="mt-2 flex items-center gap-2 text-xs text-foreground">
+              <input
+                type="checkbox"
+                checked={autoReshareEnabled}
+                onChange={(e) => setAutoReshareEnabled(e.target.checked)}
+              />
+              Re-share automatically after 30 days
+            </label>
+
             <button
               type="button"
               onClick={submit}
-              disabled={submitting}
-              className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+              disabled={submitting || !disclaimerChecked}
+              className="mt-4 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
               {submitting ? "Please wait..." : selected ? "Finish" : "Continue without boost"}
             </button>
