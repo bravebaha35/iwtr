@@ -9,6 +9,9 @@ import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
+import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
+import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
+import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 
 // The standard job card, shared by the /jobs browse grid (JobsBrowser) and
 // a company's own "Job Postings" profile tab (CompanyJobPostings). One card
@@ -173,14 +176,16 @@ function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
 // own boost fields per row in the DB, so splitting the card this way lines
 // the UI up with what the data model already supports: pick "3D Artist",
 // not "3D Artist AND Forklift Operatörü", when buying a boost.
-export type CardPosting = { jobTitle: string; description: string | null } | null;
+export type CardPosting = { id?: string; jobTitle: string; description: string | null } | null;
 
 export function postingsForCard(company: CompanyListItem): CardPosting[] {
   if (company.jobPostings.length > 0) {
-    return company.jobPostings.map((p) => ({ jobTitle: p.jobTitle, description: p.description }));
+    return company.jobPostings.map((p) => ({ id: p.id, jobTitle: p.jobTitle, description: p.description }));
   }
   if (company.jobTitles.length > 0) {
-    // Auto-classified titles have no owner-authored description to show.
+    // Auto-classified titles have no owner-authored description to show, and
+    // no real posting id — never bookmarkable (see the bookmark button's own
+    // posting?.id guard below).
     return company.jobTitles.map((title) => ({ jobTitle: title, description: null }));
   }
   return [null];
@@ -189,8 +194,20 @@ export function postingsForCard(company: CompanyListItem): CardPosting[] {
 // One job card: 4:1 banner strip, then a square content box (logo+name
 // header, address/sector, one job title + contact, rating + vibe-flags "i"
 // menu), then a work-type footer strip below the box.
-export function JobCard({ company, posting }: { company: CompanyListItem; posting: CardPosting }) {
+export function JobCard({
+  company,
+  posting,
+  expired = false,
+}: {
+  company: CompanyListItem;
+  posting: CardPosting;
+  // True only inside the Saved Posts view, for a posting that's expired or
+  // been marked filled. Defaults false everywhere else this card renders
+  // (the public browse grid and the company profile tab are unaffected).
+  expired?: boolean;
+}) {
   const [infoOpen, setInfoOpen] = useState(false);
+  const { savedIds, canSave, toggleSave } = useSavedJobPostings();
   const location = [company.district, company.city].filter(Boolean).join(", ");
   // Every job card shows a banner: the owner's own image when their tier
   // includes custom banners and one is set, otherwise the system default.
@@ -198,13 +215,20 @@ export function JobCard({ company, posting }: { company: CompanyListItem; postin
   const hasCustomBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
   const bannerUrl = hasCustomBanner ? company.bannerImageUrl! : company.defaultBannerUrl;
   const bannerIsGreyscale = !hasCustomBanner && !company.hasApprovedOwner;
+  const isSaved = posting?.id ? savedIds.has(posting.id) : false;
 
   return (
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
     // button's flag dropdown and the contact popovers are absolutely
     // positioned to spill outside this box, and clipping it would make them
-    // invisible.
-    <div className="flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700">
+    // invisible. expired greys the whole card and makes it inert in one
+    // shot — pointer-events-none on this root cascades to every descendant
+    // (Link, ContactButton, the bookmark button), no per-element disabled
+    // prop needed.
+    <div
+      aria-disabled={expired}
+      className={`flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700 ${expired ? "pointer-events-none opacity-50" : ""}`}
+    >
       {/* Banner sits above the square content box (not inside it, so it
           doesn't eat that box's fixed proportions). Facebook-style overlap —
           logo over the banner's bottom-left corner. The banner sits flush at
@@ -224,7 +248,7 @@ export function JobCard({ company, posting }: { company: CompanyListItem; postin
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
         </div>
       </div>
-      <div className="flex aspect-square flex-col rounded-b-xl p-4 pt-5 compact:p-3">
+      <div className="relative flex aspect-square flex-col rounded-b-xl p-4 pt-5 compact:p-3">
         {/* Top row: name (top-left) ... rating + info button (top-right). The
             logo already sits above, overlapping the banner, so this row is
             name-only. */}
@@ -302,6 +326,23 @@ export function JobCard({ company, posting }: { company: CompanyListItem; postin
             {posting.description}
           </p>
         )}
+
+        {/* Only a real, individually-authored posting can be saved — the
+            auto-classified jobTitles fallback has no posting.id. Only shown
+            once logged in as a worker, same as vote buttons elsewhere in
+            this codebase (prompt happens on click via canSave, never hides
+            the icon outright for an anonymous viewer). */}
+        {posting?.id && canSave && (
+          <button
+            type="button"
+            onClick={() => toggleSave(posting.id!)}
+            aria-label={isSaved ? "Remove from saved posts" : "Save this posting"}
+            aria-pressed={isSaved}
+            className="absolute bottom-3 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted-foreground shadow transition hover:text-brand-600 dark:hover:text-brand-400"
+          >
+            <BookmarkIcon className="h-4 w-4" filled={isSaved} />
+          </button>
+        )}
       </div>
 
       {/* Card footer, below the main content box */}
@@ -312,6 +353,7 @@ export function JobCard({ company, posting }: { company: CompanyListItem; postin
           {" · "}
           {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
         </p>
+        <RiskScoreBadge riskScore={company.riskScore} />
       </div>
     </div>
   );

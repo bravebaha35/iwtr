@@ -4,6 +4,9 @@ import { CompanyJobPostings } from "../CompanyJobPostings";
 import * as apiClient from "@/lib/api-client";
 
 jest.mock("@/lib/api-client");
+jest.mock("@/lib/useSavedJobPostings", () => ({
+  useSavedJobPostings: () => ({ savedIds: new Set(), canSave: false, toggleSave: jest.fn() }),
+}));
 
 const company: Company = {
   id: "c1",
