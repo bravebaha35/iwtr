@@ -6,6 +6,7 @@ import type {
   JobPosting as JobPostingView,
   JobPostingBoostStatus,
   JobPostingStatus,
+  WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
@@ -33,6 +34,7 @@ function toPublic(posting: {
   companyId: string;
   jobTitle: string;
   description: string;
+  workType: WorkplaceType | null;
   status: JobPostingStatus;
   boostDurationDays: number | null;
   boostExpiresAt: Date | null;
@@ -43,6 +45,7 @@ function toPublic(posting: {
     companyId: posting.companyId,
     jobTitle: posting.jobTitle,
     description: posting.description,
+    workType: posting.workType,
     status: posting.status,
     boostDurationDays: (posting.boostDurationDays as 7 | 14 | 21 | null) ?? null,
     boostExpiresAt: posting.boostExpiresAt ? posting.boostExpiresAt.toISOString() : null,
@@ -117,12 +120,49 @@ export class JobPostingsService {
   async create(userId: string, companyId: string, input: CreateJobPostingInput): Promise<CreateJobPostingResult> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
 
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { workplaceTypes: true, riskScore: true },
+    });
+    if (!company || !(company.workplaceTypes as WorkplaceType[]).includes(input.workType)) {
+      throw new BadRequestException("workType must be one of this company's own work types.");
+    }
+
     const contentCheck = this.moderation.checkContent([input.jobTitle, input.description]);
     const hasCompetitorName = await this.mentionsCompetitorName(companyId, `${input.jobTitle} ${input.description}`);
     const status: JobPostingStatus = contentCheck.violates || hasCompetitorName ? "PENDING_ADMIN" : "PUBLISHED";
 
+    // Risk Score: does this exact title+workType match an earlier posting of
+    // this company's that was marked FILLED (i.e. they claimed a hire, then
+    // reopened the identical role)? A plain repost of a still-open or
+    // naturally-expired-but-never-filled posting does NOT count — see
+    // job-lifecycle-risk-score-backend.md's brainstorming section.
+    const priorFilledMatch = await this.prisma.jobPosting.findFirst({
+      where: {
+        companyId,
+        workType: input.workType,
+        status: "FILLED",
+        jobTitle: { equals: input.jobTitle, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+    if (priorFilledMatch) {
+      await this.prisma.company.update({
+        where: { id: companyId },
+        data: { riskScore: Math.min(3, company.riskScore + 1) },
+      });
+    }
+
     const posting = await this.prisma.jobPosting.create({
-      data: { companyId, createdByUserId: userId, jobTitle: input.jobTitle, description: input.description, status },
+      data: {
+        companyId,
+        createdByUserId: userId,
+        jobTitle: input.jobTitle,
+        description: input.description,
+        workType: input.workType,
+        autoReshareEnabled: input.autoReshareEnabled,
+        status,
+      },
     });
 
     if (!input.boost) {
