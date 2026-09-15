@@ -17,6 +17,7 @@ import {
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
+import { shouldLazyReshare, daysRemaining } from "../job-postings/job-postings.util";
 import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "./company-visibility";
 import { slugify } from "./slugify.util";
 import { resolveLocation } from "./resolve-location.util";
@@ -229,15 +230,37 @@ export class CompaniesService {
       // itself too so a hidden company's job cards can never leak here
       // regardless of how the caller built `companyIds`.
       where: { company: { ...PUBLIC_COMPANY_WHERE }, companyId: { in: companyIds }, status: "PUBLISHED" },
-      select: { companyId: true, jobTitle: true, description: true },
+      select: {
+        id: true,
+        companyId: true,
+        jobTitle: true,
+        description: true,
+        status: true,
+        createdAt: true,
+        lastResharedAt: true,
+        filledAt: true,
+        autoReshareEnabled: true,
+      },
       orderBy: { createdAt: "desc" },
     });
 
     const byCompany = new Map<string, PublicJobPosting[]>();
     for (const row of rows) {
-      const list = byCompany.get(row.companyId) ?? [];
-      list.push({ jobTitle: row.jobTitle, description: row.description });
-      byCompany.set(row.companyId, list);
+      let current = row;
+      if (shouldLazyReshare(current)) {
+        current = await this.prisma.jobPosting.update({
+          where: { id: current.id },
+          data: { lastResharedAt: new Date() },
+        });
+      } else if (daysRemaining(current) === 0) {
+        // Stale and not resharing — gone from the public feed. Still a real
+        // row in the DB (no hard deletions) and still visible to the owner
+        // dashboard / Saved Posts for their own 30-day grace windows.
+        continue;
+      }
+      const list = byCompany.get(current.companyId) ?? [];
+      list.push({ id: current.id, jobTitle: current.jobTitle, description: current.description });
+      byCompany.set(current.companyId, list);
     }
     return byCompany;
   }

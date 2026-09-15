@@ -224,7 +224,16 @@ describe("CompaniesService.jobPostingsForSlug — the company profile 'Job Posti
       },
       jobPosting: {
         findMany: jest.fn().mockResolvedValue([
-          { companyId: "c1", jobTitle: "Forklift Operatörü", description: "Depo vardiyası" },
+          {
+            companyId: "c1",
+            jobTitle: "Forklift Operatörü",
+            description: "Depo vardiyası",
+            status: "PUBLISHED",
+            createdAt: new Date(),
+            lastResharedAt: null,
+            filledAt: null,
+            autoReshareEnabled: false,
+          },
         ]),
       },
       employmentHistory: {
@@ -375,5 +384,100 @@ describe("CompaniesService — hasApprovedOwner (claimed-company signal)", () =>
     expect(prisma.companyOwner.findMany.mock.calls[0][0].where).toMatchObject({
       claimStatus: "APPROVED",
     });
+  });
+});
+
+describe("CompaniesService — public job postings lifecycle", () => {
+  it("includes id on each posting (needed for saving/bookmarking)", async () => {
+    const prisma = makePrisma({
+      company: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "c1", slug: "c1", name: "Co", category: "Software", workplaceTypes: ["OFFICE"], aggregate: null },
+        ]),
+      },
+      jobPosting: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "jp1",
+            companyId: "c1",
+            jobTitle: "Cashier",
+            description: "d",
+            status: "PUBLISHED",
+            createdAt: new Date(),
+            lastResharedAt: null,
+            filledAt: null,
+            autoReshareEnabled: false,
+          },
+        ]),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    const results = await service.search({ includeJobTitles: true } as any);
+
+    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d" }]);
+  });
+
+  it("drops a stale posting that isn't set to auto-reshare", async () => {
+    const prisma = makePrisma({
+      company: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "c1", slug: "c1", name: "Co", category: "Software", workplaceTypes: ["OFFICE"], aggregate: null },
+        ]),
+      },
+      jobPosting: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "jp1",
+            companyId: "c1",
+            jobTitle: "Cashier",
+            description: "d",
+            status: "PUBLISHED",
+            createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+            lastResharedAt: null,
+            filledAt: null,
+            autoReshareEnabled: false,
+          },
+        ]),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    const results = await service.search({ includeJobTitles: true } as any);
+
+    expect(results[0].jobPostings).toEqual([]);
+  });
+
+  it("lazily reshares a stale posting that IS set to auto-reshare, and keeps it in the feed", async () => {
+    const posting = {
+      id: "jp1",
+      companyId: "c1",
+      jobTitle: "Cashier",
+      description: "d",
+      status: "PUBLISHED",
+      createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+      lastResharedAt: null,
+      filledAt: null,
+      autoReshareEnabled: true,
+    };
+    // Realistic Prisma update() return value: the full row, reshared.
+    const update = jest.fn().mockResolvedValue({ ...posting, lastResharedAt: new Date() });
+    const prisma = makePrisma({
+      company: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "c1", slug: "c1", name: "Co", category: "Software", workplaceTypes: ["OFFICE"], aggregate: null },
+        ]),
+      },
+      jobPosting: {
+        findMany: jest.fn().mockResolvedValue([posting]),
+        update,
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    const results = await service.search({ includeJobTitles: true } as any);
+
+    expect(update).toHaveBeenCalledWith({ where: { id: "jp1" }, data: { lastResharedAt: expect.any(Date) } });
+    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d" }]);
   });
 });
