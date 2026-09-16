@@ -156,6 +156,10 @@ export const onboardingStatusSchema = z.object({
   // the avatar's workplace-type label when null) AND on the user's own
   // reviews — this fully replaced the old numeric User.memberNumber system.
   reviewUsername: z.string().nullable(),
+  // Self-chosen, optional — see MyProfile.displayName's comment below. Read
+  // by GlobalHeader as the member-side counterpart to the owner-side
+  // employerDisplayName fallback that already exists there.
+  displayName: z.string().nullable(),
 });
 export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
 
@@ -186,6 +190,12 @@ export const myProfileSchema = z.object({
   // public-to-the-account-holder identifier, shown back to themselves on the
   // Contact Information tab), read straight off User.email.
   email: z.string().nullable(),
+  // Voluntary, member-chosen display name — NEVER auto-filled from PiiVault,
+  // NEVER used as a Review/SocialComment author identity. See this file's
+  // updateProfileInputSchema comment and the plan's Global Constraints.
+  displayName: z.string().nullable(),
+  isPublicEmployee: z.boolean(),
+  customExperienceText: z.string().nullable(),
 });
 export type MyProfile = z.infer<typeof myProfileSchema>;
 
@@ -201,6 +211,14 @@ export const updateProfileInputSchema = z
     country: z.string().min(1).optional(),
     city: z.string().min(1).optional(),
     district: z.string().min(1).optional(),
+    // "" clears the field back to null (ProfileService.updateProfile maps
+    // "" -> null, same emptyToNull pattern already used for company contact
+    // fields) — kept as a plain string union rather than .nullable() so an
+    // HTML form field (which can only ever submit a string) can express
+    // "clear this" without a separate boolean.
+    displayName: z.union([z.string().trim().min(1).max(80), z.literal("")]).optional(),
+    isPublicEmployee: z.boolean().optional(),
+    customExperienceText: z.union([z.string().trim().max(2000), z.literal("")]).optional(),
   })
   .refine(
     (v) =>
@@ -209,7 +227,10 @@ export const updateProfileInputSchema = z
       v.avatarGradient !== undefined ||
       v.country !== undefined ||
       v.city !== undefined ||
-      v.district !== undefined,
+      v.district !== undefined ||
+      v.displayName !== undefined ||
+      v.isPublicEmployee !== undefined ||
+      v.customExperienceText !== undefined,
     { message: "Provide at least one field to update" },
   );
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;

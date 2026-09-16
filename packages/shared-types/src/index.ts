@@ -11,6 +11,7 @@ export * from "./schemas/turkishPhone";
 export * from "./schemas/companyLogo";
 export * from "./schemas/companyBanner";
 export * from "./schemas/notification";
+export * from "./schemas/jobApplication";
 export * from "./schemas/jobPosting";
 export * from "./schemas/savedJobPosting";
 export * from "./schemas/social";
