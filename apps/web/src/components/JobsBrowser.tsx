@@ -18,6 +18,7 @@ import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
+import { riskScoreColorClass, RISK_SCORE_NOTES } from "@/components/jobs/RiskScoreBadge";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
 // rather than a shared-internals refactor of it — the brief asked for the
@@ -178,6 +179,11 @@ export function JobsBrowser() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
   const [minRating, setMinRating] = useState(0);
+  // 3 = "Any" (no filter) — riskScore's own max is 3, so "3 and below"
+  // trivially matches every company, same reasoning minRating's top end
+  // (5) already uses for its own "Any" state.
+  const [maxRiskScore, setMaxRiskScore] = useState(3);
+  const riskSliderTrackRef = useRef<HTMLDivElement>(null);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -226,6 +232,37 @@ export function JobsBrowser() {
     applyRatingFromClientX(e.currentTarget, e.clientX);
   }
 
+  function stepRiskScore(delta: number) {
+    setMaxRiskScore((prev) => Math.min(3, Math.max(0, prev + delta)));
+  }
+
+  useEffect(() => {
+    const el = riskSliderTrackRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      stepRiskScore(e.deltaY < 0 ? 1 : -1);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  function applyRiskScoreFromClientX(el: HTMLDivElement, clientX: number) {
+    const rect = el.getBoundingClientRect();
+    const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    setMaxRiskScore(Math.round(fraction * 3));
+  }
+
+  function handleRiskSliderPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    applyRiskScoreFromClientX(e.currentTarget, e.clientX);
+  }
+
+  function handleRiskSliderPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.buttons !== 1) return;
+    applyRiskScoreFromClientX(e.currentTarget, e.clientX);
+  }
+
   function requestNearMe() {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
       setGeo("denied");
@@ -256,6 +293,7 @@ export function JobsBrowser() {
     if (selectedCities.length > 0) params.set("cities", selectedCities.join(","));
     if (selectedDistrictKeys.length > 0) params.set("districtKeys", selectedDistrictKeys.join(","));
     if (minRating > 0) params.set("minRating", String(minRating));
+    if (maxRiskScore < 3) params.set("maxRiskScore", String(maxRiskScore));
     params.set("includeJobTitles", "1");
 
     let cancelled = false;
@@ -276,7 +314,7 @@ export function JobsBrowser() {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating]);
+  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore]);
 
   useEffect(() => {
     setSelectedCategory(null);
@@ -312,6 +350,7 @@ export function JobsBrowser() {
     selectedCategory,
     categoryGroup,
     minRating,
+    maxRiskScore,
     selectedCities,
     selectedDistrictKeys,
     sortBy,
@@ -455,6 +494,73 @@ export function JobsBrowser() {
                 <span className="text-center text-xs font-normal text-muted-foreground">
                   {minRating === 0 || minRating === 5 ? "Any" : `${minRating.toFixed(1)} and Below`}
                 </span>
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Score</h3>
+                <RewindButton onClick={() => setMaxRiskScore(3)} active={maxRiskScore !== 3} title="Reset Risk Score filter" />
+              </div>
+              <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
+                <div className="relative pt-8">
+                  {[0, 1, 2, 3].map((tickValue) => {
+                    const active = maxRiskScore === tickValue;
+                    // Grows from 14px (tick 0) to 26px (tick 3) — "exclamation
+                    // mark gets bigger and bigger until 3" per the design.
+                    const sizePx = 14 + tickValue * 4;
+                    return (
+                      <span
+                        key={tickValue}
+                        className={`absolute top-0 flex items-center justify-center transition-all duration-200 ${
+                          active ? "scale-110 opacity-100" : "scale-90 opacity-40 grayscale"
+                        } ${riskScoreColorClass(tickValue)}`}
+                        style={{ left: `${(tickValue / 3) * 100}%`, width: sizePx, height: sizePx, transform: "translateX(-50%)" }}
+                        aria-hidden="true"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-full w-full"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 3 2 21h20L12 3Z" />
+                          <path d="M12 9v5" />
+                          <path d="M12 17h.01" />
+                        </svg>
+                      </span>
+                    );
+                  })}
+
+                  <div
+                    ref={riskSliderTrackRef}
+                    onPointerDown={handleRiskSliderPointerDown}
+                    onPointerMove={handleRiskSliderPointerMove}
+                    className="relative h-2 w-full cursor-pointer touch-none rounded-full"
+                    style={{ background: "linear-gradient(to right, #22c55e, #f97316, #ef4444)" }}
+                    title="Click and drag along the slider, or scroll, to choose a maximum Risk Score"
+                  >
+                    {[0, 1, 2, 3].map((tickValue) => (
+                      <span
+                        key={tickValue}
+                        className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-white/70"
+                        style={{ left: `${(tickValue / 3) * 100}%` }}
+                      />
+                    ))}
+                    <span
+                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow"
+                      style={{ left: `${(maxRiskScore / 3) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <span className="text-center text-xs font-normal text-muted-foreground">
+                  {maxRiskScore === 3 ? "Any" : `${maxRiskScore} and Below`}
+                </span>
+                <p className="text-xs text-muted-foreground">{RISK_SCORE_NOTES[maxRiskScore]}</p>
               </div>
             </div>
 
