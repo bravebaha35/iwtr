@@ -186,7 +186,7 @@ export function postingsForCard(company: CompanyListItem): CardPosting[] {
     // Auto-classified titles have no owner-authored description to show, and
     // no real posting id — never bookmarkable (see the bookmark button's own
     // posting?.id guard below).
-    return company.jobTitles.map((title) => ({ jobTitle: title, description: null }));
+    return company.jobTitles.map((title) => ({ jobTitle: title.title, description: null }));
   }
   return [null];
 }
