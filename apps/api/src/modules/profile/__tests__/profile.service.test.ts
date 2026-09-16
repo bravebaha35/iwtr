@@ -161,3 +161,96 @@ describe("ProfileService.updateProfile - company owners (2026-09-11)", () => {
     });
   });
 });
+
+describe("CV profile fields", () => {
+  const userId = "u1";
+
+  function makePrisma() {
+    return {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, status: "ACTIVE", role: "MEMBER" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+  }
+
+  it("strips HTML tags from customExperienceText before saving", async () => {
+    const prisma = makePrisma();
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { customExperienceText: "<script>alert(1)</script>Worked at a bakery" });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { customExperienceText: "Worked at a bakery" },
+    });
+  });
+
+  it("clears customExperienceText when given an empty string", async () => {
+    const prisma = makePrisma();
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { customExperienceText: "" });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { customExperienceText: null },
+    });
+  });
+
+  it("clears displayName when given an empty string", async () => {
+    const prisma = makePrisma();
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { displayName: "" });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { displayName: null },
+    });
+  });
+
+  it("persists isPublicEmployee as given", async () => {
+    const prisma = makePrisma();
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { isPublicEmployee: true });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { isPublicEmployee: true },
+    });
+  });
+
+  it("getMyProfile returns the three new fields", async () => {
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: userId,
+          status: "ACTIVE",
+          role: "MEMBER",
+          reviewUsername: "Chief Happiness Officer",
+          avatarKey: "office_1",
+          avatarGradient: "dawn",
+          country: "Turkey",
+          city: "Istanbul",
+          district: null,
+          email: "ada@example.com",
+          displayName: "Ada",
+          isPublicEmployee: true,
+          customExperienceText: "Freelance work",
+        }),
+      },
+      educationHistory: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const piiVault = { getMyIdentity: jest.fn().mockResolvedValue(null) };
+    const phoneVerification = { getMyPhoneNumber: jest.fn().mockResolvedValue(null) };
+    const service = new ProfileService(prisma as any, piiVault as any, phoneVerification as any, {} as any);
+
+    const result = await service.getMyProfile(userId);
+
+    expect(result.displayName).toBe("Ada");
+    expect(result.isPublicEmployee).toBe(true);
+    expect(result.customExperienceText).toBe("Freelance work");
+  });
+});

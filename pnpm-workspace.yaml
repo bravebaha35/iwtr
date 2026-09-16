@@ -10,6 +10,15 @@ overrides:
   multer: "^2.3.0"
   body-parser: "^1.20.6"
   qs: "^6.16.0"
+  # isomorphic-dompurify (apps/api, CV profile field sanitization) pins
+  # jsdom@^30, whose html-encoding-sniffer/parse5 chain ships ESM-only with no
+  # CommonJS build — Jest's default CJS transform can't load it at all
+  # ("Unexpected token 'export'"). jsdom 25.x still resolves CJS-compatible
+  # versions of both (html-encoding-sniffer@^4, parse5@^7) and exposes the
+  # same `new JSDOM(html).window` API isomorphic-dompurify actually uses, so
+  # pinning it there is a functional no-op. Scoped to isomorphic-dompurify's
+  # own dependency only — does NOT touch apps/web's jest-environment-jsdom.
+  "isomorphic-dompurify>jsdom": "25.0.1"
 allowBuilds:
   '@nestjs/core': true
   '@prisma/client': true

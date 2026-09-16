@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import bcrypt from "bcryptjs";
+import DOMPurify from "isomorphic-dompurify";
 import {
   ALL_ANONYMOUS_USERNAMES,
   eduLevelSchema,
@@ -27,6 +28,19 @@ const EDU_LEVEL_RANK: Record<string, number> = Object.fromEntries(
 );
 function byEduLevel<T extends { level: string }>(a: T, b: T): number {
   return EDU_LEVEL_RANK[a.level] - EDU_LEVEL_RANK[b.level];
+}
+
+// "" from the client means "clear this field" (see updateProfileInputSchema's
+// comment) — mapped to null for storage, same emptyToNull convention already
+// used for company contact fields (see owner.service.ts). ALLOWED_TAGS: []
+// makes this a strict HTML-stripping pass — the field is always rendered as
+// plain text (never dangerouslySetInnerHTML), so this is defense-in-depth
+// against a stored-XSS payload that some future code path might render as
+// HTML, not the only thing preventing it today.
+function sanitizeFreeText(value: string | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === "") return null;
+  return DOMPurify.sanitize(value, { ALLOWED_TAGS: [] }).trim();
 }
 
 /**
@@ -77,6 +91,9 @@ export class ProfileService {
       country: user.country,
       city: user.city,
       district: user.district,
+      displayName: user.displayName,
+      isPublicEmployee: user.isPublicEmployee,
+      customExperienceText: user.customExperienceText,
       education: education.map((e) => ({
         id: e.id,
         level: e.level,
@@ -121,6 +138,11 @@ export class ProfileService {
         ...(input.country !== undefined ? { country: input.country } : {}),
         ...(input.city !== undefined ? { city: input.city } : {}),
         ...(input.district !== undefined ? { district: input.district } : {}),
+        ...(input.displayName !== undefined ? { displayName: sanitizeFreeText(input.displayName) } : {}),
+        ...(input.isPublicEmployee !== undefined ? { isPublicEmployee: input.isPublicEmployee } : {}),
+        ...(input.customExperienceText !== undefined
+          ? { customExperienceText: sanitizeFreeText(input.customExperienceText) }
+          : {}),
       },
     });
   }

@@ -30,6 +30,7 @@ export class OnboardingService {
       avatarKey: user.avatarKey,
       avatarGradient: user.avatarGradient,
       reviewUsername: user.reviewUsername,
+      displayName: user.displayName,
     };
   }
 
