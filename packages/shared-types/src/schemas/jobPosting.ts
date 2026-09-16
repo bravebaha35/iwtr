@@ -29,11 +29,14 @@ export type JobPosting = z.infer<typeof jobPostingSchema>;
 
 // What a job-seeker sees on a hiring company's card (JobsBrowser.tsx) —
 // deliberately thinner than jobPostingSchema above, no id/status/boost
-// internals, those are an owner-facing concern only.
+// internals, those are an owner-facing concern only. workType is nullable
+// only for legacy rows created before the work-type picker existed —
+// every posting created through JobSetupModal now always has one.
 export const publicJobPostingSchema = z.object({
   id: z.string().uuid(),
   jobTitle: z.string(),
   description: z.string(),
+  workType: workplaceTypeSchema.nullable(),
 });
 export type PublicJobPosting = z.infer<typeof publicJobPostingSchema>;
 

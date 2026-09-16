@@ -238,6 +238,7 @@ export class CompaniesService {
         lastResharedAt: true,
         filledAt: true,
         autoReshareEnabled: true,
+        workType: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -258,7 +259,7 @@ export class CompaniesService {
         continue;
       }
       const list = byCompany.get(row.companyId) ?? [];
-      list.push({ id: row.id, jobTitle: row.jobTitle, description: row.description });
+      list.push({ id: row.id, jobTitle: row.jobTitle, description: row.description, workType: row.workType });
       byCompany.set(row.companyId, list);
     }
     if (staleIds.length > 0) {

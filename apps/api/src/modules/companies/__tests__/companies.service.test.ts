@@ -233,6 +233,7 @@ describe("CompaniesService.jobPostingsForSlug — the company profile 'Job Posti
             lastResharedAt: null,
             filledAt: null,
             autoReshareEnabled: false,
+            workType: "MANUAL_LABOUR",
           },
         ]),
       },
@@ -248,7 +249,7 @@ describe("CompaniesService.jobPostingsForSlug — the company profile 'Job Posti
     const result = await service.jobPostingsForSlug("co");
 
     expect(result.jobPostings).toEqual([
-      { jobTitle: "Forklift Operatörü", description: "Depo vardiyası" },
+      { jobTitle: "Forklift Operatörü", description: "Depo vardiyası", workType: "MANUAL_LABOUR" },
     ]);
     // Gibberish that classifyJobRole can't place is dropped, same as /jobs.
     expect(result.jobTitles).toEqual(["Muhasebe"]);
