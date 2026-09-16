@@ -33,7 +33,18 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
       findUnique: jest.fn().mockResolvedValue({ userId: "u1", companyId: "c1", claimStatus: "APPROVED" }),
     },
     jobPosting: {
-      findUnique: jest.fn().mockResolvedValue({ id: "p1", companyId: "c1", status: "PUBLISHED", filledAt: null }),
+      // createdAt: "now" so daysRemaining() is a fresh 30, not 0 — keeps the
+      // 30-day-live-window check (see the dedicated tests below) from
+      // tripping on every other, unrelated test in this file.
+      findUnique: jest.fn().mockResolvedValue({
+        id: "p1",
+        companyId: "c1",
+        status: "PUBLISHED",
+        filledAt: null,
+        createdAt: new Date(),
+        lastResharedAt: null,
+        autoReshareEnabled: false,
+      }),
     },
     jobApplication: {
       findUnique: jest.fn().mockResolvedValue(null),
@@ -86,6 +97,42 @@ describe("JobApplicationsService.apply", () => {
     await expect(service(alreadyFilled).apply("u1", "MEMBER", "p1", pdfFile())).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it("rejects with NotFoundException when the posting is PUBLISHED/not-filled but has run out its 30-day live window", async () => {
+    const stale = makePrisma({
+      jobPosting: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "p1",
+          companyId: "c1",
+          status: "PUBLISHED",
+          filledAt: null,
+          createdAt: new Date("2000-01-01T00:00:00Z"),
+          lastResharedAt: null,
+          autoReshareEnabled: false,
+        }),
+      },
+    });
+    await expect(service(stale).apply("u1", "MEMBER", "p1", pdfFile())).rejects.toBeInstanceOf(NotFoundException);
+    expect(stale.jobApplication.create).not.toHaveBeenCalled();
+  });
+
+  it("still accepts an application to a stale-but-reshare-eligible posting (matches shouldLazyReshare treating it as live elsewhere)", async () => {
+    const reshareEligible = makePrisma({
+      jobPosting: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "p1",
+          companyId: "c1",
+          status: "PUBLISHED",
+          filledAt: null,
+          createdAt: new Date("2000-01-01T00:00:00Z"),
+          lastResharedAt: null,
+          autoReshareEnabled: true,
+        }),
+      },
+    });
+    const result = await service(reshareEligible).apply("u1", "MEMBER", "p1", pdfFile());
+    expect(result.id).toBe("app-1");
+  });
+
   it("creates a new JobApplication row on first application", async () => {
     const prisma = makePrisma();
     const result = await service(prisma).apply("u1", "MEMBER", "p1", pdfFile());
@@ -94,7 +141,9 @@ describe("JobApplicationsService.apply", () => {
         jobPostingId: "p1",
         companyId: "c1",
         applicantUserId: "u1",
-        pdfUrl: expect.stringContaining("/uploads/job-applications/"),
+        // Just the on-disk filename now — never a public URL. See
+        // job-applications.service.ts's `apply()` comment on `pdfUrl`.
+        pdfUrl: expect.stringMatching(/^[0-9a-f-]+\.pdf$/),
       },
     });
     expect(prisma.jobApplication.update).not.toHaveBeenCalled();
@@ -104,9 +153,7 @@ describe("JobApplicationsService.apply", () => {
   it("updates (not duplicates) the existing row on a second application to the same posting by the same user", async () => {
     const prisma = makePrisma({
       jobApplication: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({ id: "app-1", pdfUrl: "http://localhost:3001/uploads/job-applications/old-file.pdf" }),
+        findUnique: jest.fn().mockResolvedValue({ id: "app-1", pdfUrl: "old-file.pdf" }),
         create: jest.fn(),
         update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "app-1", createdAt: new Date(), ...data })),
       },
@@ -118,7 +165,7 @@ describe("JobApplicationsService.apply", () => {
     expect(prisma.jobApplication.update).toHaveBeenCalledWith({
       where: { id: "app-1" },
       data: {
-        pdfUrl: expect.stringContaining("/uploads/job-applications/"),
+        pdfUrl: expect.stringMatching(/^[0-9a-f-]+\.pdf$/),
         createdAt: expect.any(Date),
         viewedAt: null,
       },
@@ -167,7 +214,7 @@ describe("JobApplicationsService.listForCompany", () => {
             jobPostingId: "p1",
             jobPosting: { jobTitle: "Cashier" },
             applicant: { displayName: null },
-            pdfUrl: "http://localhost:3001/uploads/job-applications/f1.pdf",
+            pdfUrl: "f1.pdf",
             createdAt,
             viewedAt: null,
           },
@@ -179,6 +226,9 @@ describe("JobApplicationsService.listForCompany", () => {
     expect(result[0].applicantDisplayName).toBe("Anonymous applicant");
     expect(result[0].jobTitle).toBe("Cashier");
     expect(result[0].createdAt).toBe(createdAt.toISOString());
+    // Not the raw on-disk filename and not a public URL — a relative,
+    // authenticated API path the frontend must fetch through its proxy.
+    expect(result[0].pdfUrl).toBe("/my-companies/c1/job-applications/app-1/pdf");
   });
 });
 
@@ -217,5 +267,43 @@ describe("JobApplicationsService.markViewed", () => {
     });
     await expect(service(prisma).markViewed("u1", "c1", "app-1")).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.jobApplication.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("JobApplicationsService.getPdfFilePath", () => {
+  it("rejects a caller who isn't an approved owner of the company, before ever looking up the application", async () => {
+    const prisma = makePrisma({
+      companyOwner: { findUnique: jest.fn().mockResolvedValue(null) },
+      jobApplication: { findUnique: jest.fn() },
+    });
+    await expect(service(prisma).getPdfFilePath("u1", "c1", "app-1")).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.jobApplication.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("404s when the application belongs to a different company than the one requested", async () => {
+    // Same "approved for company A can't be reused to read company B's
+    // application" shape as markViewed's equivalent test above.
+    const prisma = makePrisma({
+      jobApplication: {
+        findUnique: jest.fn().mockResolvedValue({ id: "app-1", companyId: "OTHER_COMPANY", pdfUrl: "f1.pdf" }),
+      },
+    });
+    await expect(service(prisma).getPdfFilePath("u1", "c1", "app-1")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("404s when no application with that id exists", async () => {
+    const prisma = makePrisma({ jobApplication: { findUnique: jest.fn().mockResolvedValue(null) } });
+    await expect(service(prisma).getPdfFilePath("u1", "c1", "app-1")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("resolves to an absolute on-disk path under uploads/job-applications for a valid, ownership-matched call", async () => {
+    const prisma = makePrisma({
+      jobApplication: {
+        findUnique: jest.fn().mockResolvedValue({ id: "app-1", companyId: "c1", pdfUrl: "f1.pdf" }),
+      },
+    });
+    const filePath = await service(prisma).getPdfFilePath("u1", "c1", "app-1");
+    expect(filePath).toContain("job-applications");
+    expect(filePath.endsWith("f1.pdf")).toBe(true);
   });
 });
