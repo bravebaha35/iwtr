@@ -54,10 +54,10 @@ describe("CompanyJobPostings", () => {
   it("renders a standard job card per owner-authored posting", async () => {
     (apiClient.apiGet as jest.Mock).mockResolvedValue({
       jobPostings: [
-        { jobTitle: "Forklift Operator", description: "Day shift, warehouse." },
-        { jobTitle: "3D Artist", description: null },
+        { jobTitle: "Forklift Operator", description: "Day shift, warehouse.", workType: "MANUAL_LABOUR" },
+        { jobTitle: "3D Artist", description: null, workType: null },
       ],
-      jobTitles: ["Accountant"], // ignored while explicit postings exist
+      jobTitles: [{ title: "Accountant", workType: "OFFICE" }], // ignored while explicit postings exist
     });
     render(<CompanyJobPostings company={company} aggregate={aggregate} />);
 
@@ -72,7 +72,10 @@ describe("CompanyJobPostings", () => {
   it("falls back to the classified job titles when there are no explicit postings", async () => {
     (apiClient.apiGet as jest.Mock).mockResolvedValue({
       jobPostings: [],
-      jobTitles: ["Accountant", "Recruiter"],
+      jobTitles: [
+        { title: "Accountant", workType: "OFFICE" },
+        { title: "Recruiter", workType: "OFFICE" },
+      ],
     });
     render(<CompanyJobPostings company={company} aggregate={aggregate} />);
 

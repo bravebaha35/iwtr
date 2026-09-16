@@ -247,7 +247,7 @@ export default async function CompanyPage({
                     posting to have a repost history against yet. isHiring is
                     the one signal already on this page's own CompanyDetail
                     fetch without an extra request. */}
-                <RiskScoreBadge riskScore={company.isHiring ? company.riskScore : null} />
+                <RiskScoreBadge riskScore={company.riskScore > 0 ? company.riskScore : company.isHiring ? 0 : null} />
               </div>
             </div>
           </div>

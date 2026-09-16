@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { type CompanyListItem, type CompanyVibeFlags, type VibeFlag, type WorkplaceType } from "@iwtr/shared-types";
+import {
+  type CompanyListItem,
+  type CompanyVibeFlags,
+  type VibeFlag,
+  type WorkplaceType,
+  primaryWorkplaceType,
+} from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
@@ -231,7 +237,7 @@ export function JobCard({
   // now; the auto-classified fallback carries its classifyJobRole result),
   // falling back to the company's primary type only for pre-existing
   // postings created before this field existed.
-  const cardWorkType = posting?.workType ?? company.workplaceTypes[0];
+  const cardWorkType = posting?.workType ?? primaryWorkplaceType(company);
 
   return (
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
@@ -385,7 +391,10 @@ export function JobCard({
           {" · "}
           {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
         </p>
-        <RiskScoreBadge riskScore={posting?.id ? company.riskScore : null} className="shrink-0" />
+        <RiskScoreBadge
+          riskScore={company.riskScore > 0 ? company.riskScore : posting?.id ? 0 : null}
+          className="shrink-0"
+        />
       </div>
     </div>
   );

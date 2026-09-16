@@ -24,6 +24,25 @@ export function riskScoreColorClass(riskScore: number): string {
   return "text-red-600 dark:text-red-400";
 }
 
+export function RiskTriangleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3 2 21h20L12 3Z" />
+      <path d="M12 9v5" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
 export function RiskScoreBadge({ riskScore, className }: { riskScore: number | null; className?: string }) {
   if (riskScore === null) {
     return (
@@ -41,21 +60,7 @@ export function RiskScoreBadge({ riskScore, className }: { riskScore: number | n
       title={RISK_SCORE_NOTES[riskScore]}
     >
       {Array.from({ length: riskScore }, (_, i) => (
-        <svg
-          key={i}
-          viewBox="0 0 24 24"
-          className="h-3.5 w-3.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M12 3 2 21h20L12 3Z" />
-          <path d="M12 9v5" />
-          <path d="M12 17h.01" />
-        </svg>
+        <RiskTriangleIcon key={i} className="h-3.5 w-3.5" />
       ))}
       Risk Score: {riskScore}/3
     </span>

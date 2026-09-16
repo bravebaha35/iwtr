@@ -137,6 +137,23 @@ describe("OwnerService.updateMyCompany — at least one contact method required"
     await service.updateMyCompany("u1", "c1", { isHiring: true });
     expect(prisma.company.update).toHaveBeenCalled();
     // contactEmail/contactPhone weren't part of this request, so the guard
-    // must not have needed (or found) a reason to reject it.
+    // must not have needed (or found) a reason to reject it — confirmed by
+    // not reading the row at all, not just by not throwing.
+    expect(prisma.company.findUniqueOrThrow).not.toHaveBeenCalled();
+  });
+
+  it("rejects blanking the only stored phone when no email is set and only phone is in the request", async () => {
+    const { service } = buildService({ contactEmail: null, contactPhone: "+905551234567" });
+    await expect(
+      service.updateMyCompany("u1", "c1", { contactPhone: "" }),
+    ).rejects.toThrow("Provide at least a phone number or an email address");
+  });
+
+  it("allows blanking phone when a stored email covers the requirement, even though phone isn't in the request together with it", async () => {
+    const { service, prisma } = buildService({ contactEmail: "hr@co.com", contactPhone: "+905551234567" });
+    await service.updateMyCompany("u1", "c1", { contactPhone: "" });
+    expect(prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ contactPhone: null }) }),
+    );
   });
 });

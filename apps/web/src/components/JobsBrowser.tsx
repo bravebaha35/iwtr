@@ -18,7 +18,7 @@ import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
-import { riskScoreColorClass, RISK_SCORE_NOTES } from "@/components/jobs/RiskScoreBadge";
+import { riskScoreColorClass, RISK_SCORE_NOTES, RiskTriangleIcon } from "@/components/jobs/RiskScoreBadge";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
 // rather than a shared-internals refactor of it — the brief asked for the
@@ -516,21 +516,8 @@ export function JobsBrowser() {
                           active ? "scale-110 opacity-100" : "scale-90 opacity-40 grayscale"
                         } ${riskScoreColorClass(tickValue)}`}
                         style={{ left: `${(tickValue / 3) * 100}%`, width: sizePx, height: sizePx, transform: "translateX(-50%)" }}
-                        aria-hidden="true"
                       >
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="h-full w-full"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M12 3 2 21h20L12 3Z" />
-                          <path d="M12 9v5" />
-                          <path d="M12 17h.01" />
-                        </svg>
+                        <RiskTriangleIcon className="h-full w-full" />
                       </span>
                     );
                   })}
