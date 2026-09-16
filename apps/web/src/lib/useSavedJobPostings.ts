@@ -38,7 +38,7 @@ function load(): Promise<SavedJobPosting[]> {
 }
 
 export function useSavedJobPostings() {
-  const { isAuthenticated, role } = useAuth();
+  const { isAuthenticated, role, isLoading: authLoading } = useAuth();
   // Owners cannot save postings as a job-seeker — RolesGuard 403s this
   // server-side too (@Roles("MEMBER") on SavedJobPostingsController), same
   // reasoning as useFollowedCompanies' canFollow.
@@ -55,6 +55,12 @@ export function useSavedJobPostings() {
   }, []);
 
   useEffect(() => {
+    // Wait for auth to settle before deciding canSave is really false — on
+    // first mount isAuthenticated starts false and flips async, and an
+    // empty-array cache reads as truthy, so setting it here on that first,
+    // not-yet-resolved pass would permanently skip the real load() once
+    // canSave later turns true.
+    if (authLoading) return;
     if (!canSave) {
       setCache([]);
       return;
@@ -66,7 +72,7 @@ export function useSavedJobPostings() {
       setCache(list);
       setLoading(false);
     });
-  }, [canSave]);
+  }, [canSave, authLoading]);
 
   const savedIds = useMemo(() => new Set(postings.map((p) => p.posting.id)), [postings]);
 

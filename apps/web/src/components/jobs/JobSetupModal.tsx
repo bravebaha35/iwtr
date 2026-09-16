@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CompanyDetail, OwnedCompany, WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -50,8 +50,14 @@ export function JobSetupModal({
   const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [workType, setWorkType] = useState<WorkplaceType | null>(null);
+  const [detailError, setDetailError] = useState(false);
 
-  useEffect(() => {
+  // workType can only ever come from this fetch (OwnedCompany has no
+  // workplaceTypes of its own), so a transient failure here must be
+  // retryable — otherwise canContinue below can never become true and the
+  // whole job-creation flow deadlocks with no way out but closing the modal.
+  const loadDetail = useCallback(() => {
+    setDetailError(false);
     apiGet<CompanyDetail>(`/companies/${company.companySlug}`)
       .then((d) => {
         setDetail(d);
@@ -63,11 +69,16 @@ export function JobSetupModal({
           setWorkType(d.company.workplaceTypes[0]);
         }
       })
-      .catch(() => setDetail(null));
+      .catch(() => setDetailError(true));
+  }, [company.companySlug]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadDetail();
     apiGet<string[]>(`/companies/${company.companySlug}/job-title-suggestions`)
       .then(setSuggestions)
       .catch(() => setSuggestions([]));
-  }, [company.companySlug]);
+  }, [company.companySlug, loadDetail]);
 
   const canContinue = Boolean(jobTitle) && description.trim().length > 0 && workType !== null;
 
@@ -93,6 +104,15 @@ export function JobSetupModal({
             disabled={suggestions.length === 0}
           />
         </label>
+
+        {detailError && (
+          <p className="mb-4 text-sm text-red-600 dark:text-red-400">
+            Couldn&apos;t load company details.{" "}
+            <button type="button" onClick={loadDetail} className="underline">
+              Retry
+            </button>
+          </p>
+        )}
 
         {detail && detail.company.workplaceTypes.length > 1 && (
           <label className="mb-4 block">

@@ -207,7 +207,7 @@ export function JobCard({
   expired?: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
-  const { savedIds, canSave, toggleSave } = useSavedJobPostings();
+  const { savedIds, canSave, toggleSave, loading: savedLoading } = useSavedJobPostings();
   const location = [company.district, company.city].filter(Boolean).join(", ");
   // Every job card shows a banner: the owner's own image when their tier
   // includes custom banners and one is set, otherwise the system default.
@@ -221,16 +221,16 @@ export function JobCard({
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
     // button's flag dropdown and the contact popovers are absolutely
     // positioned to spill outside this box, and clipping it would make them
-    // invisible. expired greys the whole card and makes it genuinely inert —
-    // the native `inert` attribute (not just pointer-events-none, which only
-    // blocks clicks/taps, not Tab focus or Enter/Space activation on a
-    // nested Link/button) removes every descendant from the tab order and
-    // from assistive-tech traversal too. pointer-events-none + opacity-50
-    // stay for the visual treatment and older-browser defense in depth.
+    // invisible. expired greys the whole card, except the bookmark button
+    // below stays live — a Saved Posts card for a filled/expired posting
+    // must still be un-savable. The native `inert` attribute (not just
+    // pointer-events-none, which only blocks clicks/taps, not Tab focus or
+    // Enter/Space activation on a nested Link/button) is applied to a nested
+    // wrapper around just the navigable/interactive content, not this outer
+    // div, since `inert` can't be selectively un-set on a descendant once an
+    // ancestor has it.
     <div
-      inert={expired}
-      aria-disabled={expired}
-      className={`flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700 ${expired ? "pointer-events-none opacity-50" : ""}`}
+      className={`flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700 ${expired ? "opacity-50" : ""}`}
     >
       {/* Banner sits above the square content box (not inside it, so it
           doesn't eat that box's fixed proportions). Facebook-style overlap —
@@ -252,96 +252,105 @@ export function JobCard({
         </div>
       </div>
       <div className="relative flex aspect-square flex-col rounded-b-xl p-4 pt-5 compact:p-3">
-        {/* Top row: name (top-left) ... rating + info button (top-right). The
-            logo already sits above, overlapping the banner, so this row is
-            name-only. */}
-        <div className="flex items-start justify-between gap-2">
-          <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
-              {company.name}
-              <CompanyVerificationTick
-                badgeTier={company.badgeTier}
-                claimed={company.hasApprovedOwner}
-                size={14}
-                className="ml-1.5"
-              />
-            </span>
-          </Link>
+        <div
+          inert={expired}
+          aria-disabled={expired}
+          className={`flex flex-1 flex-col ${expired ? "pointer-events-none" : ""}`}
+        >
+          {/* Top row: name (top-left) ... rating + info button (top-right). The
+              logo already sits above, overlapping the banner, so this row is
+              name-only. */}
+          <div className="flex items-start justify-between gap-2">
+            <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
+                {company.name}
+                <CompanyVerificationTick
+                  badgeTier={company.badgeTier}
+                  claimed={company.hasApprovedOwner}
+                  size={14}
+                  className="ml-1.5"
+                />
+              </span>
+            </Link>
 
-          <div className="flex shrink-0 items-center gap-1.5">
-            {/* Colored by score band — red/orange/amber/lime/green at a
-                glance, not just a number. */}
-            <span
-              className={`text-sm font-bold ${company.overallAvg !== null ? scoreTextColor(company.overallAvg) : "text-muted-foreground"}`}
-              title="User rating"
-            >
-              {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
-            </span>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setInfoOpen((v) => !v)}
-                aria-label="Workplace flags"
-                aria-expanded={infoOpen}
-                className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-[11px] font-bold leading-none text-muted-foreground transition hover:bg-surface-muted"
+            <div className="flex shrink-0 items-center gap-1.5">
+              {/* Colored by score band — red/orange/amber/lime/green at a
+                  glance, not just a number. */}
+              <span
+                className={`text-sm font-bold ${company.overallAvg !== null ? scoreTextColor(company.overallAvg) : "text-muted-foreground"}`}
+                title="User rating"
               >
-                i
-              </button>
-              {infoOpen && (
-                <div className="absolute right-0 top-full z-10 mt-1 w-52 rounded-lg border border-border bg-surface p-2 shadow-lg">
-                  <VibeFlagsPopover companySlug={company.slug} />
-                </div>
-              )}
+                {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
+              </span>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setInfoOpen((v) => !v)}
+                  aria-label="Workplace flags"
+                  aria-expanded={infoOpen}
+                  className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-[11px] font-bold leading-none text-muted-foreground transition hover:bg-surface-muted"
+                >
+                  i
+                </button>
+                {infoOpen && (
+                  <div className="absolute right-0 top-full z-10 mt-1 w-52 rounded-lg border border-border bg-surface p-2 shadow-lg">
+                    <VibeFlagsPopover companySlug={company.slug} />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Address + sector, light weight */}
-        <p className="mt-1.5 truncate text-xs font-light text-muted-foreground">
-          {location || "Location not set"} · {company.category}
-        </p>
-
-        {/* This card's one job title + Mail/Call, side by side so the row
-            stays short and leaves room for the description below. No
-            overflow-hidden here — the Contact popovers spill outside. */}
-        <div className="mt-3 flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            {posting ? (
-              <span className="inline-block truncate rounded-full bg-brand-50 px-2 py-1 text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300">
-                {posting.jobTitle}
-              </span>
-            ) : (
-              <span className="text-xs font-bold text-muted-foreground">No open roles listed yet</span>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <ContactButton icon="mail" label="Mail" value={company.contactEmail} />
-            <ContactButton icon="phone" label="Call" value={company.contactPhone} />
-          </div>
-        </div>
-
-        {/* The description the owner wrote for this posting — shown by
-            default, filling the rest of the box, not tucked behind a click.
-            Only individually-authored postings carry one; the auto-classified
-            jobTitles fallback has none to show. */}
-        {posting?.description && (
-          <p className="mt-3 flex-1 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground">
-            {posting.description}
+          {/* Address + sector, light weight */}
+          <p className="mt-1.5 truncate text-xs font-light text-muted-foreground">
+            {location || "Location not set"} · {company.category}
           </p>
-        )}
+
+          {/* This card's one job title + Mail/Call, side by side so the row
+              stays short and leaves room for the description below. No
+              overflow-hidden here — the Contact popovers spill outside. */}
+          <div className="mt-3 flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              {posting ? (
+                <span className="inline-block truncate rounded-full bg-brand-50 px-2 py-1 text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300">
+                  {posting.jobTitle}
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-muted-foreground">No open roles listed yet</span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <ContactButton icon="mail" label="Mail" value={company.contactEmail} />
+              <ContactButton icon="phone" label="Call" value={company.contactPhone} />
+            </div>
+          </div>
+
+          {/* The description the owner wrote for this posting — shown by
+              default, filling the rest of the box, not tucked behind a click.
+              Only individually-authored postings carry one; the auto-classified
+              jobTitles fallback has none to show. */}
+          {posting?.description && (
+            <p className="mt-3 flex-1 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground">
+              {posting.description}
+            </p>
+          )}
+        </div>
 
         {/* Only a real, individually-authored posting can be saved — the
-            auto-classified jobTitles fallback has no posting.id. Only shown
-            once logged in as a worker, same as vote buttons elsewhere in
-            this codebase (prompt happens on click via canSave, never hides
-            the icon outright for an anonymous viewer). */}
-        {posting?.id && canSave && (
+            auto-classified jobTitles fallback has no posting.id. Always
+            rendered, disabled + tooltip for a logged-out/non-worker viewer,
+            same convention as the vote buttons in ReviewsList.tsx (never
+            hides the affordance outright). Sits outside the inert wrapper
+            above so it stays clickable on an expired Saved Posts card. */}
+        {posting?.id && (
           <button
             type="button"
-            onClick={() => toggleSave(posting.id!)}
+            onClick={() => canSave && toggleSave(posting.id!)}
+            disabled={!canSave || savedLoading}
+            title={!canSave ? "Log in to save" : undefined}
             aria-label={isSaved ? "Remove from saved posts" : "Save this posting"}
             aria-pressed={isSaved}
-            className="absolute bottom-3 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted-foreground shadow transition hover:text-brand-600 dark:hover:text-brand-400"
+            className="absolute bottom-3 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted-foreground shadow transition hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40"
           >
             <BookmarkIcon className="h-4 w-4" filled={isSaved} />
           </button>
