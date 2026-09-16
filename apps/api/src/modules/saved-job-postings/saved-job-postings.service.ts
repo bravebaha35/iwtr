@@ -95,7 +95,12 @@ export class SavedJobPostingsService {
           jobTitles: [],
           jobPostings: [],
         },
-        posting: { id: posting.id, jobTitle: posting.jobTitle, description: posting.description },
+        posting: {
+          id: posting.id,
+          jobTitle: posting.jobTitle,
+          description: posting.description,
+          workType: posting.workType,
+        },
         expired: posting.status !== "PUBLISHED" || daysRemaining(effective) === 0,
       });
     }

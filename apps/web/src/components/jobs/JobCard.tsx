@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { type CompanyListItem, type CompanyVibeFlags, type VibeFlag } from "@iwtr/shared-types";
+import { type CompanyListItem, type CompanyVibeFlags, type VibeFlag, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
-import { WorkTypeLabel } from "@/components/WorkTypeLabel";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
@@ -176,17 +176,27 @@ function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
 // own boost fields per row in the DB, so splitting the card this way lines
 // the UI up with what the data model already supports: pick "3D Artist",
 // not "3D Artist AND Forklift Operatörü", when buying a boost.
-export type CardPosting = { id?: string; jobTitle: string; description: string | null } | null;
+export type CardPosting =
+  | { id?: string; jobTitle: string; description: string | null; workType: WorkplaceType | null }
+  | null;
 
 export function postingsForCard(company: CompanyListItem): CardPosting[] {
   if (company.jobPostings.length > 0) {
-    return company.jobPostings.map((p) => ({ id: p.id, jobTitle: p.jobTitle, description: p.description }));
+    return company.jobPostings.map((p) => ({
+      id: p.id,
+      jobTitle: p.jobTitle,
+      description: p.description,
+      workType: p.workType,
+    }));
   }
   if (company.jobTitles.length > 0) {
     // Auto-classified titles have no owner-authored description to show, and
     // no real posting id — never bookmarkable (see the bookmark button's own
-    // posting?.id guard below).
-    return company.jobTitles.map((title) => ({ jobTitle: title.title, description: null }));
+    // posting?.id guard below). workType comes from the same classifyJobRole
+    // call the server already ran to decide whether to surface this title at
+    // all (see CompaniesService.jobTitlesByCompanyId) — never re-derived
+    // client-side.
+    return company.jobTitles.map((t) => ({ jobTitle: t.title, description: null, workType: t.workType }));
   }
   return [null];
 }
@@ -216,6 +226,12 @@ export function JobCard({
   const bannerUrl = hasCustomBanner ? company.bannerImageUrl! : company.defaultBannerUrl;
   const bannerIsGreyscale = !hasCustomBanner && !company.hasApprovedOwner;
   const isSaved = posting?.id ? savedIds.has(posting.id) : false;
+  // One work-type per card, not the company's whole (up to 2) list — the
+  // posting's own workType when there is one (real postings always have one
+  // now; the auto-classified fallback carries its classifyJobRole result),
+  // falling back to the company's primary type only for pre-existing
+  // postings created before this field existed.
+  const cardWorkType = posting?.workType ?? company.workplaceTypes[0];
 
   return (
     // No overflow-hidden here (unlike a typical image-topped card) — the "i"
@@ -357,15 +373,19 @@ export function JobCard({
         )}
       </div>
 
-      {/* Card footer, below the main content box */}
-      <div className="border-t border-border px-3 py-2 compact:px-2 compact:py-1.5">
-        <p className="truncate text-xs text-muted-foreground">
-          <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
+      {/* Card footer, below the main content box. Work-type text on the
+          left, Risk Score right-aligned in the same row (not stacked) —
+          "-" whenever this card has no real, appliable posting behind it
+          (the auto-classified fallback and the "no open roles" empty
+          state both count as no real posting; see RiskScoreBadge). */}
+      <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 compact:px-2 compact:py-1.5">
+        <p className="min-w-0 truncate text-xs text-muted-foreground">
+          <span className="font-bold">{workplaceTypeLabel(cardWorkType)}</span>
           {company.isChainStore ? " · Chain store" : ""}
           {" · "}
           {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
         </p>
-        <RiskScoreBadge riskScore={company.riskScore} />
+        <RiskScoreBadge riskScore={posting?.id ? company.riskScore : null} className="shrink-0" />
       </div>
     </div>
   );

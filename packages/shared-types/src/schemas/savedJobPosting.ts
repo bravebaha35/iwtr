@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { companyListItemSchema } from "./company";
+import { workplaceTypeSchema } from "./workplaceType";
 
 // Toggle result mirrors savedPostToggleResultSchema's shape/convention
 // exactly (see follow.ts).
@@ -19,12 +20,16 @@ export type SavedJobPostingToggleResult = z.infer<typeof savedJobPostingToggleRe
 // and this endpoint already knows exactly which one posting to show per
 // row, so that helper is never needed on this path). `expired` is the one
 // extra bit the Saved Posts view needs to grey a card out and make it inert.
+// workType is carried through so JobCard's single-work-type-per-card footer
+// (see JobCard.tsx's CardPosting) has a real value to show here too, instead
+// of falling back to the company's primary type on every saved card.
 export const savedJobPostingSchema = z.object({
   company: companyListItemSchema,
   posting: z.object({
     id: z.string().uuid(),
     jobTitle: z.string(),
     description: z.string(),
+    workType: workplaceTypeSchema.nullable(),
   }),
   expired: z.boolean(),
 });
