@@ -19,6 +19,7 @@ import { TurnoverRiskModule } from "./modules/turnover-risk/turnover-risk.module
 import { RivalAnalyticsModule } from "./modules/rival-analytics/rival-analytics.module";
 import { InvestorApiModule } from "./modules/investor-api/investor-api.module";
 import { JobPostingsModule } from "./modules/job-postings/job-postings.module";
+import { JobApplicationsModule } from "./modules/job-applications/job-applications.module";
 import { SavedJobPostingsModule } from "./modules/saved-job-postings/saved-job-postings.module";
 import { SocialModule } from "./modules/social/social.module";
 import { FollowsModule } from "./modules/follows/follows.module";
@@ -48,6 +49,7 @@ import { FollowsModule } from "./modules/follows/follows.module";
     RivalAnalyticsModule,
     InvestorApiModule,
     JobPostingsModule,
+    JobApplicationsModule,
     SavedJobPostingsModule,
     SocialModule,
     FollowsModule,
