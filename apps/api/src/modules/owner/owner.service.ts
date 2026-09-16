@@ -32,6 +32,10 @@ function sameWorkplaceTypes(a: WorkplaceType[], b: WorkplaceType[]): boolean {
   return a.length === b.length && a.every((v) => b.includes(v));
 }
 
+function emptyToNull(value: string | undefined): string | null | undefined {
+  return value === "" ? null : value;
+}
+
 @Injectable()
 export class OwnerService {
   constructor(
@@ -157,6 +161,22 @@ export class OwnerService {
     // Prisma no-op, same as every other field here).
     const location = input.city !== undefined ? resolveLocation(input.city, input.district) : undefined;
 
+    // At least one contact method must remain reachable after this update.
+    // Only reads the current row when either field is actually part of this
+    // request — same targeted-read pattern as the workplaceTypes lock check
+    // above, not a read on every single unrelated PATCH.
+    if (input.contactEmail !== undefined || input.contactPhone !== undefined) {
+      const current = await this.prisma.company.findUniqueOrThrow({
+        where: { id: companyId },
+        select: { contactEmail: true, contactPhone: true },
+      });
+      const finalEmail = input.contactEmail !== undefined ? emptyToNull(input.contactEmail) : current.contactEmail;
+      const finalPhone = input.contactPhone !== undefined ? emptyToNull(input.contactPhone) : current.contactPhone;
+      if (!finalEmail && !finalPhone) {
+        throw new BadRequestException("Provide at least a phone number or an email address so applicants can reach you.");
+      }
+    }
+
     // Slug intentionally stays stable across a rename — it's the durable
     // identifier used in bookmarked/shared URLs and in review lookups.
     await this.prisma.company.update({
@@ -170,8 +190,8 @@ export class OwnerService {
         website: input.website,
         city: location?.city,
         district: location?.district,
-        contactEmail: input.contactEmail,
-        contactPhone: input.contactPhone,
+        contactEmail: emptyToNull(input.contactEmail),
+        contactPhone: emptyToNull(input.contactPhone),
         facebookUrl: input.facebookUrl,
         instagramUrl: input.instagramUrl,
         whatsappUrl: input.whatsappUrl,

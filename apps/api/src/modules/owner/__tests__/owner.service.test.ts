@@ -100,3 +100,43 @@ describe("OwnerService — banner membership gate (server-side, do not trust the
     ).rejects.toThrow("Membership upgrade required to change banner");
   });
 });
+
+describe("OwnerService.updateMyCompany — at least one contact method required", () => {
+  function buildService(current: { contactEmail: string | null; contactPhone: string | null }) {
+    const prisma = {
+      companyOwner: {
+        findUnique: jest.fn().mockResolvedValue({ tier: "FREE", planStatus: "NONE", claimStatus: "APPROVED" }),
+      },
+      company: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ workplaceTypes: ["OFFICE"], ...current }),
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(false) };
+    return { service: new OwnerService(prisma as any, reviews as unknown as ReviewsService), prisma };
+  }
+
+  it("rejects clearing both when the company currently has both set", async () => {
+    const { service } = buildService({ contactEmail: "hr@co.com", contactPhone: "+905551234567" });
+    await expect(
+      service.updateMyCompany("u1", "c1", { contactEmail: "", contactPhone: "" }),
+    ).rejects.toThrow("Provide at least a phone number or an email address");
+  });
+
+  it("allows setting only an email when phone is left blank and none is stored yet", async () => {
+    const { service, prisma } = buildService({ contactEmail: null, contactPhone: null });
+    await service.updateMyCompany("u1", "c1", { contactEmail: "hr@co.com", contactPhone: "" });
+    expect(prisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ contactEmail: "hr@co.com", contactPhone: null }) }),
+    );
+  });
+
+  it("allows updating an unrelated field when an email is already stored and phone is untouched", async () => {
+    const { service, prisma } = buildService({ contactEmail: "hr@co.com", contactPhone: null });
+    await service.updateMyCompany("u1", "c1", { isHiring: true });
+    expect(prisma.company.update).toHaveBeenCalled();
+    // contactEmail/contactPhone weren't part of this request, so the guard
+    // must not have needed (or found) a reason to reject it.
+  });
+});

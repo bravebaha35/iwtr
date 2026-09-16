@@ -83,14 +83,18 @@ export const updateCompanyInputSchema = z
     // Free tier: location and public contact/socials.
     city: z.string().min(1).optional(),
     district: z.string().min(1).optional(),
-    contactEmail: z.string().email().optional(),
+    // Both accept "" (meaning "leave this one blank") because only one of
+    // the two is actually required — see the object-level refine below and
+    // OwnerService.updateMyCompany's own server-side check against whatever
+    // is already stored for the field not included in a given request.
+    contactEmail: z.union([z.string().email(), z.literal("")]).optional(),
     // Turkey-specific: a mobile number (any 05XX prefix) or a landline whose
     // area code is a real one of the 81 provinces' — see
     // schemas/turkishPhone.ts. Deliberately stricter than the generic E.164
     // pattern used for personal phone numbers elsewhere (user.ts,
     // employerProfile.ts) since this platform is Turkey-only and the
     // dashboard's own guidance note promises area-code validation.
-    contactPhone: companyContactPhoneSchema.optional(),
+    contactPhone: z.union([companyContactPhoneSchema, z.literal("")]).optional(),
     facebookUrl: httpUrlSchema.optional(),
     instagramUrl: httpUrlSchema.optional(),
     whatsappUrl: httpUrlSchema.optional(),
@@ -109,6 +113,10 @@ export const updateCompanyInputSchema = z
   })
   .refine((v) => Object.values(v).some((value) => value !== undefined), {
     message: "Provide at least one field to update",
+  })
+  .refine((v) => !(v.contactEmail === "" && v.contactPhone === ""), {
+    message: "Provide at least a phone number or an email address so applicants can reach you.",
+    path: ["contactEmail"],
   });
 export type UpdateCompanyInput = z.infer<typeof updateCompanyInputSchema>;
 
