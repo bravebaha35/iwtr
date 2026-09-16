@@ -526,3 +526,23 @@ describe("CompaniesService — riskScore exposure", () => {
     expect(detail.company.riskScore).toBe(1);
   });
 });
+
+describe("CompaniesService.search — maxRiskScore filter", () => {
+  it("filters to companies at or below the given Risk Score", async () => {
+    const prisma = makePrisma();
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    await service.search({ ...baseQuery(), maxRiskScore: 1 });
+
+    expect(prisma.company.findMany.mock.calls[0][0].where.riskScore).toEqual({ lte: 1 });
+  });
+
+  it("applies no riskScore filter when maxRiskScore is omitted", async () => {
+    const prisma = makePrisma();
+    const service = new CompaniesService(prisma as any, {} as any);
+
+    await service.search(baseQuery());
+
+    expect(prisma.company.findMany.mock.calls[0][0].where).not.toHaveProperty("riskScore");
+  });
+});

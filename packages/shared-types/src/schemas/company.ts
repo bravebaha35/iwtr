@@ -143,6 +143,12 @@ export const companySearchQuerySchema = z.object({
   // 3.5 the same way the rest of this schema's callers already expect a
   // parsed value out the other end.
   minRating: z.coerce.number().min(0).max(5).optional(),
+  // "Show companies at or below this Risk Score" — same and-below semantics
+  // as minRating above (a misleading name inherited from that field's own
+  // history; kept consistent rather than fixed here). 0-3, see
+  // Company.riskScore. Omitted entirely means no filtering, same convention
+  // as minRating.
+  maxRiskScore: z.coerce.number().int().min(0).max(3).optional(),
   // The /jobs page's one addition to the exact same GET /companies search
   // used by the rating homepage (see CLAUDE.md's monorepo-boundary note and
   // CompaniesService.search) — never sent by WorkplaceBrowser. When true,

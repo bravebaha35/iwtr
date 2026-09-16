@@ -181,6 +181,7 @@ export class CompaniesService {
         // `c.overallAvg === null` check did — an inner-join-style relation
         // filter excludes them rather than needing an explicit null check.
         ...(query.minRating !== undefined ? { aggregate: { is: { overallAvg: { lte: query.minRating } } } } : {}),
+        ...(query.maxRiskScore !== undefined ? { riskScore: { lte: query.maxRiskScore } } : {}),
         // Only the /jobs page sends includeJobTitles, and only it should be
         // scoped to isHiring companies — the rating homepage's plain
         // GET /companies (no flag) keeps returning every company regardless
