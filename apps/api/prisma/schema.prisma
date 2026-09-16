@@ -225,6 +225,22 @@ model User {
   country         String?
   city            String?
   district        String?
+  // Optional, self-chosen, free-text display name a member can set on their
+  // own Edit Profile page. Purely voluntary disclosure by the member
+  // themselves — this is NEVER read from PiiVault and NEVER used as a
+  // Review/SocialComment author identity (see this plan's Global
+  // Constraints). Shown in GlobalHeader (falling back to reviewUsername when
+  // null) and on the member's own CV/PDF application, nowhere else.
+  displayName          String?
+  // Self-declared on the CV / Edit Profile page. No server-side verification
+  // of this claim — it's informational context on the applicant's own CV,
+  // not a moderation or eligibility gate.
+  isPublicEmployee     Boolean  @default(false)
+  // Free-typed employment history for a company not in the constrained
+  // EmploymentHistory picker list (e.g. "Freelance, 2022-2023, no matching
+  // company on file"). Sanitized server-side (ProfileService.updateProfile,
+  // Task 3) before storage; always rendered as plain text, never HTML.
+  customExperienceText String?
   // HMAC of the E.164 phone number verified via OTP during onboarding — kept
   // indefinitely (like PiiVault.tcKimlikNoHash) purely to flag duplicate
   // accounts on the same phone for admin review. A collision NEVER blocks
@@ -270,6 +286,7 @@ model User {
   socialCommentReports       SocialCommentReport[]
   socialCommentIdentityLocks SocialCommentIdentityLock[]
   savedJobPostings SavedJobPosting[]
+  jobApplications  JobApplication[]
 
   @@schema("public")
 }
@@ -474,6 +491,7 @@ model Company {
   ownerContactMessages OwnerContactMessage[]
   replies              CompanyReply[]
   jobPostings          JobPosting[]
+  jobApplications      JobApplication[]
   socialPosts          SocialPost[]
   followers            CompanyFollow[]
 
@@ -563,10 +581,41 @@ model JobPosting {
   boostExpiresAt     DateTime?
   createdAt          DateTime                      @default(now())
   savedBy            SavedJobPosting[]
+  jobApplications    JobApplication[]
 
   @@index([companyId])
   @@index([createdByUserId])
   @@index([companyId, jobTitle, workType])
+  @@schema("public")
+}
+
+// A job seeker's application to one JobPosting: a client-generated PDF CV
+// (apps/web renders it via html2pdf.js from the CvPreview component, never
+// server-side — see this plan's Global Constraints on avoiding an SSRF
+// surface) plus nothing else — no snapshot of profile fields is duplicated
+// onto this row, since the PDF itself is the durable record of what the
+// applicant submitted at that moment.
+model JobApplication {
+  id              String     @id @default(uuid())
+  jobPostingId    String
+  jobPosting      JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company    @relation(fields: [companyId], references: [id])
+  applicantUserId String
+  applicant       User       @relation(fields: [applicantUserId], references: [id])
+  pdfUrl          String
+  createdAt       DateTime   @default(now())
+  // Set by the owner's "mark viewed" action in the Applications inbox
+  // (Task 4/7) — null means unread, same on/off-null pattern as
+  // OwnerContactMessage.resolvedAt.
+  viewedAt        DateTime?
+
+  // Re-applying to the same posting replaces the existing row (Task 4
+  // deletes the old PDF file and updates this row) rather than piling up
+  // duplicates in the owner's inbox.
+  @@unique([jobPostingId, applicantUserId])
+  @@index([companyId])
+  @@index([jobPostingId])
   @@schema("public")
 }
 
