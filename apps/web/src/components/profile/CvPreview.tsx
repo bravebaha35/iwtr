@@ -20,9 +20,13 @@ export function CvPreview({ profile, id }: { profile: MyProfile; id?: string }) 
 
   useEffect(() => {
     let cancelled = false;
-    apiGet<MyEmploymentEntry[]>("/me/employment-history").then((data) => {
-      if (!cancelled) setEmployment(data);
-    });
+    apiGet<MyEmploymentEntry[]>("/me/employment-history")
+      .then((data) => {
+        if (!cancelled) setEmployment(data);
+      })
+      .catch(() => {
+        if (!cancelled) setEmployment([]);
+      });
     return () => {
       cancelled = true;
     };
