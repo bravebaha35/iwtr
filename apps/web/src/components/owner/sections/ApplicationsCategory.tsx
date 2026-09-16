@@ -9,9 +9,13 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    apiGet<JobApplicationListItem[]>(`/my-companies/${companyId}/job-applications`).then((data) => {
-      if (!cancelled) setApplications(data);
-    });
+    apiGet<JobApplicationListItem[]>(`/my-companies/${companyId}/job-applications`)
+      .then((data) => {
+        if (!cancelled) setApplications(data);
+      })
+      .catch(() => {
+        if (!cancelled) setApplications([]);
+      });
     return () => {
       cancelled = true;
     };
