@@ -243,7 +243,11 @@ export default async function CompanyPage({
                 {company.city ? ` · ${company.city}` : ""}
               </p>
               <div className="mt-1">
-                <RiskScoreBadge riskScore={company.riskScore} />
+                {/* "-" mirrors the same rule job cards use: no real, open
+                    posting to have a repost history against yet. isHiring is
+                    the one signal already on this page's own CompanyDetail
+                    fetch without an extra request. */}
+                <RiskScoreBadge riskScore={company.isHiring ? company.riskScore : null} />
               </div>
             </div>
           </div>
