@@ -17,6 +17,7 @@ import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
+import { ApplyButton } from "@/components/jobs/ApplyButton";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 
 // The standard job card, shared by the /jobs browse grid (JobsBrowser) and
@@ -344,6 +345,7 @@ export function JobCard({
             <div className="flex shrink-0 items-center gap-1.5">
               <ContactButton icon="mail" label="Mail" value={company.contactEmail} />
               <ContactButton icon="phone" label="Call" value={company.contactPhone} />
+              {posting?.id && <ApplyButton jobPostingId={posting.id} />}
             </div>
           </div>
 

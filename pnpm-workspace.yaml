@@ -23,6 +23,10 @@ allowBuilds:
   '@nestjs/core': true
   '@prisma/client': true
   '@prisma/engines': true
+  # Transitive dep of canvg (html2canvas -> html2pdf.js, Task 6). Its
+  # postinstall script only prints an OpenCollective sponsorship message, no
+  # functionality depends on it running, so it's left blocked.
+  core-js: false
   prisma: true
   sharp: true
   unrs-resolver: true
