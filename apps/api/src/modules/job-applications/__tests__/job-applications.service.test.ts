@@ -132,6 +132,28 @@ describe("JobApplicationsService.listForCompany", () => {
   it("throws ForbiddenException for a non-approved-owner caller", async () => {
     const prisma = makePrisma({ companyOwner: { findUnique: jest.fn().mockResolvedValue(null) } });
     await expect(service(prisma).listForCompany("u1", "c1")).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.companyOwner.findUnique).toHaveBeenCalledWith({
+      where: { userId_companyId: { userId: "u1", companyId: "c1" } },
+    });
+    expect(prisma.jobApplication.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the caller is an approved owner of a *different* company than the one requested", async () => {
+    // companyOwner.findUnique only resolves an APPROVED row for "company-a-id" —
+    // proves an approval for Company A can't be reused to read Company B's inbox.
+    const prisma = makePrisma({
+      companyOwner: {
+        findUnique: jest.fn().mockImplementation(({ where }) =>
+          where.userId_companyId.companyId === "company-a-id"
+            ? Promise.resolve({ userId: "u1", companyId: "company-a-id", claimStatus: "APPROVED" })
+            : Promise.resolve(null),
+        ),
+      },
+    });
+    await expect(service(prisma).listForCompany("u1", "company-b-id")).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.companyOwner.findUnique).toHaveBeenCalledWith({
+      where: { userId_companyId: { userId: "u1", companyId: "company-b-id" } },
+    });
     expect(prisma.jobApplication.findMany).not.toHaveBeenCalled();
   });
 
@@ -181,5 +203,19 @@ describe("JobApplicationsService.markViewed", () => {
     });
     await service(prisma).markViewed("u1", "c1", "app-1");
     expect(prisma.jobApplication.update).toHaveBeenCalledWith({ where: { id: "app-1" }, data: { viewedAt: expect.any(Date) } });
+  });
+
+  it("404s (and never updates) when the application belongs to a different company than the one in the call", async () => {
+    // The caller is an approved owner of "c1" and the application row is
+    // real, but it belongs to "OTHER_COMPANY" — proves an approved owner of
+    // one company can't mark-viewed another company's application by id.
+    const prisma = makePrisma({
+      jobApplication: {
+        findUnique: jest.fn().mockResolvedValue({ id: "app-1", companyId: "OTHER_COMPANY", viewedAt: null }),
+        update: jest.fn(),
+      },
+    });
+    await expect(service(prisma).markViewed("u1", "c1", "app-1")).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.jobApplication.update).not.toHaveBeenCalled();
   });
 });
