@@ -14,6 +14,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client";
 import { avatarLabel, avatarWorkType } from "@/lib/avatars";
+import { getCvShowEmail, getCvShowPhone, setCvShowEmail, setCvShowPhone } from "@/lib/cvDisclosurePrefs";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
 import { AvatarPhotoUploader } from "@/components/profile/AvatarPhotoUploader";
@@ -94,6 +95,12 @@ export default function ProfilePage() {
   const [cvSaving, setCvSaving] = useState(false);
   const [cvStatus, setCvStatus] = useState<string | null>(null);
   const [cvError, setCvError] = useState<string | null>(null);
+  // Client-side-only opt-in flags (see lib/cvDisclosurePrefs.ts) — not part
+  // of the profile PATCH below, so they're not seeded from `profile` in
+  // load() like the other CV fields; they're read from localStorage once on
+  // mount instead, in the effect below.
+  const [showEmailOnCv, setShowEmailOnCv] = useState(false);
+  const [showPhoneOnCv, setShowPhoneOnCv] = useState(false);
 
   // Feedback lives right next to the button that triggered it, not buried at
   // the bottom of a long page — each section gets its own status/error pair.
@@ -192,6 +199,27 @@ export default function ProfilePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Reads the two localStorage-backed CV disclosure flags once on mount —
+  // done in an effect, not a lazy useState initializer, since this is a
+  // client component that Next.js still renders once on the server first,
+  // where localStorage doesn't exist (getCvShowEmail/getCvShowPhone already
+  // guard that internally, but reading them from an effect keeps this in
+  // line with how settings-context.tsx reads its own localStorage value).
+  useEffect(() => {
+    setShowEmailOnCv(getCvShowEmail());
+    setShowPhoneOnCv(getCvShowPhone());
+  }, []);
+
+  function toggleShowEmailOnCv(checked: boolean) {
+    setShowEmailOnCv(checked);
+    setCvShowEmail(checked);
+  }
+
+  function toggleShowPhoneOnCv(checked: boolean) {
+    setShowPhoneOnCv(checked);
+    setCvShowPhone(checked);
+  }
 
   useEffect(() => {
     if (!isAuthenticated || role !== "COMPANY_OWNER") {
@@ -1193,6 +1221,29 @@ export default function ProfilePage() {
                   I am a public sector employee
                 </label>
                 <div>
+                  <p className="text-sm font-medium text-foreground">Contact details on my CV</p>
+                  <p className="text-xs text-muted-foreground">
+                    Off by default — your email and phone number are never sent to an employer unless you turn
+                    these on yourself.
+                  </p>
+                  <label className="mt-2 flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={showEmailOnCv}
+                      onChange={(e) => toggleShowEmailOnCv(e.target.checked)}
+                    />
+                    Include my email on my CV
+                  </label>
+                  <label className="mt-1 flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={showPhoneOnCv}
+                      onChange={(e) => toggleShowPhoneOnCv(e.target.checked)}
+                    />
+                    Include my phone number on my CV
+                  </label>
+                </div>
+                <div>
                   <label className="text-sm font-medium text-foreground">Other work experience</label>
                   <p className="text-xs text-muted-foreground">
                     For an employer not in the list on your Personal tab — free text, up to 2000 characters.
@@ -1218,7 +1269,7 @@ export default function ProfilePage() {
               </div>
               <div className="flex-1">
                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">How it looks</p>
-                <CvPreview profile={profile} />
+                <CvPreview profile={profile} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
               </div>
             </div>
           </div>

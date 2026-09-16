@@ -84,10 +84,14 @@
      same loaded font (no second network font, just a second theme key
      pointing at the same `--font-plus-jakarta-sans` variable from
      layout.tsx) and font-grotesk is Space Grotesk, a distinct display face
-     used only for the CV preview's headings. */
+     used only for the CV preview's headings, loaded in layout.tsx under its
+     own `--font-space-grotesk` variable (deliberately NOT named
+     `--font-grotesk` — reusing this key's own name there would make the
+     line below a self-referential cycle instead of pointing at the actual
+     loaded font). */
   --font-sans: var(--font-plus-jakarta-sans);
   --font-jakarta: var(--font-plus-jakarta-sans);
-  --font-grotesk: var(--font-grotesk);
+  --font-grotesk: var(--font-space-grotesk);
 
   /* Brand accent — a single place to retune the whole site's color later.
      Anchored on #AE4712 (brand-600, the resting color of every filled CTA —

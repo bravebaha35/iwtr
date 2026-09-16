@@ -43,7 +43,13 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 // plusJakartaSans instance above (`--font-plus-jakarta-sans`) rather than
 // loading the same Google Font twice under a second variable name, which
 // would double the font payload for no benefit.
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-grotesk" });
+// The CSS variable is named distinctly from globals.css's Tailwind theme key
+// (--font-grotesk) on purpose — matching the Jakarta font's own
+// --font-plus-jakarta-sans convention above. Naming it --font-grotesk here
+// too would make globals.css's `--font-grotesk: var(--font-grotesk);` a
+// self-referential cycle that can silently resolve to nothing depending on
+// stylesheet order, falling back to the default font with no visible error.
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
 export const metadata: Metadata = {
   title: "I Worked There",

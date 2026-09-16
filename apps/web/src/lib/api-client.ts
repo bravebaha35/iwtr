@@ -86,6 +86,22 @@ export async function apiDelete<T>(path: string): Promise<T> {
   return handle<T>(res);
 }
 
+// Binary/blob fetch through the same authenticated proxy as apiGet (e.g. an
+// applicant's CV PDF, which apps/api now serves only via an authenticated,
+// ownership-checked route — see job-applications.controller.ts). apiGet
+// always JSON-parses the response body via handle(), which would corrupt
+// binary data, so this is a small separate helper rather than a mode flag
+// on apiGet.
+export async function apiGetBlob(path: string): Promise<Blob> {
+  const res = await fetch(`${PROXY_BASE_URL}${path}`, { cache: "no-store" });
+  if (!res.ok) {
+    // No JSON body to pull a message out of for a binary response — mirror
+    // handle()'s fallback message shape as closely as that allows.
+    throw new ApiError(`Request failed: ${res.status} ${res.statusText}`, res.status, null);
+  }
+  return res.blob();
+}
+
 // Server Components only (e.g. app/companies/[slug]/page.tsx) — calls
 // apps/api directly since there's no browser session to proxy.
 export async function apiGetPublic<T>(path: string): Promise<T> {
