@@ -40,6 +40,16 @@ export const publicJobPostingSchema = z.object({
 });
 export type PublicJobPosting = z.infer<typeof publicJobPostingSchema>;
 
+// A job title inferred from EmploymentHistory (no real owner-authored
+// posting behind it) plus the work-type classifyJobRole already assigns it
+// server-side — carried through so a fallback job card can show one
+// specific work-type instead of the company's whole workplaceTypes list.
+export const classifiedJobTitleSchema = z.object({
+  title: z.string(),
+  workType: workplaceTypeSchema,
+});
+export type ClassifiedJobTitle = z.infer<typeof classifiedJobTitleSchema>;
+
 // One company's public job data, served by GET /companies/:slug/job-postings
 // for the "Job Postings" tab on its profile page. The exact two arrays a
 // /jobs card already renders (see companyListItemSchema in company.ts):
@@ -49,7 +59,7 @@ export type PublicJobPosting = z.infer<typeof publicJobPostingSchema>;
 // independently of the ratings/social streams.
 export const companyJobPostingsSchema = z.object({
   jobPostings: z.array(publicJobPostingSchema),
-  jobTitles: z.array(z.string()),
+  jobTitles: z.array(classifiedJobTitleSchema),
 });
 export type CompanyJobPostings = z.infer<typeof companyJobPostingsSchema>;
 

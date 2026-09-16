@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { turkeyRegionKeySchema } from "../geo/turkeyRegions";
-import { publicJobPostingSchema } from "./jobPosting";
+import { publicJobPostingSchema, classifiedJobTitleSchema } from "./jobPosting";
 import {
   workplaceTypeSchema,
   companyWorkplaceTypesSchema,
@@ -159,11 +159,12 @@ export type CompanySearchQuery = z.infer<typeof companySearchQuerySchema>;
 export const companyListItemSchema = companySchema.extend({
   overallAvg: z.number().min(0).max(5).nullable(),
   reviewCount: z.number().int().min(0),
-  // Distinct, classified job titles drawn from this company's own
-  // EmploymentHistory rows (see classifyJobRole) — only ever populated when
-  // the request set includeJobTitles; otherwise always [], never omitted, so
-  // every CompanyListItem consumer can rely on the field existing.
-  jobTitles: z.array(z.string()),
+  // Distinct job titles drawn from this company's own EmploymentHistory
+  // rows, each paired with the work-type classifyJobRole assigned it (see
+  // ClassifiedJobTitle) — only ever populated when the request set
+  // includeJobTitles; otherwise always [], never omitted, so every
+  // CompanyListItem consumer can rely on the field existing.
+  jobTitles: z.array(classifiedJobTitleSchema),
   // Individually-authored, currently-PUBLISHED job postings (see
   // schemas/jobPosting.ts) — same includeJobTitles-only population rule and
   // always-array convention as jobTitles above.

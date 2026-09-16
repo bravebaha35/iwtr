@@ -3,6 +3,7 @@ import {
   findProvinceByCityName,
   workplaceTypeSchema,
   type AdminCreateCompanyInput,
+  type ClassifiedJobTitle,
   type Company,
   type CompanyDetail,
   type CompanyFilters,
@@ -197,7 +198,7 @@ export class CompaniesService {
 
     const jobTitlesByCompanyId = query.includeJobTitles
       ? await this.jobTitlesByCompanyId(companies.map((c) => c.id))
-      : new Map<string, string[]>();
+      : new Map<string, ClassifiedJobTitle[]>();
     const jobPostingsByCompanyId = query.includeJobTitles
       ? await this.jobPostingsByCompanyId(companies.map((c) => c.id))
       : new Map<string, PublicJobPosting[]>();
@@ -341,7 +342,7 @@ export class CompaniesService {
   // employment entry already carries (see schema.prisma) — rather than a
   // separate job-listing table, per the product decision that a company's
   // job data is never an isolated dataset.
-  private async jobTitlesByCompanyId(companyIds: string[]): Promise<Map<string, string[]>> {
+  private async jobTitlesByCompanyId(companyIds: string[]): Promise<Map<string, ClassifiedJobTitle[]>> {
     if (companyIds.length === 0) return new Map();
 
     const rows = await this.prisma.employmentHistory.groupBy({
@@ -350,25 +351,26 @@ export class CompaniesService {
       _count: { jobTitle: true },
     });
 
-    const byCompany = new Map<string, { title: string; count: number }[]>();
+    const byCompany = new Map<string, { title: string; workType: WorkplaceType; count: number }[]>();
     for (const row of rows) {
       if (!row.companyId || !row.jobTitle) continue;
       // Only "categorized" titles surface here — classifyJobRole returning
       // null (confidenceScore 0, i.e. an unrecognized keyword) means the raw
       // text is too noisy/ambiguous to show as a job title card, same
       // fallback semantics that function already documents.
-      if (classifyJobRole(row.jobTitle) === null) continue;
+      const workType = classifyJobRole(row.jobTitle);
+      if (workType === null) continue;
       const list = byCompany.get(row.companyId) ?? [];
-      list.push({ title: row.jobTitle, count: row._count.jobTitle });
+      list.push({ title: row.jobTitle, workType, count: row._count.jobTitle });
       byCompany.set(row.companyId, list);
     }
 
-    const result = new Map<string, string[]>();
+    const result = new Map<string, ClassifiedJobTitle[]>();
     for (const [companyId, titles] of byCompany) {
       const topTitles = titles
         .sort((a, b) => b.count - a.count)
         .slice(0, 4)
-        .map((t) => t.title);
+        .map((t) => ({ title: t.title, workType: t.workType }));
       result.set(companyId, topTitles);
     }
     return result;

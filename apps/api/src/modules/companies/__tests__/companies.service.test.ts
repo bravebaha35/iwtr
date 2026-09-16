@@ -66,7 +66,10 @@ describe("CompaniesService.search — job titles (/jobs page)", () => {
     const results = await service.search({ ...baseQuery(), includeJobTitles: true });
 
     expect(prisma.company.findMany.mock.calls[0][0].where.isHiring).toBe(true);
-    expect(results[0].jobTitles).toEqual(["Muhasebe", "Avukat"]);
+    expect(results[0].jobTitles).toEqual([
+      { title: "Muhasebe", workType: "OFFICE" },
+      { title: "Avukat", workType: "OFFICE" },
+    ]);
   });
 
   it("caps job titles at 4 per company even when more classify", async () => {
@@ -91,7 +94,7 @@ describe("CompaniesService.search — job titles (/jobs page)", () => {
     const results = await service.search({ ...baseQuery(), includeJobTitles: true });
 
     expect(results[0].jobTitles).toHaveLength(4);
-    expect(results[0].jobTitles).not.toContain("CEO");
+    expect(results[0].jobTitles.map((t) => t.title)).not.toContain("CEO");
   });
 });
 
@@ -252,7 +255,7 @@ describe("CompaniesService.jobPostingsForSlug — the company profile 'Job Posti
       { jobTitle: "Forklift Operatörü", description: "Depo vardiyası", workType: "MANUAL_LABOUR" },
     ]);
     // Gibberish that classifyJobRole can't place is dropped, same as /jobs.
-    expect(result.jobTitles).toEqual(["Muhasebe"]);
+    expect(result.jobTitles).toEqual([{ title: "Muhasebe", workType: "OFFICE" }]);
     // The posting read itself is still visible-company-gated.
     expect(prisma.jobPosting.findMany.mock.calls[0][0].where).toMatchObject({
       company: { hiddenAt: null },
