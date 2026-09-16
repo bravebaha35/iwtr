@@ -6,7 +6,18 @@ import type { JobApplicationListItem, SubmitJobApplicationResponse } from "@iwtr
 import { PrismaService } from "../../prisma/prisma.service";
 import { daysRemaining, shouldLazyReshare } from "../job-postings/job-postings.util";
 
-const UPLOADS_DIR = join(process.cwd(), "uploads", "job-applications");
+// Deliberately OUTSIDE the "uploads/" tree main.ts serves publicly via
+// `app.useStaticAssets(join(process.cwd(), "uploads"), { prefix: "/uploads/" })`
+// — that mount covers every subdirectory of uploads/ with zero auth, so a
+// PDF written under uploads/job-applications/ would still be directly
+// fetchable by anyone who had or guessed its filename, regardless of what
+// URL the API tells callers. Applicant PDFs contain name/email/phone/
+// employment history, so they must never live under a path any static
+// mount covers — the only way to read one is through the authenticated,
+// ownership-checked GET my-companies/:companyId/job-applications/:id/pdf
+// route below (see getPdfFilePath), which reads directly from this
+// directory via fs, not through Express's static file serving.
+const UPLOADS_DIR = join(process.cwd(), "uploads-private", "job-applications");
 // Exported so JobApplicationsController can pass the same ceiling to
 // FileInterceptor's `limits.fileSize` — rejecting an oversized upload at the
 // multipart-parsing layer, before it's ever fully buffered into memory,
@@ -75,11 +86,11 @@ export class JobApplicationsService {
     const filename = `${randomUUID()}.pdf`;
     await writeFile(join(UPLOADS_DIR, filename), file.buffer);
     // Stored as just the on-disk filename, never a public URL — the file
-    // lives under the app-wide static mount's directory on disk (so the
-    // write logic above is unchanged) but is only ever reachable through the
-    // authenticated, ownership-checked GET
-    // my-companies/:companyId/job-applications/:id/pdf route (see
-    // JobApplicationsController.downloadPdf / getPdfFilePath below).
+    // lives under UPLOADS_DIR (outside any static mount, see its comment
+    // above) and is only ever reachable through the authenticated,
+    // ownership-checked GET my-companies/:companyId/job-applications/:id/pdf
+    // route (see JobApplicationsController.downloadPdf / getPdfFilePath
+    // below).
     const pdfUrl = filename;
 
     if (existing) {
