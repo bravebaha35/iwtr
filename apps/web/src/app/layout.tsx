@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { BackButton } from "@/components/BackButton";
@@ -37,6 +37,14 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
+// CvPreview.tsx's headings use a second, distinct display face. Note this is
+// NOT a second instance of Plus Jakarta Sans: the CV preview's "font-jakarta"
+// Tailwind utility (see globals.css) intentionally maps back onto the single
+// plusJakartaSans instance above (`--font-plus-jakarta-sans`) rather than
+// loading the same Google Font twice under a second variable name, which
+// would double the font payload for no benefit.
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-grotesk" });
+
 export const metadata: Metadata = {
   title: "I Worked There",
   description: "Anonymous, honest workplace reviews.",
@@ -59,7 +67,7 @@ export default function RootLayout({
       // --font-sans resolves to nothing and every font-sans/body font-family
       // rule silently falls back to the browser default (verified live: this
       // exact failure happened when the variable was only on <body>).
-      className={`${plusJakartaSans.variable} h-full antialiased`}
+      className={`${plusJakartaSans.variable} ${spaceGrotesk.variable} h-full antialiased`}
       // The boot script below sets `.dark`/`data-density` synchronously,
       // before React hydrates, so the server-rendered markup never matches —
       // that's expected (it's what avoids a flash of the wrong theme), so
@@ -69,7 +77,9 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
-      <body className={`${plusJakartaSans.variable} min-h-full flex flex-col bg-background text-foreground`}>
+      <body
+        className={`${plusJakartaSans.variable} ${spaceGrotesk.variable} min-h-full flex flex-col bg-background text-foreground`}
+      >
         <SettingsProvider>
           <AuthProvider>
             <GlobalHeader />

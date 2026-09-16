@@ -202,7 +202,11 @@ export function GlobalHeader() {
                   with no fixed size of its own, so it should give up width
                   first rather than pushing the page wider. */}
               <span className="max-w-[9rem] truncate text-sm font-medium text-foreground">
-                {employerDisplayName || onboardingStatus.reviewUsername || avatarLabel(onboardingStatus.avatarKey) || "Anonymous"}
+                {employerDisplayName ||
+                  onboardingStatus.displayName ||
+                  onboardingStatus.reviewUsername ||
+                  avatarLabel(onboardingStatus.avatarKey) ||
+                  "Anonymous"}
               </span>
             </Link>
             <button

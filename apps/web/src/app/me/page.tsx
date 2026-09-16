@@ -24,16 +24,18 @@ import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
 import { ChangePasswordForm } from "@/components/profile/ChangePasswordForm";
 import { AccountOptionsPanel } from "@/components/profile/AccountOptionsPanel";
+import { CvPreview } from "@/components/profile/CvPreview";
 
 const SUPPORT_EMAIL = "iworkedthere@hotmail.com";
 
-type TabKey = "customize" | "personal" | "contact" | "education" | "security" | "account";
+type TabKey = "customize" | "personal" | "contact" | "education" | "cv" | "security" | "account";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "customize", label: "Customize" },
   { key: "personal", label: "Personal Information" },
   { key: "contact", label: "Contact Information" },
   { key: "education", label: "Education & Work History" },
+  { key: "cv", label: "My CV" },
   { key: "security", label: "Security" },
   { key: "account", label: "Account Options" },
 ];
@@ -83,6 +85,15 @@ export default function ProfilePage() {
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarGradient, setAvatarGradient] = useState<string | null>(null);
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
+
+  // My CV tab — seeded from `profile` in load(), same as every other draft
+  // field on this page.
+  const [displayNameDraft, setDisplayNameDraft] = useState("");
+  const [isPublicEmployeeDraft, setIsPublicEmployeeDraft] = useState(false);
+  const [customExperienceDraft, setCustomExperienceDraft] = useState("");
+  const [cvSaving, setCvSaving] = useState(false);
+  const [cvStatus, setCvStatus] = useState<string | null>(null);
+  const [cvError, setCvError] = useState<string | null>(null);
 
   // Feedback lives right next to the button that triggered it, not buried at
   // the bottom of a long page — each section gets its own status/error pair.
@@ -170,6 +181,9 @@ export default function ProfilePage() {
       setAvatarGradient(profileData.avatarGradient);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
       setEditingLocation(!profileData.country || !profileData.city);
+      setDisplayNameDraft(profileData.displayName ?? "");
+      setIsPublicEmployeeDraft(profileData.isPublicEmployee);
+      setCustomExperienceDraft(profileData.customExperienceText ?? "");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load your profile.");
     }
@@ -251,6 +265,29 @@ export default function ProfilePage() {
       setLocationError(err instanceof ApiError ? err.message : "Couldn't save changes.");
     } finally {
       setLocationSaving(false);
+    }
+  }
+
+  async function saveCv() {
+    setCvSaving(true);
+    setCvError(null);
+    setCvStatus(null);
+    try {
+      await apiPatch("/me/profile", {
+        displayName: displayNameDraft.trim(),
+        isPublicEmployee: isPublicEmployeeDraft,
+        customExperienceText: customExperienceDraft.trim(),
+      });
+      await load();
+      // GlobalHeader reads displayName from AuthContext's onboardingStatus,
+      // not this page's own `profile` state — same reason saveCustomization
+      // refreshes it after an avatar/username change.
+      await refreshOnboardingStatus();
+      setCvStatus("Saved.");
+    } catch (err) {
+      setCvError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+    } finally {
+      setCvSaving(false);
     }
   }
 
@@ -1123,6 +1160,67 @@ export default function ProfilePage() {
                 + Add workplace
               </button>
             )}
+          </div>
+          </>
+          )}
+
+          {activeTab === "cv" && (
+          <>
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h2 className="mb-3 font-semibold text-foreground">My CV</h2>
+            <div className="flex flex-col gap-6 sm:flex-row">
+              <div className="flex-1 flex flex-col gap-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Display name</label>
+                  <p className="text-xs text-muted-foreground">
+                    Optional. Shown on your CV and in the site header instead of your anonymous handle — your reviews
+                    always stay under your anonymous handle regardless of this setting.
+                  </p>
+                  <input
+                    type="text"
+                    maxLength={80}
+                    value={displayNameDraft}
+                    onChange={(e) => setDisplayNameDraft(e.target.value)}
+                    className="mt-1 w-full rounded-none border border-slate-800 bg-surface px-3 py-2 text-sm"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={isPublicEmployeeDraft}
+                    onChange={(e) => setIsPublicEmployeeDraft(e.target.checked)}
+                  />
+                  I am a public sector employee
+                </label>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Other work experience</label>
+                  <p className="text-xs text-muted-foreground">
+                    For an employer not in the list on your Personal tab — free text, up to 2000 characters.
+                  </p>
+                  <textarea
+                    maxLength={2000}
+                    rows={6}
+                    value={customExperienceDraft}
+                    onChange={(e) => setCustomExperienceDraft(e.target.value)}
+                    className="mt-1 w-full rounded-none border border-slate-800 bg-surface px-3 py-2 text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={saveCv}
+                  disabled={cvSaving}
+                  className="self-start rounded-none border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-bold text-zinc-50 transition disabled:opacity-50"
+                >
+                  {cvSaving ? "Saving..." : "Save CV"}
+                </button>
+                {cvStatus && <p className="text-sm text-green-700 dark:text-green-400">{cvStatus}</p>}
+                {cvError && <p className="text-sm text-red-600 dark:text-red-400">{cvError}</p>}
+              </div>
+              <div className="flex-1">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">How it looks</p>
+                <CvPreview profile={profile} />
+              </div>
+            </div>
           </div>
           </>
           )}

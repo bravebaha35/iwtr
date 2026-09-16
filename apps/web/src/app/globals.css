@@ -78,10 +78,16 @@
   --color-surface-muted: var(--surface-muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
-  /* Plus Jakarta Sans is the only typeface this app loads or uses — every
-     text element renders through --font-sans below, with no second
-     (monospace or otherwise) family wired in anywhere. */
+  /* Plus Jakarta Sans is the site-wide typeface, used through --font-sans
+     below. CvPreview.tsx (the CV editor's live preview on /me) additionally
+     needs its own Tailwind utility names — font-jakarta reuses this exact
+     same loaded font (no second network font, just a second theme key
+     pointing at the same `--font-plus-jakarta-sans` variable from
+     layout.tsx) and font-grotesk is Space Grotesk, a distinct display face
+     used only for the CV preview's headings. */
   --font-sans: var(--font-plus-jakarta-sans);
+  --font-jakarta: var(--font-plus-jakarta-sans);
+  --font-grotesk: var(--font-grotesk);
 
   /* Brand accent — a single place to retune the whole site's color later.
      Anchored on #AE4712 (brand-600, the resting color of every filled CTA —
