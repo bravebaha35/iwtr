@@ -1,0 +1,61 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { JobApplicationListItem } from "@iwtr/shared-types";
+import { apiGet, apiPost } from "@/lib/api-client";
+
+export function ApplicationsCategory({ companyId }: { companyId: string }) {
+  const [applications, setApplications] = useState<JobApplicationListItem[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<JobApplicationListItem[]>(`/my-companies/${companyId}/job-applications`).then((data) => {
+      if (!cancelled) setApplications(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId]);
+
+  async function markViewed(id: string) {
+    await apiPost(`/my-companies/${companyId}/job-applications/${id}/mark-viewed`, {});
+    setApplications((prev) => prev && prev.map((a) => (a.id === id ? { ...a, viewedAt: new Date().toISOString() } : a)));
+  }
+
+  if (applications === null) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (applications.length === 0) return <p className="text-sm text-muted-foreground">No applications yet.</p>;
+
+  return (
+    <ul className="flex flex-col gap-2">
+      {applications.map((a) => (
+        <li
+          key={a.id}
+          className="flex items-center justify-between gap-3 border border-slate-800 bg-zinc-50 p-3 dark:bg-zinc-950"
+        >
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold">{a.applicantDisplayName}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              Applied to {a.jobTitle} · {new Date(a.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {a.viewedAt === null && (
+              <span className="rounded-none border border-slate-800 px-1.5 py-0.5 text-[10px] font-bold uppercase">
+                New
+              </span>
+            )}
+            <a
+              href={a.pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => a.viewedAt === null && markViewed(a.id)}
+              className="text-xs font-bold underline"
+            >
+              View CV
+            </a>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}

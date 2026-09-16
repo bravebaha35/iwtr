@@ -103,13 +103,19 @@ function generalInfoBox(): HTMLElement {
   return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
 }
 
-test("side panel lists the four sections in order, and only the active one's content renders", async () => {
+test("side panel lists the five sections in order, and only the active one's content renders", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
   const nav = screen.getByRole("navigation", { name: "Company dashboard sections" });
   const tabs = within(nav).getAllByRole("button");
-  expect(tabs.map((t) => t.textContent)).toEqual(["General Information", "Premium Features", "Contact & Social Media", "Reviews & Ratings"]);
+  expect(tabs.map((t) => t.textContent)).toEqual([
+    "General Information",
+    "Premium Features",
+    "Contact & Social Media",
+    "Reviews & Ratings",
+    "Applications",
+  ]);
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Contact & Social Media" })).not.toBeInTheDocument();

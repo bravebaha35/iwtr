@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 
-export type OwnerDashboardCategory = "general-info" | "premium-features" | "contact-social" | "reviews-ratings";
+export type OwnerDashboardCategory =
+  | "general-info"
+  | "premium-features"
+  | "contact-social"
+  | "reviews-ratings"
+  | "applications";
 
 const CATEGORIES: { key: OwnerDashboardCategory; label: string }[] = [
   { key: "general-info", label: "General Information" },
   { key: "premium-features", label: "Premium Features" },
   { key: "contact-social", label: "Contact & Social Media" },
   { key: "reviews-ratings", label: "Reviews & Ratings" },
+  { key: "applications", label: "Applications" },
 ];
 
 const NAV_ITEM_CLASS =
@@ -18,11 +24,11 @@ const NAV_ITEM_ACTIVE_CLASS =
 
 /**
  * Left-side vertical nav on desktop, sticky horizontal tab bar on mobile —
- * the 4 fixed categories every approved-owner company card is organized
+ * the 5 fixed categories every approved-owner company card is organized
  * under (see sections/*.tsx), plus a real link to the Job Postings
  * dashboard (a separate route, not a locally-switched category — see
  * OwnerJobPostingsView.tsx). Purely a controlled tab switcher for the first
- * 4; every field and save action still lives in the category components
+ * 5; every field and save action still lives in the category components
  * themselves.
  */
 export function OwnerDashboardSidePanel({

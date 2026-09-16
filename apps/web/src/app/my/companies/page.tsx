@@ -24,6 +24,7 @@ import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCate
 import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
 import { ContactSocialCategory } from "@/components/owner/sections/ContactSocialCategory";
 import { ReviewsRatingsCategory } from "@/components/owner/sections/ReviewsRatingsCategory";
+import { ApplicationsCategory } from "@/components/owner/sections/ApplicationsCategory";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -629,6 +630,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           {activeCategory === "reviews-ratings" && (
             <ReviewsRatingsCategory companySlug={claim.companySlug} companyName={detail?.company.name ?? claim.companyName} detail={detail} />
           )}
+
+          {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
 
           {/* Rendered here (sibling to every activeCategory block, not nested
               inside general-info's) because both GeneralInfoCategory and
