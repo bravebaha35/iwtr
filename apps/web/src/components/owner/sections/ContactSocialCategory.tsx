@@ -76,8 +76,12 @@ export function ContactSocialCategory(props: ContactSocialCategoryProps) {
           Official website URL is set from the General Information tab (a paid-tier field, alongside the
           About/Description text).
         </p>
+        <p className="text-xs text-muted-foreground sm:col-span-2">
+          At least one contact method is required. For best results, we recommend providing both a phone
+          number and an email address so applicants can reach you as easily as possible.
+        </p>
         <label className="text-xs font-medium text-muted-foreground">
-          Public HR / Contact Email <span className="text-red-600 dark:text-red-400">(required)</span>
+          Public HR / Contact Email <span className="text-muted-foreground/70">(one of email or phone is required)</span>
           <input
             type="email"
             value={props.contactEmail}
@@ -88,7 +92,7 @@ export function ContactSocialCategory(props: ContactSocialCategoryProps) {
         </label>
 
         <label className="text-xs font-medium text-muted-foreground">
-          Business Phone Number <span className="text-red-600 dark:text-red-400">(required)</span>
+          Business Phone Number <span className="text-muted-foreground/70">(one of email or phone is required)</span>
           <div className="mt-1">
             <TurkishPhoneInput value={props.contactPhone} onChange={props.setContactPhone} suggestedProvince={props.city} />
           </div>
@@ -105,7 +109,10 @@ export function ContactSocialCategory(props: ContactSocialCategoryProps) {
 
       <button
         onClick={props.onSave}
-        disabled={props.saving || !props.contactEmail.trim() || !props.contactPhone.trim() || props.contactPhone.trim() === "+90"}
+        disabled={
+          props.saving ||
+          (!props.contactEmail.trim() && (!props.contactPhone.trim() || props.contactPhone.trim() === "+90"))
+        }
         className="mt-4 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
       >
         Save changes

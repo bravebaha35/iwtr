@@ -431,16 +431,25 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     setContactSaving(true);
     setContactError(null);
     setContactStatus(null);
-    const phoneCheck = companyContactPhoneSchema.safeParse(contactPhone.trim());
-    if (!phoneCheck.success) {
-      setContactError(phoneCheck.error.issues[0]?.message ?? "That phone number isn't valid.");
+    const trimmedEmail = contactEmail.trim();
+    const trimmedPhone = contactPhone.trim() === "+90" ? "" : contactPhone.trim();
+    if (!trimmedEmail && !trimmedPhone) {
+      setContactError("Provide at least a phone number or an email address so applicants can reach you.");
       setContactSaving(false);
       return;
     }
+    if (trimmedPhone) {
+      const phoneCheck = companyContactPhoneSchema.safeParse(trimmedPhone);
+      if (!phoneCheck.success) {
+        setContactError(phoneCheck.error.issues[0]?.message ?? "That phone number isn't valid.");
+        setContactSaving(false);
+        return;
+      }
+    }
     try {
       const body: Record<string, string> = {
-        contactEmail: contactEmail.trim(),
-        contactPhone: contactPhone.trim(),
+        contactEmail: trimmedEmail,
+        contactPhone: trimmedPhone,
       };
       if (facebookUrl.trim()) body.facebookUrl = facebookUrl.trim();
       if (instagramUrl.trim()) body.instagramUrl = instagramUrl.trim();
