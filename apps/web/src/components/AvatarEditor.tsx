@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { WORK_TYPE_AVATARS, avatarWorkType } from "@/lib/avatars";
 import { AVATAR_GRADIENTS, avatarGradientCss, customGradientColor, customGradientKey } from "@/lib/avatarGradients";
-import { WORKPLACE_TYPES, workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { WorkTypePicker } from "@/components/WorkTypePicker";
 
 /**
  * "What kind of work?" -> "Choose your avatar" (4 variants of that work
@@ -18,6 +19,8 @@ export function AvatarEditor({
   onChangeAvatarKey,
   onChangeGradient,
   onChangeWorkType,
+  workType: controlledWorkType,
+  showWorkTypePicker = true,
 }: {
   avatarKey: string | null;
   avatarGradient: string | null;
@@ -30,15 +33,24 @@ export function AvatarEditor({
   // username picker does (its options must update as soon as the category
   // changes, not only once a new avatar variant is actually clicked).
   onChangeWorkType?: (type: WorkplaceType) => void;
+  // Controlled value — when provided (by /me's Customize tab, which now
+  // sources work-type from the Personal Information tab's own picker
+  // instead), this component stops owning its own work-type state and
+  // showWorkTypePicker defaults callers toward hiding the redundant grid.
+  // Onboarding's AvatarPicker passes neither prop — fully unchanged,
+  // internal-state behavior, own grid rendered, exactly as before.
+  workType?: WorkplaceType | null;
+  showWorkTypePicker?: boolean;
 }) {
-  const [browsingWorkType, setBrowsingWorkType] = useState<WorkplaceType | null>(avatarWorkType(avatarKey));
+  const [internalWorkType, setInternalWorkType] = useState<WorkplaceType | null>(avatarWorkType(avatarKey));
+  const browsingWorkType = controlledWorkType !== undefined ? controlledWorkType : internalWorkType;
   const colorInputRef = useRef<HTMLInputElement>(null);
 
   const variants = WORK_TYPE_AVATARS.find((g) => g.workType === browsingWorkType)?.variants ?? [];
   const customColor = customGradientColor(avatarGradient);
 
   function pickWorkType(type: WorkplaceType) {
-    setBrowsingWorkType(type);
+    setInternalWorkType(type);
     onChangeWorkType?.(type);
     // A variant from a different work type no longer applies once the type
     // changes — the caller keeps whatever avatarKey it had until a new one
@@ -47,23 +59,14 @@ export function AvatarEditor({
 
   return (
     <>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">What kind of work?</p>
-      <div className="mb-4 grid grid-cols-4 gap-2">
-        {WORKPLACE_TYPES.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => pickWorkType(t.value)}
-            className={`rounded-lg p-2 text-[10px] font-medium transition ${
-              browsingWorkType === t.value
-                ? "bg-brand-100 ring-2 ring-brand-600 dark:bg-brand-900/60"
-                : "text-muted-foreground hover:bg-surface-muted"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {showWorkTypePicker && (
+        <>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">What kind of work?</p>
+          <div className="mb-4">
+            <WorkTypePicker value={browsingWorkType} onChange={pickWorkType} />
+          </div>
+        </>
+      )}
 
       {browsingWorkType && (
         <>
