@@ -17,6 +17,19 @@ function passthroughHeaders(res: Response): HeadersInit {
   return headers;
 }
 
+// arrayBuffer, not text() — upstream responses can carry raw binary bytes
+// (e.g. a PDF stream from the job-application download route), and text()
+// UTF-8-decodes the body, corrupting any byte sequence that isn't valid
+// UTF-8. Passing the ArrayBuffer straight to NextResponse forwards it
+// byte-for-byte regardless of content type.
+async function buildResponse(upstream: Response): Promise<NextResponse> {
+  const responseBody = await upstream.arrayBuffer();
+  return new NextResponse(responseBody, {
+    status: upstream.status,
+    headers: passthroughHeaders(upstream),
+  });
+}
+
 async function proxy(req: NextRequest, path: string[]) {
   const cookieStore = await cookies();
   const targetUrl = `${API_BASE_URL}/${path.join("/")}${req.nextUrl.search}`;
@@ -52,11 +65,7 @@ async function proxy(req: NextRequest, path: string[]) {
 
     if (refreshed) {
       upstream = await send(refreshed.accessToken);
-      const responseBody = await upstream.text();
-      const out = new NextResponse(responseBody, {
-        status: upstream.status,
-        headers: passthroughHeaders(upstream),
-      });
+      const out = await buildResponse(upstream);
       out.cookies.set(ACCESS_COOKIE, refreshed.accessToken, accessCookieOptions(refreshed.expiresInSeconds));
       out.cookies.set(REFRESH_COOKIE, refreshed.refreshToken!, refreshCookieOptions());
       return out;
@@ -66,22 +75,14 @@ async function proxy(req: NextRequest, path: string[]) {
       // A refresh token was presented but rejected — the session is dead,
       // not just the access token. Clear both cookies so the client's next
       // /api/session check reports logged-out instead of retrying forever.
-      const responseBody = await upstream.text();
-      const out = new NextResponse(responseBody, {
-        status: upstream.status,
-        headers: passthroughHeaders(upstream),
-      });
+      const out = await buildResponse(upstream);
       out.cookies.delete(ACCESS_COOKIE);
       out.cookies.delete(REFRESH_COOKIE);
       return out;
     }
   }
 
-  const responseBody = await upstream.text();
-  return new NextResponse(responseBody, {
-    status: upstream.status,
-    headers: passthroughHeaders(upstream),
-  });
+  return buildResponse(upstream);
 }
 
 type RouteContext = { params: Promise<{ path: string[] }> };
