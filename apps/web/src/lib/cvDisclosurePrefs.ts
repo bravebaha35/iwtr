@@ -19,6 +19,15 @@
 // tab or the Apply flow.
 const SHOW_EMAIL_KEY = "iwtr:cv-show-email";
 const SHOW_PHONE_KEY = "iwtr:cv-show-phone";
+// Same client-side-only tracking, same reasoning, for the Apply-flow CV
+// gate (ApplyButton.tsx): HAS_SAVED_CV flips true the first time the member
+// ever saves the "My CV" tab (see /me's saveCv) — until then, Apply redirects
+// there instead of sending a CV nobody has looked at. HAS_SEEN_APPLY_PROMPT
+// tracks the one-time "before you apply" nudge separately: it's shown at
+// most once ever, even across multiple Apply attempts before the member
+// actually saves a CV.
+const HAS_SAVED_CV_KEY = "iwtr:cv-has-saved";
+const HAS_SEEN_APPLY_PROMPT_KEY = "iwtr:cv-has-seen-apply-prompt";
 
 function getFlag(key: string): boolean {
   try {
@@ -55,4 +64,20 @@ export function getCvShowPhone(): boolean {
 
 export function setCvShowPhone(value: boolean): void {
   setFlag(SHOW_PHONE_KEY, value);
+}
+
+export function getHasSavedCv(): boolean {
+  return getFlag(HAS_SAVED_CV_KEY);
+}
+
+export function markCvSaved(): void {
+  setFlag(HAS_SAVED_CV_KEY, true);
+}
+
+export function getHasSeenApplyCvPrompt(): boolean {
+  return getFlag(HAS_SEEN_APPLY_PROMPT_KEY);
+}
+
+export function markSeenApplyCvPrompt(): void {
+  setFlag(HAS_SEEN_APPLY_PROMPT_KEY, true);
 }

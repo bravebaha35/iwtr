@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { MyEmploymentEntry, MyProfile } from "@iwtr/shared-types";
+import type { EduLevel, MyEmploymentEntry, MyProfile } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { Avatar } from "@/components/Avatar";
 
@@ -9,6 +9,18 @@ function formatRange(startDate: string | null, endDate: string | null): string {
   const start = startDate ? new Date(startDate).getFullYear() : "?";
   const end = endDate ? new Date(endDate).getFullYear() : "Present";
   return `${start} - ${end}`;
+}
+
+const EDU_LEVEL_LABELS: Record<EduLevel, string> = {
+  ELEMENTARY: "Elementary School",
+  HIGH_SCHOOL: "High School",
+  COLLEGE: "College",
+};
+
+function formatEducationDetail(level: EduLevel, faculty: string | null | undefined, department: string | null | undefined, graduationYear: number | null | undefined): string {
+  return [EDU_LEVEL_LABELS[level], faculty, department, graduationYear ? `Class of ${graduationYear}` : null]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 // The single source of truth for what a CV looks like — both the live
@@ -27,6 +39,14 @@ function formatRange(startDate: string | null, endDate: string | null): string {
 // rendered look is unchanged. Do not swap these back to named
 // zinc-*/slate-* utilities, and do not add new zinc-*/slate-* classes to
 // this file — only CvPreview.tsx is ever snapshotted by html2canvas.
+//
+// Second html2canvas constraint, same reasoning: this version of html2canvas
+// does not support the CSS `gap` property on flex/grid containers (it's
+// silently dropped, collapsing every gapped child to zero spacing — this is
+// what made the avatar and name overlap in the rendered PDF even though the
+// live on-screen preview, which never goes through html2canvas, looked
+// correct). Use `space-x-*`/`space-y-*` (margin-based) for spacing in this
+// file instead of `gap-*`, never `gap-*` itself.
 export function CvPreview({
   profile,
   employment: employmentProp,
@@ -82,23 +102,29 @@ export function CvPreview({
 
   const employment = employmentProp ?? employmentState;
   const name = profile.displayName?.trim() || "Your name here";
-  const hasAnyExperience = employment.length > 0 || !!profile.customExperienceText;
   const contactLine = [showEmail ? profile.email : null, showPhone ? profile.phoneNumber : null]
     .filter(Boolean)
     .join(" · ");
+  // "Where the member is based" — no birthplace field exists anywhere in the
+  // system (deliberately: it would need new encrypted PiiVault storage, same
+  // protection level as national ID, for a cosmetic CV line), so this is the
+  // member's current location instead, already collected at onboarding.
+  const locationLine = [profile.district, profile.city, profile.country].filter(Boolean).join(", ");
+  const education = profile.education;
 
   return (
     <div
       id={id}
-      className={`flex w-full flex-col gap-4 border border-[#1e293b] bg-[#fafafa] p-6 font-jakarta text-[#0f172a] dark:bg-[#fafafa] dark:text-[#0f172a]${
+      className={`relative flex w-full flex-col space-y-4 border border-[#1e293b] bg-[#fafafa] p-6 font-jakarta text-[#0f172a] dark:bg-[#fafafa] dark:text-[#0f172a]${
         forPrint ? "" : " aspect-[1/1.414] overflow-y-auto"
       }`}
     >
-      <header className="flex items-center gap-4 border-b border-[#1e293b] pb-4">
+      <header className="flex items-center space-x-4 border-b border-[#1e293b] pb-4">
         <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
         <div className="min-w-0">
-          <h1 className="truncate font-grotesk text-2xl font-bold">{name}</h1>
+          <h1 className="truncate font-grotesk text-2xl font-bold leading-tight">{name}</h1>
           {contactLine && <p className="truncate text-sm text-[#475569]">{contactLine}</p>}
+          {locationLine && <p className="truncate text-sm text-[#475569]">{locationLine}</p>}
           {profile.isPublicEmployee && (
             <span className="mt-1 inline-block rounded-none border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
               Public Sector Employee
@@ -109,19 +135,45 @@ export function CvPreview({
 
       <section>
         <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Employment History</h2>
-        <ul className="mt-2 flex flex-col gap-2">
-          {!hasAnyExperience && <li className="text-sm text-[#64748b]">Nothing added yet.</li>}
+        <ul className="mt-2 flex flex-col space-y-2">
+          {employment.length === 0 && <li className="text-sm text-[#64748b]">Nothing added yet.</li>}
           {employment.map((e) => (
             <li key={e.id} className="text-sm">
               <p className="font-bold">{e.jobTitle ?? "Employee"} — {e.rawCompanyName}</p>
               <p className="text-xs text-[#475569]">{formatRange(e.startDate, e.endDate)}</p>
             </li>
           ))}
-          {profile.customExperienceText && (
-            <li className="whitespace-pre-wrap text-sm">{profile.customExperienceText}</li>
-          )}
         </ul>
       </section>
+
+      {education.length > 0 && (
+        <section>
+          <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Education</h2>
+          <ul className="mt-2 flex flex-col space-y-2">
+            {education.map((e) => (
+              <li key={e.id} className="text-sm">
+                <p className="font-bold">{e.institutionName}</p>
+                <p className="text-xs text-[#475569]">
+                  {formatEducationDetail(e.level, e.faculty, e.department, e.graduationYear)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {profile.customExperienceText && (
+        <section>
+          <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Notes</h2>
+          <p className="mt-2 whitespace-pre-wrap text-sm">{profile.customExperienceText}</p>
+        </section>
+      )}
+
+      <footer className="flex flex-col items-start border-t border-[#1e293b] pt-3">
+        {/* eslint-disable-next-line @next/next/no-img-element -- this element is snapshotted by html2canvas, which cannot resolve next/image's optimized/lazy-loaded output */}
+        <img src="/realicon.png" alt="I Worked There" className="h-6 w-6" />
+        <p className="mt-1 text-[10px] font-bold text-[#0f172a]">Made in iworkedthere.com</p>
+      </footer>
     </div>
   );
 }

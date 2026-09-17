@@ -1,12 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import type { MyEmploymentEntry, MyProfile, SubmitJobApplicationResponse } from "@iwtr/shared-types";
 import { apiGet, apiUpload } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { CvPreview } from "@/components/profile/CvPreview";
-import { getCvShowEmail, getCvShowPhone } from "@/lib/cvDisclosurePrefs";
+import {
+  getCvShowEmail,
+  getCvShowPhone,
+  getHasSavedCv,
+  getHasSeenApplyCvPrompt,
+  markSeenApplyCvPrompt,
+} from "@/lib/cvDisclosurePrefs";
 
 // Renders the actual CvPreview off-screen (never visible to the user as a
 // second copy on the page) purely so html2pdf.js has a real DOM node with
@@ -27,9 +34,13 @@ import { getCvShowEmail, getCvShowPhone } from "@/lib/cvDisclosurePrefs";
 // would race html2pdf's snapshot.
 export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
   const { isAuthenticated, role } = useAuth();
+  const router = useRouter();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [employment, setEmployment] = useState<MyEmploymentEntry[]>([]);
   const [state, setState] = useState<"idle" | "generating" | "sending" | "error" | "done">("idle");
+  // Shown at most once ever per member — see cvDisclosurePrefs.ts's doc
+  // comment on HAS_SEEN_APPLY_PROMPT_KEY.
+  const [showCvPrompt, setShowCvPrompt] = useState(false);
   const hiddenPreviewRef = useRef<HTMLDivElement>(null);
   // Flips to true right before `profile` is populated inside handleApply.
   // The effect below waits on it: set the state, let React actually commit
@@ -90,7 +101,27 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
 
   if (!isAuthenticated || role === "COMPANY_OWNER") return null;
 
+  function goToCv() {
+    router.push("/me?tab=cv");
+  }
+
   async function handleApply() {
+    // A member who has never saved the "My CV" tab is still sending
+    // *something* (CvPreview always renders — see its "Your name here"
+    // fallback), but nobody has actually looked at it yet. Redirect to the
+    // CV editor instead of applying with an unreviewed CV; the very first
+    // time this happens for an account, lead with a one-time explanatory
+    // prompt rather than silently redirecting.
+    if (!getHasSavedCv()) {
+      if (!getHasSeenApplyCvPrompt()) {
+        markSeenApplyCvPrompt();
+        setShowCvPrompt(true);
+        return;
+      }
+      goToCv();
+      return;
+    }
+
     // Confirm before the FIRST successful generate-and-send on this button
     // instance — sending a CV (which may include email/phone, see Fix 2) to
     // an employer isn't something a single accidental click should trigger.
@@ -128,6 +159,41 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
               ? "Couldn't send — try again"
               : "Apply"}
       </motion.button>
+      {showCvPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={() => setShowCvPrompt(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-xl bg-surface p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-foreground">
+              Before you apply for any job we advice you edit your profile to max and add notes in the
+              &quot;CV&quot; section to gain even more attention!
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCvPrompt(false)}
+                className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-surface-muted"
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCvPrompt(false);
+                  goToCv();
+                }}
+                className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+              >
+                Go to My CV
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Positioned off-screen, not display:none, so html2pdf.js can still
           measure real layout. */}
       {profile && (

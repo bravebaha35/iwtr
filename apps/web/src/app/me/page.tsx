@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE,
   type EduLevel,
@@ -14,7 +15,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client";
 import { avatarLabel, avatarWorkType } from "@/lib/avatars";
-import { getCvShowEmail, getCvShowPhone, setCvShowEmail, setCvShowPhone } from "@/lib/cvDisclosurePrefs";
+import { getCvShowEmail, getCvShowPhone, markCvSaved, setCvShowEmail, setCvShowPhone } from "@/lib/cvDisclosurePrefs";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
 import { AvatarPhotoUploader } from "@/components/profile/AvatarPhotoUploader";
@@ -75,6 +76,20 @@ export default function ProfilePage() {
   const [employment, setEmployment] = useState<MyEmploymentEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("customize");
+  const [cvFullscreen, setCvFullscreen] = useState(false);
+  const searchParams = useSearchParams();
+
+  // Lets ApplyButton.tsx's CV gate land a member directly on this tab
+  // (`/me?tab=cv`) instead of the default "Customize" tab. Runs once on
+  // mount only — tab clicks afterward are pure client state, same as every
+  // other tab switch on this page, and don't touch the URL.
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (TABS.some((t) => t.key === tab)) {
+      setActiveTab(tab as TabKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Local editable form state, seeded from the loaded profile.
   const [reviewUsername, setReviewUsername] = useState<string | null>(null);
@@ -311,6 +326,9 @@ export default function ProfilePage() {
       // not this page's own `profile` state — same reason saveCustomization
       // refreshes it after an avatar/username change.
       await refreshOnboardingStatus();
+      // Clears ApplyButton's redirect-to-CV gate for this member permanently
+      // — see cvDisclosurePrefs.ts's doc comment.
+      markCvSaved();
       setCvStatus("Saved.");
     } catch (err) {
       setCvError(err instanceof ApiError ? err.message : "Couldn't save changes.");
@@ -1268,11 +1286,44 @@ export default function ProfilePage() {
                 {cvError && <p className="text-sm text-red-600 dark:text-red-400">{cvError}</p>}
               </div>
               <div className="flex-1">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">How it looks</p>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">How it looks</p>
+                  <button
+                    type="button"
+                    onClick={() => setCvFullscreen(true)}
+                    title="View fullscreen"
+                    aria-label="View CV fullscreen"
+                    className="rounded p-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                    </svg>
+                  </button>
+                </div>
                 <CvPreview profile={profile} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
               </div>
             </div>
           </div>
+          {cvFullscreen && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+              onClick={() => setCvFullscreen(false)}
+            >
+              <div className="relative max-h-full w-full max-w-2xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => setCvFullscreen(false)}
+                  aria-label="Close"
+                  className="absolute -top-10 right-0 rounded-full p-1 text-white transition hover:bg-white/10"
+                >
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+                <CvPreview profile={profile} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} forPrint />
+              </div>
+            </div>
+          )}
           </>
           )}
 
