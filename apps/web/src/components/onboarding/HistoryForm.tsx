@@ -156,6 +156,13 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
           endDate: j.endDate ?? undefined,
         }));
 
+      const collegeMissingFaculty = education.some((entry) => entry.level === "COLLEGE" && !entry.faculty);
+      if (collegeMissingFaculty) {
+        setError("Faculty is required for a College entry.");
+        setSubmitting(false);
+        return;
+      }
+
       if (education.length === 0 || employment.length === 0) {
         setError("Please fill in at least one school and pick at least one workplace.");
         setSubmitting(false);

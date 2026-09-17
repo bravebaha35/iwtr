@@ -457,6 +457,10 @@ export default function ProfilePage() {
 
   async function addEducation() {
     if (!newEduInstitution.trim()) return;
+    if (newEduLevel === "COLLEGE" && !newEduFaculty.trim()) {
+      setEduError("Faculty is required for a College entry.");
+      return;
+    }
     setAddingEdu(true);
     setEduError(null);
     try {
@@ -495,6 +499,10 @@ export default function ProfilePage() {
 
   async function saveEditEducation() {
     if (!editingEduId || !editEduInstitution.trim()) return;
+    if (editEduLevel === "COLLEGE" && !editEduFaculty.trim()) {
+      setEduError("Faculty is required for a College entry.");
+      return;
+    }
     setEduError(null);
     try {
       const updated = await apiPatch<EducationHistoryEntry>(`/me/education-history/${editingEduId}`, {
