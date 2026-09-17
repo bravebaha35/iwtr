@@ -111,27 +111,91 @@ export function CvPreview({
   // member's current location instead, already collected at onboarding.
   const locationLine = [profile.district, profile.city, profile.country].filter(Boolean).join(", ");
   const education = profile.education;
+  const WORK_TYPE_LABELS: Record<string, string> = {
+    OFFICE: "Office",
+    HYBRID_REMOTE: "Hybrid/Remote",
+    SERVICE: "Service",
+    MANUAL_LABOUR: "Manual Labour",
+  };
+  const workTypeLabel = profile.workType ? WORK_TYPE_LABELS[profile.workType] : null;
 
   return (
     <div
       id={id}
-      className={`relative flex w-full flex-col space-y-4 border border-[#1e293b] bg-[#fafafa] p-6 font-jakarta text-[#0f172a] dark:bg-[#fafafa] dark:text-[#0f172a]${
+      className={`relative flex w-full flex-col border border-[#1e293b] bg-[#fafafa] p-6 font-jakarta text-[#0f172a] dark:bg-[#fafafa] dark:text-[#0f172a]${
         forPrint ? "" : " aspect-[1/1.414] overflow-y-auto"
       }`}
     >
-      <header className="flex items-center space-x-4 border-b border-[#1e293b] pb-4">
-        <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
-        <div className="min-w-0">
-          <h1 className="truncate font-grotesk text-2xl font-bold leading-tight">{name}</h1>
-          {contactLine && <p className="truncate text-sm text-[#475569]">{contactLine}</p>}
-          {locationLine && <p className="truncate text-sm text-[#475569]">{locationLine}</p>}
-          {profile.isPublicEmployee && (
-            <span className="mt-1 inline-block rounded-none border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-              Public Sector Employee
-            </span>
-          )}
+      <section>
+        <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">
+          Personal Information
+        </h2>
+        <div className="mt-3 flex items-center space-x-4">
+          <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
+          <div className="min-w-0">
+            <h1 className="truncate font-grotesk text-2xl font-bold leading-tight">{name}</h1>
+            {contactLine && <p className="truncate text-sm text-[#475569]">{contactLine}</p>}
+            {locationLine && <p className="truncate text-sm text-[#475569]">{locationLine}</p>}
+          </div>
         </div>
-      </header>
+        {/* Nested wrapper + negative-margin children is a margin-based
+            substitute for `gap` on a flex-wrap row (this file may never use
+            `gap-*` — see file-level comment above). The outer div carries
+            only the mt-3 section spacing; the inner div carries the
+            negative margin that the mt-6/ml-6-style child margins offset,
+            so wrapped rows still get consistent horizontal+vertical
+            spacing. */}
+        <div className="mt-3 text-sm text-[#475569]">
+          <div className="-ml-6 -mt-1 flex flex-wrap">
+            {profile.birthDate && <span className="ml-6 mt-1">Born {new Date(profile.birthDate).getFullYear()}</span>}
+            {workTypeLabel && <span className="ml-6 mt-1">{workTypeLabel}</span>}
+            {profile.sector && <span className="ml-6 mt-1">{profile.sector.label}</span>}
+          </div>
+        </div>
+        {profile.isPublicEmployee && (
+          <span className="mt-2 inline-block rounded-none border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+            Public Sector Employee
+          </span>
+        )}
+        {profile.skills.length > 0 && (
+          <div className="mt-3">
+            <div className="-ml-1.5 -mt-1.5 flex flex-wrap">
+              {profile.skills.map((s) => (
+                <span
+                  key={s.id}
+                  className="ml-1.5 mt-1.5 rounded-full border border-[#1e293b] px-2 py-0.5 text-[11px] font-medium"
+                >
+                  {s.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {profile.customExperienceText && (
+          <p className="mt-3 whitespace-pre-wrap text-sm">{profile.customExperienceText}</p>
+        )}
+      </section>
+
+      <hr className="my-8 border-t border-[#1e293b]" />
+
+      {education.length > 0 && (
+        <>
+          <section>
+            <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Education</h2>
+            <ul className="mt-2 flex flex-col space-y-2">
+              {education.map((e) => (
+                <li key={e.id} className="text-sm">
+                  <p className="font-bold">{e.institutionName}</p>
+                  <p className="text-xs text-[#475569]">
+                    {formatEducationDetail(e.level, e.faculty, e.department, e.graduationYear)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <hr className="my-8 border-t border-[#1e293b]" />
+        </>
+      )}
 
       <section>
         <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Employment History</h2>
@@ -146,31 +210,8 @@ export function CvPreview({
         </ul>
       </section>
 
-      {education.length > 0 && (
-        <section>
-          <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Education</h2>
-          <ul className="mt-2 flex flex-col space-y-2">
-            {education.map((e) => (
-              <li key={e.id} className="text-sm">
-                <p className="font-bold">{e.institutionName}</p>
-                <p className="text-xs text-[#475569]">
-                  {formatEducationDetail(e.level, e.faculty, e.department, e.graduationYear)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {profile.customExperienceText && (
-        <section>
-          <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Notes</h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm">{profile.customExperienceText}</p>
-        </section>
-      )}
-
-      <footer className="flex flex-col items-start border-t border-[#1e293b] pt-3">
-        {/* eslint-disable-next-line @next/next/no-img-element -- this element is snapshotted by html2canvas, which cannot resolve next/image's optimized/lazy-loaded output */}
+      <footer className="mt-8 flex flex-col items-start border-t border-[#1e293b] pt-3">
+        {/* eslint-disable-next-line @next/next/no-img-element -- snapshotted by html2canvas, which can't resolve next/image's optimized/lazy output */}
         <img src="/realicon.png" alt="I Worked There" className="h-6 w-6" />
         <p className="mt-1 text-[10px] font-bold text-[#0f172a]">Made in iworkedthere.com</p>
       </footer>
