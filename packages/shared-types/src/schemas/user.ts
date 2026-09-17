@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { workplaceTypeSchema } from "./workplaceType";
+import { sectorSchema, skillSchema } from "./skill";
 
 export const userRoleSchema = z.enum(["MEMBER", "ADMIN", "COMPANY_OWNER"]);
 export type UserRole = z.infer<typeof userRoleSchema>;
@@ -75,20 +77,34 @@ export type UpdateIdentityInput = z.infer<typeof updateIdentityInputSchema>;
 export const eduLevelSchema = z.enum(["ELEMENTARY", "HIGH_SCHOOL", "COLLEGE"]);
 export type EduLevel = z.infer<typeof eduLevelSchema>;
 
-export const educationHistoryInputSchema = z.object({
+const educationHistoryBaseSchema = z.object({
   level: eduLevelSchema,
   institutionName: z.string().min(1),
   graduationYear: z.number().int().min(1950).max(2100).nullable().optional(),
-  // Only meaningful for level === "COLLEGE" — the UI only shows these two
-  // fields once a university/college name has been entered — but left
-  // unconstrained by level here rather than refined against it, since a
-  // harmless extra faculty/department value on a non-college row isn't worth
-  // rejecting the whole submission over.
+  // Required whenever level === "COLLEGE" (see the superRefine below) —
+  // otherwise optional, since it's meaningless for ELEMENTARY/HIGH_SCHOOL.
   faculty: z.string().min(1).nullable().optional(),
   department: z.string().min(1).nullable().optional(),
 });
+
+export const educationHistoryInputSchema = educationHistoryBaseSchema
+  .superRefine((v, ctx) => {
+    if (v.level === "COLLEGE" && (!v.faculty || v.faculty.trim().length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["faculty"],
+        message: "Faculty is required for a College entry.",
+      });
+    }
+  });
 export type EducationHistoryInput = z.infer<typeof educationHistoryInputSchema>;
 
+// Deliberately does NOT re-run the College/faculty superRefine above: an
+// update payload may legitimately omit `level` while patching only
+// `graduationYear` on an existing COLLEGE row, and a zod schema has no way
+// to see that row's stored level. ProfileService.updateEducationHistory
+// re-fetches the existing row and enforces the same rule at the service
+// layer instead — see that method's own comment.
 export const updateEducationHistoryInputSchema = z
   .object({
     level: eduLevelSchema.optional(),
@@ -108,7 +124,7 @@ export const updateEducationHistoryInputSchema = z
   );
 export type UpdateEducationHistoryInput = z.infer<typeof updateEducationHistoryInputSchema>;
 
-export const educationHistorySchema = educationHistoryInputSchema.extend({
+export const educationHistorySchema = educationHistoryBaseSchema.extend({
   id: z.string().uuid(),
 });
 export type EducationHistoryEntry = z.infer<typeof educationHistorySchema>;
@@ -196,6 +212,9 @@ export const myProfileSchema = z.object({
   displayName: z.string().nullable(),
   isPublicEmployee: z.boolean(),
   customExperienceText: z.string().nullable(),
+  workType: workplaceTypeSchema.nullable(),
+  sector: sectorSchema.nullable(),
+  skills: z.array(skillSchema).max(10),
 });
 export type MyProfile = z.infer<typeof myProfileSchema>;
 
@@ -219,6 +238,11 @@ export const updateProfileInputSchema = z
     displayName: z.union([z.string().trim().min(1).max(80), z.literal("")]).optional(),
     isPublicEmployee: z.boolean().optional(),
     customExperienceText: z.union([z.string().trim().max(2000), z.literal("")]).optional(),
+    workType: workplaceTypeSchema.optional(),
+    // "" clears the sector back to null, same emptyToNull convention as
+    // displayName/customExperienceText above.
+    sectorId: z.union([z.string().uuid(), z.literal("")]).optional(),
+    skillIds: z.array(z.string().uuid()).max(10).optional(),
   })
   .refine(
     (v) =>
@@ -230,7 +254,10 @@ export const updateProfileInputSchema = z
       v.district !== undefined ||
       v.displayName !== undefined ||
       v.isPublicEmployee !== undefined ||
-      v.customExperienceText !== undefined,
+      v.customExperienceText !== undefined ||
+      v.workType !== undefined ||
+      v.sectorId !== undefined ||
+      v.skillIds !== undefined,
     { message: "Provide at least one field to update" },
   );
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;
