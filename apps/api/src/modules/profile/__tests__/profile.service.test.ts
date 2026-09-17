@@ -239,9 +239,13 @@ describe("CV profile fields", () => {
           displayName: "Ada",
           isPublicEmployee: true,
           customExperienceText: "Freelance work",
+          workType: null,
+          sectorId: null,
         }),
       },
       educationHistory: { findMany: jest.fn().mockResolvedValue([]) },
+      userSkill: { findMany: jest.fn().mockResolvedValue([]) },
+      sector: { findUnique: jest.fn() },
     };
     const piiVault = { getMyIdentity: jest.fn().mockResolvedValue(null) };
     const phoneVerification = { getMyPhoneNumber: jest.fn().mockResolvedValue(null) };
@@ -252,5 +256,65 @@ describe("CV profile fields", () => {
     expect(result.displayName).toBe("Ada");
     expect(result.isPublicEmployee).toBe(true);
     expect(result.customExperienceText).toBe("Freelance work");
+  });
+});
+
+describe("ProfileService.updateProfile — skills/sector/workType", () => {
+  const userId = "u1";
+
+  it("rejects a skillId that doesn't exist in the Skill table", async () => {
+    const prisma = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, role: "MEMBER", status: "ACTIVE", workType: "OFFICE" }) },
+      skill: { findMany: jest.fn().mockResolvedValue([{ id: "real-1" }]) },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await expect(
+      service.updateProfile(userId, { skillIds: ["real-1", "does-not-exist"] }),
+    ).rejects.toThrow("One or more selected skills no longer exist.");
+  });
+
+  it("rejects a sectorId whose workplaceTypes doesn't include the effective workType", async () => {
+    const prisma = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, role: "MEMBER", status: "ACTIVE", workType: "MANUAL_LABOUR", avatarKey: null }) },
+      sector: { findUnique: jest.fn().mockResolvedValue({ id: "sec-1", workplaceTypes: ["OFFICE"] }) },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await expect(service.updateProfile(userId, { sectorId: "sec-1" })).rejects.toThrow(
+      "That sector doesn't apply to your selected work type.",
+    );
+  });
+
+  it("accepts a sectorId that matches the work type submitted in the SAME request", async () => {
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, role: "MEMBER", status: "ACTIVE", workType: null, avatarKey: null }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      sector: { findUnique: jest.fn().mockResolvedValue({ id: "sec-1", workplaceTypes: ["MANUAL_LABOUR"] }) },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { workType: "MANUAL_LABOUR", sectorId: "sec-1" });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { workType: "MANUAL_LABOUR", sectorId: "sec-1" },
+    });
+  });
+
+  it("rejects clearing faculty on an existing COLLEGE row via updateEducationHistory", async () => {
+    const prisma = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, status: "ACTIVE" }) },
+      educationHistory: {
+        findUnique: jest.fn().mockResolvedValue({ id: "e1", userId, level: "COLLEGE", faculty: "Engineering" }),
+      },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await expect(service.updateEducationHistory(userId, "e1", { faculty: null })).rejects.toThrow(
+      "Faculty is required for a College entry.",
+    );
   });
 });

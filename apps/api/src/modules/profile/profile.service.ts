@@ -15,6 +15,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
 import { PhoneVerificationService } from "../phone-verification/phone-verification.service";
 import { ReviewsService } from "../reviews/reviews.service";
+import { workTypeFromAvatarKey } from "../reviews/randomized-identity.util";
 
 const PASSWORD_SALT_ROUNDS = 12;
 
@@ -77,10 +78,12 @@ export class ProfileService {
 
   async getMyProfile(userId: string): Promise<MyProfile> {
     const user = await this.requireActiveUser(userId);
-    const [educationRaw, identity, phoneNumber] = await Promise.all([
+    const [educationRaw, identity, phoneNumber, userSkills, sector] = await Promise.all([
       this.prisma.educationHistory.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
       this.piiVault.getMyIdentity(userId),
       this.phoneVerification.getMyPhoneNumber(userId),
+      this.prisma.userSkill.findMany({ where: { userId }, include: { skill: true } }),
+      user.sectorId ? this.prisma.sector.findUnique({ where: { id: user.sectorId } }) : Promise.resolve(null),
     ]);
     const education = [...educationRaw].sort(byEduLevel);
 
@@ -94,6 +97,9 @@ export class ProfileService {
       displayName: user.displayName,
       isPublicEmployee: user.isPublicEmployee,
       customExperienceText: user.customExperienceText,
+      workType: user.workType,
+      sector: sector ? { id: sector.id, value: sector.value, label: sector.label, workplaceTypes: sector.workplaceTypes } : null,
+      skills: userSkills.map((us) => ({ id: us.skill.id, name: us.skill.name })),
       education: education.map((e) => ({
         id: e.id,
         level: e.level,
@@ -129,6 +135,41 @@ export class ProfileService {
       throw new BadRequestException("That username isn't one of the available choices.");
     }
 
+    let skillsUpdate: { deleteMany: object; create: { skillId: string }[] } | undefined;
+    if (input.skillIds !== undefined) {
+      const existingSkills = await this.prisma.skill.findMany({
+        where: { id: { in: input.skillIds } },
+        select: { id: true },
+      });
+      if (existingSkills.length !== input.skillIds.length) {
+        throw new BadRequestException("One or more selected skills no longer exist.");
+      }
+      // Full replace — simplest correct semantics for "the member's current
+      // skill set is exactly this list", mirrors how avatarKey/reviewUsername
+      // are whole-value replacements too, not incremental diffs.
+      skillsUpdate = { deleteMany: {}, create: input.skillIds.map((skillId) => ({ skillId })) };
+    }
+
+    let resolvedSectorId: string | null | undefined;
+    if (input.sectorId !== undefined) {
+      resolvedSectorId = input.sectorId === "" ? null : input.sectorId;
+      if (resolvedSectorId) {
+        const sector = await this.prisma.sector.findUnique({ where: { id: resolvedSectorId } });
+        if (!sector) {
+          throw new BadRequestException("That sector doesn't exist.");
+        }
+        // Falls back to deriving from avatarKey only for an account whose
+        // workType has never been set at all (e.g. a brand-new account that
+        // hasn't visited Personal Information yet) — every pre-existing
+        // account already has workType backfilled (Task 2).
+        const effectiveWorkType =
+          input.workType ?? user.workType ?? (user.avatarKey ? workTypeFromAvatarKey(user.avatarKey) : null);
+        if (!effectiveWorkType || !sector.workplaceTypes.includes(effectiveWorkType)) {
+          throw new BadRequestException("That sector doesn't apply to your selected work type.");
+        }
+      }
+    }
+
     await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -143,6 +184,9 @@ export class ProfileService {
         ...(input.customExperienceText !== undefined
           ? { customExperienceText: sanitizeFreeText(input.customExperienceText) }
           : {}),
+        ...(input.workType !== undefined ? { workType: input.workType } : {}),
+        ...(resolvedSectorId !== undefined ? { sectorId: resolvedSectorId } : {}),
+        ...(skillsUpdate !== undefined ? { skills: skillsUpdate } : {}),
       },
     });
   }
@@ -178,6 +222,12 @@ export class ProfileService {
     const existing = await this.prisma.educationHistory.findUnique({ where: { id: entryId } });
     if (!existing || existing.userId !== userId) {
       throw new NotFoundException("Education history entry not found");
+    }
+
+    const effectiveLevel = input.level ?? existing.level;
+    const effectiveFaculty = input.faculty !== undefined ? input.faculty : existing.faculty;
+    if (effectiveLevel === "COLLEGE" && (!effectiveFaculty || effectiveFaculty.trim().length === 0)) {
+      throw new BadRequestException("Faculty is required for a College entry.");
     }
 
     const updated = await this.prisma.educationHistory.update({
