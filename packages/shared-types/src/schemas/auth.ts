@@ -110,3 +110,11 @@ export type DevAdminLoginInput = z.infer<typeof devAdminLoginInputSchema>;
 // as its own named export since the two log into different account kinds.
 export const devOwnerLoginInputSchema = loginEmailInputSchema.pick({ email: true });
 export type DevOwnerLoginInput = z.infer<typeof devOwnerLoginInputSchema>;
+
+// POST /auth/dev-member-login — same local-dev-only shortcut, for a
+// pre-existing MEMBER account instead of ADMIN/COMPANY_OWNER
+// (AuthService.devMemberLogin, same production refusal). Identical shape to
+// devAdminLoginInputSchema; kept as its own named export since the three log
+// into different account kinds.
+export const devMemberLoginInputSchema = loginEmailInputSchema.pick({ email: true });
+export type DevMemberLoginInput = z.infer<typeof devMemberLoginInputSchema>;

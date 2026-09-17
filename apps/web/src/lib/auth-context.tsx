@@ -26,20 +26,24 @@ interface AuthContextValue {
   // once NODE_ENV=production, so it's inert in a real deployment.
   devAdminLogin: (email: string) => Promise<void>;
   // Local-dev-only shortcut (see AuthService.devOwnerLogin) — skips password
-  // entirely for a pre-existing COMPANY_OWNER account. Backs DevAutoLogin's
-  // automatic localhost session; also 404s once NODE_ENV=production.
+  // entirely for a pre-existing COMPANY_OWNER account. Also 404s once
+  // NODE_ENV=production.
   devOwnerLogin: (email: string) => Promise<void>;
+  // Local-dev-only shortcut (see AuthService.devMemberLogin) — skips
+  // password entirely for a pre-existing MEMBER account. Also 404s once
+  // NODE_ENV=production.
+  devMemberLogin: (email: string) => Promise<void>;
   logout: () => void;
   // Which tab of AuthModal is active — lifted up here (rather than kept as
   // AuthModal-local state) so GlobalHeader's "Login/Register" button can open
   // straight to the right tab.
   authMode: "login" | "register";
   setAuthMode: (mode: "login" | "register") => void;
-  // AuthModal is mounted once globally (layout.tsx) as a dismissible dialog,
-  // not a mandatory full-page gate — the homepage renders the read-only
-  // WorkplaceBrowser by default for logged-out visitors (company
-  // browsing/detail endpoints are already public on the API), and this flag
-  // is how any page opens the login/register dialog on top of it.
+  // AuthModal is mounted once globally (layout.tsx) as a dismissible dialog
+  // — pages like the homepage and IWT Social show AnonGate's blocked/
+  // register-prompt state instead of their real content for a logged-out
+  // visitor, and this flag is how that prompt (or the header's own button)
+  // opens the login/register dialog on top of it.
   authModalOpen: boolean;
   openAuthModal: (mode?: "login" | "register") => void;
   closeAuthModal: () => void;
@@ -196,6 +200,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadSession],
   );
 
+  const devMemberLogin = useCallback(
+    async (email: string) => {
+      await postCredentials("/api/auth/dev-member-login", { email });
+      await loadSession();
+      setAuthModalOpen(false);
+    },
+    [loadSession],
+  );
+
   const logout = useCallback(() => {
     setIsAuthenticated(false);
     setRole(null);
@@ -226,6 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyAdminOtp,
         devAdminLogin,
         devOwnerLogin,
+        devMemberLogin,
         logout,
         authMode,
         setAuthMode,

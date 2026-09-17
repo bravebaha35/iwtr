@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
 import { ForbiddenBanner } from "@/components/ForbiddenBanner";
+import { AnonGate } from "@/components/auth/AnonGate";
 
 export default function Home() {
   const { isLoading, isAuthenticated, onboardingStatus } = useAuth();
@@ -41,14 +42,17 @@ export default function Home() {
   }
 
   // No account, or fully onboarded — either way the homepage is the company
-  // browser. A logged-out visitor gets it read-only (no Rate button, voting
-  // disabled): GlobalHeader shows "Login/Register" (opens AuthModal, mounted
-  // globally in layout.tsx) instead of forcing an auth screen before they can
-  // see anything.
+  // browser, but AnonGate blocks it entirely behind a Register prompt for a
+  // logged-out visitor rather than letting them browse read-only.
   return (
     <>
       <ForbiddenBanner />
-      <WorkplaceBrowser />
+      <AnonGate
+        title="See what it's really like to work there"
+        description="Register for free to browse company scores and read anonymous employee reviews."
+      >
+        <WorkplaceBrowser />
+      </AnonGate>
     </>
   );
 }

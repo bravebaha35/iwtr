@@ -17,6 +17,13 @@ import {
 
 const DEV_MODE = process.env.NODE_ENV !== "production";
 const DEV_ADMIN_EMAIL = "cuneytbahasulunoglu@gmail.com";
+// Owns both "I Worked There" (apps/api/scripts/grant-iwtr-ownership.ts) and
+// "Demo Finans Holding" (apps/api/scripts/seed-dev-fast-login-accounts.ts).
+const DEV_OWNER_EMAIL = "iworkedthere@hotmail.com";
+// Fully-onboarded MEMBER test account (name, birth date, employment history,
+// avatar) seeded by seed-dev-fast-login-accounts.ts — for testing the CV /
+// job-application send flow without re-doing onboarding by hand each time.
+const DEV_TEST_MEMBER_EMAIL = "mehmet.ahmetoglu.test@iworkedthere.dev";
 
 // Close (×) button shared by both steps' cards — top-right corner, dismisses
 // the whole dialog back to whatever page was showing underneath (the
@@ -41,6 +48,8 @@ export function AuthModal() {
     login,
     verifyAdminOtp,
     devAdminLogin,
+    devOwnerLogin,
+    devMemberLogin,
     register,
     authMode: mode,
     setAuthMode: setMode,
@@ -66,7 +75,7 @@ export function AuthModal() {
   // "Verify your email" was showing. Password is never persisted (see
   // lib/emailVerification.ts), so EmailVerificationScreen re-asks for it.
   const [step, setStep] = useState<"form" | "verify" | "admin-otp">("form");
-  const [devLoggingIn, setDevLoggingIn] = useState(false);
+  const [devLoggingIn, setDevLoggingIn] = useState<"admin" | "owner" | "member" | null>(null);
 
   useEffect(() => {
     const pending = loadPendingVerification();
@@ -138,13 +147,37 @@ export function AuthModal() {
   // the matching client-side visibility gate, not the real security boundary.
   async function handleDevAdminLogin() {
     setError(null);
-    setDevLoggingIn(true);
+    setDevLoggingIn("admin");
     try {
       await devAdminLogin(DEV_ADMIN_EMAIL);
     } catch {
       setError("Dev admin login failed — check the API server is running and this account still exists.");
     } finally {
-      setDevLoggingIn(false);
+      setDevLoggingIn(null);
+    }
+  }
+
+  async function handleDevOwnerLogin() {
+    setError(null);
+    setDevLoggingIn("owner");
+    try {
+      await devOwnerLogin(DEV_OWNER_EMAIL);
+    } catch {
+      setError("Dev owner login failed — check the API server is running and this account still exists.");
+    } finally {
+      setDevLoggingIn(null);
+    }
+  }
+
+  async function handleDevMemberLogin() {
+    setError(null);
+    setDevLoggingIn("member");
+    try {
+      await devMemberLogin(DEV_TEST_MEMBER_EMAIL);
+    } catch {
+      setError("Dev member login failed — run seed-dev-fast-login-accounts.ts first, or check the API server is running.");
+    } finally {
+      setDevLoggingIn(null);
     }
   }
 
@@ -321,15 +354,35 @@ export function AuthModal() {
         </div>
 
         {DEV_MODE && mode === "login" && (
-          <button
-            type="button"
-            onClick={handleDevAdminLogin}
-            disabled={devLoggingIn}
-            title={DEV_ADMIN_EMAIL}
-            className="mt-3 w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
-          >
-            {devLoggingIn ? "Logging in..." : "Dev: Log in as Admin"}
-          </button>
+          <div className="mt-3 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleDevAdminLogin}
+              disabled={devLoggingIn !== null}
+              title={DEV_ADMIN_EMAIL}
+              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+            >
+              {devLoggingIn === "admin" ? "Logging in..." : "Dev: Log in as Admin"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDevOwnerLogin}
+              disabled={devLoggingIn !== null}
+              title={DEV_OWNER_EMAIL}
+              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+            >
+              {devLoggingIn === "owner" ? "Logging in..." : "Dev: Log in as Owner (I Worked There / Demo Finans Holding)"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDevMemberLogin}
+              disabled={devLoggingIn !== null}
+              title={DEV_TEST_MEMBER_EMAIL}
+              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+            >
+              {devLoggingIn === "member" ? "Logging in..." : "Dev: Log in as Mehmet Ahmetoğlu (test member)"}
+            </button>
+          </div>
         )}
       </div>
     </div>

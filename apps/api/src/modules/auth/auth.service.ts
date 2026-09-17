@@ -160,6 +160,28 @@ export class AuthService {
     return this.issueTokenPair(user.id, user.role, user.status);
   }
 
+  // Same local-dev shortcut as devAdminLogin/devOwnerLogin above, for a
+  // pre-existing MEMBER account instead — backs the web app's fast-login
+  // buttons for pre-seeded test accounts (see apps/api/scripts/seed-dev-
+  // fast-login-accounts.ts). Same production refusal, same reasoning: this
+  // is an unauthenticated session mint by design, so it must 404 the instant
+  // a real deployment exists.
+  async devMemberLogin(email: string): Promise<AuthTokensResponse> {
+    if (isProductionEnv()) {
+      throw new NotFoundException();
+    }
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || user.role !== "MEMBER") {
+      throw new UnauthorizedException("No member account with this email");
+    }
+
+    await this.prisma.auditLog.create({
+      data: { actorUserId: user.id, action: "DEV_MEMBER_LOGIN", targetType: "User", targetId: user.id },
+    });
+
+    return this.issueTokenPair(user.id, user.role, user.status);
+  }
+
   async refresh(refreshToken: string): Promise<AuthTokensResponse> {
     const tokenHash = this.tokens.hashRefreshToken(refreshToken);
     // Look up by hash alone (not scoped to revokedAt: null) so a replay of an
