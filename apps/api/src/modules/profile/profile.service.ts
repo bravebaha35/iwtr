@@ -141,7 +141,13 @@ export class ProfileService {
         where: { id: { in: input.skillIds } },
         select: { id: true },
       });
-      if (existingSkills.length !== input.skillIds.length) {
+      // Compare against the count of *distinct* requested ids, not the raw
+      // array length — findMany's `id: { in: [...] }` naturally dedupes
+      // matches, so a duplicate valid id (e.g. ["real-1", "real-1"]) would
+      // otherwise make this comparison spuriously fail even though every id
+      // is real.
+      const uniqueSkillIds = new Set(input.skillIds);
+      if (existingSkills.length !== uniqueSkillIds.size) {
         throw new BadRequestException("One or more selected skills no longer exist.");
       }
       // Full replace — simplest correct semantics for "the member's current

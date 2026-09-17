@@ -317,4 +317,104 @@ describe("ProfileService.updateProfile — skills/sector/workType", () => {
       "Faculty is required for a College entry.",
     );
   });
+
+  it("does NOT require faculty when a PATCH omits it and the existing COLLEGE row already has one", async () => {
+    // Companion to the "rejects clearing faculty" test above: here `faculty`
+    // is simply absent from the request (not explicitly nulled), so
+    // effectiveFaculty should fall back to the existing row's value and the
+    // update should go through untouched.
+    const prisma = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, status: "ACTIVE" }) },
+      educationHistory: {
+        findUnique: jest.fn().mockResolvedValue({ id: "e1", userId, level: "COLLEGE", faculty: "Engineering" }),
+        update: jest.fn().mockResolvedValue({
+          id: "e1",
+          level: "COLLEGE",
+          institutionName: "Boğaziçi",
+          graduationYear: 2021,
+          faculty: "Engineering",
+          department: null,
+        }),
+      },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await expect(service.updateEducationHistory(userId, "e1", { graduationYear: 2021 })).resolves.toMatchObject({
+      graduationYear: 2021,
+    });
+    expect(prisma.educationHistory.update).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { graduationYear: 2021 },
+    });
+  });
+
+  // Level 3 of the effectiveWorkType fallback chain in updateProfile:
+  // input.workType absent AND user.workType null/absent, but user.avatarKey
+  // set — should derive via workTypeFromAvatarKey(user.avatarKey). Levels 1
+  // (input.workType present) and 2 (user.workType present) are already
+  // covered by the two tests above; this is the only level not yet exercised.
+  it("derives effective work type from avatarKey when neither input.workType nor user.workType is set", async () => {
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: userId,
+          role: "MEMBER",
+          status: "ACTIVE",
+          workType: null,
+          avatarKey: "manual_3", // workTypeFromAvatarKey("manual_3") -> "MANUAL_LABOUR"
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      sector: { findUnique: jest.fn().mockResolvedValue({ id: "sec-1", workplaceTypes: ["MANUAL_LABOUR"] }) },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { sectorId: "sec-1" });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { sectorId: "sec-1" },
+    });
+  });
+
+  it("rejects via the avatarKey-derived work type when the sector doesn't match it", async () => {
+    // Negative companion to the avatarKey-fallback test above: same
+    // avatarKey-only setup, but the sector's workplaceTypes doesn't include
+    // the derived MANUAL_LABOUR, so it should still be rejected.
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: userId,
+          role: "MEMBER",
+          status: "ACTIVE",
+          workType: null,
+          avatarKey: "manual_3",
+        }),
+      },
+      sector: { findUnique: jest.fn().mockResolvedValue({ id: "sec-1", workplaceTypes: ["OFFICE"] }) },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await expect(service.updateProfile(userId, { sectorId: "sec-1" })).rejects.toThrow(
+      "That sector doesn't apply to your selected work type.",
+    );
+  });
+
+  it("accepts a skillIds array containing a duplicate valid id (Set-based length check)", async () => {
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, role: "MEMBER", status: "ACTIVE" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      skill: { findMany: jest.fn().mockResolvedValue([{ id: "real-1" }]) },
+    };
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { skillIds: ["real-1", "real-1"] });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { skills: { deleteMany: {}, create: [{ skillId: "real-1" }, { skillId: "real-1" }] } },
+    });
+  });
 });
