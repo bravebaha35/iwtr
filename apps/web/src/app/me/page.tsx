@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE,
   type EduLevel,
@@ -10,15 +11,18 @@ import {
   type EmployerProfileView,
   type MyEmploymentEntry,
   type MyProfile,
+  type Sector,
   type WorkplaceType,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client";
-import { avatarLabel, avatarWorkType } from "@/lib/avatars";
+import { avatarLabel } from "@/lib/avatars";
 import { getCvShowEmail, getCvShowPhone, markCvSaved, setCvShowEmail, setCvShowPhone } from "@/lib/cvDisclosurePrefs";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
+import { WorkTypePicker } from "@/components/WorkTypePicker";
 import { AvatarPhotoUploader } from "@/components/profile/AvatarPhotoUploader";
+import { SkillsPicker } from "@/components/profile/SkillsPicker";
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
 import { WorkplacePicker } from "@/components/WorkplacePicker";
@@ -60,6 +64,10 @@ function eduLevelRank(level: EduLevel): number {
   return EDU_LEVELS.findIndex((l) => l.level === level);
 }
 
+function sectorAppliesTo(sector: Sector, workType: WorkplaceType): boolean {
+  return sector.workplaceTypes.includes(workType);
+}
+
 function formatDate(iso: string | null): string {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -93,11 +101,6 @@ export default function ProfilePage() {
 
   // Local editable form state, seeded from the loaded profile.
   const [reviewUsername, setReviewUsername] = useState<string | null>(null);
-  // Which pool the username dropdown offers — starts from the loaded
-  // avatar's own category, but tracked separately so clicking a new "what
-  // kind of work?" pill in AvatarEditor updates the offered names right
-  // away, before the user has necessarily clicked a new avatar variant too.
-  const [usernameCategory, setUsernameCategory] = useState<WorkplaceType>("OFFICE");
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarGradient, setAvatarGradient] = useState<string | null>(null);
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
@@ -110,6 +113,16 @@ export default function ProfilePage() {
   const [cvSaving, setCvSaving] = useState(false);
   const [cvStatus, setCvStatus] = useState<string | null>(null);
   const [cvError, setCvError] = useState<string | null>(null);
+
+  // Personal Information tab — work-type/sector/skills, seeded from
+  // `profile` in load() same as every other draft field on this page.
+  const [workTypeDraft, setWorkTypeDraft] = useState<WorkplaceType | null>(null);
+  const [sectorIdDraft, setSectorIdDraft] = useState<string | null>(null);
+  const [skillIdsDraft, setSkillIdsDraft] = useState<string[]>([]);
+  const [sectors, setSectors] = useState<Sector[]>([]);
+  const [personalSaving, setPersonalSaving] = useState(false);
+  const [personalStatus, setPersonalStatus] = useState<string | null>(null);
+  const [personalError, setPersonalError] = useState<string | null>(null);
   // Client-side-only opt-in flags (see lib/cvDisclosurePrefs.ts) — not part
   // of the profile PATCH below, so they're not seeded from `profile` in
   // load() like the other CV fields; they're read from localStorage once on
@@ -183,7 +196,7 @@ export default function ProfilePage() {
   // employment history (add or edit) never offer years earlier than this.
   const birthYear = profile?.birthDate ? new Date(profile.birthDate).getFullYear() : undefined;
 
-  const usernameOptions: DropdownOption[] = ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE[usernameCategory].map((name) => ({
+  const usernameOptions: DropdownOption[] = ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE[workTypeDraft ?? "OFFICE"].map((name) => ({
     value: name,
     label: name,
   }));
@@ -198,7 +211,6 @@ export default function ProfilePage() {
       setProfile(profileData);
       setEmployment(employmentData);
       setReviewUsername(profileData.reviewUsername);
-      setUsernameCategory(avatarWorkType(profileData.avatarKey) ?? "OFFICE");
       setAvatarKey(profileData.avatarKey);
       setAvatarGradient(profileData.avatarGradient);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
@@ -206,6 +218,9 @@ export default function ProfilePage() {
       setDisplayNameDraft(profileData.displayName ?? "");
       setIsPublicEmployeeDraft(profileData.isPublicEmployee);
       setCustomExperienceDraft(profileData.customExperienceText ?? "");
+      setWorkTypeDraft(profileData.workType);
+      setSectorIdDraft(profileData.sector?.id ?? null);
+      setSkillIdsDraft(profileData.skills.map((s) => s.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load your profile.");
     }
@@ -214,6 +229,23 @@ export default function ProfilePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // One-time fetch for the Personal Information tab's cascading Sector
+  // dropdown — sectors are a small, static-ish lookup table, not something
+  // that needs refetching after every save the way `profile` does.
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<Sector[]>("/sectors")
+      .then((data) => {
+        if (!cancelled) setSectors(data);
+      })
+      .catch(() => {
+        if (!cancelled) setSectors([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Reads the two localStorage-backed CV disclosure flags once on mount —
   // done in an effect, not a lazy useState initializer, since this is a
@@ -335,6 +367,34 @@ export default function ProfilePage() {
     } finally {
       setCvSaving(false);
     }
+  }
+
+  async function savePersonalWorkInfo() {
+    setPersonalSaving(true);
+    setPersonalError(null);
+    setPersonalStatus(null);
+    try {
+      await apiPatch("/me/profile", {
+        ...(workTypeDraft ? { workType: workTypeDraft } : {}),
+        sectorId: sectorIdDraft ?? "",
+        skillIds: skillIdsDraft,
+        customExperienceText: customExperienceDraft.trim(),
+      });
+      await load();
+      setPersonalStatus("Saved.");
+    } catch (err) {
+      setPersonalError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+    } finally {
+      setPersonalSaving(false);
+    }
+  }
+
+  function handleWorkTypeChange(type: WorkplaceType) {
+    setWorkTypeDraft(type);
+    // A sector from a different work type is no longer valid once the type
+    // changes — clear it so the cascading dropdown can't silently keep a
+    // stale value the backend would reject on save.
+    setSectorIdDraft(null);
   }
 
   function startEditBirthDate() {
@@ -601,7 +661,8 @@ export default function ProfilePage() {
               avatarGradient={avatarGradient}
               onChangeAvatarKey={setAvatarKey}
               onChangeGradient={setAvatarGradient}
-              onChangeWorkType={(type) => setUsernameCategory(type)}
+              workType={workTypeDraft}
+              showWorkTypePicker={false}
             />
 
             {/* Company owners keep whatever anonymous username they already
@@ -754,6 +815,69 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">What kind of work?</p>
+              <WorkTypePicker value={workTypeDraft} onChange={handleWorkTypeChange} />
+            </div>
+
+            <AnimatePresence>
+              {workTypeDraft && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.4 }}
+                  className="mt-4 overflow-hidden border-t border-border pt-4"
+                >
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Sector</p>
+                  <select
+                    value={sectorIdDraft ?? ""}
+                    onChange={(e) => setSectorIdDraft(e.target.value || null)}
+                    className="w-full rounded-lg border border-slate-800 bg-surface px-3 py-2 text-sm"
+                  >
+                    <option value="">Select a sector...</option>
+                    {sectors
+                      .filter((s) => sectorAppliesTo(s, workTypeDraft))
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                  </select>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <SkillsPicker selectedIds={skillIdsDraft} onChange={setSkillIdsDraft} />
+            </div>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <label className="text-sm font-medium text-foreground">Information</label>
+              <p className="text-xs text-muted-foreground">
+                For an employer not in the list on your Education & Work History tab — free text, up to 2000
+                characters. Shown on your CV.
+              </p>
+              <textarea
+                maxLength={2000}
+                rows={6}
+                value={customExperienceDraft}
+                onChange={(e) => setCustomExperienceDraft(e.target.value)}
+                className="mt-1 w-full rounded-none border border-slate-800 bg-surface px-3 py-2 text-sm"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={savePersonalWorkInfo}
+              disabled={personalSaving}
+              className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+            >
+              {personalSaving ? "Saving..." : "Save"}
+            </button>
+            {personalStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{personalStatus}</p>}
+            {personalError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{personalError}</p>}
           </div>
           </>
           )}
@@ -1260,19 +1384,6 @@ export default function ProfilePage() {
                     />
                     Include my phone number on my CV
                   </label>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground">Other work experience</label>
-                  <p className="text-xs text-muted-foreground">
-                    For an employer not in the list on your Personal tab — free text, up to 2000 characters.
-                  </p>
-                  <textarea
-                    maxLength={2000}
-                    rows={6}
-                    value={customExperienceDraft}
-                    onChange={(e) => setCustomExperienceDraft(e.target.value)}
-                    className="mt-1 w-full rounded-none border border-slate-800 bg-surface px-3 py-2 text-sm"
-                  />
                 </div>
                 <button
                   type="button"
