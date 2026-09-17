@@ -196,19 +196,19 @@ enum CommentIdentityMode {
 }
 
 model User {
-  id              String       @id @default(uuid())
-  email           String?      @unique
-  authProvider    AuthProvider
-  providerSubId   String?      @unique
-  passwordHash    String?
-  role            UserRole     @default(MEMBER)
-  status          UserStatus   @default(PENDING_PHONE)
-  avatarKey       String?
+  id                   String         @id @default(uuid())
+  email                String?        @unique
+  authProvider         AuthProvider
+  providerSubId        String?        @unique
+  passwordHash         String?
+  role                 UserRole       @default(MEMBER)
+  status               UserStatus     @default(PENDING_PHONE)
+  avatarKey            String?
   // Key into the client-side gradient palette (apps/web/src/lib/avatarGradients.ts)
   // the user picked as their avatar background — loosely validated like
   // avatarKey (not a Prisma/zod enum) so the palette can grow without a
   // migration; an unrecognized key just falls back to the first gradient.
-  avatarGradient  String?
+  avatarGradient       String?
   // Permanent, self-chosen anonymous handle — picked from a fixed pool of
   // ~10 humorous names per work-type category (ANONYMOUS_USERNAMES_BY_
   // WORKPLACE_TYPE in shared-types/review.ts), never free text, so there's
@@ -221,10 +221,10 @@ model User {
   // ReviewsService.listForCompany and REVIEW.md rule #8's approved-exception
   // note) — this fully replaced the old numeric memberNumber system, which
   // is why there's no separate "number" field anymore at all.
-  reviewUsername  String?
-  country         String?
-  city            String?
-  district        String?
+  reviewUsername       String?
+  country              String?
+  city                 String?
+  district             String?
   // Optional, self-chosen, free-text display name a member can set on their
   // own Edit Profile page. Purely voluntary disclosure by the member
   // themselves — this is NEVER read from PiiVault and NEVER used as a
@@ -235,7 +235,7 @@ model User {
   // Self-declared on the CV / Edit Profile page. No server-side verification
   // of this claim — it's informational context on the applicant's own CV,
   // not a moderation or eligibility gate.
-  isPublicEmployee     Boolean  @default(false)
+  isPublicEmployee     Boolean        @default(false)
   // Free-typed employment history for a company not in the constrained
   // EmploymentHistory picker list (e.g. "Freelance, 2022-2023, no matching
   // company on file"). Sanitized server-side (ProfileService.updateProfile,
@@ -247,57 +247,58 @@ model User {
   // registration or is surfaced to the submitter (see PhoneVerificationService)
   // — a live 409 here would be the same deanonymization oracle already fixed
   // for T.C. Kimlik No (REVIEW.md).
-  phoneNumberHash String?      @unique
+  phoneNumberHash      String?        @unique
   // AES-256-GCM encrypted E.164 phone number (apps/api/src/modules/phone-verification/crypto.util.ts),
   // set once OTP verification succeeds — kept (unlike the OTP challenge's
   // copy, which is transient) so the account-settings page can show a user
   // their own verified number back to them. Decrypted only for that
   // self-view case, never for anything else.
-  encPhoneNumber  Bytes?
-  phoneVerifiedAt DateTime?
+  encPhoneNumber       Bytes?
+  phoneVerifiedAt      DateTime?
   // Explicit, first-class classification of the kind of work this member
   // does — distinct from (but initially backfilled from) their avatarKey's
   // implicit category. Nullable: existing accounts get it via
   // scripts/backfill-user-worktype-from-avatar.ts, not every account is
   // guaranteed to have one immediately after this migration. Drives the
   // Sector cascade on the Personal Information tab (see ProfileService).
-  workType  WorkplaceType?
-  sectorId  String?
-  sector    Sector?        @relation(fields: [sectorId], references: [id])
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  workType             WorkplaceType?
+  sectorId             String?
+  sector               Sector?        @relation(fields: [sectorId], references: [id])
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
-  educationHistory        EducationHistory[]
-  employmentHistory       EmploymentHistory[]
-  reviews                 Review[]
-  reviewVotes             ReviewVote[]
-  companyReplies          CompanyReply[]
-  refreshTokens           RefreshToken[]
-  auditLogEntries         AuditLog[]
-  companyOwnerships       CompanyOwner[]
-  ownerContactMessages    OwnerContactMessage[]
-  phoneOtpChallenge       PhoneOtpChallenge?
-  adminLoginOtpChallenges AdminLoginOtpChallenge[]
+  educationHistory           EducationHistory[]
+  employmentHistory          EmploymentHistory[]
+  reviews                    Review[]
+  reviewVotes                ReviewVote[]
+  companyReplies             CompanyReply[]
+  refreshTokens              RefreshToken[]
+  auditLogEntries            AuditLog[]
+  companyOwnerships          CompanyOwner[]
+  ownerContactMessages       OwnerContactMessage[]
+  phoneOtpChallenge          PhoneOtpChallenge?
+  adminLoginOtpChallenges    AdminLoginOtpChallenge[]
   // Cross-schema relation (public -> pii) — safe here specifically because
   // EmployerProfile is not an anonymity-sensitive model the way PiiVault is;
   // see EmployerProfile's own doc comment for why it gets a direct relation
   // when PiiVault deliberately doesn't.
-  employerProfile         EmployerProfile?
-  jobPostings             JobPosting[]
-  socialPosts             SocialPost[]             @relation("SocialPostAuthor")
-  socialComments          SocialComment[]          @relation("SocialCommentAuthor")
-  socialPostLikes         SocialPostLike[]         @relation("SocialPostLiker")
-  socialCommentVotes      SocialCommentVote[]      @relation("SocialCommentVoter")
-  companyFollows          CompanyFollow[]
-  followedUsers           UserFollow[]             @relation("UserFollowFollower")
-  followedByUsers         UserFollow[]             @relation("UserFollowFollowing")
-  savedPosts              SavedPost[]
+  employerProfile            EmployerProfile?
+  jobPostings                JobPosting[]
+  socialPosts                SocialPost[]                @relation("SocialPostAuthor")
+  socialComments             SocialComment[]             @relation("SocialCommentAuthor")
+  socialPostLikes            SocialPostLike[]            @relation("SocialPostLiker")
+  socialCommentVotes         SocialCommentVote[]         @relation("SocialCommentVoter")
+  companyFollows             CompanyFollow[]
+  followedUsers              UserFollow[]                @relation("UserFollowFollower")
+  followedByUsers            UserFollow[]                @relation("UserFollowFollowing")
+  savedPosts                 SavedPost[]
   socialCommentReports       SocialCommentReport[]
   socialCommentIdentityLocks SocialCommentIdentityLock[]
-  savedJobPostings SavedJobPosting[]
-  jobApplications  JobApplication[]
-  skills UserSkill[]
+  savedJobPostings           SavedJobPosting[]
+  jobApplications            JobApplication[]
+  skills                     UserSkill[]
 
+  @@index([sectorId])
   @@schema("public")
 }
 
@@ -540,8 +541,8 @@ model Company {
   // Set by an ADMIN via PATCH /admin/companies/:id/visibility. A hidden company
   // vanishes from every public surface (search, detail, filters, job browse,
   // IWT Social feed) but keeps all its data; unhiding clears this.
-  hiddenAt         DateTime?
-  riskScore        Int             @default(0)
+  hiddenAt  DateTime?
+  riskScore Int       @default(0)
 
   employmentHistories  EmploymentHistory[]
   reviews              Review[]
@@ -1037,9 +1038,9 @@ model SocialPost {
   caption      String?
   createdAt    DateTime @default(now())
 
-  comments SocialComment[]
-  likes    SocialPostLike[]
-  savedBy  SavedPost[]
+  comments             SocialComment[]
+  likes                SocialPostLike[]
+  savedBy              SavedPost[]
   commentIdentityLocks SocialCommentIdentityLock[]
 
   @@index([companyId])
@@ -1084,20 +1085,20 @@ model SocialComment {
   // itself is never stored on the comment row; it's decrypted live from
   // EmployerProfile at read time (see serializeComments), same 'don't cache
   // PII in plaintext' rule PiiVault already follows elsewhere.
-  identityMode CommentIdentityMode @default(PERSONAL_CHOSEN)
+  identityMode   CommentIdentityMode @default(PERSONAL_CHOSEN)
   // Set only when identityMode is PERSONAL_RANDOM - the one-off handle/avatar
   // locked for this (user, post) pair the first time it's chosen (see
   // SocialCommentIdentityLock), copied onto every comment under that lock so
   // serializeComments never needs to re-derive or re-roll it.
   randomUsername String?
 
-  votes   SocialCommentVote[]
-  reports SocialCommentReport[]
+  votes               SocialCommentVote[]
+  reports             SocialCommentReport[]
   // Set once a comment crosses 3 reports and the automated moderation check
   // finds something - surfaces it in the admin queue as pre-flagged rather
   // than auto-deleting (see SocialService.registerReport). Cleared if an
   // admin dismisses the report.
-  flaggedForReview   Boolean  @default(false)
+  flaggedForReview    Boolean               @default(false)
   flaggedReviewReason String?
 
   @@index([postId])
@@ -1115,14 +1116,14 @@ model SocialComment {
 // COMPANY_OWNER's identityMode is always OWNER_REAL_NAME regardless of
 // post, so there's no choice to lock and no row is created for them.
 model SocialCommentIdentityLock {
-  id                   String              @id @default(uuid())
-  postId               String
-  post                 SocialPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId               String
-  user                 User                @relation(fields: [userId], references: [id])
-  identityMode         CommentIdentityMode
-  randomUsername       String?
-  createdAt            DateTime            @default(now())
+  id             String              @id @default(uuid())
+  postId         String
+  post           SocialPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                @relation(fields: [userId], references: [id])
+  identityMode   CommentIdentityMode
+  randomUsername String?
+  createdAt      DateTime            @default(now())
 
   @@unique([postId, userId])
   @@schema("public")
