@@ -23,6 +23,7 @@ import { JobApplicationsModule } from "./modules/job-applications/job-applicatio
 import { SavedJobPostingsModule } from "./modules/saved-job-postings/saved-job-postings.module";
 import { SocialModule } from "./modules/social/social.module";
 import { FollowsModule } from "./modules/follows/follows.module";
+import { SkillsModule } from "./modules/skills/skills.module";
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { FollowsModule } from "./modules/follows/follows.module";
     SavedJobPostingsModule,
     SocialModule,
     FollowsModule,
+    SkillsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
