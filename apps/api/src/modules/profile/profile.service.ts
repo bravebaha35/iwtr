@@ -152,8 +152,11 @@ export class ProfileService {
       }
       // Full replace — simplest correct semantics for "the member's current
       // skill set is exactly this list", mirrors how avatarKey/reviewUsername
-      // are whole-value replacements too, not incremental diffs.
-      skillsUpdate = { deleteMany: {}, create: input.skillIds.map((skillId) => ({ skillId })) };
+      // are whole-value replacements too, not incremental diffs. Use the
+      // deduplicated Set from the existence check to avoid duplicate (userId,
+      // skillId) pairs in the nested create, which would violate the
+      // @@unique constraint on UserSkill.
+      skillsUpdate = { deleteMany: {}, create: Array.from(uniqueSkillIds).map((skillId) => ({ skillId })) };
     }
 
     let resolvedSectorId: string | null | undefined;

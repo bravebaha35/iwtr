@@ -400,7 +400,7 @@ describe("ProfileService.updateProfile — skills/sector/workType", () => {
     );
   });
 
-  it("accepts a skillIds array containing a duplicate valid id (Set-based length check)", async () => {
+  it("accepts a skillIds array containing a duplicate valid id, deduplicating in the create array", async () => {
     const prisma = {
       user: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, role: "MEMBER", status: "ACTIVE" }),
@@ -412,9 +412,12 @@ describe("ProfileService.updateProfile — skills/sector/workType", () => {
 
     await service.updateProfile(userId, { skillIds: ["real-1", "real-1"] });
 
+    // The duplicate in the input array should be removed before the nested
+    // create, so the create array contains only one entry, avoiding a Prisma
+    // unique-constraint violation on UserSkill(userId, skillId).
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: userId },
-      data: { skills: { deleteMany: {}, create: [{ skillId: "real-1" }, { skillId: "real-1" }] } },
+      data: { skills: { deleteMany: {}, create: [{ skillId: "real-1" }] } },
     });
   });
 });
