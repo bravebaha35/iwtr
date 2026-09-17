@@ -255,6 +255,15 @@ model User {
   // self-view case, never for anything else.
   encPhoneNumber  Bytes?
   phoneVerifiedAt DateTime?
+  // Explicit, first-class classification of the kind of work this member
+  // does — distinct from (but initially backfilled from) their avatarKey's
+  // implicit category. Nullable: existing accounts get it via
+  // scripts/backfill-user-worktype-from-avatar.ts, not every account is
+  // guaranteed to have one immediately after this migration. Drives the
+  // Sector cascade on the Personal Information tab (see ProfileService).
+  workType  WorkplaceType?
+  sectorId  String?
+  sector    Sector?        @relation(fields: [sectorId], references: [id])
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -287,6 +296,7 @@ model User {
   socialCommentIdentityLocks SocialCommentIdentityLock[]
   savedJobPostings SavedJobPosting[]
   jobApplications  JobApplication[]
+  skills UserSkill[]
 
   @@schema("public")
 }
@@ -347,6 +357,56 @@ model CompanySuggestionDismissal {
   nameKey            String   @unique
   dismissedByAdminId String?
   dismissedAt        DateTime @default(now())
+
+  @@schema("public")
+}
+
+// Read-only lookup table — the only place a Skill's canonical name lives.
+// Seeded by scripts/seed-skills.ts (hand-curated, delete-all + re-insert on
+// every run — see that script's own header comment for why). Never written
+// to from application code; ProfileService only ever reads by id to
+// validate a member's chosen skillIds against real rows.
+model Skill {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  createdAt DateTime    @default(now())
+  users     UserSkill[]
+
+  @@schema("public")
+}
+
+// Explicit join table for the User<->Skill many-to-many (same convention as
+// every other m-n relation in this schema — CompanyOwner, ReviewVote,
+// SocialPostLike — never Prisma's implicit m-n), so it can carry its own id
+// and createdAt like its siblings.
+model UserSkill {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, skillId])
+  @@index([skillId])
+  @@schema("public")
+}
+
+// Read-only lookup table for the member-profile "Sector" field — the
+// DB-backed sibling of the frontend-only SECTORS constant already used for
+// the company Sector/Industry filter (apps/web/src/lib/sectors.ts). Kept as
+// a SEPARATE table from that constant on purpose: this one is referenced by
+// ID from User.sectorId and validated server-side against workplaceTypes;
+// the company-side filter stays exactly as it is today (unrelated,
+// unchanged by this plan). Seeded by scripts/seed-sectors.ts from the same
+// curated list.
+model Sector {
+  id             String          @id @default(uuid())
+  value          String          @unique
+  label          String
+  workplaceTypes WorkplaceType[]
+  createdAt      DateTime        @default(now())
+  users          User[]
 
   @@schema("public")
 }
