@@ -82,10 +82,17 @@ verified via a recon pass before this design was written.)
   three tabs) gates purely on the **viewer's own** claim state
   (`authLoading`/`isAuthenticated`/`onboardingStatus`/`claim === undefined`,
   line 35) and never checks whether the company already has an *approved*
-  owner from someone else. Ownership approval lives in a separate
-  `CompanyOwnerClaim` model (status enum including `APPROVED`) — there is no
-  `isClaimed`/`ownerId` field on `Company` itself, and the public company
-  detail response does not currently expose claim status at all.
+  owner from someone else. There is no `isClaimed`/`ownerId` field on
+  `Company` itself — ownership approval lives in a separate
+  `CompanyOwnerClaim` model — **but a `hasApprovedOwner: boolean` field
+  already exists on the public `companySchema`**
+  (`packages/shared-types/src/schemas/company.ts:105`) and is already
+  fetched into every `CompanyDetail` the company page loads; it's already
+  used elsewhere on that same page (banner greyscale at page.tsx:188, the
+  verification tick at page.tsx:236). `OwnerClaimPanel` just isn't passed
+  it or checking it. (Correction from the initial brainstorming pass, which
+  checked for `isClaimed`/`ownerId` by name and concluded a new backend
+  field was needed — `hasApprovedOwner` already covers exactly that need.)
 
 ## Decisions made during brainstorming
 
@@ -146,6 +153,18 @@ verified via a recon pass before this design was written.)
   company" links, if any target the old route).
 - `CompanyProfileTabs.tsx`'s existing "IWT Social" tab is renamed to
   "Social" (label only, `TabKey` value can stay `"social"`).
+
+### 1a. Composer regression check
+
+`/social/[slug]` (being deleted) renders `SocialComposerSlot` above its feed
+— the only way a company owner posts is picking one of their approved
+companies from that composer's own dropdown, not something tied to which
+route rendered it. `CompanyProfileTabs`'s existing Social tab panel
+currently has no composer at all. Deleting the standalone route without
+moving `SocialComposerSlot` into the company-tab panel would silently
+remove an owner's ability to post from a company-scoped view. The company
+Social tab panel gains `<SocialComposerSlot />` above the feed, same as the
+route being deleted had.
 
 ### 2. Company Social tab sidebar
 
@@ -218,16 +237,15 @@ verified via a recon pass before this design was written.)
 
 ### 7. Claim banner gating fix
 
-- Public company-detail response (`apiGetPublic('/companies/${slug}')` and
-  its backing NestJS endpoint/service) gains a computed
-  `hasApprovedOwner: boolean`, derived from whether any `CompanyOwnerClaim`
-  row for that company has `status === APPROVED` — not stored redundantly
-  on `Company`.
-- `packages/shared-types/src/schemas/company.ts`'s `companySchema` (the
-  public read schema) gains this field.
+- No backend change needed — `hasApprovedOwner: boolean` already exists on
+  the public `Company`/`CompanyDetail` type and is already fetched by the
+  company page.
+- `OwnerClaimPanel.tsx` gains a new prop, `hasApprovedOwner: boolean`,
+  passed from `apps/web/src/app/companies/[slug]/page.tsx:348`
+  (`<OwnerClaimPanel companySlug={slug} hasApprovedOwner={company.hasApprovedOwner} />`).
 - `OwnerClaimPanel.tsx`'s existing gate (line 35) gets one more condition:
-  return `null` if `company.hasApprovedOwner` is true, regardless of the
-  viewer's own claim state. The panel's existing per-viewer-claim states
+  return `null` if `hasApprovedOwner` is true, regardless of the viewer's
+  own claim state. The panel's existing per-viewer-claim states
   (PENDING/APPROVED/REJECTED/null) are otherwise unchanged — this only adds
   a new "someone else already owns this, hide entirely" short-circuit above
   them.
@@ -235,9 +253,9 @@ verified via a recon pass before this design was written.)
 ## Data flow (company Social tab, end to end)
 
 1. `apps/web/src/app/companies/[slug]/page.tsx` (Server Component) fetches
-   `CompanyDetail` via `apiGetPublic`, now including the 7 social-link
-   fields (already fetched today, just not all rendered) and the new
-   `hasApprovedOwner`.
+   `CompanyDetail` via `apiGetPublic`, which already includes the 7
+   social-link fields (fetched today, just not all rendered) and
+   `hasApprovedOwner` (already fetched and used elsewhere on this page).
 2. `CompanyProfileTabs` receives this data, passes the 7 links + slug into
    `SocialSidebar` (mode="company") when the Social tab is active/visited.
 3. `SocialSidebar` in company mode renders Following list (shared hook,
@@ -256,11 +274,6 @@ verified via a recon pass before this design was written.)
   default for a removed route) — this is the intended behavior per the
   ticket's own acceptance criteria ("old `/social/[slug]` route throws a
   404"), not a regression to guard against.
-- `hasApprovedOwner` computation: if the query for approved claims fails or
-  returns unexpectedly, default to `false` (show the claim banner) rather
-  than `true` (hide it) — failing open toward showing the prompt is the
-  safer default; worst case a claimed company briefly shows a redundant
-  banner, not that a claimable company hides its banner incorrectly.
 - Trending query: if it returns zero results (e.g., no posts yet today),
   the section should not render at all rather than show an empty block —
   implementation plan should specify this explicitly.
