@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PublicSocialPost, SocialFeedPage, WorkplaceType } from "@iwtr/shared-types";
+import type { PublicSocialPost, SocialCompanySort, SocialFeedPage, WorkplaceType } from "@iwtr/shared-types";
 import type { CategoryGroup } from "@/lib/categoryGroups";
 import { apiGet, ApiError } from "@/lib/api-client";
 import { AdSlot } from "@/components/AdSlot";
@@ -22,11 +22,15 @@ export function SocialFeed({
   q,
   workplaceType,
   categoryGroup,
+  sort,
 }: {
   scope: Scope;
   q?: string;
   workplaceType?: WorkplaceType | null;
   categoryGroup?: CategoryGroup | null;
+  // Only read when scope.kind === "company" - the global/saved feeds have
+  // no sort control (see SocialSidebar's mode split).
+  sort?: SocialCompanySort;
 }) {
   const [posts, setPosts] = useState<PublicSocialPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -44,11 +48,12 @@ export function SocialFeed({
         if (workplaceType) params.set("workplaceTypes", workplaceType);
         if (categoryGroup) params.set("categoryGroup", categoryGroup);
       }
+      if (scope.kind === "company" && sort) params.set("sort", sort);
       const base =
         scope.kind === "all" ? "/social/feed" : scope.kind === "saved" ? "/me/saved-posts" : `/social/companies/${scope.slug}/posts`;
       return `${base}${params.toString() ? `?${params}` : ""}`;
     },
-    [scope, q, workplaceType, categoryGroup],
+    [scope, q, workplaceType, categoryGroup, sort],
   );
 
   // Reset + reload whenever scope or any filter changes (all-scope filters

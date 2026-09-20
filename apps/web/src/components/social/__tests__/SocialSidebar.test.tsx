@@ -5,6 +5,7 @@ let mockFollowed: { companies: unknown[]; loading: boolean };
 jest.mock("@/lib/useFollowedCompanies", () => ({ useFollowedCompanies: () => mockFollowed }));
 
 const baseProps = {
+  mode: "global" as const,
   query: "",
   onQueryChange: jest.fn(),
   workplaceType: null,

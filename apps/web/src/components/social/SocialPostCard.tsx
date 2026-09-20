@@ -179,7 +179,7 @@ export function SocialPostCard({
     // rounded-xl stay so the photo itself still reads as one rounded shape.
     <article className="overflow-hidden rounded-xl">
       <header className="flex items-center justify-between gap-3 p-3">
-        <Link href={`/social/${post.companySlug}`} className="flex min-w-0 items-center gap-3">
+        <Link href={`/companies/${post.companySlug}?tab=social`} className="flex min-w-0 items-center gap-3">
           <CompanyLogo name={post.companyName} mainPhotoUrl={post.companyLogoUrl} size="sm" />
           <div className="min-w-0">
             <p className="flex min-w-0 items-center truncate text-sm font-semibold text-foreground">

@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Company, CompanyAggregateScore } from "@iwtr/shared-types";
+import type { Company, CompanyAggregateScore, SocialCompanySort } from "@iwtr/shared-types";
 import { SocialFeed } from "@/components/social/SocialFeed";
+import { SocialSidebar } from "@/components/social/SocialSidebar";
+import { SocialComposerSlot } from "@/components/social/SocialComposerSlot";
+import { useAuth } from "@/lib/auth-context";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 
 // The consolidated company-profile hub. Sits directly under the page's
@@ -28,7 +31,7 @@ type TabKey = "ratings" | "social" | "jobs";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "ratings", label: "Ratings" },
-  { key: "social", label: "IWT Social" },
+  { key: "social", label: "Social" },
   { key: "jobs", label: "Job Postings" },
 ];
 
@@ -57,6 +60,31 @@ export function CompanyProfileTabs({
   // Social/Jobs panels (and therefore their network calls).
   const [visited, setVisited] = useState<Set<TabKey>>(() => new Set<TabKey>([active]));
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Sort choice for this company's own post list - client state only, no
+  // ?sort= URL param (matches WorkplaceBrowser/JobsBrowser's existing
+  // convention), persisted per-company-slug so switching between two
+  // companies' Social tabs in the same session doesn't bleed one's sort
+  // choice into the other's.
+  const sortStorageKey = `iwtr:companySocialSort:${slug}`;
+  const [sort, setSort] = useState<SocialCompanySort>(() => {
+    if (typeof window === "undefined") return "newest";
+    const raw = window.sessionStorage.getItem(sortStorageKey);
+    return raw === "newest" || raw === "oldest" || raw === "mostLiked" || raw === "mostCommented" ? raw : "newest";
+  });
+  const handleSortChange = useCallback(
+    (next: SocialCompanySort) => {
+      setSort(next);
+      try {
+        window.sessionStorage.setItem(sortStorageKey, next);
+      } catch {
+        /* private mode / storage unavailable - sort still works for this render, just doesn't persist */
+      }
+    },
+    [sortStorageKey],
+  );
+  const { isAuthenticated, role } = useAuth();
+  const isMember = isAuthenticated && role === "MEMBER";
 
   const selectTab = useCallback((key: TabKey) => {
     setActive(key);
@@ -174,7 +202,40 @@ export function CompanyProfileTabs({
           aria-labelledby={tabId.social}
           hidden={active !== "social"}
         >
-          {visited.has("social") && <SocialFeed scope={{ kind: "company", slug }} />}
+          {visited.has("social") && (
+            <div className="flex flex-col gap-6 sm:flex-row">
+              <SocialSidebar
+                mode="company"
+                isMember={isMember}
+                sort={sort}
+                onSortChange={handleSortChange}
+                socialLinks={{
+                  facebookUrl: company.facebookUrl,
+                  instagramUrl: company.instagramUrl,
+                  whatsappUrl: company.whatsappUrl,
+                  xUrl: company.xUrl,
+                  linkedinUrl: company.linkedinUrl,
+                  youtubeUrl: company.youtubeUrl,
+                  glassdoorUrl: company.glassdoorUrl,
+                }}
+              />
+              {/* Feed column centered in the remaining space, same
+                  Instagram-style fixed max-width as the root /social feed -
+                  not a copy of that page's 3-column ad-rail shell, since a
+                  tab panel has no ad slots of its own. */}
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-4">
+                {/* Posts as whichever of the owner's own approved companies
+                    they pick - not automatically locked to this one (same
+                    component/behavior the deleted /social/[slug] route had). */}
+                <div className="w-full max-w-xl">
+                  <SocialComposerSlot />
+                </div>
+                <div className="w-full max-w-xl">
+                  <SocialFeed scope={{ kind: "company", slug }} sort={sort} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div

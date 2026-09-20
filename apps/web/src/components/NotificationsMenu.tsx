@@ -138,9 +138,9 @@ function hrefForNotification(n: AppNotification): string {
     // Company status update -> the rating page (that company's profile).
     case "COMPANY_STATUS_UPDATE":
       return n.companySlug ? `/companies/${n.companySlug}` : "/social";
-    // New post from a followed company -> that company's IWT Social page.
+    // New post from a followed company -> that company's Social tab.
     case "COMPANY_NEW_SOCIAL_POST":
-      return n.companySlug ? `/social/${n.companySlug}` : "/social";
+      return n.companySlug ? `/companies/${n.companySlug}?tab=social` : "/social";
     // Followed company is hiring -> the hiring page.
     case "COMPANY_HIRING":
       return "/jobs";

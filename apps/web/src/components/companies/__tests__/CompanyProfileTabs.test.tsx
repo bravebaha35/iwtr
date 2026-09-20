@@ -54,11 +54,11 @@ describe("CompanyProfileTabs", () => {
     expect(screen.getByText("RATINGS PANEL CONTENT")).not.toBeVisible();
   });
 
-  it("mounts the IWT Social feed only after that tab is clicked", async () => {
+  it("mounts the Social feed only after that tab is clicked", async () => {
     const user = userEvent.setup();
     setup();
 
-    await user.click(screen.getByRole("tab", { name: "IWT Social" }));
+    await user.click(screen.getByRole("tab", { name: "Social" }));
 
     await waitFor(() =>
       expect(apiClient.apiGet).toHaveBeenCalledWith(expect.stringContaining("/social/companies/acme/posts")),

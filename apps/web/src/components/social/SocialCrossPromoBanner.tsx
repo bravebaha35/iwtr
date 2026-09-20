@@ -2,12 +2,12 @@ import Link from "next/link";
 import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
 
 // Sits below the comments on the rating page (collapsed or expanded). Routes
-// to that company's IWT Social profile. Exact title copy, including the
-// space before "!".
+// to that company's Social tab. Exact title copy, including the space
+// before "!".
 export function SocialCrossPromoBanner({ companySlug }: { companySlug: string; companyName?: string }) {
   return (
     <Link
-      href={`/social/${companySlug}`}
+      href={`/companies/${companySlug}?tab=social`}
       className="mt-6 block overflow-hidden rounded-xl border border-border bg-surface transition hover:border-brand-400"
     >
       <div className="flex items-center gap-2 border-b border-border bg-surface-muted px-4 py-2">

@@ -8,6 +8,7 @@ import { SocialSidebar } from "./SocialSidebar";
 import { SocialComposerSlot } from "./SocialComposerSlot";
 import { SocialWelcomeDialog } from "./SocialWelcomeDialog";
 import { SocialFeed } from "./SocialFeed";
+import { TrendingToday } from "./TrendingToday";
 
 // Sidebar + feed both need one shared set of filter/search state, so it's
 // lifted up here rather than kept feed-local (SocialFeed used to own its own
@@ -31,6 +32,7 @@ export function SocialShell() {
 
       <div className="flex flex-col gap-6 sm:flex-row">
         <SocialSidebar
+          mode="global"
           query={query}
           onQueryChange={setQuery}
           workplaceType={workplaceType}
@@ -47,6 +49,9 @@ export function SocialShell() {
             is left, Instagram-style, rather than stretching edge to edge. */}
         <div className="flex min-w-0 flex-1 justify-center">
           <div className="w-full max-w-xl">
+            {/* Only in the default explore view - Saved Posts is a
+                personal list, trending doesn't belong there. */}
+            {!savedView && <TrendingToday />}
             {savedView ? (
               <SocialFeed scope={{ kind: "saved" }} />
             ) : (
