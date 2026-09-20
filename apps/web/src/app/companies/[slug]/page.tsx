@@ -345,7 +345,7 @@ export default async function CompanyPage({
         />
 
         <div className="mt-8">
-          <OwnerClaimPanel companySlug={slug} />
+          <OwnerClaimPanel companySlug={slug} hasApprovedOwner={company.hasApprovedOwner} />
         </div>
       </div>
 

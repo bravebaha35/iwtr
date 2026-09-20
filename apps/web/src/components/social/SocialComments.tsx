@@ -135,7 +135,7 @@ function CommentRow({
 }) {
   const c = comment;
   return (
-    <div className="flex items-start gap-2">
+    <div className="flex items-start gap-2 py-1">
       <Avatar avatarKey={c.avatarKey} avatarGradient={c.avatarGradient} photoUrl={c.avatarPhotoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-muted-foreground">
@@ -557,7 +557,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
   const visibleComments = comments ? (showAllComments ? comments : comments.slice(-3)) : [];
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border p-3">
+    <div className="flex flex-col gap-2 border-t border-border p-2">
       {hiddenCount > 0 && (
         <button
           type="button"

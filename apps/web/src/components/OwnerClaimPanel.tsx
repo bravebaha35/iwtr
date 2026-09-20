@@ -6,7 +6,7 @@ import type { MyCompanyClaim } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 
-export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
+export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug: string; hasApprovedOwner: boolean }) {
   const { isAuthenticated, onboardingStatus, isLoading: authLoading } = useAuth();
   const [claim, setClaim] = useState<MyCompanyClaim | null | undefined>(undefined);
   const [message, setMessage] = useState("");
@@ -32,7 +32,7 @@ export function OwnerClaimPanel({ companySlug }: { companySlug: string }) {
       });
   }, [isAuthenticated, companySlug]);
 
-  if (authLoading || !isAuthenticated || onboardingStatus?.status !== "ACTIVE" || claim === undefined) {
+  if (authLoading || !isAuthenticated || onboardingStatus?.status !== "ACTIVE" || claim === undefined || hasApprovedOwner) {
     return null;
   }
 
