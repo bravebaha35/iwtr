@@ -58,17 +58,24 @@ function formatEducationDetail(level: EduLevel, faculty: string | null | undefin
 // harmless cost is unused trailing margin after the last item, not a broken
 // PDF.
 //
-// Fourth html2canvas constraint, the one that actually caused the avatar/name
-// overlap found during Task 11 verification (the third constraint above was
-// a real but separate risk fixed at the same time, not this bug's cause):
-// Tailwind's `truncate` (overflow-hidden + white-space-nowrap +
-// text-overflow-ellipsis) on the name `<h1>` makes html2canvas miscompute
-// its box height, so the sibling contact/location `<p>` lines render on top
-// of it in the actual generated PDF — confirmed by isolating a bare
-// `<h1>`+`<p>` pair with no avatar, no flex/table wrapper, nothing else
-// involved. The live on-screen preview never shows this. Do not add
-// `truncate` back to this h1; a very long name wrapping to a second line is
-// the harmless cost of avoiding it.
+// Fourth html2canvas constraint, the one that actually caused a second,
+// distinct avatar/name overlap found during Task 11 verification — separate
+// from the `gap-*` overlap described in the second constraint above, which
+// was an earlier incident in an earlier session with a different cause (the
+// third constraint above was a real but separate risk fixed at the same
+// time, not this bug's cause either): Tailwind's `truncate` (overflow-hidden
+// + white-space-nowrap + text-overflow-ellipsis) on the name `<h1>` makes
+// html2canvas miscompute its box height, so the sibling contact/location
+// `<p>` lines render on top of it in the actual generated PDF — confirmed by
+// isolating a bare `<h1>`+`<p>` pair with no avatar, no flex/table wrapper,
+// nothing else involved. The live on-screen preview never shows this. The
+// fix covers all three elements in that block — the `<h1>` and both the
+// contactLine/locationLine `<p>` tags — since a final whole-branch review
+// confirmed the same overlap reproduces between the two `<p>` lines
+// themselves when both are non-empty (e.g. email disclosure opted in) and
+// both still carried `truncate`. Do not add `truncate` back to any of the
+// three; a very long name/line wrapping to a second line is the harmless
+// cost of avoiding it.
 export function CvPreview({
   profile,
   employment: employmentProp,
@@ -149,19 +156,24 @@ export function CvPreview({
         <div className="mt-3 flex items-center space-x-4">
           <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
           <div className="min-w-0">
-            {/* No `truncate` here (unlike contactLine/locationLine below),
-                even though a very long name can now wrap to a second line:
-                html2canvas cannot compute this h1's box height correctly
-                when `truncate` (overflow-hidden + nowrap + ellipsis) is
-                combined with the custom font-grotesk face at this size,
+            {/* No `truncate` on any of the three elements in this block
+                (h1, contactLine `<p>`, locationLine `<p>`), even though a
+                very long value can now wrap to a second line: html2canvas
+                cannot compute a text element's box height correctly when
+                `truncate` (overflow-hidden + nowrap + ellipsis) is applied,
                 and silently renders the next sibling on top of it in the
                 actual generated PDF — confirmed by isolating h1+p alone
-                with no avatar/flex involved at all. The live on-screen
-                preview never shows this; only a real Apply-generated PDF
-                does. */}
-            <h1 className="font-grotesk text-2xl font-bold leading-tight">{name}</h1>
-            {contactLine && <p className="truncate text-sm text-[#475569]">{contactLine}</p>}
-            {locationLine && <p className="truncate text-sm text-[#475569]">{locationLine}</p>}
+                with no avatar/flex involved at all. This reproduces from
+                `truncate` itself, not from the font-grotesk face or this
+                specific text size. The live on-screen preview never shows
+                this; only a real Apply-generated PDF does. `break-words`
+                (overflow-wrap: break-word) is used instead on all three so
+                an unbroken long string still can't overflow the CV's
+                width — it doesn't involve overflow-hidden or nowrap, so it
+                doesn't reintroduce this bug. */}
+            <h1 className="break-words font-grotesk text-2xl font-bold leading-tight">{name}</h1>
+            {contactLine && <p className="break-words text-sm text-[#475569]">{contactLine}</p>}
+            {locationLine && <p className="break-words text-sm text-[#475569]">{locationLine}</p>}
           </div>
         </div>
         {/* Per-item trailing margin (mr-6, mb-1), not a negative-margin
