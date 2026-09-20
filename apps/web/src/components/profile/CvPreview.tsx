@@ -47,6 +47,27 @@ function formatEducationDetail(level: EduLevel, faculty: string | null | undefin
 // live on-screen preview, which never goes through html2canvas, looked
 // correct). Use `space-x-*`/`space-y-*` (margin-based) for spacing in this
 // file instead of `gap-*`, never `gap-*` itself.
+//
+// Third html2canvas constraint, same failure signature: a *negative* margin
+// on a `flex flex-wrap` container (a common trick to emulate `gap` — negate
+// the container's edge margin, give each child the positive margin back)
+// also renders correctly live but overlaps neighboring content in the actual
+// generated PDF. For a wrapping row that needs both horizontal and vertical
+// spacing, give each child a plain trailing `mr-*`/`mb-*` instead — the
+// harmless cost is unused trailing margin after the last item, not a broken
+// PDF.
+//
+// Fourth html2canvas constraint, the one that actually caused the avatar/name
+// overlap found during Task 11 verification (the third constraint above was
+// a real but separate risk fixed at the same time, not this bug's cause):
+// Tailwind's `truncate` (overflow-hidden + white-space-nowrap +
+// text-overflow-ellipsis) on the name `<h1>` makes html2canvas miscompute
+// its box height, so the sibling contact/location `<p>` lines render on top
+// of it in the actual generated PDF — confirmed by isolating a bare
+// `<h1>`+`<p>` pair with no avatar, no flex/table wrapper, nothing else
+// involved. The live on-screen preview never shows this. Do not add
+// `truncate` back to this h1; a very long name wrapping to a second line is
+// the harmless cost of avoiding it.
 export function CvPreview({
   profile,
   employment: employmentProp,
@@ -133,24 +154,35 @@ export function CvPreview({
         <div className="mt-3 flex items-center space-x-4">
           <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
           <div className="min-w-0">
-            <h1 className="truncate font-grotesk text-2xl font-bold leading-tight">{name}</h1>
+            {/* No `truncate` here (unlike contactLine/locationLine below),
+                even though a very long name can now wrap to a second line:
+                html2canvas cannot compute this h1's box height correctly
+                when `truncate` (overflow-hidden + nowrap + ellipsis) is
+                combined with the custom font-grotesk face at this size,
+                and silently renders the next sibling on top of it in the
+                actual generated PDF — confirmed by isolating h1+p alone
+                with no avatar/flex involved at all. The live on-screen
+                preview never shows this; only a real Apply-generated PDF
+                does. */}
+            <h1 className="font-grotesk text-2xl font-bold leading-tight">{name}</h1>
             {contactLine && <p className="truncate text-sm text-[#475569]">{contactLine}</p>}
             {locationLine && <p className="truncate text-sm text-[#475569]">{locationLine}</p>}
           </div>
         </div>
-        {/* Nested wrapper + negative-margin children is a margin-based
-            substitute for `gap` on a flex-wrap row (this file may never use
-            `gap-*` — see file-level comment above). The outer div carries
-            only the mt-3 section spacing; the inner div carries the
-            negative margin that the mt-6/ml-6-style child margins offset,
-            so wrapped rows still get consistent horizontal+vertical
-            spacing. */}
-        <div className="mt-3 text-sm text-[#475569]">
-          <div className="-ml-6 -mt-1 flex flex-wrap">
-            {profile.birthDate && <span className="ml-6 mt-1">Born {new Date(profile.birthDate).getFullYear()}</span>}
-            {workTypeLabel && <span className="ml-6 mt-1">{workTypeLabel}</span>}
-            {profile.sector && <span className="ml-6 mt-1">{profile.sector.label}</span>}
-          </div>
+        {/* Per-item trailing margin (mr-6, mb-1), not a negative-margin
+            container: an earlier version of this row used a -ml-6 -mt-1
+            wrapper with positive per-item offsetting margins to emulate
+            gap on a flex-wrap row. That rendered correctly live but
+            overlapped the avatar in the actual generated PDF - html2canvas
+            doesn't lay out negative margins on a flex container the way the
+            browser does, confirmed by comparing the live DOM (correct)
+            against a real Apply-generated PDF (broken) at the same width.
+            Trailing margin on every item, including the last, is the
+            harmless cost of avoiding that. */}
+        <div className="mt-3 flex flex-wrap text-sm text-[#475569]">
+          {profile.birthDate && <span className="mr-6 mb-1">Born {new Date(profile.birthDate).getFullYear()}</span>}
+          {workTypeLabel && <span className="mr-6 mb-1">{workTypeLabel}</span>}
+          {profile.sector && <span className="mr-6 mb-1">{profile.sector.label}</span>}
         </div>
         {profile.isPublicEmployee && (
           <span className="mt-2 inline-block rounded-none border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
@@ -158,17 +190,15 @@ export function CvPreview({
           </span>
         )}
         {profile.skills.length > 0 && (
-          <div className="mt-3">
-            <div className="-ml-1.5 -mt-1.5 flex flex-wrap">
-              {profile.skills.map((s) => (
-                <span
-                  key={s.id}
-                  className="ml-1.5 mt-1.5 rounded-full border border-[#1e293b] px-2 py-0.5 text-[11px] font-medium"
-                >
-                  {s.name}
-                </span>
-              ))}
-            </div>
+          <div className="mt-3 flex flex-wrap">
+            {profile.skills.map((s) => (
+              <span
+                key={s.id}
+                className="mr-1.5 mb-1.5 rounded-full border border-[#1e293b] px-2 py-0.5 text-[11px] font-medium"
+              >
+                {s.name}
+              </span>
+            ))}
           </div>
         )}
         {profile.customExperienceText && (
