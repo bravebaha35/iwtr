@@ -50,35 +50,51 @@ function FollowingList() {
   );
 }
 
-const SORT_OPTIONS: { value: SocialCompanySort; label: string }[] = [
-  { value: "newest", label: "Newest" },
-  { value: "oldest", label: "Oldest" },
-  { value: "mostLiked", label: "Most Liked" },
-  { value: "mostCommented", label: "Most Commented" },
-];
-
-// Same standalone-toggle-pill-tray look as WorkplaceBrowser/JobsBrowser's
-// sort control (not a dropdown - every option visible and clickable
-// directly), adapted to 4 mutually-exclusive options instead of that page's
-// independent toggles.
+// Vertical, full-width stack (fits the narrow sidebar column at any
+// viewport width) rather than a wrapping row of pills. Newest/Oldest are one
+// toggle button, not two separate pills - its label always names the
+// CURRENTLY active direction ("Newest to Oldest" while sort is "newest",
+// flipping to "Oldest to Newest" once pressed and sort becomes "oldest"),
+// so pressing it again flips back. Most Liked / Most Commented stay as
+// separate buttons below it.
 function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v: SocialCompanySort) => void }) {
+  const isOldest = value === "oldest";
+  const directionActive = value === "newest" || value === "oldest";
+
   return (
     <div>
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort</h3>
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-surface-muted p-1">
-        {SORT_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            aria-pressed={value === opt.value}
-            className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-200 ${
-              value === opt.value ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface-muted p-1">
+        <button
+          type="button"
+          onClick={() => onChange(isOldest ? "newest" : "oldest")}
+          aria-pressed={directionActive}
+          className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
+            directionActive ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {isOldest ? "Oldest to Newest" : "Newest to Oldest"}
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange("mostLiked")}
+          aria-pressed={value === "mostLiked"}
+          className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
+            value === "mostLiked" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Most Liked
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange("mostCommented")}
+          aria-pressed={value === "mostCommented"}
+          className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
+            value === "mostCommented" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Most Commented
+        </button>
       </div>
     </div>
   );
@@ -213,7 +229,6 @@ type SocialSidebarProps =
     }
   | {
       mode: "company";
-      isMember: boolean;
       sort: SocialCompanySort;
       onSortChange: (v: SocialCompanySort) => void;
       socialLinks: CompanySocialLinks;
@@ -221,9 +236,11 @@ type SocialSidebarProps =
 
 export function SocialSidebar(props: SocialSidebarProps) {
   if (props.mode === "company") {
+    // No Following list here (per user feedback) - it's redundant on a
+    // single company's own page; it stays on the global /social sidebar
+    // where it's actually useful for jumping between companies.
     return (
       <aside className="flex shrink-0 flex-col gap-5 sm:w-56">
-        {props.isMember && <FollowingList />}
         <SortPills value={props.sort} onChange={props.onSortChange} />
         <SeeThemOn links={props.socialLinks} />
       </aside>

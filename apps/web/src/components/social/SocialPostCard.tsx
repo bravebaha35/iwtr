@@ -11,6 +11,7 @@ import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { shortRelativeTime } from "./socialTime";
 import { SocialComments } from "./SocialComments";
+import { ImageLightbox } from "./ImageLightbox";
 
 // Universally-recognized social glyphs (spec item 2) instead of the old
 // text buttons - heart/speech-bubble/bookmark, filled once active. No save
@@ -58,6 +59,7 @@ const SWIPE_THRESHOLD_PX = 40;
 function PostImageCarousel({ imageUrls, alt }: { imageUrls: string[]; alt: string }) {
   const [index, setIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const many = imageUrls.length > 1;
 
   function go(delta: number) {
@@ -76,7 +78,12 @@ function PostImageCarousel({ imageUrls, alt }: { imageUrls: string[]; alt: strin
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- server-produced WebP under our own /uploads */}
-      <img src={imageUrls[index]} alt={alt} className="w-full bg-surface-muted object-cover" />
+      <img
+        src={imageUrls[index]}
+        alt={alt}
+        onClick={() => setLightboxOpen(true)}
+        className="w-full cursor-zoom-in bg-surface-muted object-cover"
+      />
 
       {many && index > 0 && (
         <button
@@ -97,6 +104,16 @@ function PostImageCarousel({ imageUrls, alt }: { imageUrls: string[]; alt: strin
         >
           <ChevronIcon className="h-5 w-5" direction="right" />
         </button>
+      )}
+
+      {lightboxOpen && (
+        <ImageLightbox
+          imageUrls={imageUrls}
+          index={index}
+          alt={alt}
+          onIndexChange={setIndex}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
     </div>
   );

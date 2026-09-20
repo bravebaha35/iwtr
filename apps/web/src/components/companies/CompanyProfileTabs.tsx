@@ -5,7 +5,6 @@ import type { Company, CompanyAggregateScore, SocialCompanySort } from "@iwtr/sh
 import { SocialFeed } from "@/components/social/SocialFeed";
 import { SocialSidebar } from "@/components/social/SocialSidebar";
 import { SocialComposerSlot } from "@/components/social/SocialComposerSlot";
-import { useAuth } from "@/lib/auth-context";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 
 // The consolidated company-profile hub. Sits directly under the page's
@@ -83,8 +82,6 @@ export function CompanyProfileTabs({
     },
     [sortStorageKey],
   );
-  const { isAuthenticated, role } = useAuth();
-  const isMember = isAuthenticated && role === "MEMBER";
 
   const selectTab = useCallback((key: TabKey) => {
     setActive(key);
@@ -203,10 +200,14 @@ export function CompanyProfileTabs({
           hidden={active !== "social"}
         >
           {visited.has("social") && (
+            // Same shell shape as the root /social page's SocialShell (sidebar
+            // + a single centered max-w-xl column) - not a copy of that
+            // page's 3-column ad-rail, since a tab panel has no ad slots of
+            // its own, but the sidebar width and feed column width match
+            // exactly so posts render at the same size on both pages.
             <div className="flex flex-col gap-6 sm:flex-row">
               <SocialSidebar
                 mode="company"
-                isMember={isMember}
                 sort={sort}
                 onSortChange={handleSortChange}
                 socialLinks={{
@@ -219,18 +220,12 @@ export function CompanyProfileTabs({
                   glassdoorUrl: company.glassdoorUrl,
                 }}
               />
-              {/* Feed column centered in the remaining space, same
-                  Instagram-style fixed max-width as the root /social feed -
-                  not a copy of that page's 3-column ad-rail shell, since a
-                  tab panel has no ad slots of its own. */}
-              <div className="flex min-w-0 flex-1 flex-col items-center gap-4">
-                {/* Posts as whichever of the owner's own approved companies
-                    they pick - not automatically locked to this one (same
-                    component/behavior the deleted /social/[slug] route had). */}
-                <div className="w-full max-w-xl">
+              <div className="flex min-w-0 flex-1 justify-center">
+                <div className="flex w-full max-w-xl flex-col gap-4">
+                  {/* Posts as whichever of the owner's own approved companies
+                      they pick - not automatically locked to this one (same
+                      component/behavior the deleted /social/[slug] route had). */}
                   <SocialComposerSlot />
-                </div>
-                <div className="w-full max-w-xl">
                   <SocialFeed scope={{ kind: "company", slug }} sort={sort} />
                 </div>
               </div>
