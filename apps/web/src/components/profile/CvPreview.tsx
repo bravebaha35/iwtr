@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { EduLevel, MyEmploymentEntry, MyProfile } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { Avatar } from "@/components/Avatar";
 
 function formatRange(startDate: string | null, endDate: string | null): string {
@@ -47,6 +48,34 @@ function formatEducationDetail(level: EduLevel, faculty: string | null | undefin
 // live on-screen preview, which never goes through html2canvas, looked
 // correct). Use `space-x-*`/`space-y-*` (margin-based) for spacing in this
 // file instead of `gap-*`, never `gap-*` itself.
+//
+// Third html2canvas constraint, same failure signature: a *negative* margin
+// on a `flex flex-wrap` container (a common trick to emulate `gap` — negate
+// the container's edge margin, give each child the positive margin back)
+// also renders correctly live but overlaps neighboring content in the actual
+// generated PDF. For a wrapping row that needs both horizontal and vertical
+// spacing, give each child a plain trailing `mr-*`/`mb-*` instead — the
+// harmless cost is unused trailing margin after the last item, not a broken
+// PDF.
+//
+// Fourth html2canvas constraint, the one that actually caused a second,
+// distinct avatar/name overlap found during Task 11 verification — separate
+// from the `gap-*` overlap described in the second constraint above, which
+// was an earlier incident in an earlier session with a different cause (the
+// third constraint above was a real but separate risk fixed at the same
+// time, not this bug's cause either): Tailwind's `truncate` (overflow-hidden
+// + white-space-nowrap + text-overflow-ellipsis) on the name `<h1>` makes
+// html2canvas miscompute its box height, so the sibling contact/location
+// `<p>` lines render on top of it in the actual generated PDF — confirmed by
+// isolating a bare `<h1>`+`<p>` pair with no avatar, no flex/table wrapper,
+// nothing else involved. The live on-screen preview never shows this. The
+// fix covers all three elements in that block — the `<h1>` and both the
+// contactLine/locationLine `<p>` tags — since a final whole-branch review
+// confirmed the same overlap reproduces between the two `<p>` lines
+// themselves when both are non-empty (e.g. email disclosure opted in) and
+// both still carried `truncate`. Do not add `truncate` back to any of the
+// three; a very long name/line wrapping to a second line is the harmless
+// cost of avoiding it.
 export function CvPreview({
   profile,
   employment: employmentProp,
@@ -111,13 +140,7 @@ export function CvPreview({
   // member's current location instead, already collected at onboarding.
   const locationLine = [profile.district, profile.city, profile.country].filter(Boolean).join(", ");
   const education = profile.education;
-  const WORK_TYPE_LABELS: Record<string, string> = {
-    OFFICE: "Office",
-    HYBRID_REMOTE: "Hybrid/Remote",
-    SERVICE: "Service",
-    MANUAL_LABOUR: "Manual Labour",
-  };
-  const workTypeLabel = profile.workType ? WORK_TYPE_LABELS[profile.workType] : null;
+  const workTypeLabel = profile.workType ? workplaceTypeLabel(profile.workType) : null;
 
   return (
     <div
@@ -133,24 +156,40 @@ export function CvPreview({
         <div className="mt-3 flex items-center space-x-4">
           <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
           <div className="min-w-0">
-            <h1 className="truncate font-grotesk text-2xl font-bold leading-tight">{name}</h1>
-            {contactLine && <p className="truncate text-sm text-[#475569]">{contactLine}</p>}
-            {locationLine && <p className="truncate text-sm text-[#475569]">{locationLine}</p>}
+            {/* No `truncate` on any of the three elements in this block
+                (h1, contactLine `<p>`, locationLine `<p>`), even though a
+                very long value can now wrap to a second line: html2canvas
+                cannot compute a text element's box height correctly when
+                `truncate` (overflow-hidden + nowrap + ellipsis) is applied,
+                and silently renders the next sibling on top of it in the
+                actual generated PDF — confirmed by isolating h1+p alone
+                with no avatar/flex involved at all. This reproduces from
+                `truncate` itself, not from the font-grotesk face or this
+                specific text size. The live on-screen preview never shows
+                this; only a real Apply-generated PDF does. `break-words`
+                (overflow-wrap: break-word) is used instead on all three so
+                an unbroken long string still can't overflow the CV's
+                width — it doesn't involve overflow-hidden or nowrap, so it
+                doesn't reintroduce this bug. */}
+            <h1 className="break-words font-grotesk text-2xl font-bold leading-tight">{name}</h1>
+            {contactLine && <p className="break-words text-sm text-[#475569]">{contactLine}</p>}
+            {locationLine && <p className="break-words text-sm text-[#475569]">{locationLine}</p>}
           </div>
         </div>
-        {/* Nested wrapper + negative-margin children is a margin-based
-            substitute for `gap` on a flex-wrap row (this file may never use
-            `gap-*` — see file-level comment above). The outer div carries
-            only the mt-3 section spacing; the inner div carries the
-            negative margin that the mt-6/ml-6-style child margins offset,
-            so wrapped rows still get consistent horizontal+vertical
-            spacing. */}
-        <div className="mt-3 text-sm text-[#475569]">
-          <div className="-ml-6 -mt-1 flex flex-wrap">
-            {profile.birthDate && <span className="ml-6 mt-1">Born {new Date(profile.birthDate).getFullYear()}</span>}
-            {workTypeLabel && <span className="ml-6 mt-1">{workTypeLabel}</span>}
-            {profile.sector && <span className="ml-6 mt-1">{profile.sector.label}</span>}
-          </div>
+        {/* Per-item trailing margin (mr-6, mb-1), not a negative-margin
+            container: an earlier version of this row used a -ml-6 -mt-1
+            wrapper with positive per-item offsetting margins to emulate
+            gap on a flex-wrap row. That rendered correctly live but
+            overlapped the avatar in the actual generated PDF - html2canvas
+            doesn't lay out negative margins on a flex container the way the
+            browser does, confirmed by comparing the live DOM (correct)
+            against a real Apply-generated PDF (broken) at the same width.
+            Trailing margin on every item, including the last, is the
+            harmless cost of avoiding that. */}
+        <div className="mt-3 flex flex-wrap text-sm text-[#475569]">
+          {profile.birthDate && <span className="mr-6 mb-1">Born {new Date(profile.birthDate).getFullYear()}</span>}
+          {workTypeLabel && <span className="mr-6 mb-1">{workTypeLabel}</span>}
+          {profile.sector && <span className="mr-6 mb-1">{profile.sector.label}</span>}
         </div>
         {profile.isPublicEmployee && (
           <span className="mt-2 inline-block rounded-none border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
@@ -158,17 +197,15 @@ export function CvPreview({
           </span>
         )}
         {profile.skills.length > 0 && (
-          <div className="mt-3">
-            <div className="-ml-1.5 -mt-1.5 flex flex-wrap">
-              {profile.skills.map((s) => (
-                <span
-                  key={s.id}
-                  className="ml-1.5 mt-1.5 rounded-full border border-[#1e293b] px-2 py-0.5 text-[11px] font-medium"
-                >
-                  {s.name}
-                </span>
-              ))}
-            </div>
+          <div className="mt-3 flex flex-wrap">
+            {profile.skills.map((s) => (
+              <span
+                key={s.id}
+                className="mr-1.5 mb-1.5 rounded-full border border-[#1e293b] px-2 py-0.5 text-[11px] font-medium"
+              >
+                {s.name}
+              </span>
+            ))}
           </div>
         )}
         {profile.customExperienceText && (
