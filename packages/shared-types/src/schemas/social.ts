@@ -39,6 +39,13 @@ export function validateSocialImageUpload(
   return { valid: true };
 }
 
+// The company-scoped Social-tab sidebar's sort control (client state only,
+// no ?sort= URL param - this type is shared purely so the frontend's
+// sessionStorage value and the backend's query-param parsing agree on the
+// same four strings). "newest" is the default/pre-existing behavior.
+export const socialCompanySortSchema = z.enum(["newest", "oldest", "mostLiked", "mostCommented"]);
+export type SocialCompanySort = z.infer<typeof socialCompanySortSchema>;
+
 // --- Create inputs
 export const createSocialPostInputSchema = z.object({
   companyId: z.string().uuid(),
@@ -234,3 +241,13 @@ export const socialPostLikeResultSchema = z.object({
   likedByMe: z.boolean(),
 });
 export type SocialPostLikeResult = z.infer<typeof socialPostLikeResultSchema>;
+
+// GET /social/trending - today's top posts across all companies, split by
+// like count and comment count. Either array can be empty (e.g. nothing
+// posted yet today); the frontend renders nothing for an empty section
+// rather than an empty block.
+export const trendingTodaySchema = z.object({
+  mostLiked: z.array(publicSocialPostSchema),
+  mostCommented: z.array(publicSocialPostSchema),
+});
+export type TrendingToday = z.infer<typeof trendingTodaySchema>;
