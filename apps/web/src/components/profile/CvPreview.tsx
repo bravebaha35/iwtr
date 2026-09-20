@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { EduLevel, MyEmploymentEntry, MyProfile } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { Avatar } from "@/components/Avatar";
 
 function formatRange(startDate: string | null, endDate: string | null): string {
@@ -132,13 +133,7 @@ export function CvPreview({
   // member's current location instead, already collected at onboarding.
   const locationLine = [profile.district, profile.city, profile.country].filter(Boolean).join(", ");
   const education = profile.education;
-  const WORK_TYPE_LABELS: Record<string, string> = {
-    OFFICE: "Office",
-    HYBRID_REMOTE: "Hybrid/Remote",
-    SERVICE: "Service",
-    MANUAL_LABOUR: "Manual Labour",
-  };
-  const workTypeLabel = profile.workType ? WORK_TYPE_LABELS[profile.workType] : null;
+  const workTypeLabel = profile.workType ? workplaceTypeLabel(profile.workType) : null;
 
   return (
     <div
