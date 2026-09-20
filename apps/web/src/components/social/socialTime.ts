@@ -1,4 +1,5 @@
-// "3h", "2d", "just now" - compact relative time for feed cards. No library.
+// "3h", "2d", "1w", "3mo", "1y", "just now" - compact relative time for feed
+// cards. No library.
 export function shortRelativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diffMs / 60_000);
@@ -8,5 +9,10 @@ export function shortRelativeTime(iso: string): string {
   if (hr < 24) return `${hr}h`;
   const day = Math.floor(hr / 24);
   if (day < 7) return `${day}d`;
-  return new Date(iso).toLocaleDateString();
+  const week = Math.floor(day / 7);
+  if (day < 30) return `${week}w`;
+  const month = Math.floor(day / 30);
+  if (day < 365) return `${month}mo`;
+  const year = Math.floor(day / 365);
+  return `${year}y`;
 }

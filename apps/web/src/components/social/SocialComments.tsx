@@ -118,6 +118,7 @@ function CommentRow({
   onDelete,
   onReport,
   onToggleMenu,
+  replyToggle,
 }: {
   comment: PublicSocialComment;
   isAuthenticated: boolean;
@@ -128,6 +129,9 @@ function CommentRow({
   onDelete: (id: string) => void;
   onReport: (id: string) => void;
   onToggleMenu: (id: string) => void;
+  // Only top-level comments can have replies - a reply row (rendered via
+  // this same component) never gets this prop, since replies don't nest.
+  replyToggle?: { replyCount: number; expanded: boolean; onToggle: () => void };
 }) {
   const c = comment;
   return (
@@ -174,6 +178,27 @@ function CommentRow({
             <ThumbDownIcon className="h-4 w-4" />
             {c.notHelpfulCount}
           </button>
+          {replyToggle &&
+            (replyToggle.replyCount > 0 ? (
+              <button
+                type="button"
+                onClick={replyToggle.onToggle}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ChevronIcon direction={replyToggle.expanded ? "up" : "down"} className="h-3 w-3" />
+                {replyToggle.expanded
+                  ? "Hide replies"
+                  : `Reply · ${replyToggle.replyCount} repl${replyToggle.replyCount === 1 ? "y" : "ies"}`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={replyToggle.onToggle}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Reply
+              </button>
+            ))}
         </div>
       </div>
 
@@ -555,33 +580,18 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
             onDelete={(id) => remove(id)}
             onReport={openReportModal}
             onToggleMenu={(id) => setOpenMenuFor((cur) => (cur === id ? null : id))}
+            replyToggle={{
+              replyCount: c.replyCount,
+              expanded: !!expandedReplies[c.id],
+              onToggle: () => toggleReplies(c.id),
+            }}
           />
 
           {/* Replies: hidden by default, left-below the comment, count-aware.
-              A comment with 0 replies yet still gets a plain "Reply" link so
-              a thread can actually start. */}
+              The Reply/View-replies trigger itself lives in CommentRow's vote
+              row, next to Like/Dislike - this block only renders the
+              expanded thread (existing replies + reply composer). */}
           <div className="ml-10">
-            {c.replyCount > 0 ? (
-              <button
-                type="button"
-                onClick={() => toggleReplies(c.id)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <ChevronIcon direction={expandedReplies[c.id] ? "up" : "down"} className="h-3 w-3" />
-                {expandedReplies[c.id] ? "Hide replies" : `View ${c.replyCount} repl${c.replyCount === 1 ? "y" : "ies"}`}
-              </button>
-            ) : (
-              !expandedReplies[c.id] && (
-                <button
-                  type="button"
-                  onClick={() => toggleReplies(c.id)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Reply
-                </button>
-              )
-            )}
-
             {expandedReplies[c.id] && (
               <div className="mt-2 flex flex-col gap-2">
                 {(repliesByComment[c.id] ?? []).map((r) => (
