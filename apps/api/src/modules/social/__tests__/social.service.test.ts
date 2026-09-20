@@ -1134,3 +1134,68 @@ describe("SocialService.addReply / listReplies (2026-09-11)", () => {
     expect(out[0].replyCount).toBe(3);
   });
 });
+
+describe("SocialService.companyFeed sort", () => {
+  function makeFeedPrisma(overrides: Record<string, unknown> = {}) {
+    return makePrisma({
+      company: { findUnique: jest.fn().mockResolvedValue({ id: "c1", hiddenAt: null }) },
+      socialPost: { findMany: jest.fn().mockResolvedValue([]) },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+      ...overrides,
+    });
+  }
+
+  it("orders by likes count desc when sort is mostLiked", async () => {
+    const prisma = makeFeedPrisma();
+    await new SocialService(prisma, moderationPass).companyFeed(undefined, "some-slug", { sort: "mostLiked" });
+    expect((prisma as any).socialPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: [{ likes: { _count: "desc" } }, { id: "desc" }] }),
+    );
+  });
+
+  it("orders by comments count desc when sort is mostCommented", async () => {
+    const prisma = makeFeedPrisma();
+    await new SocialService(prisma, moderationPass).companyFeed(undefined, "some-slug", { sort: "mostCommented" });
+    expect((prisma as any).socialPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: [{ comments: { _count: "desc" } }, { id: "desc" }] }),
+    );
+  });
+
+  it("orders oldest-first when sort is oldest", async () => {
+    const prisma = makeFeedPrisma();
+    await new SocialService(prisma, moderationPass).companyFeed(undefined, "some-slug", { sort: "oldest" });
+    expect((prisma as any).socialPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: [{ createdAt: "asc" }, { id: "asc" }] }),
+    );
+  });
+
+  it("defaults to newest-first when sort is omitted", async () => {
+    const prisma = makeFeedPrisma();
+    await new SocialService(prisma, moderationPass).companyFeed(undefined, "some-slug", {});
+    expect((prisma as any).socialPost.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
+    );
+  });
+});
+
+describe("SocialService.trendingToday", () => {
+  it("excludes a post that made the top-5 query but has zero of that metric", async () => {
+    const zeroLikedPost = {
+      id: "p1", companyId: "c1", imageUrls: ["x"], caption: null, createdAt: new Date(),
+      company: { slug: "s", name: "N", mainPhotoUrl: null, badgeTier: "FREE", workplaceTypes: ["OFFICE"] },
+    };
+    const prisma = makePrisma({
+      socialPost: { findMany: jest.fn().mockResolvedValue([zeroLikedPost]) },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]) }, // no likes at all -> likeCount 0
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+    });
+
+    const result = await new SocialService(prisma, moderationPass).trendingToday(undefined);
+
+    expect(result.mostLiked).toEqual([]);
+    expect(result.mostCommented).toEqual([]);
+  });
+});

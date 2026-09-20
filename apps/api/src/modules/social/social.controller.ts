@@ -5,6 +5,7 @@ import {
   createSocialCommentInputSchema,
   createSocialPostInputSchema,
   reportSocialCommentInputSchema,
+  socialCompanySortSchema,
   voteSocialCommentInputSchema,
   workplaceTypeSchema,
   SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES,
@@ -12,6 +13,7 @@ import {
   type CreateSocialCommentInput,
   type CreateSocialPostInput,
   type ReportSocialCommentInput,
+  type SocialCompanySort,
   type VoteSocialCommentInput,
   type WorkplaceType,
 } from "@iwtr/shared-types";
@@ -54,6 +56,13 @@ const CATEGORY_GROUP_VALUES = new Set<CategoryGroup>([
 ]);
 function parseCategoryGroup(raw: string | undefined): CategoryGroup | undefined {
   return raw !== undefined && (CATEGORY_GROUP_VALUES as Set<string>).has(raw) ? (raw as CategoryGroup) : undefined;
+}
+
+// Same tolerant-parsing rule as parseWorkplaceTypes/parseCategoryGroup - an
+// unrecognized or missing value falls back to "newest" rather than 400ing.
+function parseSocialCompanySort(raw: string | undefined): SocialCompanySort {
+  const result = socialCompanySortSchema.safeParse(raw);
+  return result.success ? result.data : "newest";
 }
 
 @Controller("social")
@@ -101,14 +110,25 @@ export class SocialController {
   }
 
   // Public per-company feed, addressed by slug. Same optional-auth rule.
+  // `sort` defaults to "newest" (today's only behavior) when omitted or
+  // unrecognized.
   @Get("companies/:slug/posts")
   @UseGuards(OptionalJwtAuthGuard)
   companyPosts(
     @OptionalCurrentUser() user: AuthenticatedUser | undefined,
     @Param("slug") slug: string,
     @Query("cursor") cursor?: string,
+    @Query("sort") sort?: string,
   ) {
-    return this.social.companyFeed(user?.id, slug, { cursor });
+    return this.social.companyFeed(user?.id, slug, { cursor, sort: parseSocialCompanySort(sort) });
+  }
+
+  // Today's top posts across every company, split by like count and by
+  // comment count. Same optional-auth rule as `feed`/`companyPosts`.
+  @Get("trending")
+  @UseGuards(OptionalJwtAuthGuard)
+  trending(@OptionalCurrentUser() user: AuthenticatedUser | undefined) {
+    return this.social.trendingToday(user?.id);
   }
 
   // Add an anonymous comment to a post. Body is moderated - a violation is a

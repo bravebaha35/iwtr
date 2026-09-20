@@ -19,8 +19,10 @@ import {
   type SavedPostToggleResult,
   type SocialCommentIdentityContext,
   type SocialCommentVoteResult,
+  type SocialCompanySort,
   type SocialFeedPage,
   type SocialPostLikeResult,
+  type TrendingToday,
   type VoteValue,
   type WorkplaceType,
 } from "@iwtr/shared-types";
@@ -39,6 +41,7 @@ const SOCIAL_UPLOADS_DIR = join(process.cwd(), "uploads", "social");
 // One feed page. Fetched as PAGE_SIZE + 1 rows so a next page can be detected
 // without a second COUNT query.
 export const SOCIAL_FEED_PAGE_SIZE = 10;
+const TRENDING_POST_LIMIT = 5;
 
 // The Quick Select / "Industry Tags" bucket, identical set to apps/web's
 // lib/categoryGroups.tsx CategoryGroup - kept here as a manually-synced
@@ -173,17 +176,63 @@ export class SocialService {
   }
 
   // One company's feed, addressed by slug. 404s on an unknown — or hidden — slug.
+  // `sortBy` only applies here (the company-profile "Social" tab's sidebar) —
+  // the global feed stays hardcoded newest-first.
   async companyFeed(
     viewerUserId: string | undefined,
     slug: string,
-    opts: { cursor?: string },
+    opts: { cursor?: string; sort?: SocialCompanySort },
   ): Promise<SocialFeedPage> {
     const company = await this.prisma.company.findUnique({
       where: { slug },
       select: { id: true, hiddenAt: true },
     });
     assertCompanyVisibleOrThrow(company);
-    return this.pageFromWhere(viewerUserId, { companyId: company.id }, opts.cursor);
+    return this.pageFromWhere(viewerUserId, { companyId: company.id }, opts.cursor, opts.sort);
+  }
+
+  // Top 5 posts today (server UTC midnight cutoff, matching how createdAt
+  // is stored), split by like count and by comment count, across every
+  // publicly-visible company. Computed live on each request - no caching
+  // layer, matching this app's current scale. A post with zero of the
+  // relevant metric is filtered out even if it filled an empty slot in the
+  // top-5 query (e.g. only 2 posts exist today and neither has been liked
+  // yet) - the frontend renders nothing for an empty section, not an error.
+  async trendingToday(viewerUserId: string | undefined): Promise<TrendingToday> {
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+    const where: Prisma.SocialPostWhereInput = {
+      createdAt: { gte: startOfToday },
+      company: PUBLIC_COMPANY_WHERE,
+    };
+    const include = {
+      company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true, workplaceTypes: true } },
+    } as const;
+
+    const [mostLikedRows, mostCommentedRows] = await Promise.all([
+      this.prisma.socialPost.findMany({
+        where,
+        orderBy: [{ likes: { _count: "desc" } }, { id: "desc" }],
+        take: TRENDING_POST_LIMIT,
+        include,
+      }),
+      this.prisma.socialPost.findMany({
+        where,
+        orderBy: [{ comments: { _count: "desc" } }, { id: "desc" }],
+        take: TRENDING_POST_LIMIT,
+        include,
+      }),
+    ]);
+
+    const [mostLiked, mostCommented] = await Promise.all([
+      this.serializePosts(mostLikedRows, viewerUserId),
+      this.serializePosts(mostCommentedRows, viewerUserId),
+    ]);
+
+    return {
+      mostLiked: mostLiked.filter((p) => p.likeCount > 0),
+      mostCommented: mostCommented.filter((p) => p.commentCount > 0),
+    };
   }
 
   // ADMIN-only: one company's feed by id, bypassing the hidden-company gate.
@@ -334,18 +383,33 @@ export class SocialService {
   }
 
   // Cursor = the previous page's last post id. Fetch PAGE_SIZE + 1 to learn
-  // whether a next page exists without a second query.
+  // whether a next page exists without a second query. `sort` defaults to
+  // "newest" (the only option before this param existed, so an omitted value
+  // is unchanged behavior). "mostLiked"/"mostCommented" order on Prisma's
+  // relation-count aggregate (SocialPost.likes/.comments) rather than a
+  // denormalized counter column - simplest correct option since those two
+  // relations already exist and this feed is never large enough to need a
+  // cached count.
   private async pageFromWhere(
     viewerUserId: string | undefined,
     where: Prisma.SocialPostWhereInput,
     cursor: string | undefined,
+    sort: SocialCompanySort = "newest",
   ): Promise<SocialFeedPage> {
+    // id is always the final tie-breaker: createdAt alone is not unique
+    // (same-millisecond posts from a seed script or a burst) and an unstable
+    // sort drops or duplicates rows across a cursor page seam.
+    const orderBy: Prisma.SocialPostOrderByWithRelationInput[] =
+      sort === "oldest"
+        ? [{ createdAt: "asc" }, { id: "asc" }]
+        : sort === "mostLiked"
+          ? [{ likes: { _count: "desc" } }, { id: "desc" }]
+          : sort === "mostCommented"
+            ? [{ comments: { _count: "desc" } }, { id: "desc" }]
+            : [{ createdAt: "desc" }, { id: "desc" }];
     const rows = await this.prisma.socialPost.findMany({
       where,
-      // id is the tie-breaker: createdAt alone is not unique (same-millisecond
-      // posts from a seed script or a burst) and an unstable sort drops or
-      // duplicates rows across a cursor page seam.
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy,
       take: SOCIAL_FEED_PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true, workplaceTypes: true } } },
