@@ -57,8 +57,11 @@ export class JobPostingsController {
   @Post("job-postings/boost-checkout-callback")
   async boostCheckoutCallback(@Body() body: { token?: string }, @Res() res: Response) {
     if (body?.token) {
-      await this.jobPostings.completeCheckout(body.token).catch(() => {
+      await this.jobPostings.completeCheckout(body.token).catch((err) => {
         // Best-effort: still send the user back into the app either way.
+        // Still logged so a genuine DB/API error here isn't invisible.
+        // eslint-disable-next-line no-console
+        console.error(`[job-postings] boost callback completeCheckout failed for token=${body.token}:`, err);
       });
     }
     const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";

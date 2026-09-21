@@ -28,9 +28,12 @@ export class PaymentsController {
   @Post("payments/iyzico/callback")
   async callback(@Body() body: { token?: string }, @Res() res: Response) {
     if (body?.token) {
-      await this.payments.handleCheckoutCallback(body.token).catch(() => {
+      await this.payments.handleCheckoutCallback(body.token).catch((err) => {
         // Best-effort: still send the user back into the app either way —
         // a failed status lookup shouldn't strand them on a blank response.
+        // Still logged so a genuine DB/API error here isn't invisible.
+        // eslint-disable-next-line no-console
+        console.error(`[payments] callback handleCheckoutCallback failed for token=${body.token}:`, err);
       });
     }
     const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";

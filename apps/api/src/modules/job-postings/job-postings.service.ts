@@ -130,13 +130,8 @@ export class JobPostingsService {
       throw new BadRequestException("workType must be one of this company's own work types.");
     }
     const workplaceTypes = company.workplaceTypes as WorkplaceType[];
-    // workType is optional on the wire until the frontend's picker ships
-    // (frontend spec decision 4: auto-pick only when unambiguous). A
-    // multi-type company that omits it gets workType: null rather than a
-    // guessed-wrong value.
-    const workType: WorkplaceType | null =
-      input.workType ?? (workplaceTypes.length === 1 ? workplaceTypes[0] : null);
-    if (workType !== null && !workplaceTypes.includes(workType)) {
+    const workType = input.workType;
+    if (!workplaceTypes.includes(workType)) {
       throw new BadRequestException("workType must be one of this company's own work types.");
     }
 
@@ -312,17 +307,22 @@ export class JobPostingsService {
       orderBy: { createdAt: "desc" },
     });
 
+    // Batched lazy-reshare, same pattern as CompaniesService.jobPostingsByCompanyId
+    // — evaluate each row against what it will look like immediately after a
+    // reshare, without an await per row; the actual write is one updateMany
+    // after this loop.
+    const now = new Date();
+    const staleIds: string[] = [];
     const result: OwnerJobPosting[] = [];
     for (const row of rows) {
-      let current = row;
-      if (shouldLazyReshare(current)) {
-        current = await this.prisma.jobPosting.update({
-          where: { id: current.id },
-          data: { lastResharedAt: new Date() },
-        });
-      }
+      const reshareEligible = shouldLazyReshare(row);
+      const current = reshareEligible ? { ...row, lastResharedAt: now } : row;
+      if (reshareEligible) staleIds.push(row.id);
       if (!isWithinSavedGraceWindow(current)) continue;
       result.push({ ...toPublic(current), daysRemaining: daysRemaining(current) });
+    }
+    if (staleIds.length > 0) {
+      await this.prisma.jobPosting.updateMany({ where: { id: { in: staleIds } }, data: { lastResharedAt: now } });
     }
     return result;
   }
@@ -334,7 +334,13 @@ export class JobPostingsService {
    * found, wasn't actually paid, or was already marked PAID.
    */
   async completeCheckout(token: string): Promise<void> {
-    const status = await this.payments.retrieveOneTimeCheckoutStatus(token).catch(() => null);
+    const status = await this.payments.retrieveOneTimeCheckoutStatus(token).catch((err) => {
+      // A transient iyzico API error is otherwise indistinguishable from
+      // "genuinely not paid" — log it so it's visible in server logs.
+      // eslint-disable-next-line no-console
+      console.error(`[job-postings] retrieveOneTimeCheckoutStatus failed for token=${token}:`, err);
+      return null;
+    });
     if (!status?.paid || !status.conversationId) return;
 
     const posting = await this.prisma.jobPosting.findUnique({ where: { id: status.conversationId } });
@@ -354,11 +360,18 @@ export class JobPostingsService {
       where: { status },
       include: { company: { select: { name: true } }, createdByUser: { select: { email: true } } },
       orderBy: { createdAt: "asc" },
+      // Safety ceiling, same pattern as CompaniesService.search's own `take`
+      // — this table has no other bound and the admin queue only ever needs
+      // to work through the oldest backlog first.
+      take: 5000,
     });
     return rows.map((row) => ({
       ...toPublic(row),
       companyName: row.company.name,
-      createdByUserEmail: row.createdByUser.email,
+      // createdByUser is null once the creating owner has deleted their own
+      // account (onDelete: SetNull) — the posting itself still belongs to
+      // the company and stays listed.
+      createdByUserEmail: row.createdByUser?.email ?? null,
     }));
   }
 

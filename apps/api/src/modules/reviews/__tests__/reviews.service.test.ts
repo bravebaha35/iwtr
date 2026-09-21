@@ -70,7 +70,11 @@ describe("ReviewsService.submitReview", () => {
         count: jest.fn().mockResolvedValue(0),
         create: jest.fn().mockRejectedValue(prismaError("P2002")),
       },
-    };
+    } as Record<string, any>;
+    // submitReview wraps review.create + moderationQueueItem.create in a
+    // single transaction — tx is just this same mock object, so existing
+    // assertions against prisma.review.create etc. still apply.
+    prisma.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(prisma));
     const piiVault = { purgeTcKimlikNoIfPresent: jest.fn() };
     const service = new ReviewsService(prisma as any, new ModerationService(), piiVault as any);
 
@@ -119,7 +123,8 @@ describe("ReviewsService.submitReview", () => {
       },
       moderationQueueItem: { create: jest.fn() },
       companyAggregateScore: { upsert: jest.fn() },
-    };
+    } as Record<string, any>;
+    prisma.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(prisma));
     const piiVault = { purgeTcKimlikNoIfPresent: jest.fn() };
     const service = new ReviewsService(prisma as any, new ModerationService(), piiVault as any);
 
@@ -148,7 +153,7 @@ describe("ReviewsService.submitReview — non-SETTLED company location", () => {
   const answers = questions.map((q) => ({ questionId: q.id, answer: q.correctAnswer }));
 
   function makePrisma(company: Record<string, unknown>) {
-    return {
+    const prisma: Record<string, any> = {
       user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, status: "ACTIVE", createdAt: new Date() }) },
       employmentHistory: {
         findUnique: jest.fn().mockResolvedValue({
@@ -166,6 +171,8 @@ describe("ReviewsService.submitReview — non-SETTLED company location", () => {
       moderationQueueItem: { create: jest.fn() },
       companyAggregateScore: { upsert: jest.fn() },
     };
+    prisma.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(prisma));
+    return prisma;
   }
 
   function makeService(prisma: ReturnType<typeof makePrisma>) {

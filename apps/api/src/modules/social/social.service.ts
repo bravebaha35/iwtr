@@ -286,6 +286,9 @@ export class SocialService {
       where: { reports: { some: {} } },
       include: { _count: { select: { reports: true } } },
       orderBy: [{ flaggedForReview: "desc" }, { createdAt: "desc" }],
+      // Safety ceiling, same pattern as CompaniesService.search's own `take`
+      // — the admin queue works through the flagged/newest end first.
+      take: 5000,
     });
 
     // Per-comment, per-reason tallies in one grouped query rather than N+1 -
@@ -750,6 +753,9 @@ export class SocialService {
     const rows = await this.prisma.socialComment.findMany({
       where: { postId, parentCommentId: null },
       orderBy: { createdAt: "asc" },
+      // Safety ceiling, same pattern as CompaniesService.search's own `take`
+      // — no pagination of its own yet on this endpoint.
+      take: 5000,
     });
     return this.serializeComments(rows, viewerUserId);
   }
@@ -763,6 +769,10 @@ export class SocialService {
     const rows = await this.prisma.socialComment.findMany({
       where: { parentCommentId: commentId },
       orderBy: { createdAt: "asc" },
+      // Safety ceiling, same pattern as CompaniesService.search's own `take`
+      // — replies are capped at one level (see schema.prisma), but nothing
+      // else bounds how many a single top-level comment can accumulate.
+      take: 5000,
     });
     return this.serializeComments(rows, viewerUserId);
   }

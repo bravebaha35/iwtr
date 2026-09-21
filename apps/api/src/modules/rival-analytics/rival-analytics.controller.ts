@@ -30,9 +30,14 @@ export class RivalAnalyticsController {
   @Post("rival-analytics/callback")
   async callback(@Body() body: { token?: string }, @Res() res: Response) {
     if (body?.token) {
-      await this.rivalAnalytics.completeCheckout(body.token).catch(() => {
+      await this.rivalAnalytics.completeCheckout(body.token).catch((err) => {
         // Best-effort: still send the user back into the app either way —
         // a failed status lookup shouldn't strand them on a blank response.
+        // Still logged: a real failure here (not just "iyzico unconfigured")
+        // means a paid purchase's report was never delivered — see
+        // completeCheckout's own PAID-after-delivery ordering.
+        // eslint-disable-next-line no-console
+        console.error(`[rival-analytics] callback completeCheckout failed for token=${body.token}:`, err);
       });
     }
     const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";

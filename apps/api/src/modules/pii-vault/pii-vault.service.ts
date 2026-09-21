@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import type { PiiOnboardingInput } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { decryptField, encryptField, generateDek, unwrapDek, wrapDek } from "./crypto.util";
@@ -139,5 +140,16 @@ export class PiiVaultService {
         metadata: { reason: "first_review_published" },
       },
     });
+  }
+
+  /**
+   * Account deletion's PiiVault cleanup, kept here rather than left to
+   * ProfileService.deleteAccount reaching into `tx.piiVault` directly — this
+   * is the only module allowed to touch that model (see class doc comment
+   * above). Takes the caller's own transaction client so the delete stays
+   * atomic with the rest of the account-deletion transaction.
+   */
+  async deleteForUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    await tx.piiVault.deleteMany({ where: { userId } });
   }
 }

@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import type { OwnerTier, PlanStatus, PlusCheckoutInput, PlusCheckoutResult } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { IyzicoProvider } from "./iyzico.provider";
@@ -104,45 +105,52 @@ export class PaymentsService {
     // flight, e.g. directly from a support script.
     const activatingTier: OwnerTier = ownership.pendingTier ?? (ownership.tier === "FREE" ? "BLUE" : ownership.tier);
 
-    await this.prisma.companyOwner.update({
-      where: { id: companyOwnerId },
-      data: {
-        // tier tracks *current* entitlement, not subscription history — once
-        // planStatus stops being ACTIVE (past-due or canceled), the owner
-        // reverts to Free rather than keeping a stale paid-tier label they no
-        // longer have any privileges under (paid-field editing already
-        // requires planStatus === ACTIVE separately, but the label itself
-        // should stop implying an active paid plan too).
-        tier: planStatus === "ACTIVE" ? activatingTier : "FREE",
-        pendingTier: null,
-        planStatus,
-        iyzicoSubscriptionRef: subscriptionReferenceCode ?? ownership.iyzicoSubscriptionRef,
-        planRenewsAt: planStatus === "ACTIVE" ? this.oneMonthFromNow() : ownership.planRenewsAt,
-      },
-    });
+    // All three writes belong to a single subscription-status transition —
+    // a crash between them would otherwise leave the owner's tier flipped
+    // with a stale badge and/or no audit trail of the change.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.companyOwner.update({
+        where: { id: companyOwnerId },
+        data: {
+          // tier tracks *current* entitlement, not subscription history —
+          // once planStatus stops being ACTIVE (past-due or canceled), the
+          // owner reverts to Free rather than keeping a stale paid-tier
+          // label they no longer have any privileges under (paid-field
+          // editing already requires planStatus === ACTIVE separately, but
+          // the label itself should stop implying an active paid plan too).
+          tier: planStatus === "ACTIVE" ? activatingTier : "FREE",
+          pendingTier: null,
+          planStatus,
+          iyzicoSubscriptionRef: subscriptionReferenceCode ?? ownership.iyzicoSubscriptionRef,
+          planRenewsAt: planStatus === "ACTIVE" ? this.oneMonthFromNow() : ownership.planRenewsAt,
+        },
+      });
 
-    await this.syncVerifiedBadge(ownership.companyId);
+      await this.syncVerifiedBadge(ownership.companyId, tx);
 
-    await this.prisma.auditLog.create({
-      data: {
-        actorUserId: null,
-        action: "IYZICO_SUBSCRIPTION_STATUS_APPLIED",
-        targetType: "CompanyOwner",
-        targetId: companyOwnerId,
-        metadata: { planStatus, subscriptionReferenceCode, tier: planStatus === "ACTIVE" ? activatingTier : "FREE" },
-      },
+      await tx.auditLog.create({
+        data: {
+          actorUserId: null,
+          action: "IYZICO_SUBSCRIPTION_STATUS_APPLIED",
+          targetType: "CompanyOwner",
+          targetId: companyOwnerId,
+          metadata: { planStatus, subscriptionReferenceCode, tier: planStatus === "ACTIVE" ? activatingTier : "FREE" },
+        },
+      });
     });
   }
 
   // The verified badge (and its specific tier) are auto-toggled, never
   // settable directly — both exist solely as a derived signal of "has an
   // active paid subscription right now, at which rank", so they can never
-  // drift out of sync with the thing they represent.
-  private async syncVerifiedBadge(companyId: string): Promise<void> {
-    const activeOwner = await this.prisma.companyOwner.findFirst({
+  // drift out of sync with the thing they represent. Takes the caller's own
+  // transaction client so applySubscriptionStatus can keep it atomic with
+  // its own writes.
+  private async syncVerifiedBadge(companyId: string, client: Prisma.TransactionClient): Promise<void> {
+    const activeOwner = await client.companyOwner.findFirst({
       where: { companyId, tier: { not: "FREE" }, planStatus: "ACTIVE" },
     });
-    await this.prisma.company.update({
+    await client.company.update({
       where: { id: companyId },
       data: {
         isVerifiedBadge: !!activeOwner,

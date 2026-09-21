@@ -77,29 +77,32 @@ describe("ProfileService.deleteAccount", () => {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         create: jest.fn().mockResolvedValue({}),
       },
-      piiVault: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
       user: { delete: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
       user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "user-1" }) },
       $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(tx)),
     };
-    return { prisma, tx };
+    // deleteAccount routes the PiiVault cleanup through PiiVaultService (the
+    // only module allowed to touch that Prisma model) rather than tx.piiVault
+    // directly — see PiiVaultService.deleteForUser.
+    const piiVault = { deleteForUser: jest.fn().mockResolvedValue(undefined) };
+    return { prisma, tx, piiVault };
   }
 
   it("completes without throwing and deletes the user row last", async () => {
-    const { prisma, tx } = makeDeleteAccountPrisma();
-    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+    const { prisma, tx, piiVault } = makeDeleteAccountPrisma();
+    const service = new ProfileService(prisma as any, piiVault as any, {} as any, {} as any);
 
     await expect(service.deleteAccount("user-1")).resolves.toBeUndefined();
 
     expect(tx.user.delete).toHaveBeenCalledWith({ where: { id: "user-1" } });
-    expect(tx.piiVault.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
+    expect(piiVault.deleteForUser).toHaveBeenCalledWith(tx, "user-1");
   });
 
   it("does NOT hand-delete IWT Social posts/comments/likes (relies on onDelete: SetNull)", async () => {
-    const { prisma, tx } = makeDeleteAccountPrisma();
-    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+    const { prisma, tx, piiVault } = makeDeleteAccountPrisma();
+    const service = new ProfileService(prisma as any, piiVault as any, {} as any, {} as any);
 
     await service.deleteAccount("user-1");
 

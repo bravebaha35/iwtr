@@ -47,8 +47,13 @@ export interface SectorKeywordGroup {
 
 // Fixed priority order used only to break ties when two WorkplaceTypes score
 // an equal number of keyword hits (see classifyWorkplace) — arbitrary but
-// deterministic, listed roughly white-collar-first.
-export const WORKPLACE_TYPE_ORDER: WorkplaceType[] = ["OFFICE", "HYBRID_REMOTE", "SERVICE", "MANUAL_LABOUR"];
+// deterministic, listed roughly white-collar-first. HYBRID_REMOTE must come
+// before OFFICE: the "Software & Tech" sector group is intentionally
+// duplicated under both (see its comment below) so a bare tech job title
+// with no other signal always ties between the two — this order is what
+// resolves that tie in favor of HYBRID_REMOTE, the intended default for an
+// otherwise-unqualified tech role.
+export const WORKPLACE_TYPE_ORDER: WorkplaceType[] = ["HYBRID_REMOTE", "OFFICE", "SERVICE", "MANUAL_LABOUR"];
 
 export const WORKPLACE_CATEGORY_MAP: Record<WorkplaceType, SectorKeywordGroup[]> = {
   OFFICE: [

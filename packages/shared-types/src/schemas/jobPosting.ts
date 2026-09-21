@@ -36,7 +36,7 @@ export const publicJobPostingSchema = z.object({
   id: z.string().uuid(),
   jobTitle: z.string(),
   description: z.string(),
-  workType: workplaceTypeSchema.nullable(),
+  workType: workplaceTypeSchema.nullable().default(null),
 });
 export type PublicJobPosting = z.infer<typeof publicJobPostingSchema>;
 
@@ -71,7 +71,7 @@ export type CompanyJobPostings = z.infer<typeof companyJobPostingsSchema>;
 export const createJobPostingInputSchema = z.object({
   jobTitle: z.string().trim().min(1).max(200),
   description: z.string().min(1).max(600),
-  workType: workplaceTypeSchema.optional(),
+  workType: workplaceTypeSchema,
   autoReshareEnabled: z.boolean().optional().default(false),
   boost: z
     .object({

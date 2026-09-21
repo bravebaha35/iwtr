@@ -79,7 +79,9 @@ export class ReviewsService {
   async myEmploymentHistory(userId: string): Promise<MyEmploymentEntry[]> {
     const entries = await this.prisma.employmentHistory.findMany({
       where: { userId },
-      include: { company: true, reviews: { select: { id: true } } },
+      // Only company.slug is ever read below — narrowed from a full
+      // `include: { company: true }`.
+      include: { company: { select: { slug: true } }, reviews: { select: { id: true } } },
       orderBy: { createdAt: "asc" },
     });
 
@@ -144,7 +146,10 @@ export class ReviewsService {
     }
     const entry = await this.prisma.employmentHistory.findUnique({
       where: { id: entryId },
-      include: { company: true, reviews: { select: { id: true } } },
+      // Only company.slug is ever read below (updateEmploymentHistory) —
+      // narrowed from a full `include: { company: true }`; deleteEmploymentHistory
+      // doesn't touch .company at all.
+      include: { company: { select: { slug: true } }, reviews: { select: { id: true } } },
     });
     if (!entry || entry.userId !== userId) {
       throw new NotFoundException("Employment history entry not found");
@@ -304,29 +309,47 @@ export class ReviewsService {
 
     let review;
     try {
-      review = await this.prisma.review.create({
-        data: {
-          userId,
-          companyId: input.companyId,
-          employmentHistoryId: input.employmentHistoryId,
-          workplaceType: input.workplaceType,
-          corporateCultureScore: scores.corporateCulture,
-          leadershipScore: scores.leadership,
-          infrastructureScore: scores.infrastructure,
-          workLifeBalanceScore: scores.workLifeBalance,
-          stabilityScore: scores.stability,
-          surveyAnswers,
-          generalThoughts: input.generalThoughts,
-          status,
-          aiModerationScore: contentCheck.confidence,
-          aiTrustScore: trustScore.score,
-          moderationDetails: { contentCheck, trustScore } as object,
-          publishedAt: status === "PUBLISHED" ? new Date() : null,
-          isRandomizedIdentity,
-          displayUsername,
-          city: location.city,
-          district: location.district,
-        },
+      review = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.review.create({
+          data: {
+            userId,
+            companyId: input.companyId,
+            employmentHistoryId: input.employmentHistoryId,
+            workplaceType: input.workplaceType,
+            corporateCultureScore: scores.corporateCulture,
+            leadershipScore: scores.leadership,
+            infrastructureScore: scores.infrastructure,
+            workLifeBalanceScore: scores.workLifeBalance,
+            stabilityScore: scores.stability,
+            surveyAnswers,
+            generalThoughts: input.generalThoughts,
+            status,
+            aiModerationScore: contentCheck.confidence,
+            aiTrustScore: trustScore.score,
+            moderationDetails: { contentCheck, trustScore } as object,
+            publishedAt: status === "PUBLISHED" ? new Date() : null,
+            isRandomizedIdentity,
+            displayUsername,
+            city: location.city,
+            district: location.district,
+          },
+        });
+
+        // Same transaction as the review write itself — a queue item that
+        // fails to insert must not leave the review permanently stuck at
+        // PENDING_ADMIN_REVIEW with nothing in admin-queue's list() to ever
+        // surface it.
+        if (queueReason) {
+          await tx.moderationQueueItem.create({
+            data: {
+              reviewId: created.id,
+              reason: queueReason,
+              aiSummary: `Content check: ${JSON.stringify(contentCheck)}. Trust score: ${trustScore.score.toFixed(2)} (${trustScore.factors.join(", ")}).`,
+            },
+          });
+        }
+
+        return created;
       });
     } catch (err) {
       // Two concurrent submissions for the same user+company can both pass
@@ -340,20 +363,20 @@ export class ReviewsService {
       throw err;
     }
 
-    if (queueReason) {
-      await this.prisma.moderationQueueItem.create({
-        data: {
-          reviewId: review.id,
-          reason: queueReason,
-          aiSummary: `Content check: ${JSON.stringify(contentCheck)}. Trust score: ${trustScore.score.toFixed(2)} (${trustScore.factors.join(", ")}).`,
-        },
-      });
-    }
-
     if (status === "PUBLISHED") {
-      await this.recomputeAggregate(input.companyId);
-      if (priorPublished === 0) {
-        await this.piiVault.purgeTcKimlikNoIfPresent(userId);
+      // The review write above already committed successfully — a failure
+      // here must not surface as a request error (the client would see a
+      // failed submission that actually succeeded, and a retry would then
+      // hit the @@unique([userId, companyId]) conflict). Log and move on;
+      // the aggregate/purge can be reconciled out-of-band if this ever fires.
+      try {
+        await this.recomputeAggregate(input.companyId);
+        if (priorPublished === 0) {
+          await this.piiVault.purgeTcKimlikNoIfPresent(userId);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[reviews] Post-publish follow-up failed for review ${review.id}:`, err);
       }
     }
 
@@ -578,46 +601,56 @@ export class ReviewsService {
       ? (review.isRandomizedIdentity ? review.displayUsername : pickRandomDisplayUsername(review.workplaceType))
       : null;
 
-    await this.prisma.review.update({
-      where: { id: reviewId },
-      data: {
-        corporateCultureScore: scores.corporateCulture,
-        leadershipScore: scores.leadership,
-        infrastructureScore: scores.infrastructure,
-        workLifeBalanceScore: scores.workLifeBalance,
-        stabilityScore: scores.stability,
-        surveyAnswers,
-        generalThoughts: input.generalThoughts,
-        status,
-        aiModerationScore: contentCheck.confidence,
-        aiTrustScore: trustScore.score,
-        moderationDetails: { contentCheck, trustScore } as object,
-        publishedAt: status === "PUBLISHED" ? (review.publishedAt ?? new Date()) : review.publishedAt,
-        isRandomizedIdentity,
-        displayUsername,
-        city: location.city,
-        district: location.district,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.review.update({
+        where: { id: reviewId },
+        data: {
+          corporateCultureScore: scores.corporateCulture,
+          leadershipScore: scores.leadership,
+          infrastructureScore: scores.infrastructure,
+          workLifeBalanceScore: scores.workLifeBalance,
+          stabilityScore: scores.stability,
+          surveyAnswers,
+          generalThoughts: input.generalThoughts,
+          status,
+          aiModerationScore: contentCheck.confidence,
+          aiTrustScore: trustScore.score,
+          moderationDetails: { contentCheck, trustScore } as object,
+          publishedAt: status === "PUBLISHED" ? (review.publishedAt ?? new Date()) : review.publishedAt,
+          isRandomizedIdentity,
+          displayUsername,
+          city: location.city,
+          district: location.district,
+        },
+      });
+
+      if (queueReason) {
+        const aiSummary = `Content check: ${JSON.stringify(contentCheck)}. Trust score: ${trustScore.score.toFixed(2)} (${trustScore.factors.join(", ")}).`;
+        // reviewId is @unique on ModerationQueueItem, and a review can only
+        // ever get one (approve/reject update it in place, never delete) — so
+        // a second edit that re-flags the same review must update that row,
+        // not insert a new one.
+        await tx.moderationQueueItem.upsert({
+          where: { reviewId },
+          create: { reviewId, reason: queueReason, aiSummary },
+          update: { reason: queueReason, aiSummary, status: "OPEN", resolvedAt: null },
+        });
+      }
     });
 
-    if (queueReason) {
-      const aiSummary = `Content check: ${JSON.stringify(contentCheck)}. Trust score: ${trustScore.score.toFixed(2)} (${trustScore.factors.join(", ")}).`;
-      // reviewId is @unique on ModerationQueueItem, and a review can only
-      // ever get one (approve/reject update it in place, never delete) — so
-      // a second edit that re-flags the same review must update that row,
-      // not insert a new one.
-      await this.prisma.moderationQueueItem.upsert({
-        where: { reviewId },
-        create: { reviewId, reason: queueReason, aiSummary },
-        update: { reason: queueReason, aiSummary, status: "OPEN", resolvedAt: null },
-      });
-    }
-
-    if (status === "PUBLISHED" || wasPublished) {
-      await this.recomputeAggregate(review.companyId);
-    }
-    if (status === "PUBLISHED") {
-      await this.piiVault.purgeTcKimlikNoIfPresent(userId);
+    // Same reasoning as submitReview: the review write above already
+    // committed, so a follow-up failure here must be logged, not thrown —
+    // otherwise the client sees an error for an edit that actually saved.
+    try {
+      if (status === "PUBLISHED" || wasPublished) {
+        await this.recomputeAggregate(review.companyId);
+      }
+      if (status === "PUBLISHED") {
+        await this.piiVault.purgeTcKimlikNoIfPresent(userId);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[reviews] Post-update follow-up failed for review ${reviewId}:`, err);
     }
 
     return {
@@ -711,6 +744,11 @@ export class ReviewsService {
           ? { where: { userId: viewerUserId }, select: { value: true } }
           : false,
       },
+      // Safety ceiling, same pattern as CompaniesService.search's own `take`
+      // — this is a public, unauthenticated endpoint with no pagination of
+      // its own yet, so nothing else bounds it as a company's review count
+      // grows.
+      take: 5000,
     });
 
     // Single grouped query for both like and dislike counts, so the two

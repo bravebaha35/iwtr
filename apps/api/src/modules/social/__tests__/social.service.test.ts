@@ -1103,7 +1103,11 @@ describe("SocialService.addReply / listReplies (2026-09-11)", () => {
       ]) },
     } as never;
     const out = await new SocialService(prisma, moderationPass).listReplies(undefined, "cm1");
-    expect(findMany).toHaveBeenCalledWith({ where: { parentCommentId: "cm1" }, orderBy: { createdAt: "asc" } });
+    expect(findMany).toHaveBeenCalledWith({
+      where: { parentCommentId: "cm1" },
+      orderBy: { createdAt: "asc" },
+      take: 5000,
+    });
     expect(out.map((c) => c.id)).toEqual(["r1", "r2"]);
   });
 
@@ -1116,7 +1120,11 @@ describe("SocialService.addReply / listReplies (2026-09-11)", () => {
       user: { findMany: jest.fn().mockResolvedValue([]) },
     } as never;
     await new SocialService(prisma, moderationPass).listComments(undefined, "p1");
-    expect(findMany).toHaveBeenCalledWith({ where: { postId: "p1", parentCommentId: null }, orderBy: { createdAt: "asc" } });
+    expect(findMany).toHaveBeenCalledWith({
+      where: { postId: "p1", parentCommentId: null },
+      orderBy: { createdAt: "asc" },
+      take: 5000,
+    });
   });
 
   it("a top-level comment's replyCount reflects how many replies it has; a reply's own replyCount is 0", async () => {

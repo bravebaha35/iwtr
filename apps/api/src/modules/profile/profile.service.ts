@@ -366,7 +366,7 @@ export class ProfileService {
       await tx.auditLog.create({
         data: { actorUserId: null, action: "ACCOUNT_DELETED", targetType: "User", targetId: userId },
       });
-      await tx.piiVault.deleteMany({ where: { userId } });
+      await this.piiVault.deleteForUser(tx, userId);
       await tx.user.delete({ where: { id: userId } });
 
       return [...new Set(reviews.filter((r) => r.status === "PUBLISHED").map((r) => r.companyId))];

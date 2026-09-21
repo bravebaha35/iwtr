@@ -242,10 +242,15 @@ describe("JobPostingsService.listOwnerPostings", () => {
       createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
       autoReshareEnabled: true,
     });
-    const update = jest.fn().mockResolvedValue({ ...stale, lastResharedAt: new Date() });
-    const prisma = makePrisma({ jobPosting: { findMany: jest.fn().mockResolvedValue([stale]), update } });
+    // Batched updateMany, same pattern as CompaniesService.jobPostingsByCompanyId
+    // and SavedJobPostingsService.list — not a per-row update().
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const prisma = makePrisma({ jobPosting: { findMany: jest.fn().mockResolvedValue([stale]), updateMany } });
     const result = await service(prisma).listOwnerPostings("u1", "c1");
-    expect(update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { lastResharedAt: expect.any(Date) } });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["p1"] } },
+      data: { lastResharedAt: expect.any(Date) },
+    });
     expect(result[0].daysRemaining).toBe(30);
   });
 

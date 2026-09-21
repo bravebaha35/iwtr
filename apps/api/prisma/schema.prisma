@@ -335,7 +335,7 @@ model PhoneOtpChallenge {
 model AdminLoginOtpChallenge {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   codeHash  String
   attempts  Int      @default(0)
   expiresAt DateTime
@@ -383,7 +383,7 @@ model Skill {
 model UserSkill {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   skillId   String
   skill     Skill    @relation(fields: [skillId], references: [id])
   createdAt DateTime @default(now())
@@ -601,6 +601,10 @@ model CompanyOwner {
   // requireVerifiedEmployer check both filter by claimStatus alone — the
   // @@unique above leads with userId, which doesn't help either query.
   @@index([claimStatus])
+  // CompaniesService.approvedOwnerCompanyIds filters by companyId IN (...)
+  // AND claimStatus on every /companies search request — the plain
+  // claimStatus index above doesn't help a companyId-first lookup.
+  @@index([companyId, claimStatus])
   @@schema("public")
 }
 
@@ -617,8 +621,11 @@ model JobPosting {
   id                 String                        @id @default(uuid())
   companyId          String
   company            Company                       @relation(fields: [companyId], references: [id])
-  createdByUserId    String
-  createdByUser      User                          @relation(fields: [createdByUserId], references: [id])
+  // Nullable + SetNull, same "content survives, audit-only author link
+  // detaches" convention as SocialPost.authorUserId — the posting still
+  // belongs to the Company regardless of which owner account created it.
+  createdByUserId    String?
+  createdByUser      User?                         @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   jobTitle           String
   description        String
   status             JobPostingStatus              @default(PUBLISHED)
@@ -647,6 +654,10 @@ model JobPosting {
   @@index([companyId])
   @@index([createdByUserId])
   @@index([companyId, jobTitle, workType])
+  // Backs JobPostingsService.adminList's bare status filter (e.g. the
+  // PENDING_ADMIN admin queue) — none of the indexes above cover a
+  // companyId-less lookup.
+  @@index([status])
   @@schema("public")
 }
 
@@ -663,7 +674,7 @@ model JobApplication {
   companyId       String
   company         Company    @relation(fields: [companyId], references: [id])
   applicantUserId String
-  applicant       User       @relation(fields: [applicantUserId], references: [id])
+  applicant       User       @relation(fields: [applicantUserId], references: [id], onDelete: Cascade)
   pdfUrl          String
   createdAt       DateTime   @default(now())
   // Set by the owner's "mark viewed" action in the Applications inbox
@@ -779,6 +790,11 @@ model Review {
   // above, so this is additive rather than redundant with it.
   @@index([companyId, district])
   @@index([companyId, city])
+  // Backs TurnoverPredictionService's per-workplaceType published-review
+  // range scan (companyId + workplaceType + status + publishedAt) — the
+  // existing companyId-leading indexes above only give that query an entry
+  // point, not full coverage.
+  @@index([companyId, workplaceType, status, publishedAt])
   @@schema("public")
 }
 
@@ -811,11 +827,15 @@ model ReviewVote {
 model CompanyReply {
   id           String   @id @default(uuid())
   reviewId     String   @unique
-  review       Review   @relation(fields: [reviewId], references: [id])
+  review       Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   companyId    String
   company      Company  @relation(fields: [companyId], references: [id])
-  authorUserId String
-  authorUser   User     @relation(fields: [authorUserId], references: [id])
+  // Nullable + SetNull, same "content survives, audit-only author link
+  // detaches" convention as SocialPost/SocialComment.authorUserId — a reply
+  // is attributed to the Company publicly regardless (see class doc comment
+  // and ReviewsService.toPublicReply, which never selects this field).
+  authorUserId String?
+  authorUser   User?    @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
   content      String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -1120,7 +1140,7 @@ model SocialCommentIdentityLock {
   postId         String
   post           SocialPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId         String
-  user           User                @relation(fields: [userId], references: [id])
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   identityMode   CommentIdentityMode
   randomUsername String?
   createdAt      DateTime            @default(now())
@@ -1373,7 +1393,7 @@ model PiiVault {
 // legally verified profile" requirement) rather than a one-time fraud check.
 model EmployerProfile {
   userId            String   @id
-  user              User     @relation(fields: [userId], references: [id])
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   // All nullable, unlike PiiVault's equivalents — this profile is filled in
   // incrementally (PATCH-style, same pattern as ProfileService.updateProfile)
   // rather than submitted all at once, so there's no single moment where

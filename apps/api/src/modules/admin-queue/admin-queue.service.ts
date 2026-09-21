@@ -59,9 +59,19 @@ export class AdminQueueService {
       }),
     ]);
 
-    await this.reviews.recomputeAggregate(item.review.companyId);
-    if (priorPublished === 0) {
-      await this.piiVault.purgeTcKimlikNoIfPresent(item.review.userId);
+    // The transaction above already committed the approval — once resolved,
+    // getOpenItemOrThrow rejects re-calling approve() on this same item, so
+    // a failure here has no retry path. Log rather than throw: the approval
+    // itself genuinely succeeded and must not be reported to the admin as a
+    // failed action.
+    try {
+      await this.reviews.recomputeAggregate(item.review.companyId);
+      if (priorPublished === 0) {
+        await this.piiVault.purgeTcKimlikNoIfPresent(item.review.userId);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[admin-queue] Post-approval follow-up failed for review ${item.reviewId}:`, err);
     }
   }
 

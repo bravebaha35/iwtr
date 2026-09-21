@@ -12,12 +12,15 @@ export class TokenService {
   private readonly accessSecret = requireSecret("JWT_ACCESS_SECRET", "dev-only-change-me");
 
   signAccessToken(claims: AccessTokenClaims): { token: string; expiresInSeconds: number } {
-    const token = jwt.sign(claims, this.accessSecret, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
+    const token = jwt.sign(claims, this.accessSecret, {
+      expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+      algorithm: "HS256",
+    });
     return { token, expiresInSeconds: ACCESS_TOKEN_TTL_SECONDS };
   }
 
   verifyAccessToken(token: string): AccessTokenClaims {
-    return jwt.verify(token, this.accessSecret) as AccessTokenClaims;
+    return jwt.verify(token, this.accessSecret, { algorithms: ["HS256"] }) as AccessTokenClaims;
   }
 
   generateRefreshToken(): { raw: string; hash: string; expiresAt: Date } {

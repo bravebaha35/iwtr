@@ -70,7 +70,13 @@ export class RivalAnalyticsService {
    * purchase.
    */
   async completeCheckout(token: string): Promise<void> {
-    const status = await this.payments.retrieveOneTimeCheckoutStatus(token).catch(() => null);
+    const status = await this.payments.retrieveOneTimeCheckoutStatus(token).catch((err) => {
+      // A transient iyzico API error is otherwise indistinguishable from
+      // "genuinely not paid" — log it so it's visible in server logs.
+      // eslint-disable-next-line no-console
+      console.error(`[rival-analytics] retrieveOneTimeCheckoutStatus failed for token=${token}:`, err);
+      return null;
+    });
     if (!status?.paid || !status.conversationId) return;
 
     const purchase = await this.prisma.rivalAnalyticsPurchase.findUnique({ where: { id: status.conversationId } });
@@ -82,21 +88,25 @@ export class RivalAnalyticsService {
     ]);
     if (!requestingCompany || !targetCompany) return;
 
-    await this.prisma.rivalAnalyticsPurchase.update({
-      where: { id: purchase.id },
-      data: { status: "PAID", completedAt: new Date() },
-    });
-
     const ownership = await this.prisma.companyOwner.findUnique({
       where: { userId_companyId: { userId: purchase.requestingUserId, companyId: purchase.requestingCompanyId } },
     });
 
+    // Deliver first, mark PAID only once delivery actually succeeds — the
+    // purchase stays non-PAID (and therefore retryable via the same
+    // idempotency guard above) if PDF generation or email delivery throws,
+    // instead of silently taking payment with no product ever sent.
     await this.deliverReport({
       requestingUserId: purchase.requestingUserId,
       requestingCompany,
       targetCompany,
       requesterTier: ownership?.rivalAnalyticsTier ?? null,
       usedFreeCredit: false,
+    });
+
+    await this.prisma.rivalAnalyticsPurchase.update({
+      where: { id: purchase.id },
+      data: { status: "PAID", completedAt: new Date() },
     });
   }
 

@@ -189,7 +189,10 @@ export class CompaniesService {
         ...(query.includeJobTitles ? { isHiring: true } : {}),
         ...locationFilter,
       },
-      include: { aggregate: true },
+      // Only overallAvg/reviewCount are ever read off `aggregate` below —
+      // narrowed from a full `include: { aggregate: true }` to cut the
+      // per-row payload on a query that can return up to `take` rows.
+      include: { aggregate: { select: { overallAvg: true, reviewCount: true } } },
       orderBy: { name: "asc" },
       // Safety ceiling, not the expected size — once the directory is large
       // enough that even a fully-filtered result routinely approaches this,
