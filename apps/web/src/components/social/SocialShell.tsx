@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import type { CategoryGroup } from "@/lib/categoryGroups";
+import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { SocialSidebar } from "./SocialSidebar";
 import { SocialComposerSlot } from "./SocialComposerSlot";
 import { SocialWelcomeDialog } from "./SocialWelcomeDialog";
@@ -30,7 +31,7 @@ export function SocialShell() {
       <SocialWelcomeDialog />
       <SocialComposerSlot />
 
-      <div className="flex flex-col gap-6 sm:flex-row">
+      <SidebarContentRow>
         <SocialSidebar
           mode="global"
           query={query}
@@ -59,7 +60,7 @@ export function SocialShell() {
             )}
           </div>
         </div>
-      </div>
+      </SidebarContentRow>
     </>
   );
 }

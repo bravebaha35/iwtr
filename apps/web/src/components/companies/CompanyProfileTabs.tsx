@@ -5,6 +5,7 @@ import type { Company, CompanyAggregateScore, SocialCompanySort } from "@iwtr/sh
 import { SocialFeed } from "@/components/social/SocialFeed";
 import { SocialSidebar } from "@/components/social/SocialSidebar";
 import { SocialComposerSlot } from "@/components/social/SocialComposerSlot";
+import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 
 // The consolidated company-profile hub. Sits directly under the page's
@@ -205,7 +206,7 @@ export function CompanyProfileTabs({
             // page's 3-column ad-rail, since a tab panel has no ad slots of
             // its own, but the sidebar width and feed column width match
             // exactly so posts render at the same size on both pages.
-            <div className="flex flex-col gap-6 sm:flex-row">
+            <SidebarContentRow>
               <SocialSidebar
                 mode="company"
                 sort={sort}
@@ -229,7 +230,7 @@ export function CompanyProfileTabs({
                   <SocialFeed scope={{ kind: "company", slug }} sort={sort} />
                 </div>
               </div>
-            </div>
+            </SidebarContentRow>
           )}
         </div>
 
