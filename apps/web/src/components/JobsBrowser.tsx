@@ -19,6 +19,7 @@ import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 import { riskScoreColorClass, RISK_SCORE_NOTES, RiskTriangleIcon } from "@/components/jobs/RiskScoreBadge";
+import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
 // rather than a shared-internals refactor of it — the brief asked for the
@@ -401,8 +402,8 @@ export function JobsBrowser() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-6 sm:flex-row">
-          <aside className="flex shrink-0 flex-col gap-6 sm:w-56">
+        <SidebarContentRow>
+          <SidebarShell>
             {canSave && (
               <>
                 <FollowingFilterList selectedCompanyId={selectedCompanyId} onSelect={setSelectedCompanyId} />
@@ -561,7 +562,7 @@ export function JobsBrowser() {
               nearMeLoading={geoRequesting}
               nearMeActive={geo !== null && geo !== "denied"}
             />
-          </aside>
+          </SidebarShell>
 
           {/* Results */}
           <div ref={resultsTopRef} className="min-w-0 flex-1">
@@ -697,7 +698,7 @@ export function JobsBrowser() {
               </>
             )}
           </div>
-        </div>
+        </SidebarContentRow>
       </div>
 
       {isCompanyOwner && <JobCreationFlow open={jobFlowOpen} onClose={() => setJobFlowOpen(false)} />}
