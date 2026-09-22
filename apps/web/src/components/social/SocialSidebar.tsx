@@ -9,6 +9,7 @@ import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { CategoryGroupFilter, type CategoryGroup } from "@/lib/categoryGroups";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
+import { SidebarShell } from "@/components/layout/SidebarShell";
 
 function BookmarkIcon({ className }: { className?: string }) {
   return (
@@ -240,10 +241,10 @@ export function SocialSidebar(props: SocialSidebarProps) {
     // single company's own page; it stays on the global /social sidebar
     // where it's actually useful for jumping between companies.
     return (
-      <aside className="flex shrink-0 flex-col gap-5 sm:w-56">
+      <SidebarShell>
         <SortPills value={props.sort} onChange={props.onSortChange} />
         <SeeThemOn links={props.socialLinks} />
-      </aside>
+      </SidebarShell>
     );
   }
 
@@ -259,7 +260,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
   }
 
   return (
-    <aside className="flex shrink-0 flex-col gap-5 sm:w-56">
+    <SidebarShell>
       {/* Same search-a-company-by-name box the feed used to render inline -
           moved here, sized down to fit the panel. */}
       <input
@@ -308,6 +309,6 @@ export function SocialSidebar(props: SocialSidebarProps) {
             (CategoryGroupFilter) - all 7 buckets, same icons/tooltips. */}
         <CategoryGroupFilter value={categoryGroup} onChange={onCategoryGroupChange} />
       </div>
-    </aside>
+    </SidebarShell>
   );
 }

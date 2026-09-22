@@ -64,3 +64,9 @@ it("picking a Quick Select icon reports the underlying CategoryGroup value", () 
   fireEvent.click(screen.getByRole("radio", { name: "Oil & Energy" }));
   expect(onCategoryGroupChange).toHaveBeenCalledWith("OIL_ENERGY");
 });
+
+it("uses the locked SidebarShell geometry (gap-6, not the old gap-5)", () => {
+  render(<SocialSidebar {...baseProps} isMember={false} />);
+  const aside = screen.getByPlaceholderText(/search a company by name/i).closest("aside");
+  expect(aside?.className).toBe("flex shrink-0 flex-col gap-6 sm:w-56");
+});
