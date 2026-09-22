@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation";
 import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
+import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarSegmentClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
@@ -458,8 +459,8 @@ export function WorkplaceBrowser() {
       <AdSlot />
 
       <div className="w-full max-w-[1600px]">
-        <div className="flex flex-col gap-6 sm:flex-row">
-          <aside className="flex shrink-0 flex-col gap-6 sm:w-56">
+        <SidebarContentRow>
+          <SidebarShell>
             <div>
               <MultiFilterPillGroup
                 heading="Work-Type"
@@ -554,7 +555,7 @@ export function WorkplaceBrowser() {
               nearMeLoading={geoRequesting}
               nearMeActive={geo !== null && geo !== "denied"}
             />
-          </aside>
+          </SidebarShell>
 
           {/* Results */}
           <div ref={resultsTopRef} className="flex-1">
@@ -678,7 +679,7 @@ export function WorkplaceBrowser() {
               </>
             )}
           </div>
-        </div>
+        </SidebarContentRow>
       </div>
 
       <AdSlot />
