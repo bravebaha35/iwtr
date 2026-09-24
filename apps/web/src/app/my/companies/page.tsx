@@ -492,7 +492,11 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const badgeLabel = badgeLabelForOwnerTier(claim.tier);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    // No outline around the whole company block: the sidebar and the content
+    // column must not share a card (they sit side by side as <aside> and
+    // <section>). A heavy top rule still separates one owned company from the
+    // next.
+    <div className="border-t-2 border-border pt-5">
       {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}
       <div className="mb-4 flex items-center justify-between">
         <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-foreground hover:underline">
@@ -534,7 +538,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             jobPostingsHref={`/my/companies/${claim.companyId}/job-postings`}
           />
 
-          <div className="min-w-0 flex-1">
+          <section className="min-w-0 flex-1">
             {activeCategory === "general-info" && (
               <GeneralInfoCategory
                 claim={claim}
@@ -647,7 +651,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 onClose={() => setPendingUpgradeTier(null)}
               />
             )}
-          </div>
+          </section>
         </SidebarContentRow>
       </fieldset>
 
@@ -729,7 +733,7 @@ export default function MyCompaniesPage() {
             ) : (
               <div
                 key={claim.id}
-                className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 compact:p-2.5"
+                className="flex items-center justify-between rounded-xl border-2 border-border bg-surface p-4 compact:p-2.5"
               >
                 <Link href={`/companies/${claim.companySlug}`} className="font-medium text-foreground hover:underline">
                   {claim.companyName}

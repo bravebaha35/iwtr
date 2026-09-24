@@ -59,7 +59,7 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
         {applications.map((a) => (
           <li
             key={a.id}
-            className="flex items-center justify-between gap-3 border border-slate-800 bg-zinc-50 p-3 dark:bg-zinc-950"
+            className="flex items-center justify-between gap-3 border border-border bg-surface p-3"
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-bold">{a.applicantDisplayName}</p>
@@ -69,7 +69,7 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {a.viewedAt === null && (
-                <span className="rounded-none border border-slate-800 px-1.5 py-0.5 text-[10px] font-bold uppercase">
+                <span className="rounded-none border border-border px-1.5 py-0.5 text-[10px] font-bold uppercase">
                   New
                 </span>
               )}

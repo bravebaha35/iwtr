@@ -64,7 +64,7 @@ export default function AdminJobPostingsPage() {
       )}
       <div className="flex flex-col gap-4 compact:gap-2">
         {postings?.map((posting) => (
-          <div key={posting.id} className="rounded-xl border border-border bg-surface p-5 compact:p-3">
+          <div key={posting.id} className="rounded-xl border-2 border-border bg-surface p-5 compact:p-3">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="font-semibold text-foreground">{posting.companyName}</h3>
               <span className="text-xs text-muted-foreground">{posting.createdByUserEmail}</span>

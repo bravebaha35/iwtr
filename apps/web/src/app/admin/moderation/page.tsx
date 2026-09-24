@@ -72,7 +72,7 @@ export default function ModerationQueuePage() {
 
       <div className="flex flex-col gap-4 compact:gap-2">
         {items?.map((item) => (
-          <div key={item.id} className="rounded-xl border border-border bg-surface p-5 compact:p-3">
+          <div key={item.id} className="rounded-xl border-2 border-border bg-surface p-5 compact:p-3">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="font-semibold text-foreground">{item.companyName}</h2>
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">

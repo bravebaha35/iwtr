@@ -155,7 +155,7 @@ export function CompanyProfileTabs({
         role="tablist"
         aria-label="Company profile sections"
         onKeyDown={onKeyDown}
-        className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface-muted p-1"
+        className="grid grid-cols-3 gap-1 rounded-xl border-2 border-border bg-surface-muted p-1"
       >
         {TABS.map((tab, i) => {
           const selected = active === tab.key;

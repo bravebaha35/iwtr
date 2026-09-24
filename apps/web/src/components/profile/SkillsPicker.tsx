@@ -42,7 +42,7 @@ export function SkillsPicker({
 
   return (
     <div>
-      <p className="text-xs text-slate-500 uppercase tracking-widest">Select up to 10 verified skills.</p>
+      <p className="text-xs text-muted-foreground uppercase tracking-widest">Select up to 10 verified skills.</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {allSkills.map((skill) => {
           const selected = selectedIds.includes(skill.id);

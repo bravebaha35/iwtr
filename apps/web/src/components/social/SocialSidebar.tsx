@@ -65,7 +65,7 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
   return (
     <div>
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort</h3>
-      <div className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface-muted p-1">
+      <div className="flex w-full flex-col gap-1 rounded-xl border-2 border-border bg-surface-muted p-1">
         <button
           type="button"
           onClick={() => onChange(isOldest ? "newest" : "oldest")}

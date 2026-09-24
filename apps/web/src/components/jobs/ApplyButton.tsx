@@ -149,7 +149,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.97 }}
         transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
-        className="flex h-7 items-center gap-1 rounded-none border border-slate-800 bg-slate-900 px-2 text-xs font-bold text-zinc-50 transition disabled:opacity-50"
+        className="flex h-7 items-center gap-1 rounded-none border border-border bg-sidebar px-2 text-xs font-bold text-sidebar-foreground transition disabled:opacity-50"
       >
         {state === "done"
           ? "Applied"

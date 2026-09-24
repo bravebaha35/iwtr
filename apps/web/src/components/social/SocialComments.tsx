@@ -337,7 +337,7 @@ function Composer({
             maxLength={MAX_COMMENT_LENGTH}
             rows={1}
             autoFocus={autoFocus}
-            className="min-h-9 flex-1 resize-none overflow-hidden rounded-2xl border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
+            className="min-h-9 flex-1 resize-none overflow-hidden rounded-2xl border-2 border-border bg-surface px-3 py-1.5 text-sm text-foreground"
           />
           <button
             type="button"

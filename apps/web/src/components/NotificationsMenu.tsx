@@ -295,7 +295,7 @@ const CATEGORY_ICON: Record<NotificationCategory, (props: { className?: string }
 // no washed-out tints that would fail the "equal parity" requirement.
 const CATEGORY_RING_CLASS: Record<NotificationCategory, string> = {
   SOCIAL: "border-rose-500 text-rose-600 dark:text-rose-400",
-  SYSTEM: "border-sky-500 text-sky-600 dark:text-sky-400",
+  SYSTEM: "border-river-500 text-river-600 dark:text-river-300",
   EMPLOYER: "border-amber-500 text-amber-600 dark:text-amber-400",
 };
 
@@ -430,7 +430,7 @@ export function NotificationsMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-96 max-w-[92vw] rounded-2xl border border-border bg-surface p-3 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-2 w-96 max-w-[92vw] rounded-2xl border-2 border-border bg-surface p-3 shadow-xl">
           <div className="flex items-center justify-between gap-2 px-1 pb-2">
             <h2 className="text-base font-bold text-foreground">Notifications</h2>
             <button

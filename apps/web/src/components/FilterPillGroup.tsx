@@ -28,7 +28,7 @@ const trackSegmentGridBaseClass =
 // page, per live screenshot feedback), so both halves are real dark:
 // variants, not one hardcoded look.
 const trackWrapperClass =
-  "rounded-xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800/60 dark:bg-zinc-950/80";
+  "rounded-xl border border-border bg-surface-muted p-1";
 
 // Single shared building block for every button-style filter in the app —
 // restyling how an active/inactive filter pill looks is a one-function
@@ -154,8 +154,8 @@ export function MultiFilterPillGroup<T extends string>({
           const colorClass = pillColorClassName
             ? pillColorClassName(o.value, active)
             : active
-              ? "bg-zinc-800 text-white"
-              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200";
+              ? "bg-river-600 text-white"
+              : "text-muted-foreground hover:text-foreground";
           const shapeClass = direction === "grid" ? trackSegmentGridBaseClass : trackSegmentBaseClass;
           className = `${shapeClass} ${colorClass}`;
         } else if (pillColorClassName) {

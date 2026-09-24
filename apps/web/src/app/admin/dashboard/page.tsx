@@ -87,7 +87,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-surface p-5">
+    <div className="flex flex-col rounded-xl border-2 border-border bg-surface p-5">
       <h2 className="font-semibold text-foreground">{title}</h2>
       <p className="mb-4 text-sm text-muted-foreground">{description}</p>
       {children}

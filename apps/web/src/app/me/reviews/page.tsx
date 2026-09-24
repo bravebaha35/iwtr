@@ -85,7 +85,7 @@ export default function MyReviewsPage() {
 
         <div className="flex flex-col gap-4 compact:gap-2">
           {reviews?.map((review) => (
-            <div key={review.id} className="rounded-xl border border-border bg-surface p-5 compact:p-3">
+            <div key={review.id} className="rounded-xl border-2 border-border bg-surface p-5 compact:p-3">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 {review.companySlug ? (
                   <Link

@@ -31,7 +31,7 @@ export function AccountOptionsPanel({ email }: { email: string | null }) {
 
   if (pendingAction && email) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-5">
+      <div className="rounded-xl border-2 border-border bg-surface p-5">
         <EmailConfirmGate
           email={email}
           actionLabel={pendingAction === "freeze" ? "freeze your account" : "permanently delete your account"}
@@ -44,7 +44,7 @@ export function AccountOptionsPanel({ email }: { email: string | null }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-surface p-5">
+      <div className="rounded-xl border-2 border-border bg-surface p-5">
         <h2 className="mb-1 font-semibold text-foreground">Freeze account</h2>
         <p className="mb-3 text-sm text-muted-foreground">
           Your information will not be lost. You can reactivate your account at any time.

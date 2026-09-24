@@ -82,7 +82,7 @@ export function SocialComposer({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-3">
+    <div className="rounded-xl border-2 border-border bg-surface p-3">
       {companies.length > 1 && (
         <select
           value={companyId}

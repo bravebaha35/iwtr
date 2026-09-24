@@ -16,7 +16,7 @@ export function ThemeToggle() {
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       aria-pressed={isDark}
       className={`relative inline-flex h-8 w-[60px] shrink-0 items-center justify-between rounded-full border px-2 transition-colors ${
-        isDark ? "border-slate-600 bg-slate-800" : "border-amber-300 bg-amber-50"
+        isDark ? "border-border bg-sidebar" : "border-amber-300 bg-amber-50"
       }`}
     >
       <span className={`text-sm leading-none transition-opacity ${isDark ? "opacity-40" : "opacity-100"}`} aria-hidden>

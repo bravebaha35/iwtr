@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { SettingsNav } from "@/components/layout/SettingsNav";
 
 export type OwnerDashboardCategory =
   | "general-info"
@@ -16,11 +16,6 @@ const CATEGORIES: { key: OwnerDashboardCategory; label: string }[] = [
   { key: "reviews-ratings", label: "Reviews & Ratings" },
   { key: "applications", label: "Applications" },
 ];
-
-const NAV_ITEM_CLASS =
-  "whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-medium transition text-muted-foreground hover:bg-surface-muted hover:text-foreground";
-const NAV_ITEM_ACTIVE_CLASS =
-  "whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-medium transition bg-brand-600 text-white";
 
 /**
  * Left-side vertical nav on desktop, sticky horizontal tab bar on mobile —
@@ -41,31 +36,11 @@ export function OwnerDashboardSidePanel({
   jobPostingsHref: string;
 }) {
   return (
-    // Bare nav — no wrapping border/background box, matching /me's Edit
-    // Profile sidebar (apps/web/src/app/me/page.tsx) — this is what makes it
-    // read as a standalone sidebar next to the content instead of a tab
-    // strip attached to it.
-    <nav
-      aria-label="Company dashboard sections"
-      className="flex shrink-0 flex-row gap-1 overflow-x-auto sm:w-56 sm:flex-col sm:overflow-visible"
-    >
-      {CATEGORIES.map((c) => {
-        const isActive = c.key === active;
-        return (
-          <button
-            key={c.key}
-            type="button"
-            onClick={() => onChange(c.key)}
-            aria-current={isActive ? "page" : undefined}
-            className={isActive ? NAV_ITEM_ACTIVE_CLASS : NAV_ITEM_CLASS}
-          >
-            {c.label}
-          </button>
-        );
-      })}
-      <Link href={jobPostingsHref} className={NAV_ITEM_CLASS}>
-        Job Postings
-      </Link>
-    </nav>
+    <SettingsNav
+      label="Company dashboard sections"
+      items={[...CATEGORIES, { key: "job-postings", label: "Job Postings", href: jobPostingsHref }]}
+      active={active}
+      onChange={onChange}
+    />
   );
 }

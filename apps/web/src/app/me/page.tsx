@@ -32,6 +32,7 @@ import { ChangePasswordForm } from "@/components/profile/ChangePasswordForm";
 import { AccountOptionsPanel } from "@/components/profile/AccountOptionsPanel";
 import { CvPreview } from "@/components/profile/CvPreview";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
+import { SettingsNav } from "@/components/layout/SettingsNav";
 
 const SUPPORT_EMAIL = "iworkedthere@hotmail.com";
 
@@ -618,7 +619,7 @@ export default function ProfilePage() {
 
       {profile === null ? (
         error ? (
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl border-2 border-border bg-surface p-5">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             <Link href="/" className="mt-2 inline-block text-sm text-brand-600 hover:underline dark:text-brand-400">
               &larr; Back home
@@ -629,30 +630,14 @@ export default function ProfilePage() {
         )
       ) : (
         <SidebarContentRow>
-          {/* Vertical tab list */}
-          <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto sm:w-56 sm:flex-col sm:overflow-visible">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                  activeTab === tab.key
-                    ? "bg-brand-600 text-white"
-                    : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+          <SettingsNav label="Profile sections" items={TABS} active={activeTab} onChange={setActiveTab} />
 
-          <div className="min-w-0 flex-1">
+          <main className="min-w-0 flex-1">
         <div className="flex flex-col gap-6">
           {activeTab === "customize" && (
           <>
           {/* Avatar, real name + chosen username preview, background, username picker */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl border-2 border-border bg-surface p-5">
             <div className="mb-4 flex items-center gap-3">
               <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
               <div>
@@ -711,7 +696,7 @@ export default function ProfilePage() {
           </div>
 
           {role === "COMPANY_OWNER" && employerProfile && (
-            <div className="rounded-xl border border-border bg-surface p-5">
+            <div className="rounded-xl border-2 border-border bg-surface p-5">
               <h2 className="mb-1 font-semibold text-foreground">Employer Photo</h2>
               <p className="mb-4 text-xs text-muted-foreground">
                 Shown alongside your real name wherever you appear as a verified company owner — separate from the
@@ -729,7 +714,7 @@ export default function ProfilePage() {
           {activeTab === "personal" && (
           <>
           {/* Personal information */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl border-2 border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">Personal Information</h2>
 
             <div className="text-sm">
@@ -843,7 +828,7 @@ export default function ProfilePage() {
                   <select
                     value={sectorIdDraft ?? ""}
                     onChange={(e) => setSectorIdDraft(e.target.value || null)}
-                    className="w-full rounded-lg border border-slate-800 bg-surface px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                   >
                     <option value="">Select a sector...</option>
                     {sectors
@@ -873,7 +858,7 @@ export default function ProfilePage() {
                 rows={6}
                 value={customExperienceDraft}
                 onChange={(e) => setCustomExperienceDraft(e.target.value)}
-                className="mt-1 w-full rounded-none border border-slate-800 bg-surface px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-none border border-border bg-surface px-3 py-2 text-sm"
               />
             </div>
 
@@ -894,7 +879,7 @@ export default function ProfilePage() {
           {activeTab === "contact" && (
           <>
           {/* Contact information */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl border-2 border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">Contact Information</h2>
 
             <div className="text-sm">
@@ -985,7 +970,7 @@ export default function ProfilePage() {
           {activeTab === "education" && (
           <>
           {/* Education */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl border-2 border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">Education</h2>
             {profile.education.length > 0 && (
               <ul className="mb-4 flex flex-col gap-2">
@@ -1165,7 +1150,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Employment history */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl border-2 border-border bg-surface p-5">
             <h2 className="mb-1 font-semibold text-foreground">Employment history</h2>
             <p className="mb-3 text-xs text-muted-foreground">
               Pick a real workplace from the list below — no free typing, same as everywhere else on this page.
@@ -1345,7 +1330,7 @@ export default function ProfilePage() {
 
           {activeTab === "cv" && (
           <>
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl border-2 border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">My CV</h2>
             <div className="flex flex-col gap-6 sm:flex-row">
               <div className="flex-1 flex flex-col gap-4">
@@ -1360,7 +1345,7 @@ export default function ProfilePage() {
                     maxLength={80}
                     value={displayNameDraft}
                     onChange={(e) => setDisplayNameDraft(e.target.value)}
-                    className="mt-1 w-full rounded-none border border-slate-800 bg-surface px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-none border border-border bg-surface px-3 py-2 text-sm"
                   />
                 </div>
                 <label className="flex items-center gap-2 text-sm">
@@ -1398,7 +1383,7 @@ export default function ProfilePage() {
                   type="button"
                   onClick={saveCv}
                   disabled={cvSaving}
-                  className="self-start rounded-none border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-bold text-zinc-50 transition disabled:opacity-50"
+                  className="self-start rounded-none border border-border bg-sidebar px-4 py-2 text-sm font-bold text-sidebar-foreground transition disabled:opacity-50"
                 >
                   {cvSaving ? "Saving..." : "Save CV"}
                 </button>
@@ -1451,7 +1436,7 @@ export default function ProfilePage() {
 
           {activeTab === "account" && <AccountOptionsPanel email={profile.email} />}
         </div>
-          </div>
+          </main>
         </SidebarContentRow>
       )}
     </div>

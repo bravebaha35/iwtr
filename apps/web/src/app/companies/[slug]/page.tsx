@@ -51,7 +51,7 @@ function RatingNarrativeBox({
     // illustration on desktop (350px) → lg:h-[360px]. Scoped to lg: so the
     // mobile stacked layout flows; the 0-review empty state holds this same
     // slot.
-    <div className="flex flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:h-[360px] lg:max-w-2xl lg:shrink-0">
+    <div className="flex flex-col items-center gap-6 rounded-xl border-2 border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:h-[360px] lg:max-w-2xl lg:shrink-0">
       {imageSrc ? (
         // A small fixed set of local /public illustrations, not a
         // remote/arbitrary URL.
@@ -94,7 +94,7 @@ function CompanyDetailsBox({ company }: { company: Company }) {
   // align; on mobile it stacks and h-auto lets it flow. overflow-y-auto
   // is an inert safety net for anything that still doesn't fit.
   return (
-    <div className="h-auto overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans lg:h-[672px]">
+    <div className="h-auto overflow-y-auto rounded-xl border-2 border-border bg-surface p-6 font-sans lg:h-[672px]">
       <h2 className="mb-4 text-lg font-semibold text-foreground">Company Details</h2>
       <div className="flex flex-col gap-4 text-sm">
         <div>
@@ -289,7 +289,7 @@ export default async function CompanyPage({
                   narrative={narrative}
                 />
 
-                <div className="flex-1 rounded-xl border border-border bg-surface p-6 font-sans">
+                <div className="flex-1 rounded-xl border-2 border-border bg-surface p-6 font-sans">
                   <h2 className="mb-4 text-lg font-semibold text-foreground">Rating Breakdown</h2>
                   {aggregate && aggregate.reviewCount > 0 ? (
                     <div className="flex flex-col gap-2">
