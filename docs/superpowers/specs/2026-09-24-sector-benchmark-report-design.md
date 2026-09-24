@@ -66,8 +66,13 @@ the requester's company category, optionally also `city` equals theirs.
   `median`, `top75`. No AVG anywhere in the query or payload.
 - **Benefits distribution**: % of consenting salary submitters (that pass
   the lock) who ticked each benefit.
-- **Survey highlights**: every question answered in scope, agree % =
-  YES / (YES+NO+PREFER_NOT); top 10 by agree % and top 10 by disagree %.
+- **Survey highlights**: every question answered in scope; "agree" means
+  the answer matched the healthy-workplace answer — the same definition the
+  public company pages and the rival-analytics PDF use — so agree % =
+  healthy / (healthy + unhealthy + prefer-not). Top 10 by agree % ("Where
+  the sector does best") and top 10 by disagree % ("Where the sector
+  struggles"). A question is only listed when at least 5 people answered
+  it, so no line can be one person's answer.
 - **Turnover risk**: `TurnoverPredictionService.assessSectorRisk` pools the
   scope's reviews per workplaceType, runs the existing
   `computeTurnoverRisk`, and returns a review-count-weighted average
