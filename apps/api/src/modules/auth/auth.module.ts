@@ -4,7 +4,7 @@ import { AuthService } from "./auth.service";
 import { TokenService } from "./token.service";
 import { AdminLoginOtpService } from "./admin-login-otp.service";
 import { ADMIN_OTP_NOTIFIER } from "./admin-otp-notifier.interface";
-import { ConsoleAdminOtpNotifier } from "./console-admin-otp-notifier";
+import { createAdminOtpNotifier } from "./smtp-admin-otp-notifier";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guard";
 
@@ -14,7 +14,7 @@ import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guar
     AuthService,
     TokenService,
     AdminLoginOtpService,
-    { provide: ADMIN_OTP_NOTIFIER, useClass: ConsoleAdminOtpNotifier },
+    { provide: ADMIN_OTP_NOTIFIER, useFactory: createAdminOtpNotifier },
     JwtAuthGuard,
     OptionalJwtAuthGuard,
   ],
