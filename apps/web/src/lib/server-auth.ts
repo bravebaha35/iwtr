@@ -18,7 +18,13 @@ function baseCookieOptions(maxAge: number) {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    // Strict: the session cookies are never sent on a request another site
+    // started (links, forms, redirects from elsewhere). The app itself only
+    // ever reads them from same-origin calls (/api/session, /api/proxy/*),
+    // so the one visible effect is that the very first page load after
+    // arriving from another site renders logged-out for an instant, until
+    // the client's own /api/session check (same-origin) picks them up.
+    sameSite: "strict" as const,
     path: "/",
     maxAge,
   };
