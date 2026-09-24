@@ -132,7 +132,7 @@ export function SocialComposer({
                 type="button"
                 onClick={() => removePicked(i)}
                 aria-label="Remove this photo"
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background shadow"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background shadow-sm"
               >
                 ×
               </button>

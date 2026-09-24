@@ -300,7 +300,7 @@ export function JobCard({
               {/* Colored by score band — red/orange/amber/lime/green at a
                   glance, not just a number. */}
               <span
-                className={`text-sm font-bold ${company.overallAvg !== null ? scoreTextColor(company.overallAvg) : "text-muted-foreground"}`}
+                className={`font-grotesk text-sm font-bold tabular-nums ${company.overallAvg !== null ? scoreTextColor(company.overallAvg) : "text-muted-foreground"}`}
                 title="User rating"
               >
                 {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
@@ -374,7 +374,7 @@ export function JobCard({
             title={!canSave ? "Log in to save" : undefined}
             aria-label={isSaved ? "Remove from saved posts" : "Save this posting"}
             aria-pressed={isSaved}
-            className="absolute bottom-3 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted-foreground shadow transition hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40"
+            className="absolute bottom-3 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted-foreground shadow-sm transition hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40"
           >
             <BookmarkIcon className="h-4 w-4" filled={isSaved} />
           </button>

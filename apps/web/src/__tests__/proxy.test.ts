@@ -7,7 +7,7 @@
 // see jest.config.js) doesn't implement them, so this file opts back into
 // the node environment on its own via the docblock pragma above.
 import { NextRequest } from "next/server";
-import { proxy } from "../proxy";
+import { IDENTIFYING_REQUEST_HEADERS, proxy } from "../proxy";
 
 // Signs a minimal (unverified — proxy.ts only ever decodes, never verifies,
 // same as decodeAccessTokenClaims' own doc comment) JWT-shaped token with
@@ -51,4 +51,44 @@ describe("proxy (admin route gate)", () => {
     expect(res.headers.get("location")).toBeNull();
     expect(res.cookies.get("iwtr_forbidden_notice")).toBeUndefined();
   });
+});
+
+describe("proxy (review-traffic header stripping)", () => {
+  function reviewRequest(path: string) {
+    return new NextRequest(new URL(path, "http://localhost:3000"), {
+      method: "POST",
+      headers: {
+        cookie: "iwtr_access=token-value",
+        "content-type": "application/json",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        referer: "http://localhost:3000/companies/acme",
+        "x-forwarded-for": "203.0.113.7",
+        "accept-language": "tr-TR,tr;q=0.9",
+        "sec-ch-ua-platform": "\"Windows\"",
+      },
+    });
+  }
+
+  // NextResponse.next({ request: { headers } }) tells Next which request
+  // headers the downstream route handler sees via x-middleware-override-headers
+  // (the full list of kept header names) plus one x-middleware-request-<name>
+  // per kept header.
+  function forwardedHeaderNames(res: Response): string[] {
+    return (res.headers.get("x-middleware-override-headers") ?? "").split(",").filter(Boolean);
+  }
+
+  it.each(["/api/proxy/reviews", "/api/proxy/reviews/abc/vote"])(
+    "drops every identifying header on %s but keeps the session cookie and content type",
+    (path) => {
+      const res = proxy(reviewRequest(path));
+      const kept = forwardedHeaderNames(res);
+
+      for (const name of IDENTIFYING_REQUEST_HEADERS) expect(kept).not.toContain(name);
+      expect(kept).toEqual(expect.arrayContaining(["cookie", "content-type"]));
+      expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      // Review traffic is never mistaken for an /admin route.
+      expect(res.headers.get("location")).toBeNull();
+    },
+  );
 });

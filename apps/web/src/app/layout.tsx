@@ -6,6 +6,7 @@ import { BackButton } from "@/components/BackButton";
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { GlobalFooter } from "@/components/GlobalFooter";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { MagneticPrimaryButtons } from "@/components/motion/MagneticPrimaryButtons";
 import "./globals.css";
 // Real vector flag icons (not Unicode flag emoji) — Windows renders
 // unsupported flag-emoji regional-indicator pairs as a boxed two-letter
@@ -80,6 +81,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* eslint-disable-next-line react/no-danger -- a fixed constant defined in this file, no user content */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body
@@ -94,6 +96,7 @@ export default function RootLayout({
           </AuthProvider>
         </SettingsProvider>
         <GlobalFooter />
+        <MagneticPrimaryButtons />
       </body>
     </html>
   );

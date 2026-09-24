@@ -302,7 +302,7 @@ export default async function CompanyPage({
                               style={{ width: `${(aggregate[c.key] / 5) * 100}%` }}
                             />
                           </div>
-                          <span className="w-8 text-right text-sm text-muted-foreground">
+                          <span className="w-8 text-right font-grotesk text-sm tabular-nums text-muted-foreground">
                             {aggregate[c.key].toFixed(1)}
                           </span>
                         </div>
@@ -311,7 +311,7 @@ export default async function CompanyPage({
                         {aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"}
                       </p>
                       <div className="mt-3 flex items-baseline gap-2 border-t border-border pt-3">
-                        <span className="text-3xl font-bold text-foreground">{aggregate.overallAvg.toFixed(1)}</span>
+                        <span className="font-grotesk text-3xl font-bold tabular-nums text-foreground">{aggregate.overallAvg.toFixed(1)}</span>
                         <span className="text-sm text-muted-foreground">/ 5.0</span>
                         <span className={`ml-auto text-sm font-semibold ${scoreTextColor(aggregate.overallAvg)}`}>
                           {scoreBandLabel(aggregate.overallAvg)}

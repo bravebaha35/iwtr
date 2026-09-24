@@ -255,7 +255,7 @@ export function AuthModal() {
           <button
             type="button"
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-              mode === "register" ? "bg-surface text-brand-700 shadow dark:text-brand-400" : "text-muted-foreground"
+              mode === "register" ? "bg-surface text-brand-700 shadow-sm dark:text-brand-400" : "text-muted-foreground"
             }`}
             onClick={() => switchMode("register")}
           >
@@ -264,7 +264,7 @@ export function AuthModal() {
           <button
             type="button"
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-              mode === "login" ? "bg-surface text-brand-700 shadow dark:text-brand-400" : "text-muted-foreground"
+              mode === "login" ? "bg-surface text-brand-700 shadow-sm dark:text-brand-400" : "text-muted-foreground"
             }`}
             onClick={() => switchMode("login")}
           >

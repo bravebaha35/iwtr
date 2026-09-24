@@ -486,7 +486,7 @@ export function JobsBrowser() {
                       />
                     ))}
                     <span
-                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow"
+                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow-sm"
                       style={{ left: `${(minRating / 5) * 100}%` }}
                     />
                   </div>
@@ -539,7 +539,7 @@ export function JobsBrowser() {
                       />
                     ))}
                     <span
-                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow"
+                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow-sm"
                       style={{ left: `${(maxRiskScore / 3) * 100}%` }}
                     />
                   </div>

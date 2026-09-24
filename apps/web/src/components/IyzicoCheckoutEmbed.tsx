@@ -16,6 +16,7 @@ export function IyzicoCheckoutEmbed({ checkoutFormContent }: { checkoutFormConte
     const container = containerRef.current;
     if (!container) return;
 
+    // eslint-disable-next-line no-restricted-syntax -- iyzico's own checkout form markup from our payments API, never user content; it has to run as HTML (see comment above).
     container.innerHTML = checkoutFormContent;
 
     const scripts = Array.from(container.querySelectorAll("script"));
@@ -29,7 +30,7 @@ export function IyzicoCheckoutEmbed({ checkoutFormContent }: { checkoutFormConte
     }
 
     return () => {
-      container.innerHTML = "";
+      container.replaceChildren();
     };
   }, [checkoutFormContent]);
 

@@ -29,7 +29,7 @@ export function ReviewsRatingsCategory({
             { label: "Work/Life", value: aggregate.workLifeBalanceAvg },
           ].map((row) => (
             <div key={row.label} className="rounded-lg border border-border p-3 text-center">
-              <p className="text-lg font-bold text-foreground">{row.value.toFixed(1)}</p>
+              <p className="font-grotesk text-lg font-bold tabular-nums text-foreground">{row.value.toFixed(1)}</p>
               <p className="text-[11px] text-muted-foreground">{row.label}</p>
             </div>
           ))}

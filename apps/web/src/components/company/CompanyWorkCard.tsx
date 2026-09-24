@@ -96,7 +96,7 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
         {company.overallAvg !== null ? (
           <>
             <div className="flex items-center gap-1.5">
-              <span className="text-lg font-bold text-foreground">{company.overallAvg.toFixed(1)}</span>
+              <span className="font-grotesk text-lg font-bold tabular-nums text-foreground">{company.overallAvg.toFixed(1)}</span>
               <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
                 {scoreBandLabel(company.overallAvg)}
               </span>

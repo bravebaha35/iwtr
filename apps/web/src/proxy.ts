@@ -16,7 +16,7 @@ import { ACCESS_COOKIE, decodeAccessTokenClaims } from "@/lib/server-auth";
 // admin's client-side session getting silently refreshed a moment later by
 // the normal fetch retry-after-401 path, then re-navigating; it never lets
 // a non-admin through.
-export function proxy(req: NextRequest) {
+function gateAdminRoute(req: NextRequest) {
   const token = req.cookies.get(ACCESS_COOKIE)?.value;
   const claims = token ? decodeAccessTokenClaims(token) : null;
   const isExpired = claims ? claims.exp * 1000 < Date.now() : true;
@@ -34,6 +34,42 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
+// Request headers that describe the reviewer's device, network or the page
+// they came from. None of them are needed to submit or vote on a review, so
+// review traffic drops them here, before the proxy route handler (and
+// anything it might log) ever sees them. The route handler itself also
+// forwards only Content-Type + Authorization to apps/api — this is the
+// belt to that pair of braces.
+export const IDENTIFYING_REQUEST_HEADERS = [
+  "user-agent",
+  "referer",
+  "x-forwarded-for",
+  "x-real-ip",
+  "forwarded",
+  "accept-language",
+  "dnt",
+  "sec-ch-ua",
+  "sec-ch-ua-mobile",
+  "sec-ch-ua-platform",
+] as const;
+
+function stripReviewTraffic(req: NextRequest) {
+  const headers = new Headers(req.headers);
+  for (const name of IDENTIFYING_REQUEST_HEADERS) headers.delete(name);
+  const res = NextResponse.next({ request: { headers } });
+  // Never cached anywhere, and never leaks this URL onward as a Referer.
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("Referrer-Policy", "no-referrer");
+  return res;
+}
+
+export function proxy(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith("/api/proxy/reviews")) return stripReviewTraffic(req);
+  return gateAdminRoute(req);
+}
+
 export const config = {
-  matcher: ["/admin/:path*"],
+  // /api/proxy/reviews/:path* matches the bare /api/proxy/reviews submit
+  // route too (:path* is zero or more segments).
+  matcher: ["/admin/:path*", "/api/proxy/reviews/:path*"],
 };

@@ -26,7 +26,7 @@ export function ThemeToggle() {
         🌙
       </span>
       <span
-        className={`absolute top-1 left-1 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ${
+        className={`absolute top-1 left-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ${
           isDark ? "translate-x-7" : "translate-x-0"
         }`}
       />

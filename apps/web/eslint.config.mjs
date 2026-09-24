@@ -38,6 +38,29 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "warn",
     },
   },
+  {
+    // XSS guard. React escapes every {value} it renders as text, so user
+    // content (reviews, social posts, comments) is safe as long as it never
+    // reaches a raw-HTML sink. These rules make any such sink an error, so a
+    // new one can only exist with an explicit, commented eslint-disable —
+    // there are exactly two today, neither carrying user content: the
+    // theme boot script in app/layout.tsx and iyzico's checkout form in
+    // IyzicoCheckoutEmbed.tsx.
+    rules: {
+      "react/no-danger": "error",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "AssignmentExpression[left.property.name=/^(innerHTML|outerHTML)$/]",
+          message: "Raw HTML assignment bypasses React's escaping. Render text through JSX instead.",
+        },
+        {
+          selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
+          message: "Raw HTML insertion bypasses React's escaping. Render text through JSX instead.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

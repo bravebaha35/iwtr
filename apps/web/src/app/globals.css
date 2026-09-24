@@ -95,7 +95,8 @@
      same loaded font (no second network font, just a second theme key
      pointing at the same `--font-plus-jakarta-sans` variable from
      layout.tsx) and font-grotesk is Space Grotesk, a distinct display face
-     used only for the CV preview's headings, loaded in layout.tsx under its
+     for data headers and prominent numbers (company scores, the CV
+     preview's headings), loaded in layout.tsx under its
      own `--font-space-grotesk` variable (deliberately NOT named
      `--font-grotesk` — reusing this key's own name there would make the
      line below a self-referential cycle instead of pointing at the actual
@@ -143,17 +144,38 @@
   --color-river-900: #0e313f;
   --color-river-950: #09212b;
 
-  /* Sharp corners site-wide: every rounded-sm … rounded-4xl resolves to
-     2px, so the 350+ existing rounded-* classes change in one place.
+  /* Square corners site-wide: every rounded-xs … rounded-4xl resolves to
+     0px, so the 350+ existing rounded-* classes change in one place.
      rounded-full (avatars, pills, toggles) is untouched. */
   --radius-xs: 0px;
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 2px;
-  --radius-xl: 2px;
-  --radius-2xl: 2px;
-  --radius-3xl: 2px;
-  --radius-4xl: 2px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+
+  /* No soft, blurred Tailwind shadows. Small ones (cards, inputs) are gone
+     outright — the heavy borders already separate them. Floating layers
+     (dropdowns, popovers and modals use lg/xl/2xl) get a hard, unblurred
+     offset in the border color instead, so they still read as lifted. */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 4px 4px 0 0 var(--border);
+  --shadow-xl: 4px 4px 0 0 var(--border);
+  --shadow-2xl: 6px 6px 0 0 var(--border);
+  --inset-shadow-2xs: 0 0 #0000;
+  --inset-shadow-xs: 0 0 #0000;
+  --inset-shadow-sm: 0 0 #0000;
+  --drop-shadow-xs: 0 0 #0000;
+  --drop-shadow-sm: 0 0 #0000;
+  --drop-shadow-md: 0 0 #0000;
+  --drop-shadow-lg: 0 0 #0000;
+  --drop-shadow-xl: 0 0 #0000;
+  --drop-shadow-2xl: 0 0 #0000;
 }
 
 body {
@@ -180,7 +202,8 @@ select,
    ?highlight=... appended, so the visitor's eye lands on the right control
    instead of a bare navigation with no explanation. Single hardcoded
    brand-600 hex (#8B5A2B, no light/dark variant — see the brand-* comment
-   above) keeps the glow identical in both themes. */
+   above) keeps the glow identical in both themes. Eased with the site's
+   sharp SNAP curve (lib/motion/easings.ts), not a generic ease-out. */
 @keyframes highlight-pulse {
   0%,
   100% {
@@ -191,7 +214,7 @@ select,
   }
 }
 .highlight-pulse {
-  animation: highlight-pulse 0.8s ease-out 3;
+  animation: highlight-pulse 0.8s cubic-bezier(0.87, 0, 0.13, 1) 3;
 }
 
 button:disabled,
