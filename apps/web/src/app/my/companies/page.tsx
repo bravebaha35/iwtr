@@ -20,6 +20,7 @@ import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
+import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
 import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
 import { ContactSocialCategory } from "@/components/owner/sections/ContactSocialCategory";
@@ -525,127 +526,129 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         </div>
       )}
 
-      <fieldset disabled={claim.hidden} className="flex flex-col gap-6 sm:flex-row">
-        <OwnerDashboardSidePanel
-          active={activeCategory}
-          onChange={setActiveCategory}
-          jobPostingsHref={`/my/companies/${claim.companyId}/job-postings`}
-        />
+      <fieldset disabled={claim.hidden} className="min-w-0">
+        <SidebarContentRow>
+          <OwnerDashboardSidePanel
+            active={activeCategory}
+            onChange={setActiveCategory}
+            jobPostingsHref={`/my/companies/${claim.companyId}/job-postings`}
+          />
 
-        <div className="min-w-0 flex-1">
-          {activeCategory === "general-info" && (
-            <GeneralInfoCategory
-              claim={claim}
-              detail={detail}
-              companyId={claim.companyId}
-              companyName={claim.companyName}
-              name={name}
-              setName={setName}
-              workplaceTypes={workplaceTypes}
-              setPrimaryWorkType={setPrimaryWorkType}
-              setSecondaryWorkType={setSecondaryWorkType}
-              onSaveWorkplaceTypes={saveWorkplaceTypes}
-              workplaceTypesSaving={workplaceTypesSaving}
-              workplaceTypesStatus={workplaceTypesStatus}
-              workplaceTypesError={workplaceTypesError}
-              category={category}
-              setCategory={setCategory}
-              sectorOptions={sectorOptions}
-              mainPhotoUrl={mainPhotoUrl}
-              setMainPhotoUrl={setMainPhotoUrl}
-              city={city}
-              setCity={setCity}
-              district={district}
-              setDistrict={setDistrict}
-              cityOptions={cityOptions}
-              districtOptions={districtOptions}
-              isHiring={isHiring}
-              setIsHiring={setIsHiring}
-              description={description}
-              setDescription={setDescription}
-              website={website}
-              setWebsite={setWebsite}
-              bannerImageUrl={bannerImageUrl}
-              setBannerImageUrl={setBannerImageUrl}
-              hasActivePaidTier={hasActivePaidTier}
-              onSaveGeneralInfo={saveGeneralInfo}
-              generalInfoSaving={generalInfoSaving}
-              generalInfoStatus={generalInfoStatus}
-              generalInfoError={generalInfoError}
-              onStartUpgrade={setPendingUpgradeTier}
-              onSeePlans={() => setShowPricing(true)}
-            />
-          )}
+          <div className="min-w-0 flex-1">
+            {activeCategory === "general-info" && (
+              <GeneralInfoCategory
+                claim={claim}
+                detail={detail}
+                companyId={claim.companyId}
+                companyName={claim.companyName}
+                name={name}
+                setName={setName}
+                workplaceTypes={workplaceTypes}
+                setPrimaryWorkType={setPrimaryWorkType}
+                setSecondaryWorkType={setSecondaryWorkType}
+                onSaveWorkplaceTypes={saveWorkplaceTypes}
+                workplaceTypesSaving={workplaceTypesSaving}
+                workplaceTypesStatus={workplaceTypesStatus}
+                workplaceTypesError={workplaceTypesError}
+                category={category}
+                setCategory={setCategory}
+                sectorOptions={sectorOptions}
+                mainPhotoUrl={mainPhotoUrl}
+                setMainPhotoUrl={setMainPhotoUrl}
+                city={city}
+                setCity={setCity}
+                district={district}
+                setDistrict={setDistrict}
+                cityOptions={cityOptions}
+                districtOptions={districtOptions}
+                isHiring={isHiring}
+                setIsHiring={setIsHiring}
+                description={description}
+                setDescription={setDescription}
+                website={website}
+                setWebsite={setWebsite}
+                bannerImageUrl={bannerImageUrl}
+                setBannerImageUrl={setBannerImageUrl}
+                hasActivePaidTier={hasActivePaidTier}
+                onSaveGeneralInfo={saveGeneralInfo}
+                generalInfoSaving={generalInfoSaving}
+                generalInfoStatus={generalInfoStatus}
+                generalInfoError={generalInfoError}
+                onStartUpgrade={setPendingUpgradeTier}
+                onSeePlans={() => setShowPricing(true)}
+              />
+            )}
 
-          {activeCategory === "premium-features" && (
-            <PremiumFeaturesCategory
-              claim={claim}
-              companySlug={claim.companySlug}
-              companyId={claim.companyId}
-              hasActivePaidTier={hasActivePaidTier}
-              onStartUpgrade={setPendingUpgradeTier}
-              featuredReviewId={featuredReviewId}
-              setFeaturedReviewId={setFeaturedReviewId}
-              onSavePremium={savePremium}
-              premiumSaving={premiumSaving}
-              premiumStatus={premiumStatus}
-              premiumError={premiumError}
-              showRivalAnalytics={showRivalAnalytics}
-              setShowRivalAnalytics={setShowRivalAnalytics}
-              hasFreeRivalAnalyticsRequest={hasFreeRivalAnalyticsRequest}
-              rivalAnalyticsFreeRequestUsed={rivalAnalyticsFreeRequestUsed}
-              onFreeCreditUsed={() => setFreeRivalAnalyticsRequestJustUsed(true)}
-              onOpenPricing={() => setShowPricing(true)}
-            />
-          )}
+            {activeCategory === "premium-features" && (
+              <PremiumFeaturesCategory
+                claim={claim}
+                companySlug={claim.companySlug}
+                companyId={claim.companyId}
+                hasActivePaidTier={hasActivePaidTier}
+                onStartUpgrade={setPendingUpgradeTier}
+                featuredReviewId={featuredReviewId}
+                setFeaturedReviewId={setFeaturedReviewId}
+                onSavePremium={savePremium}
+                premiumSaving={premiumSaving}
+                premiumStatus={premiumStatus}
+                premiumError={premiumError}
+                showRivalAnalytics={showRivalAnalytics}
+                setShowRivalAnalytics={setShowRivalAnalytics}
+                hasFreeRivalAnalyticsRequest={hasFreeRivalAnalyticsRequest}
+                rivalAnalyticsFreeRequestUsed={rivalAnalyticsFreeRequestUsed}
+                onFreeCreditUsed={() => setFreeRivalAnalyticsRequestJustUsed(true)}
+                onOpenPricing={() => setShowPricing(true)}
+              />
+            )}
 
-          {activeCategory === "contact-social" && (
-            <ContactSocialCategory
-              city={city}
-              contactEmail={contactEmail}
-              setContactEmail={setContactEmail}
-              contactPhone={contactPhone}
-              setContactPhone={setContactPhone}
-              facebookUrl={facebookUrl}
-              setFacebookUrl={setFacebookUrl}
-              instagramUrl={instagramUrl}
-              setInstagramUrl={setInstagramUrl}
-              whatsappUrl={whatsappUrl}
-              setWhatsappUrl={setWhatsappUrl}
-              xUrl={xUrl}
-              setXUrl={setXUrl}
-              linkedinUrl={linkedinUrl}
-              setLinkedinUrl={setLinkedinUrl}
-              youtubeUrl={youtubeUrl}
-              setYoutubeUrl={setYoutubeUrl}
-              glassdoorUrl={glassdoorUrl}
-              setGlassdoorUrl={setGlassdoorUrl}
-              onSave={saveContact}
-              saving={contactSaving}
-              status={contactStatus}
-              error={contactError}
-            />
-          )}
+            {activeCategory === "contact-social" && (
+              <ContactSocialCategory
+                city={city}
+                contactEmail={contactEmail}
+                setContactEmail={setContactEmail}
+                contactPhone={contactPhone}
+                setContactPhone={setContactPhone}
+                facebookUrl={facebookUrl}
+                setFacebookUrl={setFacebookUrl}
+                instagramUrl={instagramUrl}
+                setInstagramUrl={setInstagramUrl}
+                whatsappUrl={whatsappUrl}
+                setWhatsappUrl={setWhatsappUrl}
+                xUrl={xUrl}
+                setXUrl={setXUrl}
+                linkedinUrl={linkedinUrl}
+                setLinkedinUrl={setLinkedinUrl}
+                youtubeUrl={youtubeUrl}
+                setYoutubeUrl={setYoutubeUrl}
+                glassdoorUrl={glassdoorUrl}
+                setGlassdoorUrl={setGlassdoorUrl}
+                onSave={saveContact}
+                saving={contactSaving}
+                status={contactStatus}
+                error={contactError}
+              />
+            )}
 
-          {activeCategory === "reviews-ratings" && (
-            <ReviewsRatingsCategory companySlug={claim.companySlug} companyName={detail?.company.name ?? claim.companyName} detail={detail} />
-          )}
+            {activeCategory === "reviews-ratings" && (
+              <ReviewsRatingsCategory companySlug={claim.companySlug} companyName={detail?.company.name ?? claim.companyName} detail={detail} />
+            )}
 
-          {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
+            {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
 
-          {/* Rendered here (sibling to every activeCategory block, not nested
-              inside general-info's) because both GeneralInfoCategory and
-              PremiumFeaturesCategory can set pendingUpgradeTier via
-              onStartUpgrade — this must show regardless of which tab is
-              active when the upgrade button was clicked. */}
-          {pendingUpgradeTier && (
-            <UpgradeCheckout
-              companyId={claim.companyId}
-              initialTier={pendingUpgradeTier}
-              onClose={() => setPendingUpgradeTier(null)}
-            />
-          )}
-        </div>
+            {/* Rendered here (sibling to every activeCategory block, not nested
+                inside general-info's) because both GeneralInfoCategory and
+                PremiumFeaturesCategory can set pendingUpgradeTier via
+                onStartUpgrade — this must show regardless of which tab is
+                active when the upgrade button was clicked. */}
+            {pendingUpgradeTier && (
+              <UpgradeCheckout
+                companyId={claim.companyId}
+                initialTier={pendingUpgradeTier}
+                onClose={() => setPendingUpgradeTier(null)}
+              />
+            )}
+          </div>
+        </SidebarContentRow>
       </fieldset>
 
       <div className="mt-5 border-t border-border pt-4">

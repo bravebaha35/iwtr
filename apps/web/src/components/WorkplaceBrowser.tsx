@@ -558,7 +558,7 @@ export function WorkplaceBrowser() {
           </SidebarShell>
 
           {/* Results */}
-          <div ref={resultsTopRef} className="flex-1">
+          <div ref={resultsTopRef} className="min-w-0 flex-1">
             <Suspense fallback={null}>
               <HighlightParamListener onHighlight={onHighlight} />
             </Suspense>

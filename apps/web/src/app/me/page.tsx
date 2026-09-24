@@ -31,6 +31,7 @@ import { PhoneNumberInput } from "@/components/PhoneNumberInput";
 import { ChangePasswordForm } from "@/components/profile/ChangePasswordForm";
 import { AccountOptionsPanel } from "@/components/profile/AccountOptionsPanel";
 import { CvPreview } from "@/components/profile/CvPreview";
+import { SidebarContentRow } from "@/components/layout/SidebarShell";
 
 const SUPPORT_EMAIL = "iworkedthere@hotmail.com";
 
@@ -627,7 +628,7 @@ export default function ProfilePage() {
           <p className="text-sm text-muted-foreground">Loading...</p>
         )
       ) : (
-        <div className="flex flex-col gap-6 sm:flex-row">
+        <SidebarContentRow>
           {/* Vertical tab list */}
           <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto sm:w-56 sm:flex-col sm:overflow-visible">
             {TABS.map((tab) => (
@@ -1451,7 +1452,7 @@ export default function ProfilePage() {
           {activeTab === "account" && <AccountOptionsPanel email={profile.email} />}
         </div>
           </div>
-        </div>
+        </SidebarContentRow>
       )}
     </div>
   );
