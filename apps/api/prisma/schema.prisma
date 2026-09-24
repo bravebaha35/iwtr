@@ -555,6 +555,7 @@ model Company {
   jobApplications      JobApplication[]
   socialPosts          SocialPost[]
   followers            CompanyFollow[]
+  benchmarkReportJobs  BenchmarkReportJob[]
 
   // name: helps the case-insensitive exact-match duplicate check
   // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
@@ -776,6 +777,9 @@ model Review {
   votes               ReviewVote[]
   moderationQueueItem ModerationQueueItem?
   companyReply        CompanyReply?
+  // Optional, consent-gated salary/benefits answer — its own table on
+  // purpose, see SalarySubmission.
+  salarySubmission    SalarySubmission?
 
   @@unique([userId, companyId])
   // The @@unique below already indexes userId as its leading column, which
@@ -1419,4 +1423,84 @@ model EmployerProfile {
   updatedAt         DateTime @updatedAt
 
   @@schema("pii")
+}
+
+// ---------------------------------------------------------------------------
+// Sector Benchmark Report
+// (docs/superpowers/specs/2026-09-24-sector-benchmark-report-design.md)
+// ---------------------------------------------------------------------------
+
+enum BenefitKey {
+  MEAL_CARD
+  TRANSPORT
+  PRIVATE_HEALTH_INSURANCE
+  BONUS
+  PRIVATE_PENSION
+  REMOTE_WORK_ALLOWANCE
+  TRAINING_BUDGET
+  COMPANY_CAR
+  GYM
+  PHONE
+
+  @@schema("public")
+}
+
+// A reviewer's salary/benefits answer. Deliberately NOT columns on Review:
+// reviews are served publicly, and a separate table means no review query
+// can ever carry a salary by accident. A row only exists when the reviewer
+// ticked the KVKK commercial-benchmarking consent (the API drops the data
+// otherwise, in shared-types' compensationInputSchema) — the consent flag
+// is still stored explicitly as an audit field. Read only by
+// SectorBenchmarkService, and only ever as k-anonymous percentile bands;
+// never returned to any client, including the reviewer's own edit form.
+model SalarySubmission {
+  id               String       @id @default(uuid())
+  reviewId         String       @unique
+  review           Review       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId           String
+  companyId        String
+  // Exact monthly net TL. Null when only benefits were given.
+  monthlyNetSalary Int?
+  benefits         BenefitKey[]
+  // Current UTC year at insert/replace; reports partition by it.
+  salaryYear       Int
+  kvkkCommercialConsent Boolean
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([companyId, salaryYear])
+  @@schema("public")
+}
+
+enum BenchmarkReportStatus {
+  QUEUED
+  RUNNING
+  READY
+  FAILED
+
+  @@schema("public")
+}
+
+// The async job queue for Sector Benchmark Reports — drained by the
+// in-process BenchmarkReportWorker (no Redis). The finished PDF is kept in
+// `pdf` until expiresAt (7 days), downloadable only by approved owners of
+// companyId.
+model BenchmarkReportJob {
+  id                String                @id @default(uuid())
+  requestedByUserId String
+  companyId         String
+  company           Company               @relation(fields: [companyId], references: [id])
+  sectorCategory    String
+  city              String?
+  status            BenchmarkReportStatus @default(QUEUED)
+  pdf               Bytes?
+  errorMessage      String?
+  createdAt         DateTime              @default(now())
+  completedAt       DateTime?
+  expiresAt         DateTime?
+
+  @@index([status, createdAt])
+  @@index([companyId, createdAt])
+  @@index([requestedByUserId, status])
+  @@schema("public")
 }

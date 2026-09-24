@@ -360,3 +360,98 @@ describe("ReviewsService.submitReview - company owners (2026-09-11)", () => {
     expect(prisma.employmentHistory.findUnique).toHaveBeenCalled();
   });
 });
+
+describe("ReviewsService — consent-gated salary/benefits", () => {
+  const userId = "user-1";
+  const companyId = "company-1";
+  const employmentHistoryId = "emp-1";
+  const answers = getQuestionsFor("OFFICE").map((q) => ({ questionId: q.id, answer: q.correctAnswer }));
+
+  function makePrisma() {
+    const prisma: Record<string, any> = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: userId, status: "ACTIVE", createdAt: new Date() }) },
+      employmentHistory: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: employmentHistoryId,
+          userId,
+          companyId,
+          company: { workplaceTypes: ["OFFICE"], structureType: "SETTLED", city: null, region: null },
+        }),
+      },
+      review: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "review-1" }),
+        update: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      salarySubmission: { create: jest.fn(), upsert: jest.fn() },
+      moderationQueueItem: { create: jest.fn(), upsert: jest.fn() },
+      companyAggregateScore: { upsert: jest.fn(), findUnique: jest.fn(), deleteMany: jest.fn() },
+    };
+    prisma.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(prisma));
+    return prisma;
+  }
+
+  function makeService(prisma: ReturnType<typeof makePrisma>) {
+    return new ReviewsService(prisma as any, new ModerationService(), { purgeTcKimlikNoIfPresent: jest.fn() } as any);
+  }
+
+  function input(compensation: CreateReviewInput["compensation"]): CreateReviewInput {
+    return { companyId, employmentHistoryId, workplaceType: "OFFICE", answers, isRandomizedIdentity: false, compensation };
+  }
+
+  it("never writes a salary row when consent was withheld (compensation parsed to null)", async () => {
+    const prisma = makePrisma();
+    await makeService(prisma).submitReview(userId, input(null));
+    expect(prisma.salarySubmission.create).not.toHaveBeenCalled();
+  });
+
+  it("stores a consenting answer with the current UTC year and the consent audit flag", async () => {
+    const prisma = makePrisma();
+    await makeService(prisma).submitReview(userId, input({ monthlyNetSalary: 45000, benefits: ["MEAL_CARD"] }));
+    expect(prisma.salarySubmission.create).toHaveBeenCalledWith({
+      data: {
+        reviewId: "review-1",
+        userId,
+        companyId,
+        monthlyNetSalary: 45000,
+        benefits: ["MEAL_CARD"],
+        salaryYear: new Date().getUTCFullYear(),
+        kvkkCommercialConsent: true,
+      },
+    });
+  });
+
+  it("on edit, replaces the stored answer only when a new consenting one is sent", async () => {
+    const prisma = makePrisma();
+    prisma.review.findUnique.mockResolvedValue({
+      id: "review-1",
+      userId,
+      companyId,
+      workplaceType: "OFFICE",
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+      isRandomizedIdentity: false,
+      displayUsername: null,
+      employmentHistory: { id: employmentHistoryId, startDate: null, endDate: null },
+      company: { structureType: "SETTLED", city: null, region: null },
+    });
+    const service = makeService(prisma);
+
+    await service.updateReview(userId, "review-1", { answers, isRandomizedIdentity: false, compensation: null });
+    expect(prisma.salarySubmission.upsert).not.toHaveBeenCalled();
+
+    await service.updateReview(userId, "review-1", {
+      answers,
+      isRandomizedIdentity: false,
+      compensation: { monthlyNetSalary: 52000, benefits: [] },
+    });
+    expect(prisma.salarySubmission.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { reviewId: "review-1" },
+        update: expect.objectContaining({ monthlyNetSalary: 52000, salaryYear: new Date().getUTCFullYear() }),
+      }),
+    );
+  });
+});

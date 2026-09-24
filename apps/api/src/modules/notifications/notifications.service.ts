@@ -33,7 +33,7 @@ export class NotificationsService {
     });
     const followedCompanyIds = follows.map((f) => f.companyId);
 
-    const [votes, replies, jobPostings, followedStatusUpdates, followedPosts, followedHiring] = await Promise.all([
+    const [votes, replies, jobPostings, followedStatusUpdates, followedPosts, followedHiring, readyReports] = await Promise.all([
       reviewIds.length > 0
         ? this.prisma.reviewVote.findMany({
             where: { reviewId: { in: reviewIds } },
@@ -101,6 +101,14 @@ export class NotificationsService {
             })
             .then((rows) => rows.filter((r) => daysRemaining(r) > 0).slice(0, MAX_NOTIFICATIONS))
         : Promise.resolve([]),
+      // Sector Benchmark Reports this user ordered that finished building
+      // and can still be downloaded (see BenchmarkReportWorker).
+      this.prisma.benchmarkReportJob.findMany({
+        where: { requestedByUserId: userId, status: "READY", expiresAt: { gt: new Date() } },
+        select: { id: true, companyId: true, completedAt: true, company: { select: { name: true, slug: true } } },
+        orderBy: { completedAt: "desc" },
+        take: MAX_NOTIFICATIONS,
+      }),
     ]);
 
     const events: Notification[] = [
@@ -145,6 +153,16 @@ export class NotificationsService {
         companyName: j.company.name,
         companySlug: j.company.slug,
         createdAt: j.createdAt.toISOString(),
+      })),
+      ...readyReports.map((job) => ({
+        id: `benchmark-${job.id}`,
+        type: "BENCHMARK_REPORT_READY" as NotificationType,
+        companyName: job.company.name,
+        companySlug: job.company.slug,
+        createdAt: (job.completedAt ?? new Date()).toISOString(),
+        // Through the web app's same-origin auth proxy, which attaches the
+        // session; the API re-checks ownership and expiry on download.
+        href: `/api/proxy/my-companies/${job.companyId}/sector-benchmark/${job.id}/download`,
       })),
     ];
 

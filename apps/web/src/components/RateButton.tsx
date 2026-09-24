@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   CategoryKey,
-  CreateReviewInput,
+  CreateReviewRequestBody,
   MyEmploymentEntry,
   MyReview,
   StructureType,
@@ -12,7 +12,7 @@ import type {
   SurveyAnswer,
   SurveyQuestion,
   TurkeyRegionKey,
-  UpdateReviewInput,
+  UpdateReviewRequestBody,
   WorkplaceType,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
@@ -20,6 +20,12 @@ import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { RATE_BUTTON_EMOJI } from "@/lib/rateButton";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
+import {
+  CompensationFields,
+  EMPTY_COMPENSATION,
+  toCompensationBody,
+  type CompensationDraft,
+} from "@/components/review/CompensationFields";
 import { findProvinceByCityName, provincesInRegion } from "@/lib/turkeyGeo";
 
 const CATEGORIES: { key: CategoryKey; label: string }[] = [
@@ -160,6 +166,9 @@ export function RateButton({
   const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
   const [generalThoughts, setGeneralThoughts] = useState("");
   const [isRandomizedIdentity, setIsRandomizedIdentity] = useState(false);
+  // Optional salary/benefits. Always starts empty, even when editing: the
+  // stored salary is never sent back to the browser.
+  const [compensation, setCompensation] = useState<CompensationDraft>(EMPTY_COMPENSATION);
   // A district (CITY_BASED) or a city (REGION_BASED) — see the structureType
   // prop doc comment. Always null and unused for a SETTLED company.
   const [locationValue, setLocationValue] = useState<string | null>(null);
@@ -200,6 +209,7 @@ export function RateButton({
     setAnswers({});
     setGeneralThoughts("");
     setIsRandomizedIdentity(false);
+    setCompensation(EMPTY_COMPENSATION);
     setLocationValue(null);
     setError(null);
     setResult(null);
@@ -286,15 +296,16 @@ export function RateButton({
         isRandomizedIdentity,
         district: structureType === "CITY_BASED" ? (locationValue ?? undefined) : undefined,
         city: structureType === "REGION_BASED" ? (locationValue ?? undefined) : undefined,
+        compensation: toCompensationBody(compensation),
       };
       const res = matchingEntry.reviewId
-        ? await apiPatch<SubmitReviewResult>(`/reviews/${matchingEntry.reviewId}`, content satisfies UpdateReviewInput)
+        ? await apiPatch<SubmitReviewResult>(`/reviews/${matchingEntry.reviewId}`, content satisfies UpdateReviewRequestBody)
         : await apiPost<SubmitReviewResult>("/reviews", {
             companyId,
             employmentHistoryId: matchingEntry.id,
             workplaceType: selectedWorkplaceType,
             ...content,
-          } satisfies CreateReviewInput);
+          } satisfies CreateReviewRequestBody);
       setResult(res);
       router.refresh();
     } catch (err) {
@@ -475,6 +486,9 @@ export function RateButton({
                         )}
                       </span>
                     </label>
+                    <div className="mt-4">
+                      <CompensationFields value={compensation} onChange={setCompensation} />
+                    </div>
                   </div>
                 )}
 
