@@ -687,7 +687,7 @@ export default function ProfilePage() {
             <button
               onClick={saveCustomization}
               disabled={avatarSaving}
-              className="mt-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+              className="mt-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
             >
               {avatarSaving ? "Saving..." : "Save changes"}
             </button>
@@ -782,7 +782,7 @@ export default function ProfilePage() {
                       type="button"
                       onClick={saveBirthDate}
                       disabled={birthDateSaving || !birthDateDraft}
-                      className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                      className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
                     >
                       {birthDateSaving ? "Saving..." : "Save"}
                     </button>
@@ -866,7 +866,7 @@ export default function ProfilePage() {
               type="button"
               onClick={savePersonalWorkInfo}
               disabled={personalSaving}
-              className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+              className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
             >
               {personalSaving ? "Saving..." : "Save"}
             </button>
@@ -924,7 +924,7 @@ export default function ProfilePage() {
                       type="button"
                       onClick={phoneStage === "phone" ? sendPhoneOtp : verifyPhoneOtp}
                       disabled={phoneSaving || (phoneStage === "otp" && phoneOtpCode.trim().length !== 6)}
-                      className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                      className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
                     >
                       {phoneSaving
                         ? phoneStage === "phone"
@@ -1030,7 +1030,7 @@ export default function ProfilePage() {
                         <button
                           type="button"
                           onClick={saveEditEducation}
-                          className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+                          className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-brand-700"
                         >
                           Save
                         </button>
@@ -1125,7 +1125,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={addEducation}
                     disabled={addingEdu || !newEduInstitution.trim()}
-                    className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                    className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
                   >
                     {addingEdu ? "Adding..." : "Add"}
                   </button>
@@ -1204,7 +1204,7 @@ export default function ProfilePage() {
                       <button
                         type="button"
                         onClick={saveEditEmployment}
-                        className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+                        className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-brand-700"
                       >
                         Save
                       </button>
@@ -1302,7 +1302,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={addEmployment}
                     disabled={addingJob || !newJobCompany}
-                    className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                    className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
                   >
                     {addingJob ? "Adding..." : "Add workplace"}
                   </button>

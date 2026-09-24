@@ -1,14 +1,12 @@
 @import "tailwindcss";
 
-/* Dark mode is switched by a `.dark` class on <html> (set from
-   lib/settings-context.tsx + the inline boot script in layout.tsx), not by
-   OS preference — this is what makes the sandwich-panel toggle actually work.
-   Every existing `dark:` utility across the app keeps working unchanged;
-   only the trigger condition changes. */
+/* Dark mode is keyed off a `.dark` class on <html>, which layout.tsx now
+   always sets (the Muted Industrial palette is dark-only) — so every
+   existing `dark:` utility across the app is always on. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Gmail-style "Detailed"/"Compact" density. Toggled the same way as dark
-   mode (a root-level attribute set from settings-context.tsx), so any
+   mode (a root-level attribute set on <html>), so any
    component can opt into tighter spacing with e.g. `compact:p-2` without
    prop-drilling a density value through the tree. */
 @custom-variant compact (&:where([data-density="compact"], [data-density="compact"] *));
@@ -49,45 +47,28 @@
   background-color: var(--muted-foreground);
 }
 
-/* "Beaver Habitat" palette (2026-09-24). Named anchors:
-     Birch      #F4F1EA  light page background
-     Slate Dam  #2C3539  dark-mode background, borders, footer band
-     Timber     #4A3018  light-mode body text
-     River      #1A5F7A  active states (river-* scale below)
-     Wood       #8B5A2B  primary buttons (brand-600 below)
-   Contrast (WCAG AA needs 4.5): Timber/Birch 10.8, River/Birch 6.3,
-   white/Wood 5.8, Birch/Slate Dam 11.1. River and Wood themselves FAIL on
-   Slate Dam (1.8 / 2.2), which is why dark mode reads the lighter
-   brand-400 / river-300 shades instead. */
-:root {
-  --background: #f4f1ea; /* Birch */
-  --foreground: #4a3018; /* Timber */
-  --surface: #fbf9f4;
-  --surface-muted: #e9e4d8;
-  --muted-foreground: #6b5440; /* 6.3 on Birch */
-  --border: #2c3539; /* Slate Dam — deliberately heavy */
-  /* Settings-page sidebars (/me, /my/companies) follow the theme: a light
-     panel here, a dark one under .dark. Timber on this is 9.3:1. */
-  --sidebar: #e9e4d8;
-  --sidebar-foreground: #4a3018; /* Timber */
-  /* The footer is the one band that stays dark in both themes (see
-     GlobalFooter.tsx), so it has its own fixed pair. */
-  --footer: #2c3539; /* Slate Dam */
-  --footer-foreground: #f4f1ea; /* Birch */
-}
-
+/* "Muted Industrial" palette (2026-09-24, replaces Beaver Habitat). Dark
+   only: layout.tsx always sets `.dark`, and there is no theme switch, so
+   :root and .dark carry the same values (:root is the pre-hydration
+   fallback). Anchors: slate-950 page, slate-900 surfaces, slate-800
+   dividers, slate-50 text, Acid Green #CCFF00 for primary actions
+   (brand-600), steel slate for selected/active states (river-600).
+   Contrast (WCAG AA needs 4.5): slate-50 on slate-950 18.8, slate-400 on
+   slate-900 6.9, slate-950 text on Acid Green 17.1, white on river-600
+   10.4. White text on Acid Green would FAIL (1.2) — filled brand buttons
+   use text-slate-950. */
+:root,
 .dark {
-  --background: #2c3539; /* Slate Dam */
-  --foreground: #f4f1ea; /* Birch */
-  --surface: #343f44;
-  --surface-muted: #3e4a4f;
-  --muted-foreground: #c2bcb0; /* 5.7 on --surface */
-  --border: #6b7a80;
-  /* Darker than the page so the panel still reads as its own column. */
-  --sidebar: #1e2528;
-  --sidebar-foreground: #f4f1ea;
-  --footer: #1e2528;
-  --footer-foreground: #f4f1ea;
+  --background: #020617; /* slate-950 */
+  --foreground: #f8fafc; /* slate-50 */
+  --surface: #0f172a; /* slate-900 */
+  --surface-muted: #172033; /* between slate-900 and slate-800 */
+  --muted-foreground: #94a3b8; /* slate-400 */
+  --border: #1e293b; /* slate-800 */
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f8fafc;
+  --footer: #0f172a;
+  --footer-foreground: #f8fafc;
 }
 
 @theme inline {
@@ -113,46 +94,43 @@
   --font-jakarta: var(--font-plus-jakarta-sans);
   --font-grotesk: var(--font-space-grotesk);
 
-  /* Named Beaver Habitat colors (see the palette comment on :root). */
-  --color-birch: #f4f1ea;
-  --color-slate-dam: #2c3539;
-  --color-timber: #4a3018;
+  --color-acid: #ccff00;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-footer: var(--footer);
   --color-footer-foreground: var(--footer-foreground);
 
   /* Brand accent — a single place to retune the whole site's color later.
-     Anchored on Wood #8B5A2B (brand-600, the resting color of every filled
-     CTA). Named brand-* so nothing that references it needs to change if
-     the hue is ever swapped. 300/400 are pulled lighter than an even ramp
-     on purpose: they're the dark-mode text shades (dark:text-brand-400),
-     and must clear 4.5:1 on the dark surfaces (400 = 5.2, 300 = 6.4). */
-  --color-brand-50: #f8f5f2;
-  --color-brand-100: #f0eae3;
-  --color-brand-200: #e3d7cc;
-  --color-brand-300: #d5c4b3;
-  --color-brand-400: #c7b099;
-  --color-brand-500: #a88360;
-  --color-brand-600: #8b5a2b;
-  --color-brand-700: #724a23;
-  --color-brand-800: #5d3c1d;
-  --color-brand-900: #482f16;
-  --color-brand-950: #31200f;
+     Anchored on Acid Green #CCFF00 (brand-600, the resting color of every
+     filled CTA; brand-700 is its hover). Named brand-* so nothing that
+     references it needs to change if the hue is ever swapped. The lighter
+     steps are text/border shades on the dark surfaces; 900/950 are dark
+     tints for selected-pill backgrounds. */
+  --color-brand-50: #fcfff0;
+  --color-brand-100: #f7ffd6;
+  --color-brand-200: #efffad;
+  --color-brand-300: #e5ff7a;
+  --color-brand-400: #daff42;
+  --color-brand-500: #d2ff1f;
+  --color-brand-600: #ccff00;
+  --color-brand-700: #a8d100;
+  --color-brand-800: #7a9900;
+  --color-brand-900: #3d4d00;
+  --color-brand-950: #1a2100;
 
-  /* River #1A5F7A (river-600) — active/selected states. Same lighter
-     300/400 rule as brand for dark mode (400 = 4.8, 300 = 6.0). */
-  --color-river-50: #f1f5f7;
-  --color-river-100: #e1eaee;
-  --color-river-200: #c8d9df;
-  --color-river-300: #adc5cf;
-  --color-river-400: #91b2bf;
-  --color-river-500: #53879b;
-  --color-river-600: #1a5f7a;
-  --color-river-700: #154e64;
-  --color-river-800: #114052;
-  --color-river-900: #0e313f;
-  --color-river-950: #09212b;
+  /* Steel slate — selected/active states (river-600 = slate-700 with white
+     text). Kept under the old river-* name so no component changes. */
+  --color-river-50: #f8fafc;
+  --color-river-100: #f1f5f9;
+  --color-river-200: #e2e8f0;
+  --color-river-300: #cbd5e1;
+  --color-river-400: #94a3b8;
+  --color-river-500: #64748b;
+  --color-river-600: #334155;
+  --color-river-700: #273449;
+  --color-river-800: #1e293b;
+  --color-river-900: #0f172a;
+  --color-river-950: #020617;
 
   /* Square corners site-wide: every rounded-xs … rounded-4xl resolves to
      0px, so the 350+ existing rounded-* classes change in one place.
@@ -191,7 +169,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), sans-serif;
 }
 
 /* Tailwind's preflight leaves <button> at the browser default arrow cursor
@@ -211,16 +189,16 @@ select,
    link (Submit a Review, Job Categories, Claim Profile) routes here with
    ?highlight=... appended, so the visitor's eye lands on the right control
    instead of a bare navigation with no explanation. Single hardcoded
-   brand-600 hex (#8B5A2B, no light/dark variant — see the brand-* comment
+   brand-600 hex (#CCFF00, no light/dark variant — see the brand-* comment
    above) keeps the glow identical in both themes. Eased with the site's
    sharp SNAP curve (lib/motion/easings.ts), not a generic ease-out. */
 @keyframes highlight-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(139, 90, 43, 0.55);
+    box-shadow: 0 0 0 0 rgba(204, 255, 0, 0.55);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(139, 90, 43, 0);
+    box-shadow: 0 0 0 10px rgba(204, 255, 0, 0);
   }
 }
 .highlight-pulse {
@@ -233,22 +211,24 @@ button:disabled,
 }
 
 /* Native checkboxes/radios/range sliders and the keyboard focus outline
-   otherwise fall back to the browser's own blue — River instead. */
+   otherwise fall back to the browser's own blue — Acid Green instead, the
+   one colour guaranteed to stand out on the slate surfaces. */
 input[type="checkbox"],
 input[type="radio"],
 input[type="range"],
 progress {
-  accent-color: var(--color-river-600);
-}
-.dark input[type="checkbox"],
-.dark input[type="radio"],
-.dark input[type="range"],
-.dark progress {
-  accent-color: var(--color-river-400);
+  accent-color: var(--color-brand-600);
 }
 :focus-visible {
-  outline-color: var(--color-river-600);
+  outline-color: var(--color-brand-600);
 }
-.dark :focus-visible {
-  outline-color: var(--color-river-300);
+
+/* "Ultra-bold" page and section headings (Plus Jakarta Sans 800, loaded in
+   layout.tsx). Deliberately outside any @layer: unlayered CSS beats
+   Tailwind's utilities layer, so this wins over each heading's own
+   font-bold class without touching every component. */
+h1,
+h2 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }

@@ -148,7 +148,7 @@ export function SocialComposer({
           type="button"
           onClick={submit}
           disabled={busy}
-          className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+          className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
         >
           {busy ? "Posting..." : "Post"}
         </button>

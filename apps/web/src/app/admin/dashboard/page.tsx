@@ -442,7 +442,7 @@ function CreateCompanySection({
         type="button"
         onClick={() => void publish()}
         disabled={!canPublish}
-        className="mt-4 self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+        className="mt-4 self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
       >
         {submitting ? "Publishing..." : "Publish"}
       </button>
@@ -617,7 +617,7 @@ function EditCompanySection({
             type="button"
             onClick={() => void save()}
             disabled={saving || !form.name.trim()}
-            className="mt-4 self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+            className="mt-4 self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save changes"}
           </button>
@@ -692,7 +692,7 @@ function MergeDuplicatesSection({
         type="button"
         onClick={() => void merge()}
         disabled={merging || !duplicateId || !masterId || duplicateId === masterId}
-        className="mt-4 self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+        className="mt-4 self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
       >
         {merging ? "Merging..." : "Merge"}
       </button>

@@ -48,3 +48,19 @@ it("stays still for people who ask for reduced motion", () => {
   pointerMove(primary, 100, 40);
   expect(primary.style.transform).toBe("");
 });
+
+it("pulls a data-magnetic card less than a button", () => {
+  window.matchMedia = ((query: string) => ({ matches: query === "(pointer: fine)" })) as unknown as typeof window.matchMedia;
+  const { getByTestId } = render(
+    <>
+      <MagneticPrimaryButtons />
+      <div data-magnetic="card" data-testid="card">
+        <span data-testid="inside">Job</span>
+      </div>
+    </>,
+  );
+  const card = getByTestId("card");
+  card.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0, toJSON: () => ({}) });
+  pointerMove(getByTestId("inside"), 200, 100);
+  expect(card.style.transform).toBe("translate(2.00px, 2.00px)");
+});

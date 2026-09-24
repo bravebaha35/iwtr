@@ -125,7 +125,7 @@ export function PremiumFeaturesCategory(props: PremiumFeaturesCategoryProps) {
           <button
             onClick={props.onSavePremium}
             disabled={props.premiumSaving}
-            className="mt-3 self-start bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            className="mt-3 self-start bg-brand-600 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-brand-700 disabled:opacity-50"
           >
             Save Premium Features
           </button>

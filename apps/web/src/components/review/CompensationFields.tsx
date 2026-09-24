@@ -61,7 +61,7 @@ export function CompensationFields({
       <div className="mt-1 flex border border-border bg-surface focus-within:border-river-600 dark:focus-within:border-river-300">
         <span
           aria-hidden="true"
-          className="flex w-11 shrink-0 items-center justify-center bg-slate-dam font-grotesk text-lg font-bold text-birch dark:bg-birch dark:text-slate-dam"
+          className="flex w-11 shrink-0 items-center justify-center bg-brand-600 font-grotesk text-lg font-bold text-slate-950"
         >
           ₺
         </span>

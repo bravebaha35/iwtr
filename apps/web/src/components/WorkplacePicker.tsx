@@ -9,7 +9,7 @@ import { SingleSelectDropdown } from "@/components/Dropdown";
 
 function optionClass(active: boolean): string {
   return `w-full rounded px-2 py-1.5 text-left text-sm transition ${
-    active ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
+    active ? "bg-brand-600 text-slate-950" : "text-foreground hover:bg-surface-muted"
   }`;
 }
 

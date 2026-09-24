@@ -113,7 +113,7 @@ export function ContactSocialCategory(props: ContactSocialCategoryProps) {
           props.saving ||
           (!props.contactEmail.trim() && (!props.contactPhone.trim() || props.contactPhone.trim() === "+90"))
         }
-        className="mt-4 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+        className="mt-4 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-brand-700 disabled:opacity-50"
       >
         Save changes
       </button>

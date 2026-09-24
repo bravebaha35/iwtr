@@ -55,7 +55,7 @@ export function SkillsPicker({
               onClick={() => toggle(skill.id)}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition duration-150 ease-out hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
                 selected
-                  ? "border-brand-600 bg-brand-600 text-white"
+                  ? "border-brand-600 bg-brand-600 text-slate-950"
                   : "border-border text-muted-foreground hover:border-brand-600 hover:text-foreground"
               }`}
             >

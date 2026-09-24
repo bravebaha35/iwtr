@@ -37,7 +37,7 @@ export function WebsiteRulesModal({ onClose, onRegister }: { onClose: () => void
         <button
           type="button"
           onClick={onRegister}
-          className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
+          className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700"
         >
           Register for free
         </button>

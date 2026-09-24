@@ -77,7 +77,7 @@ function PaginationBar({
             onClick={() => onChange(p)}
             aria-current={p === page ? "page" : undefined}
             className={`min-w-9 rounded-lg px-2.5 py-1.5 font-medium transition ${
-              p === page ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
+              p === page ? "bg-brand-600 text-slate-950" : "text-foreground hover:bg-surface-muted"
             }`}
           >
             {p}

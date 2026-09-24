@@ -299,7 +299,7 @@ export function JobBoostModal({
               type="button"
               onClick={submit}
               disabled={submitting || !disclaimerChecked}
-              className="mt-4 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+              className="mt-4 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
             >
               {submitting ? "Please wait..." : selected ? "Finish" : "Continue without boost"}
             </button>

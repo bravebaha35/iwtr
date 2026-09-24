@@ -343,7 +343,7 @@ function Composer({
             type="button"
             onClick={submit}
             disabled={busy}
-            className="shrink-0 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+            className="shrink-0 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
           >
             Post
           </button>

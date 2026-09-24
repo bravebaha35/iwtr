@@ -186,7 +186,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
                   setShowCvPrompt(false);
                   goToCv();
                 }}
-                className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+                className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-brand-700"
               >
                 Go to My CV
               </button>

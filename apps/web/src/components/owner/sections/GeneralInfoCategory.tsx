@@ -300,7 +300,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
           <button
             onClick={props.onSaveGeneralInfo}
             disabled={props.generalInfoSaving}
-            className="mt-2 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            className="mt-2 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-brand-700 disabled:opacity-50"
           >
             Save changes
           </button>

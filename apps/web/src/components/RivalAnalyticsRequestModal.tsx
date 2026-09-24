@@ -244,8 +244,8 @@ export function RivalAnalyticsRequestModal({
                   type="button"
                   onClick={submit}
                   disabled={submitting}
-                  className={`mt-4 w-full rounded-lg py-2 text-sm font-semibold text-white transition disabled:opacity-50 ${
-                    hasFreeRequest ? "bg-green-600 hover:bg-green-700" : "bg-brand-600 hover:bg-brand-700"
+                  className={`mt-4 w-full rounded-lg py-2 text-sm font-semibold transition disabled:opacity-50 ${
+                    hasFreeRequest ? "bg-green-600 text-white hover:bg-green-700" : "bg-brand-600 text-slate-950 hover:bg-brand-700"
                   }`}
                 >
                   {submitting ? "Please wait..." : hasFreeRequest ? "Send my free report" : "Continue to payment"}
@@ -270,7 +270,7 @@ function RivalAnalyticsResult({ result, onClose }: { result: RivalAnalyticsReque
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+          className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-700"
         >
           Done
         </button>

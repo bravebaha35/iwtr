@@ -77,7 +77,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
             <button
               type="submit"
               disabled={submitting}
-              className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+              className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
             >
               {submitting ? "Sending..." : "Send code"}
             </button>
@@ -112,7 +112,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
             <button
               type="submit"
               disabled={submitting}
-              className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+              className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
             >
               {submitting ? "Verifying..." : "Verify"}
             </button>

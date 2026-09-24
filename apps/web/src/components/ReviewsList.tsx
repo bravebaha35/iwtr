@@ -280,7 +280,7 @@ export function ReviewsList({
                   type="button"
                   disabled={replySubmitting || replyText.trim().length === 0}
                   onClick={() => submitReply(review.id, review.reply !== null)}
-                  className="rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+                  className="rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
                 >
                   {replySubmitting ? "Posting..." : review.reply ? "Save" : "Post reply"}
                 </button>

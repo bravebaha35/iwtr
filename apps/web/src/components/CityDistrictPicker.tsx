@@ -194,7 +194,7 @@ export function CityDistrictPicker({
                   type="button"
                   onClick={handleCityClick}
                   className={`flex-1 truncate rounded px-1.5 py-0.5 text-left text-xs font-medium transition ${
-                    cityActive ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
+                    cityActive ? "bg-brand-600 text-slate-950" : "text-foreground hover:bg-surface-muted"
                   }`}
                 >
                   {p.name}
@@ -228,7 +228,7 @@ export function CityDistrictPicker({
                         onClick={handleClick}
                         className={`rounded-full px-2 py-0.5 text-[11px] transition ${
                           active
-                            ? "bg-brand-600 text-white"
+                            ? "bg-brand-600 text-slate-950"
                             : "border border-border text-muted-foreground hover:bg-surface-muted"
                         }`}
                       >

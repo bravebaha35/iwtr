@@ -74,7 +74,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
           </p>
           <button
             onClick={() => setShowForm(true)}
-            className="mt-3 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+            className="mt-3 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-brand-700"
           >
             Claim this company
           </button>
@@ -95,7 +95,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
             <button
               onClick={submitClaim}
               disabled={submitting}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-brand-700 disabled:opacity-50"
             >
               Submit claim
             </button>
@@ -151,7 +151,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
             <button
               onClick={submitClaim}
               disabled={submitting}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-brand-700 disabled:opacity-50"
             >
               Submit claim
             </button>

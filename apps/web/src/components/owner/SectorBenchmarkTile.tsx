@@ -161,7 +161,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
           type="button"
           onClick={generate}
           disabled={submitting || hasPending}
-          className="bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+          className="bg-brand-600 px-3 py-1.5 text-sm font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
         >
           {hasPending ? "Generating…" : "Generate report"}
         </button>

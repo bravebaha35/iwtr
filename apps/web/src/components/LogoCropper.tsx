@@ -169,7 +169,7 @@ export function LogoCropper({
             type="button"
             onClick={confirm}
             disabled={!natural || exporting}
-            className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-brand-700 disabled:opacity-50"
           >
             {exporting ? "Saving..." : "Use this crop"}
           </button>

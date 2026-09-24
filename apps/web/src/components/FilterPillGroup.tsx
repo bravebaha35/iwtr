@@ -36,13 +36,13 @@ const trackWrapperClass =
 // the class string.
 export function pillClass(active: boolean): string {
   return `${wrapPillBaseClass} ${
-    active ? "bg-brand-600 text-white" : "border border-border text-muted-foreground hover:bg-surface-muted"
+    active ? "bg-brand-600 text-slate-950" : "border border-border text-muted-foreground hover:bg-surface-muted"
   }`;
 }
 
 function gridPillClass(active: boolean): string {
   return `${gridPillBaseClass} ${
-    active ? "bg-brand-600 text-white" : "border border-border text-foreground hover:bg-surface-muted"
+    active ? "bg-brand-600 text-slate-950" : "border border-border text-foreground hover:bg-surface-muted"
   }`;
 }
 
