@@ -23,6 +23,10 @@ export const notificationTypeSchema = z.enum([
   "COMPANY_STATUS_UPDATE",
   "COMPANY_NEW_SOCIAL_POST",
   "COMPANY_HIRING",
+  // A Sector Benchmark Report the user ordered finished generating (see
+  // NotificationsService.list — derived from READY, unexpired
+  // BenchmarkReportJob rows). Carries `href`: the PDF download route.
+  "BENCHMARK_REPORT_READY",
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 
@@ -32,5 +36,8 @@ export const notificationSchema = z.object({
   companyName: z.string(),
   companySlug: z.string().nullable(),
   createdAt: z.string().datetime(),
+  // Where clicking the notification goes, when the type can't be derived
+  // from companySlug alone.
+  href: z.string().optional(),
 });
 export type Notification = z.infer<typeof notificationSchema>;

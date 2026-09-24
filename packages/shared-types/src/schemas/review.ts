@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { workplaceTypeSchema } from "./company";
+import { compensationInputSchema } from "./benchmark";
 
 // The reserved avatarKey/avatarGradient pair a review displays instead of
 // its author's real ones when "randomize my identity" (isRandomizedIdentity)
@@ -151,8 +152,13 @@ export const createReviewInputSchema = z.object({
   // the zod layer doesn't have.
   city: z.string().min(1).max(100).optional(),
   district: z.string().min(1).max(100).optional(),
+  // Optional, consent-gated salary/benefits step (see benchmark.ts). Parses
+  // to null whenever consent isn't given — the salary never gets past here.
+  compensation: compensationInputSchema.optional(),
 });
 export type CreateReviewInput = z.infer<typeof createReviewInputSchema>;
+// What the browser sends (before the compensation transform runs).
+export type CreateReviewRequestBody = z.input<typeof createReviewInputSchema>;
 
 // Editing an existing review: same content shape as create, minus the fields
 // that identify which employment history it's tied to (that link can't
@@ -167,6 +173,7 @@ export const updateReviewInputSchema = createReviewInputSchema.omit({
   workplaceType: true,
 });
 export type UpdateReviewInput = z.infer<typeof updateReviewInputSchema>;
+export type UpdateReviewRequestBody = z.input<typeof updateReviewInputSchema>;
 
 // A company's single public response to one of its reviews — see
 // CompanyReply in apps/api/prisma/schema.prisma for why this is public
