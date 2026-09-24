@@ -64,25 +64,38 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
   const [error, setError] = useState<string | null>(null);
   const pendingIds = useRef<Set<string>>(new Set());
 
-  const load = useCallback(async () => {
-    const rows = await apiGet<BenchmarkReportJob[]>(`/my-companies/${companyId}/sector-benchmark`);
+  const applyRows = useCallback((rows: BenchmarkReportJob[]) => {
     // A job we were watching just finished: let the header bell know.
     if (rows.some((j) => pendingIds.current.has(j.id) && j.status === "READY")) announceNewNotifications();
     pendingIds.current = new Set(rows.filter(isPending).map((j) => j.id));
     setJobs(rows);
-  }, [companyId]);
+  }, []);
+  const fetchJobs = useCallback(
+    () => apiGet<BenchmarkReportJob[]>(`/my-companies/${companyId}/sector-benchmark`),
+    [companyId],
+  );
 
   useEffect(() => {
     if (!isEnterprise) return;
-    load().catch(() => setJobs([]));
-  }, [isEnterprise, load]);
+    let cancelled = false;
+    fetchJobs()
+      .then((rows) => !cancelled && applyRows(rows))
+      .catch(() => !cancelled && setJobs([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [isEnterprise, fetchJobs, applyRows]);
 
   const hasPending = (jobs ?? []).some(isPending);
   useEffect(() => {
     if (!hasPending) return;
-    const timer = setInterval(() => void load().catch(() => {}), POLL_MS);
+    const timer = setInterval(() => {
+      fetchJobs()
+        .then(applyRows)
+        .catch(() => {});
+    }, POLL_MS);
     return () => clearInterval(timer);
-  }, [hasPending, load]);
+  }, [hasPending, fetchJobs, applyRows]);
 
   async function generate() {
     setError(null);
