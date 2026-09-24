@@ -83,7 +83,7 @@ export function ChangePasswordForm() {
       <button
         type="submit"
         disabled={submitting || !canSubmit}
-        className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
+        className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
       >
         {submitting ? "Saving..." : "Change password"}
       </button>

@@ -53,7 +53,7 @@ function DidNotGraduateToggle({
         } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
       >
         {checked && (
-          <svg viewBox="0 0 24 24" className="h-3 w-3 text-slate-950" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         )}
@@ -358,7 +358,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
+          className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           {submitting ? "Saving..." : "Continue"}
         </button>

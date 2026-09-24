@@ -36,7 +36,7 @@ export function AnonGate({
         <button
           type="button"
           onClick={() => openAuthModal("register")}
-          className="rounded-full bg-brand-600 px-6 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-brand-700"
+          className="rounded-full bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
         >
           Register
         </button>

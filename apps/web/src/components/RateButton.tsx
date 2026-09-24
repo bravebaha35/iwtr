@@ -343,7 +343,7 @@ export function RateButton({
       <button
         type="button"
         onClick={handleOpen}
-        className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700"
+        className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
       >
         {RATE_BUTTON_EMOJI} {editing ? "Edit your rating" : "Rate this workplace"}
       </button>
@@ -366,7 +366,7 @@ export function RateButton({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-700"
+                  className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700"
                 >
                   Done
                 </button>
@@ -509,7 +509,7 @@ export function RateButton({
                       type="button"
                       onClick={handleSubmit}
                       disabled={submitting || !canSubmit}
-                      className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
+                      className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                     >
                       {submitting ? "Saving..." : editing ? "Save changes" : "Submit review"}
                     </button>
@@ -518,7 +518,7 @@ export function RateButton({
                       type="button"
                       onClick={() => setStep((s) => s + 1)}
                       disabled={!currentStepAnswered}
-                      className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 hover:bg-brand-700 disabled:opacity-50"
+                      className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                     >
                       Next
                     </button>

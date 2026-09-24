@@ -9,6 +9,7 @@ import { apiGet } from "@/lib/api-client";
 import { Logo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
 import { avatarLabel } from "@/lib/avatars";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
 import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
@@ -50,7 +51,7 @@ function NavIconLink({
     );
   }
   return (
-    <Link href={href} title={title ?? label} className={className} data-magnetic="nav">
+    <Link href={href} title={title ?? label} className={className}>
       {inner}
     </Link>
   );
@@ -115,8 +116,8 @@ export function GlobalHeader() {
       {/* min-w-0 lets this row shrink below its content's natural width
           (flex items default to min-width: auto, which is exactly what was
           forcing the whole page wider at <=1024px) — but only the nav-icon
-          cluster below scrolls internally when it doesn't fit. The
-          avatar/logout (or login) controls stay outside that
+          cluster below scrolls internally when it doesn't fit. ThemeToggle
+          and the avatar/logout (or login) controls stay outside that
           scrollable region and shrink-0, so they're always visible rather
           than something a visitor has to know to scroll sideways to find. */}
       <div className="ml-auto flex min-w-0 items-center gap-4">
@@ -185,6 +186,10 @@ export function GlobalHeader() {
           </NavIconLink>
         </div>
 
+        <div className="shrink-0">
+          <ThemeToggle />
+        </div>
+
         {showAccountControls && onboardingStatus && (
           <div className="flex min-w-0 items-center gap-4">
             <Link
@@ -226,7 +231,7 @@ export function GlobalHeader() {
           <button
             type="button"
             onClick={() => openAuthModal()}
-            className="shrink-0 rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-brand-700"
+            className="shrink-0 rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
           >
             Login/Register
           </button>

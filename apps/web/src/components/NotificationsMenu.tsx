@@ -353,7 +353,7 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
             <span className={`text-sm leading-snug text-foreground ${n.unread ? "font-bold" : "font-medium"}`}>
               {describeNotification(n)}
               {isVerifyAccount && (
-                <span className="ml-2 inline-block rounded-full bg-brand-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-950">
+                <span className="ml-2 inline-block rounded-full bg-brand-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
                   Verify now
                 </span>
               )}

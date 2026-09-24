@@ -182,7 +182,7 @@ function UpgradeCheckout({
             <button
               onClick={startCheckout}
               disabled={submitting}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-slate-950 hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               Continue to payment
             </button>

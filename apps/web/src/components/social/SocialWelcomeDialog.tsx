@@ -43,7 +43,7 @@ export function SocialWelcomeDialog() {
         <button
           type="button"
           onClick={dismiss}
-          className="mt-4 rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-brand-700"
+          className="mt-4 rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
         >
           Got it
         </button>

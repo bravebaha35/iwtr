@@ -253,7 +253,6 @@ export function JobCard({
     // div, since `inert` can't be selectively un-set on a descendant once an
     // ancestor has it.
     <div
-      data-magnetic="card"
       className={`flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700 ${expired ? "opacity-50" : ""}`}
     >
       {/* Banner sits above the square content box (not inside it, so it

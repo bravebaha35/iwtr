@@ -146,7 +146,7 @@ export function JobSetupModal({
           type="button"
           disabled={!canContinue}
           onClick={() => jobTitle && workType && onContinue({ jobTitle, description: description.trim(), workType })}
-          className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
+          className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
           Continue
         </button>

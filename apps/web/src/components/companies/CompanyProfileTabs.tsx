@@ -174,7 +174,7 @@ export function CompanyProfileTabs({
               onClick={() => selectTab(tab.key)}
               className={`flex min-h-12 items-center justify-center rounded-lg px-3 py-3 text-center text-sm font-semibold transition sm:text-base ${
                 selected
-                  ? "bg-brand-600 text-slate-950 shadow-sm"
+                  ? "bg-brand-600 text-white shadow-sm"
                   : "text-muted-foreground hover:bg-surface hover:text-foreground"
               }`}
             >

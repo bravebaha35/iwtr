@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
+import { SettingsProvider } from "@/lib/settings-context";
 import { BackButton } from "@/components/BackButton";
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { GlobalFooter } from "@/components/GlobalFooter";
@@ -14,6 +15,18 @@ import "./globals.css";
 // country picker.
 import "flag-icons/css/flag-icons.min.css";
 
+// Applies the saved theme before first paint, so there's no flash of the
+// wrong theme on load — mirrors the logic in lib/settings-context.tsx.
+// Wrapped in try/catch since localStorage/matchMedia can throw in some
+// privacy-locked-down browsers, and a theme glitch shouldn't break the app.
+const THEME_BOOT_SCRIPT = `(function(){
+  try {
+    var theme = localStorage.getItem('iwtr:theme');
+    var isDark = theme === 'dark' || (theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', isDark);
+  } catch (e) {}
+})();`;
+
 // Primary typeface — chosen for brand authority plus reliable rendering of
 // Turkish workplace titles (İ/ı/Ş/ş/Ğ/ğ/Ç/ç/Ö/ö/Ü/ü) and 1-5 score digits.
 // "latin-ext" is mandatory here, not just "latin": Turkish-specific letters
@@ -21,7 +34,7 @@ import "flag-icons/css/flag-icons.min.css";
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
 });
 
 // CvPreview.tsx's headings use a second, distinct display face. Note this is
@@ -60,20 +73,28 @@ export default function RootLayout({
       // --font-sans resolves to nothing and every font-sans/body font-family
       // rule silently falls back to the browser default (verified live: this
       // exact failure happened when the variable was only on <body>).
-      // Always `dark`: the Muted Industrial palette is dark-only (see
-      // globals.css), so every existing dark: variant is always on and there
-      // is no theme switch or pre-paint theme script any more.
-      className={`${plusJakartaSans.variable} ${spaceGrotesk.variable} dark h-full antialiased`}
+      className={`${plusJakartaSans.variable} ${spaceGrotesk.variable} h-full antialiased`}
+      // The boot script below sets `.dark`/`data-density` synchronously,
+      // before React hydrates, so the server-rendered markup never matches —
+      // that's expected (it's what avoids a flash of the wrong theme), so
+      // silence the warning rather than fighting it.
+      suppressHydrationWarning
     >
+      <head>
+        {/* eslint-disable-next-line react/no-danger -- a fixed constant defined in this file, no user content */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body
         className={`${plusJakartaSans.variable} ${spaceGrotesk.variable} min-h-full flex flex-col bg-background text-foreground`}
       >
-        <AuthProvider>
-          <GlobalHeader />
-          {children}
-          <BackButton />
-          <AuthModal />
-        </AuthProvider>
+        <SettingsProvider>
+          <AuthProvider>
+            <GlobalHeader />
+            {children}
+            <BackButton />
+            <AuthModal />
+          </AuthProvider>
+        </SettingsProvider>
         <GlobalFooter />
         <MagneticPrimaryButtons />
       </body>

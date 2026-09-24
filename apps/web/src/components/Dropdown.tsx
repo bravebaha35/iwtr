@@ -300,7 +300,7 @@ export function MultiSelectDropdown({
                   >
                     <span
                       className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border text-[9px] leading-none ${
-                        checked ? "border-brand-600 bg-brand-600 text-slate-950 dark:border-brand-400 dark:bg-brand-400" : "border-border"
+                        checked ? "border-brand-600 bg-brand-600 text-white dark:border-brand-400 dark:bg-brand-400" : "border-border"
                       }`}
                     >
                       {checked ? "✓" : ""}

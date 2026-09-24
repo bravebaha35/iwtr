@@ -75,7 +75,7 @@ export function BannerLockedDialog({
           <button
             type="button"
             onClick={onSeePlans}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
           >
             See Plans
           </button>

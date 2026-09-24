@@ -328,7 +328,7 @@ export function AuthModal() {
           <button
             type="submit"
             disabled={submitting || (mode === "register" && !canSubmitRegister)}
-            className="mt-2 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-slate-950 transition hover:bg-brand-700 disabled:opacity-50"
+            className="mt-2 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
             {submitting ? "Please wait..." : mode === "register" ? "Create account" : "Log in"}
           </button>
