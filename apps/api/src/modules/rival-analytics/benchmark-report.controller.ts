@@ -34,6 +34,8 @@ export class BenchmarkReportController {
     @Param("jobId", new ParseUUIDPipe()) jobId: string,
   ): Promise<StreamableFile> {
     const { filename, pdf } = await this.reports.download(user.id, companyId, jobId);
-    return new StreamableFile(pdf, { type: "application/pdf", disposition: `attachment; filename="${filename}"` });
+    // inline: opens in the browser's PDF viewer (read or save from there,
+    // under this filename) rather than forcing a download.
+    return new StreamableFile(pdf, { type: "application/pdf", disposition: `inline; filename="${filename}"` });
   }
 }

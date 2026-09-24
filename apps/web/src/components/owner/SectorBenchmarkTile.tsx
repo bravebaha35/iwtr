@@ -18,6 +18,17 @@ function isPending(job: BenchmarkReportJob) {
   return job.status === "QUEUED" || job.status === "RUNNING";
 }
 
+// The API's anonymity-lock reason is deliberately terse; owners see what it
+// means and what to do about it instead.
+const INSUFFICIENT_DATA = "Insufficient Data to Ensure Anonymity";
+const INSUFFICIENT_DATA_FRIENDLY =
+  "Not enough companies in your sector have reviews yet to build this report without risking reviewers' privacy. " +
+  "A report needs at least 5 different reviewers from at least 3 different companies — please try again later.";
+
+export function friendlyReportError(message: string): string {
+  return message === INSUFFICIENT_DATA ? INSUFFICIENT_DATA_FRIENDLY : message;
+}
+
 export function downloadHref(companyId: string, jobId: string) {
   return `/api/proxy/my-companies/${companyId}/sector-benchmark/${jobId}/download`;
 }
@@ -107,7 +118,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
       pendingIds.current.add(job.id);
       setJobs((prev) => [job, ...(prev ?? [])]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't start the report. Please try again.");
+      setError(err instanceof ApiError ? friendlyReportError(err.message) : "Couldn't start the report. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -176,13 +187,15 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
               {job.status === "READY" && !(job.expiresAt && new Date(job.expiresAt) < new Date()) && (
                 <a
                   href={downloadHref(companyId, job.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="self-start text-sm font-semibold text-river-600 underline underline-offset-2 dark:text-river-300"
                 >
-                  Download PDF
+                  Open PDF
                 </a>
               )}
               {job.status === "FAILED" && (
-                <p className="text-xs text-red-700 dark:text-red-400">{job.errorMessage ?? "This report failed."}</p>
+                <p className="text-xs text-red-700 dark:text-red-400">{job.errorMessage ? friendlyReportError(job.errorMessage) : "This report failed."}</p>
               )}
             </li>
           ))}

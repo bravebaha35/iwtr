@@ -322,12 +322,14 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
   const href = hrefForNotification(n);
   // API routes (the benchmark PDF download) are real file responses, not
   // app pages — a client-side <Link> would try to route to them.
-  const RowLink = href.startsWith("/api/") ? "a" : Link;
+  const isFile = href.startsWith("/api/");
+  const RowLink = isFile ? "a" : Link;
 
   return (
     <li>
       <RowLink
         href={href}
+        {...(isFile ? { target: "_blank", rel: "noopener noreferrer" } : {})}
         onClick={() => onOpen(n.id)}
         className={`flex items-start gap-3 rounded-xl px-3 py-3 transition ${
           isVerifyAccount

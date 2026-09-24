@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { BenchmarkReportJob } from "@iwtr/shared-types";
 import { SectorBenchmarkTile } from "../SectorBenchmarkTile";
-import { apiGet, apiPost } from "@/lib/api-client";
+import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
 
 jest.mock("@/lib/api-client", () => ({
@@ -40,7 +40,7 @@ it("shows an upsell and makes no API call below Enterprise", () => {
 it("links a READY report to its download route through the auth proxy", async () => {
   (apiGet as jest.Mock).mockResolvedValue([job({})]);
   render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise />);
-  expect(await screen.findByRole("link", { name: "Download PDF" })).toHaveAttribute(
+  expect(await screen.findByRole("link", { name: "Open PDF" })).toHaveAttribute(
     "href",
     `/api/proxy/my-companies/${COMPANY}/sector-benchmark/22222222-2222-4222-8222-222222222222/download`,
   );
@@ -66,15 +66,25 @@ it("queues a report, shows a progress bar while it builds, and tells the bell wh
     jest.advanceTimersByTime(3_000);
   });
 
-  expect(await screen.findByRole("link", { name: "Download PDF" })).toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: "Open PDF" })).toBeInTheDocument();
   expect(bell).toHaveBeenCalledTimes(1);
   window.removeEventListener(NOTIFICATIONS_STALE_EVENT, bell);
 });
 
-it("shows the anonymity reason on a FAILED report", async () => {
+it("explains the anonymity lock in plain words on a FAILED report", async () => {
   (apiGet as jest.Mock).mockResolvedValue([
     job({ status: "FAILED", errorMessage: "Insufficient Data to Ensure Anonymity", expiresAt: null }),
   ]);
   render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise />);
-  expect(await screen.findByText("Insufficient Data to Ensure Anonymity")).toBeInTheDocument();
+  expect(await screen.findByText(/Not enough companies in your sector have reviews yet/)).toBeInTheDocument();
+  expect(screen.queryByText("Insufficient Data to Ensure Anonymity")).not.toBeInTheDocument();
+});
+
+it("explains a refused request (anonymity lock) in plain words", async () => {
+  (apiGet as jest.Mock).mockResolvedValue([]);
+  (apiPost as jest.Mock).mockRejectedValue(new ApiError("Insufficient Data to Ensure Anonymity", 403, null));
+  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise />);
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: "Generate report" }));
+  expect(await screen.findByText(/at least 5 different reviewers from at least 3 different companies/)).toBeInTheDocument();
 });
