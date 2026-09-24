@@ -181,7 +181,7 @@ export function JobBoostModal({
                     key={option.durationDays}
                     type="button"
                     onClick={() => setSelected((v) => (v === option.durationDays ? null : option.durationDays))}
-                    className={`flex flex-col gap-2 rounded-xl border-2 p-4 text-left transition ${
+                    className={`flex flex-col gap-2 rounded-xl border p-4 text-left transition ${
                       isChecked
                         ? "border-brand-600 dark:border-brand-400"
                         : "border-border hover:border-brand-300 dark:hover:border-brand-700"

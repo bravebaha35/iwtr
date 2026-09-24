@@ -31,7 +31,7 @@ export function SocialWelcomeDialog() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={dismiss}>
       <div
-        className="w-full max-w-md rounded-xl border-2 border-border bg-surface p-6 text-center"
+        className="w-full max-w-md rounded-xl border border-border bg-surface p-6 text-center"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-base font-medium text-foreground">

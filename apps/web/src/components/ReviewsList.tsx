@@ -168,7 +168,7 @@ export function ReviewsList({
       {visibleReviews.map((review) => (
         <div
           key={review.id}
-          className={`rounded-xl border border-border border-l-4 bg-surface p-5 compact:p-3 ${collarBorderClass(review.workplaceType)}`}
+          className={`rounded-xl border border-border border-l-2 bg-surface p-5 compact:p-3 ${collarBorderClass(review.workplaceType)}`}
         >
           <div className="mb-3 compact:mb-1.5 flex items-center gap-2">
             <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />

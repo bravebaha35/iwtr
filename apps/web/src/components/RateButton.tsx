@@ -98,7 +98,7 @@ function AnswerButtons({
             aria-label={meta.srLabel}
             aria-pressed={selected}
             title={meta.srLabel}
-            className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full border transition ${
               selected ? meta.litClassName : "border-border text-muted-foreground hover:bg-surface-muted"
             }`}
           >

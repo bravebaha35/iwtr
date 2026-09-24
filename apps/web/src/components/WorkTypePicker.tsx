@@ -24,7 +24,7 @@ export function WorkTypePicker({
           onClick={() => onChange(t.value)}
           className={`rounded-lg p-2 text-[10px] font-medium transition ${
             value === t.value
-              ? "bg-brand-100 ring-2 ring-brand-600 dark:bg-brand-900/60"
+              ? "bg-brand-100 ring-1 ring-brand-600 dark:bg-brand-900/60"
               : "text-muted-foreground hover:bg-surface-muted"
           }`}
         >

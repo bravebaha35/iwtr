@@ -411,7 +411,7 @@ export function JobsBrowser() {
                   type="button"
                   onClick={() => setSavedView((v) => !v)}
                   aria-pressed={savedView}
-                  className={`flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2 text-sm font-semibold transition ${
+                  className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                     savedView
                       ? "border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-400 dark:bg-brand-950 dark:text-brand-300"
                       : "border-border text-foreground hover:bg-surface-muted"
@@ -486,7 +486,7 @@ export function JobsBrowser() {
                       />
                     ))}
                     <span
-                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow-sm"
+                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
                       style={{ left: `${(minRating / 5) * 100}%` }}
                     />
                   </div>
@@ -539,7 +539,7 @@ export function JobsBrowser() {
                       />
                     ))}
                     <span
-                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow-sm"
+                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
                       style={{ left: `${(maxRiskScore / 3) * 100}%` }}
                     />
                   </div>

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import type { Company, SocialCompanySort, WorkplaceType } from "@iwtr/shared-types";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-import { collarSegmentClassName } from "@/lib/collarColors";
+import { collarOutlinedButtonClassName } from "@/lib/collarColors";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { CategoryGroupFilter, type CategoryGroup } from "@/lib/categoryGroups";
 import { CompanyLogo } from "@/components/CompanyLogo";
@@ -65,7 +65,7 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
   return (
     <div>
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort</h3>
-      <div className="flex w-full flex-col gap-1 rounded-xl border-2 border-border bg-surface-muted p-1">
+      <div className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface-muted p-1">
         <button
           type="button"
           onClick={() => onChange(isOldest ? "newest" : "oldest")}
@@ -253,8 +253,8 @@ export function SocialSidebar(props: SocialSidebarProps) {
   // "Only show me:" is single-select (unlike the rating/jobs pages' up-to-2
   // Work-Type filter), so this wraps MultiFilterPillGroup's onToggle contract
   // (one value in/out at a time) into a plain replace-or-clear toggle -
-  // same track/segmented-control look and colors (collarSegmentClassName) as
-  // those two pages, just one selection instead of two.
+  // the same collar colors as those two pages, just one selection instead
+  // of two.
   function toggleWorkplaceType(value: WorkplaceType) {
     onWorkplaceTypeChange(workplaceType === value ? null : value);
   }
@@ -273,9 +273,9 @@ export function SocialSidebar(props: SocialSidebarProps) {
 
       {isMember && <FollowingList />}
 
-      {/* Same visual language as the rating/jobs pages' Work-Type filter -
-          straight segmented pills, not a dropdown (see MultiFilterPillGroup's
-          variant="track" + collarSegmentClassName). */}
+      {/* Four separate outlined buttons in a 2x2 grid (not one shared track
+          box) - the picked one takes its collar color, same hues as the
+          rating/jobs pages' Work-Type filter. */}
       <MultiFilterPillGroup
         heading="Only Show Me"
         options={WORKPLACE_TYPES}
@@ -283,8 +283,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
         onToggle={toggleWorkplaceType}
         onReset={() => onWorkplaceTypeChange(null)}
         direction="grid"
-        variant="track"
-        pillColorClassName={collarSegmentClassName}
+        pillColorClassName={collarOutlinedButtonClassName}
       />
 
       {isMember && (
@@ -292,7 +291,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
           type="button"
           onClick={onToggleSavedView}
           aria-pressed={savedView}
-          className={`flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2 text-sm font-semibold transition ${
+          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
             savedView
               ? "border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-400 dark:bg-brand-950 dark:text-brand-300"
               : "border-border text-foreground hover:bg-surface-muted"

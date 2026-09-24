@@ -127,7 +127,7 @@ export function AvatarPhotoCropper({
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
       <div
-        className="flex flex-col items-center gap-3 rounded-xl border-2 border-border bg-surface p-4"
+        className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-sm font-medium text-foreground">Drag to reposition, use the slider to zoom</p>

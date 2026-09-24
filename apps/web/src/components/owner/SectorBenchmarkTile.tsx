@@ -130,7 +130,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="radiogroup" aria-label="Report scope" className="flex border-2 border-border">
+        <div role="radiogroup" aria-label="Report scope" className="flex border border-border">
           {SCOPES.map((s) => (
             <button
               key={s.value}

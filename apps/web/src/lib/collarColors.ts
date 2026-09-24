@@ -31,10 +31,10 @@ const inactiveCollarPillClassName = "border border-border text-muted-foreground 
 export function collarPillClassName(type: WorkplaceType, active: boolean): string {
   if (!active) return inactiveCollarPillClassName;
   const { border } = collarColorMap[type];
-  return `border-2 ${border} text-foreground bg-surface`;
+  return `border ${border} text-foreground bg-surface`;
 }
 
-// Used for the review card's left accent border only (border-l-4 in
+// Used for the review card's left accent border only (border-l-2 in
 // ReviewsList.tsx) — deliberately the per-side `border-l-*` utility, not the
 // all-sides `border` field above. That card also carries a plain `border
 // border-border` for its other 3 sides; two same-specificity `border-color`
@@ -53,7 +53,7 @@ export function collarBorderClass(type: WorkplaceType): string {
 // style used by WorkplaceVibeFlags.tsx's tabs and ReviewsList.tsx's accent
 // border), not a replacement for it, for the recessed WorkType filter track
 // on the homepage/jobs page only. Was a solid fill + white text per collar;
-// per explicit user request, switched to outline-only (border-2 + plain
+// per explicit user request, switched to outline-only (1px border + plain
 // foreground text on the plain surface, same treatment collarPillClassName
 // already uses) — the fill read as too heavy against the track. Exact hues
 // per design unchanged: Office slate-700 (#334155), Hybrid/Remote teal-600
@@ -61,21 +61,32 @@ export function collarBorderClass(type: WorkplaceType): string {
 // (#2563EB) — plain Tailwind defaults, not custom hex. No dark: variant
 // needed — a saturated border color reads fine regardless of theme.
 const collarSegmentActiveClass: Record<WorkplaceType, string> = {
-  OFFICE: "border-2 border-slate-700 text-foreground bg-surface",
-  HYBRID_REMOTE: "border-2 border-teal-600 text-foreground bg-surface",
-  SERVICE: "border-2 border-orange-600 text-foreground bg-surface",
-  MANUAL_LABOUR: "border-2 border-blue-600 text-foreground bg-surface",
+  OFFICE: "border border-slate-700 text-foreground bg-surface",
+  HYBRID_REMOTE: "border border-teal-600 text-foreground bg-surface",
+  SERVICE: "border border-orange-600 text-foreground bg-surface",
+  MANUAL_LABOUR: "border border-blue-600 text-foreground bg-surface",
 };
 
 // Borderless ash text — same "color is the result of selection, not a hint
 // shown up front" reasoning as inactiveCollarPillClassName above. Darker
 // zinc in light mode for real contrast against the track's light-mode
 // background (zinc-400 on a light track reads too washed out). Carries a
-// transparent border-2 to match the active state's box size — otherwise
+// transparent border to match the active state's box size — otherwise
 // picking an option would visibly grow the pill by the border width.
 const collarSegmentInactiveClass =
-  "border-2 border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200";
+  "border border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200";
 
 export function collarSegmentClassName(type: WorkplaceType, active: boolean): string {
   return active ? collarSegmentActiveClass[type] : collarSegmentInactiveClass;
+}
+
+// Stand-alone outlined buttons (IWT Social's "Only Show Me") — every option
+// always carries its own 1px outline, like a button, instead of sitting
+// borderless inside a shared track box. The selected one swaps to its
+// collar-colored outline, same hues as collarSegmentClassName.
+const collarOutlinedInactiveClass =
+  "border border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground";
+
+export function collarOutlinedButtonClassName(type: WorkplaceType, active: boolean): string {
+  return active ? collarSegmentActiveClass[type] : collarOutlinedInactiveClass;
 }

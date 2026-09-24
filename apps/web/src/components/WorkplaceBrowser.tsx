@@ -533,7 +533,7 @@ export function WorkplaceBrowser() {
                     title="Click and drag along the slider, or scroll, to fine-tune"
                   >
                     <span
-                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-foreground shadow-sm"
+                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
                       style={{ left: `${(minRating / 5) * 100}%` }}
                     />
                   </div>

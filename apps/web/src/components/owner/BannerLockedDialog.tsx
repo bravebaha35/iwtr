@@ -39,7 +39,7 @@ export function BannerLockedDialog({
         aria-modal="true"
         aria-labelledby="banner-locked-title"
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-2xl border-2 border-border bg-surface p-6 shadow-xl"
+        className="relative w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-xl"
       >
         <button
           type="button"

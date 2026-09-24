@@ -44,7 +44,7 @@ function StructureTypeRadioGroup({
         return (
           <label
             key={opt.value}
-            className={`flex flex-1 cursor-pointer flex-col gap-0.5 rounded-lg border-2 px-3 py-2 text-sm font-medium transition ${
+            className={`flex flex-1 cursor-pointer flex-col gap-0.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
               checked
                 ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
                 : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
@@ -87,7 +87,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-xl border-2 border-border bg-surface p-5">
+    <div className="flex flex-col rounded-xl border border-border bg-surface p-5">
       <h2 className="font-semibold text-foreground">{title}</h2>
       <p className="mb-4 text-sm text-muted-foreground">{description}</p>
       {children}
@@ -126,7 +126,7 @@ function YesNoToggle({ value, onChange }: { value: boolean; onChange: (v: boolea
           key={String(opt.v)}
           type="button"
           onClick={() => onChange(opt.v)}
-          className={`rounded-lg border-2 px-3 py-1.5 text-sm font-medium transition ${
+          className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
             value === opt.v
               ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
               : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"

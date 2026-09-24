@@ -118,7 +118,7 @@ function UpgradeCheckout({
                 key={t.value}
                 type="button"
                 onClick={() => setTier(t.value)}
-                className={`flex-1 rounded-lg border-2 px-3 py-2 text-center text-sm font-medium transition ${
+                className={`flex-1 rounded-lg border px-3 py-2 text-center text-sm font-medium transition ${
                   tier === t.value
                     ? "border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-950 dark:text-brand-300"
                     : "border-border text-foreground hover:bg-surface-muted"
@@ -496,7 +496,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     // column must not share a card (they sit side by side as <aside> and
     // <section>). A heavy top rule still separates one owned company from the
     // next.
-    <div className="border-t-2 border-border pt-5">
+    <div className="border-t border-border pt-5">
       {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}
       <div className="mb-4 flex items-center justify-between">
         <Link href={`/companies/${claim.companySlug}`} className="font-semibold text-foreground hover:underline">
@@ -733,7 +733,7 @@ export default function MyCompaniesPage() {
             ) : (
               <div
                 key={claim.id}
-                className="flex items-center justify-between rounded-xl border-2 border-border bg-surface p-4 compact:p-2.5"
+                className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 compact:p-2.5"
               >
                 <Link href={`/companies/${claim.companySlug}`} className="font-medium text-foreground hover:underline">
                   {claim.companyName}

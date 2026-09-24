@@ -129,7 +129,7 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
   // min-h (not a fixed h) — the standard card body is ~196px, but the banner
   // strip + overlapping logo need room to grow the card taller rather than
   // getting clipped.
-  const className = "flex min-h-[196px] flex-col gap-2 rounded-xl border-2 border-border bg-surface p-4 transition";
+  const className = "flex min-h-[196px] flex-col gap-2 rounded-xl border border-border bg-surface p-4 transition";
 
   if (href) {
     return (

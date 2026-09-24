@@ -331,12 +331,12 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
         onClick={() => onOpen(n.id)}
         className={`flex items-start gap-3 rounded-xl px-3 py-3 transition ${
           isVerifyAccount
-            ? "border-2 border-brand-600 bg-brand-50 hover:bg-brand-100 dark:border-brand-400 dark:bg-brand-950 dark:hover:bg-brand-900"
+            ? "border border-brand-600 bg-brand-50 hover:bg-brand-100 dark:border-brand-400 dark:bg-brand-950 dark:hover:bg-brand-900"
             : `hover:bg-surface-muted ${n.unread ? "bg-surface-muted/60" : ""}`
         }`}
       >
         <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-surface ${CATEGORY_RING_CLASS[category]}`}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-surface ${CATEGORY_RING_CLASS[category]}`}
           aria-hidden="true"
         >
           <Icon className="h-5 w-5" />
@@ -466,14 +466,14 @@ export function NotificationsMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-96 max-w-[92vw] rounded-2xl border-2 border-border bg-surface p-3 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-2 w-96 max-w-[92vw] rounded-2xl border border-border bg-surface p-3 shadow-xl">
           <div className="flex items-center justify-between gap-2 px-1 pb-2">
             <h2 className="text-base font-bold text-foreground">Notifications</h2>
             <button
               type="button"
               onClick={markAllRead}
               disabled={unreadCount === 0}
-              className="rounded-lg border-2 border-border px-3 py-2 text-sm font-bold text-foreground transition hover:border-brand-600 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-foreground dark:hover:border-brand-400 dark:hover:text-brand-400"
+              className="rounded-lg border border-border px-3 py-2 text-sm font-bold text-foreground transition hover:border-brand-600 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-foreground dark:hover:border-brand-400 dark:hover:text-brand-400"
             >
               Mark all as read
             </button>

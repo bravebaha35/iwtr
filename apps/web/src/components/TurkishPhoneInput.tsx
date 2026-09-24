@@ -18,7 +18,7 @@ function digitsOf(value: string): string {
 }
 
 function pillClass(active: boolean): string {
-  return `rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition ${
+  return `rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
     active
       ? "border-brand-600 bg-surface text-brand-700 dark:text-brand-400"
       : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"

@@ -619,7 +619,7 @@ export default function ProfilePage() {
 
       {profile === null ? (
         error ? (
-          <div className="rounded-xl border-2 border-border bg-surface p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             <Link href="/" className="mt-2 inline-block text-sm text-brand-600 hover:underline dark:text-brand-400">
               &larr; Back home
@@ -637,7 +637,7 @@ export default function ProfilePage() {
           {activeTab === "customize" && (
           <>
           {/* Avatar, real name + chosen username preview, background, username picker */}
-          <div className="rounded-xl border-2 border-border bg-surface p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <div className="mb-4 flex items-center gap-3">
               <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
               <div>
@@ -696,7 +696,7 @@ export default function ProfilePage() {
           </div>
 
           {role === "COMPANY_OWNER" && employerProfile && (
-            <div className="rounded-xl border-2 border-border bg-surface p-5">
+            <div className="rounded-xl border border-border bg-surface p-5">
               <h2 className="mb-1 font-semibold text-foreground">Employer Photo</h2>
               <p className="mb-4 text-xs text-muted-foreground">
                 Shown alongside your real name wherever you appear as a verified company owner — separate from the
@@ -714,7 +714,7 @@ export default function ProfilePage() {
           {activeTab === "personal" && (
           <>
           {/* Personal information */}
-          <div className="rounded-xl border-2 border-border bg-surface p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">Personal Information</h2>
 
             <div className="text-sm">
@@ -879,7 +879,7 @@ export default function ProfilePage() {
           {activeTab === "contact" && (
           <>
           {/* Contact information */}
-          <div className="rounded-xl border-2 border-border bg-surface p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">Contact Information</h2>
 
             <div className="text-sm">
@@ -970,7 +970,7 @@ export default function ProfilePage() {
           {activeTab === "education" && (
           <>
           {/* Education */}
-          <div className="rounded-xl border-2 border-border bg-surface p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">Education</h2>
             {profile.education.length > 0 && (
               <ul className="mb-4 flex flex-col gap-2">
@@ -1150,7 +1150,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Employment history */}
-          <div className="rounded-xl border-2 border-border bg-surface p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <h2 className="mb-1 font-semibold text-foreground">Employment history</h2>
             <p className="mb-3 text-xs text-muted-foreground">
               Pick a real workplace from the list below — no free typing, same as everywhere else on this page.
@@ -1330,7 +1330,7 @@ export default function ProfilePage() {
 
           {activeTab === "cv" && (
           <>
-          <div className="rounded-xl border-2 border-border bg-surface p-5">
+          <div className="rounded-xl border border-border bg-surface p-5">
             <h2 className="mb-3 font-semibold text-foreground">My CV</h2>
             <div className="flex flex-col gap-6 sm:flex-row">
               <div className="flex-1 flex flex-col gap-4">

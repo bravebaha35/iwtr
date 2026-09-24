@@ -82,7 +82,7 @@ export default function OwnerClaimsPage() {
       )}
       <div className="mb-8 flex flex-col gap-4 compact:gap-2">
         {claims?.map((claim) => (
-          <div key={claim.id} className="rounded-xl border-2 border-border bg-surface p-5 compact:p-3">
+          <div key={claim.id} className="rounded-xl border border-border bg-surface p-5 compact:p-3">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="font-semibold text-foreground">{claim.companyName}</h3>
               <span className="text-xs text-muted-foreground">{claim.claimantEmail}</span>
@@ -118,7 +118,7 @@ export default function OwnerClaimsPage() {
       )}
       <div className="flex flex-col gap-4 compact:gap-2">
         {messages?.map((msg) => (
-          <div key={msg.id} className="rounded-xl border-2 border-border bg-surface p-5 compact:p-3">
+          <div key={msg.id} className="rounded-xl border border-border bg-surface p-5 compact:p-3">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="font-semibold text-foreground">{msg.companyName}</h3>
               <span className="text-xs text-muted-foreground">{msg.ownerEmail}</span>

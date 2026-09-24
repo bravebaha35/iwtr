@@ -58,7 +58,7 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         className={
           isLarge
-            ? "w-full rounded-full border border-border bg-surface px-6 py-3.5 text-base text-foreground shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+            ? "w-full rounded-full border border-border bg-surface px-6 py-3.5 text-base text-foreground shadow-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30"
             : "w-full rounded-full border border-border bg-surface px-4 py-1.5 text-sm text-foreground"
         }
       />

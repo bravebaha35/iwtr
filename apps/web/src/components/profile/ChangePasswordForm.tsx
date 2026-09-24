@@ -37,7 +37,7 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border-2 border-border bg-surface p-5">
+    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-surface p-5">
       <h2 className="mb-1 font-semibold text-foreground">Change password</h2>
       <p className="mb-4 text-sm text-muted-foreground">
         Enter your current password, then choose a new one.

@@ -39,8 +39,8 @@ interface FooterColumn {
   links: FooterLink[];
 }
 
-// Deliberately always a dark band (the Slate Dam `bg-sidebar` token, the
-// same panel color as the settings sidebars), not the theme's
+// Deliberately always a dark band (the fixed Slate Dam `bg-footer` token —
+// the settings sidebars have their own theme-aware one), not the theme's
 // `bg-background`/`border-border` variables — unlike the rest of the app,
 // this footer stays dark in both light and dark mode. That's the explicit
 // design brief, not an oversight.
@@ -102,11 +102,11 @@ export function GlobalFooter() {
   };
 
   return (
-    <footer className="mt-auto border-t border-white/10 bg-sidebar">
+    <footer className="mt-auto border-t border-white/10 bg-footer">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
         {FOOTER_COLUMNS.map((column) => (
           <div key={column.title}>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-sidebar-foreground">{column.title}</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-footer-foreground">{column.title}</h3>
             <ul className="mt-4 space-y-3">
               {column.links.map((link) => {
                 const openPopup = popupOpeners[link.href];
@@ -115,14 +115,14 @@ export function GlobalFooter() {
                     <button
                       type="button"
                       onClick={openPopup}
-                      className="text-sm text-sidebar-foreground/75 transition hover:text-sidebar-foreground"
+                      className="text-sm text-footer-foreground/75 transition hover:text-footer-foreground"
                     >
                       {link.label}
                     </button>
                   </li>
                 ) : (
                   <li key={link.label}>
-                    <Link href={link.href} className="text-sm text-sidebar-foreground/75 transition hover:text-sidebar-foreground">
+                    <Link href={link.href} className="text-sm text-footer-foreground/75 transition hover:text-footer-foreground">
                       {link.label}
                     </Link>
                   </li>
@@ -136,9 +136,9 @@ export function GlobalFooter() {
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 border-t border-white/10 px-6 py-6 sm:flex-row sm:justify-between">
         <div className="flex items-center gap-2">
           <Logo size="sm" />
-          <span className="text-sm font-semibold text-sidebar-foreground">I Worked There</span>
+          <span className="text-sm font-semibold text-footer-foreground">I Worked There</span>
         </div>
-        <p className="text-sm text-sidebar-foreground/75">&copy; 2026 iworkedthere.com. All rights reserved.</p>
+        <p className="text-sm text-footer-foreground/75">&copy; 2026 iworkedthere.com. All rights reserved.</p>
       </div>
 
       {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}

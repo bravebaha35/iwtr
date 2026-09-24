@@ -83,7 +83,7 @@ function CategorySection({
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
           {/* Backdrop — click anywhere outside the modal card to close it. */}
           <button type="button" aria-label="Close" onClick={onToggle} className="absolute inset-0 cursor-default bg-black/40" />
-          <div className="relative z-10 w-[40rem] max-w-[90vw] rounded-xl border-2 border-border bg-surface p-4 shadow-xl">
+          <div className="relative z-10 w-[40rem] max-w-[90vw] rounded-xl border border-border bg-surface p-4 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-foreground">{CATEGORY_LABELS[category]}</h4>
               <button
@@ -171,7 +171,7 @@ export function SurveyHighlights({ companySlug }: { companySlug: string }) {
     : null;
 
   return (
-    <div className="h-full rounded-xl border-2 border-border bg-surface p-6">
+    <div className="h-full rounded-xl border border-border bg-surface p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">
           What reviewers said

@@ -51,7 +51,7 @@
 
 /* "Beaver Habitat" palette (2026-09-24). Named anchors:
      Birch      #F4F1EA  light page background
-     Slate Dam  #2C3539  dark-mode background, heavy borders, sidebar panel
+     Slate Dam  #2C3539  dark-mode background, borders, footer band
      Timber     #4A3018  light-mode body text
      River      #1A5F7A  active states (river-* scale below)
      Wood       #8B5A2B  primary buttons (brand-600 below)
@@ -66,8 +66,14 @@
   --surface-muted: #e9e4d8;
   --muted-foreground: #6b5440; /* 6.3 on Birch */
   --border: #2c3539; /* Slate Dam — deliberately heavy */
-  --sidebar: #2c3539; /* Slate Dam */
-  --sidebar-foreground: #f4f1ea; /* Birch */
+  /* Settings-page sidebars (/me, /my/companies) follow the theme: a light
+     panel here, a dark one under .dark. Timber on this is 9.3:1. */
+  --sidebar: #e9e4d8;
+  --sidebar-foreground: #4a3018; /* Timber */
+  /* The footer is the one band that stays dark in both themes (see
+     GlobalFooter.tsx), so it has its own fixed pair. */
+  --footer: #2c3539; /* Slate Dam */
+  --footer-foreground: #f4f1ea; /* Birch */
 }
 
 .dark {
@@ -80,6 +86,8 @@
   /* Darker than the page so the panel still reads as its own column. */
   --sidebar: #1e2528;
   --sidebar-foreground: #f4f1ea;
+  --footer: #1e2528;
+  --footer-foreground: #f4f1ea;
 }
 
 @theme inline {
@@ -111,6 +119,8 @@
   --color-timber: #4a3018;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-footer: var(--footer);
+  --color-footer-foreground: var(--footer-foreground);
 
   /* Brand accent — a single place to retune the whole site's color later.
      Anchored on Wood #8B5A2B (brand-600, the resting color of every filled

@@ -82,7 +82,7 @@ export function AvatarEditor({
                 title={workplaceTypeLabel(browsingWorkType)}
                 className={`flex aspect-square items-center justify-center rounded-full text-3xl transition ${
                   avatarKey === v.key
-                    ? "ring-3 ring-brand-600 ring-offset-2 ring-offset-surface"
+                    ? "ring-2 ring-brand-600 ring-offset-2 ring-offset-surface"
                     : "bg-surface-muted hover:brightness-95 dark:hover:brightness-110"
                 }`}
               >
@@ -102,7 +102,7 @@ export function AvatarEditor({
             onClick={() => onChangeGradient(g.key)}
             aria-label={g.key}
             className={`aspect-square rounded-full transition ${
-              avatarGradient === g.key ? "ring-2 ring-brand-600 ring-offset-2 ring-offset-surface" : ""
+              avatarGradient === g.key ? "ring-1 ring-brand-600 ring-offset-2 ring-offset-surface" : ""
             }`}
             style={{ background: avatarGradientCss(g.key) }}
           />
@@ -117,7 +117,7 @@ export function AvatarEditor({
           aria-label="Pick a custom color"
           title="Pick a custom color"
           className={`relative aspect-square rounded-full transition ${
-            customColor ? "ring-2 ring-brand-600 ring-offset-2 ring-offset-surface" : ""
+            customColor ? "ring-1 ring-brand-600 ring-offset-2 ring-offset-surface" : ""
           }`}
           style={{ background: customColor ?? "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }}
         >
