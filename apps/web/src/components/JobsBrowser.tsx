@@ -5,7 +5,7 @@ import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { apiGet } from "@/lib/api-client";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-import { collarSegmentClassName } from "@/lib/collarColors";
+import { collarOutlinedButtonClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { type CategoryGroup, matchesCategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
@@ -430,8 +430,7 @@ export function JobsBrowser() {
                 onToggle={toggleWorkplaceType}
                 onReset={resetWorkplaceTypes}
                 direction="grid"
-                variant="track"
-                pillColorClassName={collarSegmentClassName}
+                pillColorClassName={collarOutlinedButtonClassName}
               />
               <div className="mt-2">
                 <SingleSelectDropdown

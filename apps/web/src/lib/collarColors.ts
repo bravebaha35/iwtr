@@ -48,42 +48,22 @@ export function collarBorderClass(type: WorkplaceType): string {
   return collarColorMap[type].borderLeft;
 }
 
-// "Mode B" strict segmented-control palette — deliberately a separate
-// export from collarColorMap/collarPillClassName above (an outline-only
-// style used by WorkplaceVibeFlags.tsx's tabs and ReviewsList.tsx's accent
-// border), not a replacement for it, for the recessed WorkType filter track
-// on the homepage/jobs page only. Was a solid fill + white text per collar;
-// per explicit user request, switched to outline-only (1px border + plain
-// foreground text on the plain surface, same treatment collarPillClassName
-// already uses) — the fill read as too heavy against the track. Exact hues
-// per design unchanged: Office slate-700 (#334155), Hybrid/Remote teal-600
-// (#0D9488), Service orange-600 (#EA580C), Manual-Labour blue-600
-// (#2563EB) — plain Tailwind defaults, not custom hex. No dark: variant
-// needed — a saturated border color reads fine regardless of theme.
+// Selected state of the stand-alone Work-Type buttons (homepage/Jobs
+// Work-Type filter, IWT Social's "Only Show Me"). Outline-only, per explicit
+// user request (a solid fill read as too heavy): the 1px border plus an
+// inset 1px ring in the collar color, so a picked option stands out from
+// the plain unselected outlines even for Office, whose slate-700 is close
+// to the default border color. Hues unchanged: Office slate-700,
+// Hybrid/Remote teal-600, Service orange-600, Manual-Labour blue-600.
 const collarSegmentActiveClass: Record<WorkplaceType, string> = {
-  OFFICE: "border border-slate-700 text-foreground bg-surface",
-  HYBRID_REMOTE: "border border-teal-600 text-foreground bg-surface",
-  SERVICE: "border border-orange-600 text-foreground bg-surface",
-  MANUAL_LABOUR: "border border-blue-600 text-foreground bg-surface",
+  OFFICE: "border border-slate-700 ring-1 ring-inset ring-slate-700 font-semibold text-foreground bg-surface",
+  HYBRID_REMOTE: "border border-teal-600 ring-1 ring-inset ring-teal-600 font-semibold text-foreground bg-surface",
+  SERVICE: "border border-orange-600 ring-1 ring-inset ring-orange-600 font-semibold text-foreground bg-surface",
+  MANUAL_LABOUR: "border border-blue-600 ring-1 ring-inset ring-blue-600 font-semibold text-foreground bg-surface",
 };
 
-// Borderless ash text — same "color is the result of selection, not a hint
-// shown up front" reasoning as inactiveCollarPillClassName above. Darker
-// zinc in light mode for real contrast against the track's light-mode
-// background (zinc-400 on a light track reads too washed out). Carries a
-// transparent border to match the active state's box size — otherwise
-// picking an option would visibly grow the pill by the border width.
-const collarSegmentInactiveClass =
-  "border border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200";
-
-export function collarSegmentClassName(type: WorkplaceType, active: boolean): string {
-  return active ? collarSegmentActiveClass[type] : collarSegmentInactiveClass;
-}
-
-// Stand-alone outlined buttons (IWT Social's "Only Show Me") — every option
-// always carries its own 1px outline, like a button, instead of sitting
-// borderless inside a shared track box. The selected one swaps to its
-// collar-colored outline, same hues as collarSegmentClassName.
+// Unselected: every option always carries its own plain 1px outline, like a
+// button, instead of sitting borderless inside a shared track box.
 const collarOutlinedInactiveClass =
   "border border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground";
 
