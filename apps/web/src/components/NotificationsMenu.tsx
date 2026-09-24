@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Notification as ApiNotification } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet } from "@/lib/api-client";
+import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
 
 // ---------------------------------------------------------------------------
 // Notification model
@@ -50,7 +51,10 @@ type NotificationKind =
   // Employer only
   | "JOB_POSTING_PUBLISHED"
   | "COMPANY_REVIEWED"
-  | "JOB_POSTING_NEEDS_INFO";
+  | "JOB_POSTING_NEEDS_INFO"
+  // Real, derived from READY BenchmarkReportJob rows; carries its own href
+  // (the PDF download route).
+  | "BENCHMARK_REPORT_READY";
 
 const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   VOTE_HELPFUL: "SOCIAL",
@@ -68,6 +72,7 @@ const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   JOB_POSTING_PUBLISHED: "EMPLOYER",
   COMPANY_REVIEWED: "EMPLOYER",
   JOB_POSTING_NEEDS_INFO: "EMPLOYER",
+  BENCHMARK_REPORT_READY: "EMPLOYER",
 };
 
 interface AppNotification {
@@ -82,6 +87,8 @@ interface AppNotification {
   actorName?: string;
   companyName?: string;
   companySlug?: string | null;
+  // Set only when the API supplies an explicit destination.
+  href?: string;
 }
 
 function describeNotification(n: AppNotification): string {
@@ -118,6 +125,8 @@ function describeNotification(n: AppNotification): string {
       return "Someone reviewed your company. Find out here!";
     case "JOB_POSTING_NEEDS_INFO":
       return "Your job posting has missing/incorrect information.";
+    case "BENCHMARK_REPORT_READY":
+      return `Your report is ready! Download the Sector Benchmark Report for ${company}.`;
   }
 }
 
@@ -149,6 +158,8 @@ function hrefForNotification(n: AppNotification): string {
       return "/jobs";
     case "COMPANY_REVIEWED":
       return n.companySlug ? `/companies/${n.companySlug}` : "/my/companies";
+    case "BENCHMARK_REPORT_READY":
+      return n.href ?? "/my/companies";
   }
 }
 
@@ -237,6 +248,7 @@ function toAppNotification(n: ApiNotification): AppNotification {
     unread: true,
     companyName: n.companyName,
     companySlug: n.companySlug,
+    href: n.href,
   };
 }
 
@@ -307,11 +319,15 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
   const category = CATEGORY_BY_KIND[n.kind];
   const Icon = CATEGORY_ICON[category];
   const isVerifyAccount = n.kind === "VERIFY_ACCOUNT";
+  const href = hrefForNotification(n);
+  // API routes (the benchmark PDF download) are real file responses, not
+  // app pages — a client-side <Link> would try to route to them.
+  const RowLink = href.startsWith("/api/") ? "a" : Link;
 
   return (
     <li>
-      <Link
-        href={hrefForNotification(n)}
+      <RowLink
+        href={href}
         onClick={() => onOpen(n.id)}
         className={`flex items-start gap-3 rounded-xl px-3 py-3 transition ${
           isVerifyAccount
@@ -343,7 +359,7 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
           </span>
           <span className="mt-1 block text-xs text-muted-foreground">{timeAgo(n.createdAt)}</span>
         </span>
-      </Link>
+      </RowLink>
     </li>
   );
 }
@@ -374,6 +390,26 @@ export function NotificationsMenu() {
         setNotifications([...SAMPLE_NOTIFICATIONS].sort(byNewestFirst));
       });
   }, [open, notifications]);
+
+  // Something on the page just produced a new notification (see
+  // lib/notification-events.ts): refetch now, even while closed, so the
+  // unread badge appears — keeping whatever was already marked read.
+  useEffect(() => {
+    function refresh() {
+      apiGet<ApiNotification[]>("/me/notifications")
+        .then((real) => {
+          setNotifications((prev) => {
+            const readIds = new Set((prev ?? []).filter((n) => !n.unread).map((n) => n.id));
+            return [...real.map(toAppNotification), ...SAMPLE_NOTIFICATIONS]
+              .map((n) => (readIds.has(n.id) ? { ...n, unread: false } : n))
+              .sort(byNewestFirst);
+          });
+        })
+        .catch(() => {});
+    }
+    window.addEventListener(NOTIFICATIONS_STALE_EVENT, refresh);
+    return () => window.removeEventListener(NOTIFICATIONS_STALE_EVENT, refresh);
+  }, []);
 
   useEffect(() => {
     if (!open) return;

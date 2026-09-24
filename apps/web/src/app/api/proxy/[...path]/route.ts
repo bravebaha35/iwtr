@@ -14,6 +14,11 @@ function passthroughHeaders(res: Response): HeadersInit {
   const headers: HeadersInit = {};
   const contentType = res.headers.get("content-type");
   if (contentType) headers["content-type"] = contentType;
+  // Carries the download filename for file responses (e.g. the Sector
+  // Benchmark PDF). Still an allowlist: nothing else upstream sends —
+  // Set-Cookie included — is ever passed on to the browser.
+  const contentDisposition = res.headers.get("content-disposition");
+  if (contentDisposition) headers["content-disposition"] = contentDisposition;
   return headers;
 }
 
