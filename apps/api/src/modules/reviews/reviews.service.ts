@@ -335,6 +335,23 @@ export class ReviewsService {
           },
         });
 
+        // Consent-gated salary/benefits. input.compensation is already null
+        // unless the reviewer ticked the KVKK consent box — the zod schema
+        // dropped the data before this service was called.
+        if (input.compensation) {
+          await tx.salarySubmission.create({
+            data: {
+              reviewId: created.id,
+              userId,
+              companyId: input.companyId,
+              monthlyNetSalary: input.compensation.monthlyNetSalary,
+              benefits: input.compensation.benefits,
+              salaryYear: new Date().getUTCFullYear(),
+              kvkkCommercialConsent: true,
+            },
+          });
+        }
+
         // Same transaction as the review write itself — a queue item that
         // fails to insert must not leave the review permanently stuck at
         // PENDING_ADMIN_REVIEW with nothing in admin-queue's list() to ever
@@ -623,6 +640,24 @@ export class ReviewsService {
           district: location.district,
         },
       });
+
+      // A new consenting answer replaces the stored one (and moves it to
+      // this year). No answer / no consent leaves any stored row alone —
+      // the edit form never shows the old salary, so "empty" means "not
+      // touched", not "delete".
+      if (input.compensation) {
+        const compensation = {
+          monthlyNetSalary: input.compensation.monthlyNetSalary,
+          benefits: input.compensation.benefits,
+          salaryYear: new Date().getUTCFullYear(),
+          kvkkCommercialConsent: true,
+        };
+        await tx.salarySubmission.upsert({
+          where: { reviewId },
+          create: { reviewId, userId, companyId: review.companyId, ...compensation },
+          update: compensation,
+        });
+      }
 
       if (queueReason) {
         const aiSummary = `Content check: ${JSON.stringify(contentCheck)}. Trust score: ${trustScore.score.toFixed(2)} (${trustScore.factors.join(", ")}).`;
