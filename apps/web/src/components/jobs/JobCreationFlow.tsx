@@ -162,6 +162,11 @@ export function JobCreationFlow({ open, onClose }: { open: boolean; onClose: () 
             ? "This posting needs a quick admin check before it goes live — you'll get a notification once it's published."
             : "Job-seekers browsing /jobs can see it now."}
         </p>
+        {result.status !== "CHECKOUT_REQUIRED" && result.boostError && (
+          <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+            {result.boostError}
+          </p>
+        )}
       </ShellModal>
     );
   }

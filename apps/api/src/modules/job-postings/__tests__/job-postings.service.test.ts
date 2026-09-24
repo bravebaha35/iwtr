@@ -277,3 +277,59 @@ describe("JobPostingsService.listOwnerPostings", () => {
     await expect(service(prisma).listOwnerPostings("u1", "c1")).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+describe("JobPostingsService.create — paid boost failure paths", () => {
+  const billing = {
+    buyerName: "Ayşe",
+    buyerSurname: "Yılmaz",
+    buyerIdentityNumber: "12345678901",
+    buyerEmail: "a@example.com",
+    billingAddress: { contactName: "Ayşe Yılmaz", city: "İstanbul", country: "Turkey", address: "Somewhere 1" },
+  };
+
+  function prismaWithUpdate() {
+    const prisma = makePrisma();
+    prisma.jobPosting.update = jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "p1", ...data }));
+    return prisma;
+  }
+
+  it("rejects a paid boost with no billing details BEFORE creating the posting", async () => {
+    const prisma = prismaWithUpdate();
+    await expect(
+      service(prisma).create("u1", "c1", {
+        jobTitle: "Cashier",
+        description: "d",
+        workType: "SERVICE",
+        autoReshareEnabled: false,
+        boost: { durationDays: 14 },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    // Nothing was created, so the owner can fix the form and resubmit
+    // without leaving a duplicate posting behind.
+    expect(prisma.jobPosting.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps the posting but clears the boost and reports boostError when checkout can't start", async () => {
+    const prisma = prismaWithUpdate();
+    const payments = { createOneTimeCheckout: jest.fn().mockRejectedValue(new Error("iyzico not configured")) };
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const result = await new JobPostingsService(prisma as any, moderationPass, payments as any).create("u1", "c1", {
+      jobTitle: "Cashier",
+      description: "d",
+      workType: "SERVICE",
+      autoReshareEnabled: false,
+      boost: { durationDays: 14, billing },
+    });
+    errorSpy.mockRestore();
+
+    expect(result.status).toBe("PUBLISHED");
+    expect(result.status !== "CHECKOUT_REQUIRED" && result.boostError).toEqual(expect.any(String));
+    expect(result.jobPosting.boostDurationDays).toBeNull();
+    // The PENDING marker written before the checkout attempt is rolled back,
+    // so the posting isn't left stuck as "payment pending" forever.
+    expect(prisma.jobPosting.update).toHaveBeenLastCalledWith({
+      where: { id: "p1" },
+      data: { boostDurationDays: null, boostPaymentStatus: null },
+    });
+  });
+});

@@ -82,9 +82,14 @@ export const createJobPostingInputSchema = z.object({
 });
 export type CreateJobPostingInput = z.input<typeof createJobPostingInputSchema>;
 
+// boostError is set only when a paid boost was requested but the payment
+// page couldn't be started (e.g. iyzico not configured yet). The posting
+// itself was still created and is returned as normal, just without a boost
+// — the frontend must NOT treat this as a failed create, or the owner
+// resubmits and ends up with a duplicate posting.
 export const createJobPostingResultSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("PUBLISHED"), jobPosting: jobPostingSchema }),
-  z.object({ status: z.literal("PENDING_ADMIN"), jobPosting: jobPostingSchema }),
+  z.object({ status: z.literal("PUBLISHED"), jobPosting: jobPostingSchema, boostError: z.string().optional() }),
+  z.object({ status: z.literal("PENDING_ADMIN"), jobPosting: jobPostingSchema, boostError: z.string().optional() }),
   // iyzico is configured and the boost picked isn't covered by a free
   // credit — same shape as rivalAnalyticsRequestResultSchema's
   // CHECKOUT_REQUIRED branch (owner.ts).

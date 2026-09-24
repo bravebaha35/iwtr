@@ -139,6 +139,23 @@ export class JobPostingsService {
     const hasCompetitorName = await this.mentionsCompetitorName(companyId, `${input.jobTitle} ${input.description}`);
     const status: JobPostingStatus = contentCheck.violates || hasCompetitorName ? "PENDING_ADMIN" : "PUBLISHED";
 
+    // Decide free-vs-paid and check billing BEFORE the posting exists — a
+    // missing-billing rejection after the create would leave a posting
+    // behind, and the owner's natural "fix the form and resubmit" would then
+    // create a duplicate.
+    let boostIsFree = false;
+    if (input.boost) {
+      const usedThisMonth = await this.freeBoostsUsedThisMonth(userId);
+      boostIsFree = decideBoostAccess({
+        durationDays: input.boost.durationDays,
+        tierKey: tierKeyFromOwnerTier(ownership.tier),
+        freeBoostsUsedThisMonth: usedThisMonth,
+      }).isFree;
+      if (!boostIsFree && !input.boost.billing) {
+        throw new BadRequestException("Billing details are required to pay for this boost.");
+      }
+    }
+
     // Risk Score: does this exact title+workType match an earlier posting of
     // this company's that was marked FILLED (i.e. they claimed a hire, then
     // reopened the identical role)? A plain repost of a still-open or
@@ -199,19 +216,13 @@ export class JobPostingsService {
       return created;
     });
 
+    const createdStatus = status === "PENDING_ADMIN" ? "PENDING_ADMIN" : "PUBLISHED";
+
     if (!input.boost) {
-      return { status: status === "PENDING_ADMIN" ? "PENDING_ADMIN" : "PUBLISHED", jobPosting: toPublic(posting) };
+      return { status: createdStatus, jobPosting: toPublic(posting) };
     }
 
-    const tierKey = tierKeyFromOwnerTier(ownership.tier);
-    const usedThisMonth = await this.freeBoostsUsedThisMonth(userId);
-    const access = decideBoostAccess({
-      durationDays: input.boost.durationDays,
-      tierKey,
-      freeBoostsUsedThisMonth: usedThisMonth,
-    });
-
-    if (access.isFree) {
+    if (boostIsFree) {
       const updated = await this.prisma.jobPosting.update({
         where: { id: posting.id },
         data: {
@@ -220,9 +231,10 @@ export class JobPostingsService {
           boostExpiresAt: addDays(new Date(), input.boost.durationDays),
         },
       });
-      return { status: status === "PENDING_ADMIN" ? "PENDING_ADMIN" : "PUBLISHED", jobPosting: toPublic(updated) };
+      return { status: createdStatus, jobPosting: toPublic(updated) };
     }
 
+    // Checked up front already; re-narrowed here for the type checker.
     if (!input.boost.billing) {
       throw new BadRequestException("Billing details are required to pay for this boost.");
     }
@@ -257,15 +269,24 @@ export class JobPostingsService {
         checkoutFormContent: checkout.checkoutFormContent,
         token: checkout.token,
       };
-    } catch {
-      // iyzico not configured (no API keys yet) or a live-call failure —
-      // same "not set up yet" condition Rival Analytics/Plus checkout
-      // already surface as a friendly message instead of a raw 5xx. The
-      // posting itself still exists (already published or pending review);
-      // only the boost failed, so there's nothing to roll back here.
-      throw new BadRequestException(
-        "Payment isn't set up yet — the site owner needs to add iyzico payment credentials first.",
-      );
+    } catch (err) {
+      // iyzico not configured (no API keys yet) or a live-call failure. The
+      // posting itself already exists (published or pending review), so
+      // throwing here would make the owner think nothing was created and
+      // resubmit — a duplicate posting. Instead: undo the PENDING marker so
+      // the posting isn't stuck as "payment pending" forever, and return the
+      // normal success result with boostError explaining only the boost failed.
+      // eslint-disable-next-line no-console
+      console.error(`[job-postings] boost checkout could not start for posting=${posting.id}:`, err);
+      await this.prisma.jobPosting.update({
+        where: { id: posting.id },
+        data: { boostDurationDays: null, boostPaymentStatus: null },
+      });
+      return {
+        status: createdStatus,
+        jobPosting: toPublic(posting),
+        boostError: "Your job posting was created, but the boost payment couldn't be started, so it isn't boosted. You weren't charged.",
+      };
     }
   }
 

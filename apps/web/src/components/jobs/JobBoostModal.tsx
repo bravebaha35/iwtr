@@ -146,7 +146,7 @@ export function JobBoostModal({
           <CloseButton onClose={onClose} />
           <h2 className="mb-2 text-lg font-bold text-foreground">Complete payment</h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            Your job posting is created — it goes live as soon as payment succeeds.
+            Your job posting is created — the boost starts as soon as payment succeeds.
           </p>
           <IyzicoCheckoutEmbed checkoutFormContent={result.checkoutFormContent} />
           <button
