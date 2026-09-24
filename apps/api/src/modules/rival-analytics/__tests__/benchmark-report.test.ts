@@ -132,10 +132,15 @@ describe("BenchmarkReportWorker.processNext (async generation end-to-end)", () =
   function eligiblePrisma() {
     const prisma = makePrisma();
     prisma.benchmarkReportJob.findFirst.mockResolvedValue(queued);
-    prisma.$queryRaw = jest
-      .fn()
-      .mockResolvedValueOnce([{ distinctUsers: 6, distinctCompanies: 3, reviewCount: 6 }])
-      .mockResolvedValueOnce([{ salaryYear: 2026, distinctUsers: 6, distinctCompanies: 3, p25: 30000, p50: 35000, p75: 40000 }]);
+    const answers: unknown[][] = [
+      [{ distinctUsers: 6, distinctCompanies: 3, reviewCount: 6 }],
+      [{ salaryYear: 2026, distinctUsers: 6, distinctCompanies: 3, p25: 30000, p50: 35000, p75: 40000 }],
+    ];
+    // set_config calls come from the Row-Level Security gate (withRowAccess).
+    prisma.$queryRaw = jest.fn(async (strings: TemplateStringsArray) =>
+      strings.join("").includes("set_config") ? [] : (answers.shift() ?? []),
+    );
+    prisma.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(prisma));
     prisma.salarySubmission = { findMany: jest.fn().mockResolvedValue([]) };
     prisma.review = { findMany: jest.fn().mockResolvedValue([]) };
     return prisma;

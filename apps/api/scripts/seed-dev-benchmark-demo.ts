@@ -23,6 +23,7 @@ import "dotenv/config";
 import { ConflictException } from "@nestjs/common";
 import type { BenefitKey } from "@iwtr/shared-types";
 import { PrismaService } from "../src/prisma/prisma.service";
+import { SALARY_ACCESS, withRowAccess } from "../src/common/db/row-access";
 import { ReviewsService } from "../src/modules/reviews/reviews.service";
 import { ModerationService } from "../src/modules/moderation/moderation.service";
 import { PiiVaultService } from "../src/modules/pii-vault/pii-vault.service";
@@ -131,30 +132,34 @@ async function main() {
   }
 
   // 2. Consenting demo salary answers for the sector's other published
-  //    reviews that don't have one yet.
-  const withoutSalary = await prisma.review.findMany({
-    where: { status: "PUBLISHED", company: { category: SECTOR }, salarySubmission: null },
-    select: { id: true, userId: true, companyId: true },
-    orderBy: { createdAt: "asc" },
-  });
-  const thisYear = new Date().getUTCFullYear();
-  await prisma.salarySubmission.createMany({
-    data: withoutSalary.map((r, i) => ({
-      reviewId: r.id,
-      userId: r.userId,
-      companyId: r.companyId,
-      monthlyNetSalary: demoSalary(i + 11),
-      benefits: BENEFIT_SETS[i % BENEFIT_SETS.length],
-      salaryYear: i % 4 === 0 ? thisYear - 1 : thisYear,
-      kvkkCommercialConsent: true,
-    })),
-    skipDuplicates: true,
-  });
+  //    reviews that don't have one yet. SalarySubmission is behind
+  //    Row-Level Security, so this runs with the salary gate on.
+  const { withoutSalary, companies, salaryRows } = await withRowAccess(prisma, SALARY_ACCESS, async (tx) => {
+    const missing = await tx.review.findMany({
+      where: { status: "PUBLISHED", company: { category: SECTOR }, salarySubmission: null },
+      select: { id: true, userId: true, companyId: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const thisYear = new Date().getUTCFullYear();
+    await tx.salarySubmission.createMany({
+      data: missing.map((r, i) => ({
+        reviewId: r.id,
+        userId: r.userId,
+        companyId: r.companyId,
+        monthlyNetSalary: demoSalary(i + 11),
+        benefits: BENEFIT_SETS[i % BENEFIT_SETS.length],
+        salaryYear: i % 4 === 0 ? thisYear - 1 : thisYear,
+        kvkkCommercialConsent: true,
+      })),
+      skipDuplicates: true,
+    });
 
-  const [companies, salaryRows] = await Promise.all([
-    prisma.company.count({ where: { category: SECTOR, hiddenAt: null, reviews: { some: { status: "PUBLISHED" } } } }),
-    prisma.salarySubmission.count({ where: { review: { status: "PUBLISHED", company: { category: SECTOR } } } }),
-  ]);
+    const [companyCount, salaryCount] = await Promise.all([
+      tx.company.count({ where: { category: SECTOR, hiddenAt: null, reviews: { some: { status: "PUBLISHED" } } } }),
+      tx.salarySubmission.count({ where: { review: { status: "PUBLISHED", company: { category: SECTOR } } } }),
+    ]);
+    return { withoutSalary: missing, companies: companyCount, salaryRows: salaryCount };
+  });
   console.log(
     `Done. ${createdReviews} new demo reviews; ${withoutSalary.length} demo salary answers added. ` +
       `${SECTOR} now has ${companies} companies with reviews and ${salaryRows} salary answers.`,

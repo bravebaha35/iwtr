@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type { BenefitKey, SalaryBand, WorkplaceType } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SALARY_ACCESS, withRowAccess } from "../../common/db/row-access";
 import { getQuestionsFor } from "../reviews/survey-questions.data";
 import { tallyQuestions } from "../reviews/survey-tally.util";
 import { TurnoverPredictionService, type SectorTurnoverRisk } from "../turnover-risk/turnover-prediction.service";
@@ -70,12 +71,16 @@ export class SectorBenchmarkService {
       company: { category: scope.sectorCategory, hiddenAt: null, ...(scope.city ? { city: scope.city } : {}) },
     };
 
-    const [salaryRows, benefitRows, reviews] = await Promise.all([
-      this.salaryPercentiles(scope),
-      this.prisma.salarySubmission.findMany({
-        where: { kvkkCommercialConsent: true, review: reviewWhere },
-        select: { userId: true, companyId: true, benefits: true },
-      }),
+    // SalarySubmission is behind Row-Level Security (common/db/row-access.ts):
+    // both salary reads run in one transaction with the gate on.
+    const [[salaryRows, benefitRows], reviews] = await Promise.all([
+      withRowAccess(this.prisma, SALARY_ACCESS, async (tx) => [
+        await this.salaryPercentiles(tx, scope),
+        await tx.salarySubmission.findMany({
+          where: { kvkkCommercialConsent: true, review: reviewWhere },
+          select: { userId: true, companyId: true, benefits: true },
+        }),
+      ] as const),
       this.prisma.review.findMany({
         where: reviewWhere,
         select: { workplaceType: true, surveyAnswers: true, publishedAt: true },
@@ -131,8 +136,8 @@ export class SectorBenchmarkService {
 
   // Percentiles only — deliberately no AVG() anywhere. Partitioned by
   // salaryYear so different years' pay is never blended into one figure.
-  private salaryPercentiles(scope: SectorScope): Promise<SalaryPercentileRow[]> {
-    return this.prisma.$queryRaw<SalaryPercentileRow[]>`
+  private salaryPercentiles(tx: Prisma.TransactionClient, scope: SectorScope): Promise<SalaryPercentileRow[]> {
+    return tx.$queryRaw<SalaryPercentileRow[]>`
       SELECT
         s."salaryYear"                     AS "salaryYear",
         COUNT(DISTINCT s."userId")::int    AS "distinctUsers",

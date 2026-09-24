@@ -7,22 +7,32 @@ import { assertKAnonymity, INSUFFICIENT_DATA_MESSAGE } from "../sector-benchmark
 
 const SCOPE = { sectorCategory: "Supermarket", city: null };
 
-// $queryRaw is called twice per report, in this order: scope counts, then
-// salary percentiles. Each mock row is exactly what Postgres would return.
+const isSetConfig = (strings: TemplateStringsArray) => strings.join("").includes("set_config");
+
+// Data queries answer in order: scope counts, then salary percentiles. The
+// Row-Level Security gate's set_config calls (withRowAccess) answer [] and
+// are left out of dataQueries(). Each mock row is exactly what Postgres
+// would return.
 function makePrisma(opts: {
   counts: { distinctUsers: number; distinctCompanies: number; reviewCount: number };
   salaryRows?: unknown[];
   benefitRows?: unknown[];
   reviews?: unknown[];
 }) {
-  return {
-    $queryRaw: jest
-      .fn()
-      .mockResolvedValueOnce([opts.counts])
-      .mockResolvedValueOnce(opts.salaryRows ?? []),
+  const answers: unknown[][] = [[opts.counts], opts.salaryRows ?? []];
+  const prisma: Record<string, any> = {
+    $queryRaw: jest.fn(async (strings: TemplateStringsArray) => (isSetConfig(strings) ? [] : (answers.shift() ?? []))),
     salarySubmission: { findMany: jest.fn().mockResolvedValue(opts.benefitRows ?? []) },
     review: { findMany: jest.fn().mockResolvedValue(opts.reviews ?? []) },
   };
+  prisma.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(prisma));
+  return prisma;
+}
+
+function dataQueries(prisma: Record<string, any>): string[] {
+  return (prisma.$queryRaw.mock.calls as [TemplateStringsArray][])
+    .filter(([strings]) => !isSetConfig(strings))
+    .map(([strings]) => strings.join("?"));
 }
 
 function makeService(prisma: ReturnType<typeof makePrisma>) {
@@ -51,7 +61,7 @@ describe("K-anonymity hard lock", () => {
     expect(error).toBeInstanceOf(ForbiddenException);
     expect(error.getStatus()).toBe(403);
     expect(error.message).toBe("Insufficient Data to Ensure Anonymity");
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(dataQueries(prisma)).toHaveLength(1);
     expect(prisma.salarySubmission.findMany).not.toHaveBeenCalled();
   });
 });
@@ -94,7 +104,7 @@ describe("Salary output is range bands only", () => {
   it("the salary SQL uses percentile_cont, is partitioned by salaryYear, and has no AVG()", async () => {
     const prisma = makePrisma({ counts: eligible });
     await makeService(prisma).buildReportData(SCOPE, "My Co");
-    const salarySql = (prisma.$queryRaw.mock.calls[1][0] as TemplateStringsArray).join("?");
+    const salarySql = dataQueries(prisma)[1];
     expect(salarySql).toContain("percentile_cont(0.25)");
     expect(salarySql).toContain('GROUP BY s."salaryYear"');
     expect(salarySql).not.toMatch(/avg\s*\(/i);

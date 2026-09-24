@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import type { PiiOnboardingInput } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { enableRowAccess, PII_ACCESS, withRowAccess } from "../../common/db/row-access";
 import { decryptField, encryptField, generateDek, unwrapDek, wrapDek } from "./crypto.util";
 
 /**
@@ -9,6 +10,10 @@ import { decryptField, encryptField, generateDek, unwrapDek, wrapDek } from "./c
  * model. Every other module must go through this service. Nothing here ever
  * returns decrypted PII to a caller except the self-view method below — see
  * its own doc comment.
+ *
+ * Every PiiVault query runs through withRowAccess(PII_ACCESS): the table is
+ * gated by Postgres Row-Level Security (common/db/row-access.ts), so this
+ * service is also the only code that can see its rows at all.
  */
 @Injectable()
 export class PiiVaultService {
@@ -26,22 +31,24 @@ export class PiiVaultService {
     const dek = generateDek();
     const dekWrapped = wrapDek(dek);
 
-    await this.prisma.piiVault.upsert({
-      where: { userId },
-      create: {
-        userId,
-        encFirstName: encryptField(input.firstName, dek),
-        encLastName: encryptField(input.lastName, dek),
-        encBirthDate: encryptField(input.birthDate, dek),
-        dekWrapped,
-      },
-      update: {
-        encFirstName: encryptField(input.firstName, dek),
-        encLastName: encryptField(input.lastName, dek),
-        encBirthDate: encryptField(input.birthDate, dek),
-        dekWrapped,
-      },
-    });
+    await withRowAccess(this.prisma, PII_ACCESS, (tx) =>
+      tx.piiVault.upsert({
+        where: { userId },
+        create: {
+          userId,
+          encFirstName: encryptField(input.firstName, dek),
+          encLastName: encryptField(input.lastName, dek),
+          encBirthDate: encryptField(input.birthDate, dek),
+          dekWrapped,
+        },
+        update: {
+          encFirstName: encryptField(input.firstName, dek),
+          encLastName: encryptField(input.lastName, dek),
+          encBirthDate: encryptField(input.birthDate, dek),
+          dekWrapped,
+        },
+      }),
+    );
 
     await this.prisma.auditLog.create({
       data: {
@@ -54,7 +61,7 @@ export class PiiVaultService {
   }
 
   async hasCompletedPii(userId: string): Promise<boolean> {
-    const row = await this.prisma.piiVault.findUnique({ where: { userId } });
+    const row = await this.findRow(userId);
     return row !== null;
   }
 
@@ -75,7 +82,7 @@ export class PiiVaultService {
    * it's viewed — the rest of "/me" should still load normally.
    */
   async getMyIdentity(userId: string): Promise<{ firstName: string; lastName: string; birthDate: string } | null> {
-    const row = await this.prisma.piiVault.findUnique({ where: { userId } });
+    const row = await this.findRow(userId);
     if (!row) return null;
     try {
       const dek = unwrapDek(row.dekWrapped);
@@ -100,14 +107,16 @@ export class PiiVaultService {
    * were, only encBirthDate's ciphertext changes.
    */
   async updateBirthDate(userId: string, birthDate: string): Promise<void> {
-    const row = await this.prisma.piiVault.findUnique({ where: { userId } });
+    const row = await this.findRow(userId);
     if (!row) throw new NotFoundException("No identity on file yet");
 
     const dek = unwrapDek(row.dekWrapped);
-    await this.prisma.piiVault.update({
-      where: { userId },
-      data: { encBirthDate: encryptField(birthDate, dek) },
-    });
+    await withRowAccess(this.prisma, PII_ACCESS, (tx) =>
+      tx.piiVault.update({
+        where: { userId },
+        data: { encBirthDate: encryptField(birthDate, dek) },
+      }),
+    );
 
     await this.prisma.auditLog.create({
       data: { actorUserId: userId, action: "PII_VAULT_WRITE", targetType: "PiiVault", targetId: userId },
@@ -123,13 +132,15 @@ export class PiiVaultService {
    * the account-settings verification flow exists.
    */
   async purgeTcKimlikNoIfPresent(userId: string): Promise<void> {
-    const row = await this.prisma.piiVault.findUnique({ where: { userId } });
+    const row = await this.findRow(userId);
     if (!row || row.encTcKimlikNo === null) return;
 
-    await this.prisma.piiVault.update({
-      where: { userId },
-      data: { encTcKimlikNo: null, tcknPurgedAt: new Date() },
-    });
+    await withRowAccess(this.prisma, PII_ACCESS, (tx) =>
+      tx.piiVault.update({
+        where: { userId },
+        data: { encTcKimlikNo: null, tcknPurgedAt: new Date() },
+      }),
+    );
 
     await this.prisma.auditLog.create({
       data: {
@@ -150,6 +161,11 @@ export class PiiVaultService {
    * atomic with the rest of the account-deletion transaction.
    */
   async deleteForUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    await enableRowAccess(tx, PII_ACCESS);
     await tx.piiVault.deleteMany({ where: { userId } });
+  }
+
+  private findRow(userId: string) {
+    return withRowAccess(this.prisma, PII_ACCESS, (tx) => tx.piiVault.findUnique({ where: { userId } }));
   }
 }

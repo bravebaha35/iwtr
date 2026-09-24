@@ -41,6 +41,8 @@ import { getQuestionsFor } from "./survey-questions.data";
 import { pickRandomDisplayUsername } from "./randomized-identity.util";
 import { tallyQuestions, tallyContradictionPairs, type ContradictionPairMatchCount } from "./survey-tally.util";
 import { YELLOW_FLAG_PAIRS } from "../flags/yellow-flag-pairs.data";
+import { toUtcDay } from "../../common/time/day-precision.util";
+import { enableRowAccess, SALARY_ACCESS } from "../../common/db/row-access";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
 const MID_THRESHOLD = 0.5;
@@ -327,7 +329,7 @@ export class ReviewsService {
             aiModerationScore: contentCheck.confidence,
             aiTrustScore: trustScore.score,
             moderationDetails: { contentCheck, trustScore } as object,
-            publishedAt: status === "PUBLISHED" ? new Date() : null,
+            publishedAt: status === "PUBLISHED" ? toUtcDay() : null,
             isRandomizedIdentity,
             displayUsername,
             city: location.city,
@@ -339,6 +341,7 @@ export class ReviewsService {
         // unless the reviewer ticked the KVKK consent box — the zod schema
         // dropped the data before this service was called.
         if (input.compensation) {
+          await enableRowAccess(tx, SALARY_ACCESS);
           await tx.salarySubmission.create({
             data: {
               reviewId: created.id,
@@ -633,7 +636,7 @@ export class ReviewsService {
           aiModerationScore: contentCheck.confidence,
           aiTrustScore: trustScore.score,
           moderationDetails: { contentCheck, trustScore } as object,
-          publishedAt: status === "PUBLISHED" ? (review.publishedAt ?? new Date()) : review.publishedAt,
+          publishedAt: status === "PUBLISHED" ? (review.publishedAt ?? toUtcDay()) : review.publishedAt,
           isRandomizedIdentity,
           displayUsername,
           city: location.city,
@@ -652,6 +655,7 @@ export class ReviewsService {
           salaryYear: new Date().getUTCFullYear(),
           kvkkCommercialConsent: true,
         };
+        await enableRowAccess(tx, SALARY_ACCESS);
         await tx.salarySubmission.upsert({
           where: { reviewId },
           create: { reviewId, userId, companyId: review.companyId, ...compensation },

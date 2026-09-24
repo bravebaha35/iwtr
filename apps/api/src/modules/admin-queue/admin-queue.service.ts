@@ -3,6 +3,7 @@ import type { AdminQueueItem, QueueStatus } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
+import { toUtcDay } from "../../common/time/day-precision.util";
 
 @Injectable()
 export class AdminQueueService {
@@ -51,7 +52,7 @@ export class AdminQueueService {
     await this.prisma.$transaction([
       this.prisma.review.update({
         where: { id: item.reviewId },
-        data: { status: "PUBLISHED", publishedAt: new Date() },
+        data: { status: "PUBLISHED", publishedAt: toUtcDay() },
       }),
       this.prisma.moderationQueueItem.update({
         where: { id },

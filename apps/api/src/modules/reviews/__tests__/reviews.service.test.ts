@@ -388,6 +388,8 @@ describe("ReviewsService — consent-gated salary/benefits", () => {
       salarySubmission: { create: jest.fn(), upsert: jest.fn() },
       moderationQueueItem: { create: jest.fn(), upsert: jest.fn() },
       companyAggregateScore: { upsert: jest.fn(), findUnique: jest.fn(), deleteMany: jest.fn() },
+      // enableRowAccess's set_config call (SalarySubmission is behind RLS).
+      $queryRaw: jest.fn().mockResolvedValue([]),
     };
     prisma.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(prisma));
     return prisma;

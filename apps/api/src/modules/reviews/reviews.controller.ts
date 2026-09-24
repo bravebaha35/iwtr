@@ -94,7 +94,7 @@ export class ReviewsController {
   @Post("reviews")
   submitReview(
     @CurrentUser() user: AuthenticatedUser,
-    @Body(new ZodValidationPipe(createReviewInputSchema)) body: CreateReviewInput,
+    @Body(new ZodValidationPipe(createReviewInputSchema, { strict: true })) body: CreateReviewInput,
   ) {
     return this.reviews.submitReview(user.id, body);
   }
@@ -108,7 +108,7 @@ export class ReviewsController {
   updateReview(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id", new ParseUUIDPipe()) id: string,
-    @Body(new ZodValidationPipe(updateReviewInputSchema)) body: UpdateReviewInput,
+    @Body(new ZodValidationPipe(updateReviewInputSchema, { strict: true })) body: UpdateReviewInput,
   ) {
     return this.reviews.updateReview(user.id, id, body);
   }
@@ -121,7 +121,7 @@ export class ReviewsController {
   castVote(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id", new ParseUUIDPipe()) id: string,
-    @Body(new ZodValidationPipe(castVoteInputSchema.omit({ reviewId: true }))) body: Omit<CastVoteInput, "reviewId">,
+    @Body(new ZodValidationPipe(castVoteInputSchema.omit({ reviewId: true }), { strict: true })) body: Omit<CastVoteInput, "reviewId">,
   ) {
     return this.reviews.castVote(user.id, { reviewId: id, value: body.value });
   }
@@ -133,7 +133,7 @@ export class ReviewsController {
   replyToReview(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id", new ParseUUIDPipe()) id: string,
-    @Body(new ZodValidationPipe(replyToReviewInputSchema)) body: ReplyToReviewInput,
+    @Body(new ZodValidationPipe(replyToReviewInputSchema, { strict: true })) body: ReplyToReviewInput,
   ) {
     return this.reviews.replyToReview(user.id, id, body);
   }
@@ -143,7 +143,7 @@ export class ReviewsController {
   updateReply(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id", new ParseUUIDPipe()) id: string,
-    @Body(new ZodValidationPipe(replyToReviewInputSchema)) body: ReplyToReviewInput,
+    @Body(new ZodValidationPipe(replyToReviewInputSchema, { strict: true })) body: ReplyToReviewInput,
   ) {
     return this.reviews.updateReply(user.id, id, body);
   }

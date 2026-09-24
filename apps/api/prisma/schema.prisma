@@ -6,6 +6,9 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Prisma CLI (db push/pull) connects as the table owner; the running API
+  // uses DATABASE_URL, a limited role Row-Level Security applies to.
+  directUrl = env("DIRECT_URL")
   schemas  = ["public", "pii"]
 }
 
@@ -771,7 +774,13 @@ model Review {
   isRandomizedIdentity Boolean @default(false)
   displayUsername      String?
 
-  createdAt   DateTime  @default(now())
+  // DAY_PRECISION_DEFAULT: stored to the UTC day only, never the exact
+  // moment — an exact posting time is a re-identification risk for an
+  // anonymous reviewer (an employer can line it up against who was at
+  // their desk). The truncation happens in the database default itself, so
+  // no code path can store more; publishedAt is set in code via
+  // common/time/day-precision.util.ts's toUtcDay.
+  createdAt   DateTime  @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
   publishedAt DateTime?
 
   votes               ReviewVote[]
@@ -945,7 +954,10 @@ model ModerationQueueItem {
   status          QueueStatus @default(OPEN)
   assignedAdminId String?
   sgkDocUrl       String?
-  createdAt       DateTime    @default(now())
+  // Day precision (DAY_PRECISION_DEFAULT on Review) — it's created in the
+  // same instant as the review it queues, so an exact time here would leak
+  // the review's.
+  createdAt       DateTime    @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
   resolvedAt      DateTime?
 
   // AdminQueueService.list filters by status alone on every load of the
@@ -1465,8 +1477,9 @@ model SalarySubmission {
   // Current UTC year at insert/replace; reports partition by it.
   salaryYear       Int
   kvkkCommercialConsent Boolean
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  // Day precision, same reason as Review.createdAt (DAY_PRECISION_DEFAULT).
+  // Deliberately no @updatedAt: that would record the exact moment of edit.
+  createdAt        DateTime     @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
 
   @@index([companyId, salaryYear])
   @@schema("public")
