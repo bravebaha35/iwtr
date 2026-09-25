@@ -14,6 +14,7 @@ import {
   getHasSeenApplyCvPrompt,
   markSeenApplyCvPrompt,
 } from "@/lib/cvDisclosurePrefs";
+import { loadWatermarkDataUrl, stampCvWatermark } from "@/lib/cvPdfWatermark";
 
 // Renders the actual CvPreview off-screen (never visible to the user as a
 // second copy on the page) purely so html2pdf.js has a real DOM node with
@@ -80,7 +81,12 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
         // off at one page instead of spanning multiple.
         pagebreak: { mode: ["css", "legacy"] },
       };
-      const blob: Blob = await html2pdf().set(pdfOptions).from(hiddenPreviewRef.current).outputPdf("blob");
+      // Beaver logo stamped onto the bottom-left corner of every finished
+      // page at 50% opacity (see lib/cvPdfWatermark.ts).
+      const watermark = await loadWatermarkDataUrl();
+      const pdf = await html2pdf().set(pdfOptions).from(hiddenPreviewRef.current).toPdf().get("pdf");
+      stampCvWatermark(pdf, watermark);
+      const blob: Blob = pdf.output("blob");
 
       setState("sending");
       const formData = new FormData();
