@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { RATE_BUTTON_EMOJI } from "@/lib/rateButton";
 import { formTrapHeaders } from "@/lib/formTrap";
+import { setReviewFlowActive } from "@/lib/reviewFlow";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import {
@@ -182,6 +183,13 @@ export function RateButton({
   // field only bots fill in.
   const openedAtRef = useRef(0);
   const [trapValue, setTrapValue] = useState("");
+
+  // Analytics firewall: nothing optional runs while the form is open (see
+  // lib/analyticsPolicy.ts).
+  useEffect(() => {
+    setReviewFlowActive(open);
+    return () => setReviewFlowActive(false);
+  }, [open]);
 
   const editing = Boolean(matchingEntry?.reviewId);
   const hasRoleStep = !editing && workplaceTypes.length > 1;

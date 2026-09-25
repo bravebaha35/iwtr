@@ -7,6 +7,8 @@ import { GlobalHeader } from "@/components/GlobalHeader";
 import { GlobalFooter } from "@/components/GlobalFooter";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { MagneticPrimaryButtons } from "@/components/motion/MagneticPrimaryButtons";
+import { CookieConsentBanner } from "@/components/privacy/CookieConsentBanner";
+import { AnalyticsLoader } from "@/components/privacy/AnalyticsLoader";
 import "./globals.css";
 // Real vector flag icons (not Unicode flag emoji) — Windows renders
 // unsupported flag-emoji regional-indicator pairs as a boxed two-letter
@@ -97,6 +99,8 @@ export default function RootLayout({
         </SettingsProvider>
         <GlobalFooter />
         <MagneticPrimaryButtons />
+        <CookieConsentBanner />
+        <AnalyticsLoader />
       </body>
     </html>
   );
