@@ -92,3 +92,76 @@ describe("proxy (review-traffic header stripping)", () => {
     },
   );
 });
+
+describe("proxy (private-conversation traffic)", () => {
+  it.each(["/api/proxy/conversations/abc/messages", "/api/proxy/me/conversations", "/api/proxy/owner/companies/c1/conversations"])(
+    "drops identifying headers on %s too",
+    (path) => {
+      const res = proxy(
+        new NextRequest(new URL(path, "http://localhost:3000"), {
+          headers: { "user-agent": "Mozilla/5.0", "x-forwarded-for": "203.0.113.7", cookie: "iwtr_access=t" },
+        }),
+      );
+      const kept = (res.headers.get("x-middleware-override-headers") ?? "").split(",").filter(Boolean);
+      expect(kept).not.toContain("user-agent");
+      expect(kept).not.toContain("x-forwarded-for");
+      expect(kept).toContain("cookie");
+    },
+  );
+});
+
+describe("proxy (review spam trap)", () => {
+  function submit(headers: Record<string, string>) {
+    return proxy(
+      new NextRequest(new URL("/api/proxy/reviews", "http://localhost:3000"), {
+        method: "POST",
+        headers: { cookie: "iwtr_access=t", "content-type": "application/json", ...headers },
+      }),
+    );
+  }
+
+  it("turns away a submission whose hidden trap field was filled in, before it reaches the API", async () => {
+    const res = submit({ "x-form-trap": "http://spam.example", "x-form-age-ms": "9000" });
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-middleware-next")).toBeNull();
+    expect(await res.json()).toEqual({ message: "Your review couldn't be submitted. Please try again." });
+  });
+
+  it("turns away a form submitted faster than a person could fill it in", () => {
+    expect(submit({ "x-form-trap": "", "x-form-age-ms": "400" }).status).toBe(400);
+  });
+
+  it("lets a normal submission through and doesn't forward the trap headers", () => {
+    const res = submit({ "x-form-trap": "", "x-form-age-ms": "45000" });
+    expect(res.status).toBe(200);
+    const kept = (res.headers.get("x-middleware-override-headers") ?? "").split(",").filter(Boolean);
+    expect(kept).not.toContain("x-form-trap");
+    expect(kept).not.toContain("x-form-age-ms");
+  });
+
+  it("doesn't apply the trap to votes or other review calls without the headers", () => {
+    expect(submit({}).status).toBe(200);
+  });
+});
+
+describe("proxy (HTTPS)", () => {
+  const original = process.env.NODE_ENV;
+  afterEach(() => {
+    (process.env as Record<string, string>).NODE_ENV = original!;
+  });
+
+  it("redirects plain HTTP to HTTPS in production", () => {
+    (process.env as Record<string, string>).NODE_ENV = "production";
+    const res = proxy(
+      new NextRequest(new URL("/jobs?x=1", "http://iworkedthere.com"), { headers: { "x-forwarded-proto": "http" } }),
+    );
+    expect(res.status).toBe(308);
+    expect(res.headers.get("location")).toBe("https://iworkedthere.com/jobs?x=1");
+  });
+
+  it("leaves ordinary pages alone in development (no admin gate on non-admin pages)", () => {
+    const res = proxy(new NextRequest(new URL("/jobs", "http://localhost:3000")));
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.cookies.get("iwtr_forbidden_notice")).toBeUndefined();
+  });
+});
