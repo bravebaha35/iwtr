@@ -1073,7 +1073,7 @@ export class ReviewsService {
   async listMine(userId: string): Promise<MyReviewListItem[]> {
     const reviews = await this.prisma.review.findMany({
       where: { userId },
-      include: { company: { select: { name: true, slug: true } } },
+      include: { company: { select: { name: true, slug: true } }, conversation: { select: { id: true } } },
       orderBy: { createdAt: "desc" },
     });
     const reviewIds = reviews.map((r) => r.id);
@@ -1116,6 +1116,7 @@ export class ReviewsService {
       likeCount: likeByReview.get(r.id) ?? 0,
       dislikeCount: dislikeByReview.get(r.id) ?? 0,
       reply: toPublicReply(replyByReview.get(r.id)),
+      conversationId: r.conversation?.id ?? null,
     }));
   }
 

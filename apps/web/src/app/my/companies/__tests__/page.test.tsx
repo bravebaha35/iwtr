@@ -78,6 +78,7 @@ function mockApiGet() {
     if (path === "/me/company-claims") return Promise.resolve([claim]);
     if (path === `/companies/${claim.companySlug}`) return Promise.resolve(detail);
     if (path === `/companies/${claim.companySlug}/reviews`) return Promise.resolve([]);
+    if (path === `/owner/companies/${claim.companyId}/conversations`) return Promise.resolve([]);
     return Promise.reject(new Error(`Unhandled apiGet path in test: ${path}`));
   });
 }
@@ -103,7 +104,7 @@ function generalInfoBox(): HTMLElement {
   return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
 }
 
-test("side panel lists the five sections in order, and only the active one's content renders", async () => {
+test("side panel lists the six sections in order, and only the active one's content renders", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
@@ -115,6 +116,7 @@ test("side panel lists the five sections in order, and only the active one's con
     "Contact & Social Media",
     "Reviews & Ratings",
     "Applications",
+    "Messages",
   ]);
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
@@ -250,4 +252,15 @@ test("Premium Features box is hidden on the Free tier", async () => {
   expect(within(upsellBox).getByRole("button", { name: /^Blue — /})).toBeInTheDocument();
   expect(within(upsellBox).getByRole("button", { name: /^Blue\+ — /})).toBeInTheDocument();
   expect(within(upsellBox).getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
+});
+
+test("a message notification link opens that company's Messages section", async () => {
+  window.history.pushState({}, "", `/my/companies?category=messages&company=${claim.companyId}`);
+  try {
+    render(<MyCompaniesPage />);
+    expect(await screen.findByRole("heading", { name: "Messages" })).toBeInTheDocument();
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/owner/companies/${claim.companyId}/conversations`));
+  } finally {
+    window.history.pushState({}, "", "/");
+  }
 });

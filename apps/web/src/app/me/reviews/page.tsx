@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, ApiError } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { AdSlot } from "@/components/AdSlot";
+import { StartConversationButton } from "@/components/messaging/StartConversationButton";
 
 const CATEGORY_FIELDS: { score: keyof MyReviewListItem; label: string }[] = [
   { score: "corporateCultureScore", label: "Corporate Culture" },
@@ -133,6 +134,13 @@ export default function MyReviewsPage() {
                 <div className="mt-3 rounded-lg bg-surface-muted p-3 text-sm">
                   <p className="mb-1 text-xs font-semibold text-foreground">Response from {review.companyName}</p>
                   <p className="text-muted-foreground">{review.reply.content}</p>
+                  {review.status === "PUBLISHED" && (
+                    <StartConversationButton
+                      reviewId={review.id}
+                      companyName={review.companyName}
+                      conversationId={review.conversationId}
+                    />
+                  )}
                 </div>
               )}
             </div>

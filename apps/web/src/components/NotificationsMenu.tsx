@@ -54,7 +54,11 @@ type NotificationKind =
   | "JOB_POSTING_NEEDS_INFO"
   // Real, derived from READY BenchmarkReportJob rows; carries its own href
   // (the PDF download route).
-  | "BENCHMARK_REPORT_READY";
+  | "BENCHMARK_REPORT_READY"
+  // Real, derived from unread private review-conversation messages; carry
+  // their own href (the right inbox).
+  | "CONVERSATION_MESSAGE_FROM_COMPANY"
+  | "CONVERSATION_MESSAGE_FROM_REVIEWER";
 
 const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   VOTE_HELPFUL: "SOCIAL",
@@ -73,6 +77,8 @@ const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   COMPANY_REVIEWED: "EMPLOYER",
   JOB_POSTING_NEEDS_INFO: "EMPLOYER",
   BENCHMARK_REPORT_READY: "EMPLOYER",
+  CONVERSATION_MESSAGE_FROM_COMPANY: "SOCIAL",
+  CONVERSATION_MESSAGE_FROM_REVIEWER: "EMPLOYER",
 };
 
 interface AppNotification {
@@ -127,6 +133,10 @@ function describeNotification(n: AppNotification): string {
       return "Your job posting has missing/incorrect information.";
     case "BENCHMARK_REPORT_READY":
       return `Your report is ready! Download the Sector Benchmark Report for ${company}.`;
+    case "CONVERSATION_MESSAGE_FROM_COMPANY":
+      return `${company} sent you a message.`;
+    case "CONVERSATION_MESSAGE_FROM_REVIEWER":
+      return `New message about a review of ${company}.`;
   }
 }
 
@@ -160,6 +170,10 @@ function hrefForNotification(n: AppNotification): string {
       return n.companySlug ? `/companies/${n.companySlug}` : "/my/companies";
     case "BENCHMARK_REPORT_READY":
       return n.href ?? "/my/companies";
+    case "CONVERSATION_MESSAGE_FROM_COMPANY":
+      return n.href ?? "/me?tab=messages";
+    case "CONVERSATION_MESSAGE_FROM_REVIEWER":
+      return n.href ?? "/my/companies?category=messages";
   }
 }
 

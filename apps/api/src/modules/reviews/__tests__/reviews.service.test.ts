@@ -457,3 +457,41 @@ describe("ReviewsService — consent-gated salary/benefits", () => {
     );
   });
 });
+
+describe("ReviewsService.listMine", () => {
+  it("tells the author which of their reviews already has a private conversation", async () => {
+    const base = {
+      companyId: "company-1",
+      company: { name: "Acme", slug: "acme" },
+      workplaceType: "OFFICE",
+      corporateCultureScore: 3,
+      leadershipScore: 3,
+      infrastructureScore: 3,
+      workLifeBalanceScore: 3,
+      stabilityScore: 3,
+      surveyAnswers: {},
+      generalThoughts: null,
+      status: "PUBLISHED",
+      isRandomizedIdentity: false,
+      displayUsername: null,
+      city: null,
+      district: null,
+      createdAt: new Date("2026-09-25T00:00:00Z"),
+      publishedAt: null,
+    };
+    const prisma = {
+      review: {
+        findMany: jest.fn().mockResolvedValue([
+          { ...base, id: "r1", conversation: { id: "conv-1" } },
+          { ...base, id: "r2", conversation: null },
+        ]),
+      },
+      reviewVote: { groupBy: jest.fn().mockResolvedValue([]) },
+      companyReply: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const service = new ReviewsService(prisma as any, new ModerationService(), { purgeTcKimlikNoIfPresent: jest.fn() } as any);
+
+    const rows = await service.listMine("user-1");
+    expect(rows.map((r) => r.conversationId)).toEqual(["conv-1", null]);
+  });
+});

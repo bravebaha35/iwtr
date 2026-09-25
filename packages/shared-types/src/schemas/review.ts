@@ -346,6 +346,10 @@ export const myReviewListItemSchema = myReviewSchema.extend({
   likeCount: z.number().int().min(0),
   dislikeCount: z.number().int().min(0),
   reply: companyReplySchema.nullable(),
+  // The author's private conversation with the company about this review,
+  // if one was started (see messaging.ts) - lets My Reviews show "Open
+  // conversation" instead of "Message {company}".
+  conversationId: z.string().uuid().nullable(),
 });
 export type MyReviewListItem = z.infer<typeof myReviewListItemSchema>;
 
