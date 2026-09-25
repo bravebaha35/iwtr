@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
+import { isOwnStaticAsset } from "@/lib/imageSource";
 import type { Company, CompanyDetail, CompanyNarrative } from "@iwtr/shared-types";
 import { scoreBandLabel } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
@@ -55,8 +57,7 @@ function RatingNarrativeBox({
       {imageSrc ? (
         // A small fixed set of local /public illustrations, not a
         // remote/arbitrary URL.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageSrc} alt="" className="h-72 w-56 shrink-0 object-contain" />
+        <Image src={imageSrc} alt="" width={448} height={576} sizes="224px" className="h-72 w-56 shrink-0 object-contain" />
       ) : (
         <div className="h-72 w-56 shrink-0" aria-hidden="true" />
       )}
@@ -214,11 +215,14 @@ export default async function CompanyPage({
           {/* 5:1, not 4:1 — on this full-width hero a 4:1 slab ran ~290px
               tall and read as a wall; 5:1 keeps it a cover strip. mb-14
               clears the half of the lg logo that hangs below it. */}
-          <div className="aspect-[5/1] w-full overflow-hidden rounded-xl">
-            {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
-            <img
+          <div className="relative aspect-[5/1] w-full overflow-hidden rounded-xl">
+            <Image
               src={bannerUrl}
               alt=""
+              fill
+              priority
+              sizes="(min-width: 1024px) 1024px, 100vw"
+              unoptimized={!isOwnStaticAsset(bannerUrl)}
               className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
             />
           </div>

@@ -20,6 +20,9 @@ const nextConfig: NextConfig = {
   agentRules: false,
   // Don't advertise the framework in every response.
   poweredByHeader: false,
+  // next/image re-encodes our own /public images as WebP at the size each
+  // screen actually needs.
+  images: { formats: ["image/webp"] },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },

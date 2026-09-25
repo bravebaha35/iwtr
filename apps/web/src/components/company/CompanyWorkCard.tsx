@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { isOwnStaticAsset } from "@/lib/imageSource";
 import { scoreBandLabel, type OwnerTier, type WorkplaceType } from "@iwtr/shared-types";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
@@ -57,11 +59,13 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
           logo that hangs past it, so the name row below never collides with
           it. 4:1 keeps the strip short relative to the rest of the card. */}
       <div className="relative -mx-4 -mt-4 mb-6 w-[calc(100%+2rem)]">
-        <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
-          {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
-          <img
+        <div className="relative aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+          <Image
             src={bannerUrl}
             alt=""
+            fill
+            sizes="(min-width: 1280px) 320px, (min-width: 640px) 50vw, 100vw"
+            unoptimized={!isOwnStaticAsset(bannerUrl)}
             className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
           />
         </div>

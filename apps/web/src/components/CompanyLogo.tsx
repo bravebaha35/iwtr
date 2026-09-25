@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import { isOwnStaticAsset } from "@/lib/imageSource";
 
 const SIZES = {
   sm: "h-9 w-9 text-sm compact:h-7 compact:w-7 compact:text-xs rounded-lg",
@@ -31,12 +33,15 @@ export function CompanyLogo({
 
   if (mainPhotoUrl && !failed) {
     return (
-      // mainPhotoUrl is an arbitrary owner-submitted URL, not a known set
-      // of remote hosts, so next/image's remotePatterns allowlist doesn't fit here.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      // mainPhotoUrl is an owner upload (already WebP, served by the API) or
+      // an arbitrary URL, so it's passed through unoptimized rather than
+      // via next/image's remotePatterns allowlist.
+      <Image
         src={mainPhotoUrl}
         alt={`${name} logo`}
+        width={128}
+        height={128}
+        unoptimized={!isOwnStaticAsset(mainPhotoUrl)}
         onError={() => setFailed(true)}
         className={`${dims} shrink-0 object-cover`}
       />

@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
@@ -506,8 +507,10 @@ export function WorkplaceBrowser() {
                   {RATING_TICKS.map((tick, i) => {
                     const active = activeMoodIndex(minRating) === i;
                     return (
-                      // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
-                      <img
+                      <Image
+                        width={112}
+                        height={112}
+                        sizes="56px"
                         key={tick.value}
                         src={tick.src}
                         alt={tick.alt}

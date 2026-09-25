@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { isOwnStaticAsset } from "@/lib/imageSource";
 import {
   type CompanyListItem,
   type CompanyVibeFlags,
@@ -262,11 +264,13 @@ export function JobCard({
           clear the protruding logo. No ring around the logo: a transparent
           brand image should read as transparent, not sit in a coloured box. */}
       <div className="relative">
-        <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
-          {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
-          <img
+        <div className="relative aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+          <Image
             src={bannerUrl}
             alt=""
+            fill
+            sizes="(min-width: 1280px) 320px, (min-width: 640px) 50vw, 100vw"
+            unoptimized={!isOwnStaticAsset(bannerUrl)}
             className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
           />
         </div>
