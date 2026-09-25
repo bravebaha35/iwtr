@@ -15,6 +15,7 @@ import type {
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { publicReviewerName } from "../reviews/display-name.util";
+import { toUtcDay } from "../../common/time/day-precision.util";
 
 type Side = "REVIEWER" | "COMPANY";
 
@@ -128,6 +129,58 @@ export class MessagingService {
       include: SUMMARY_INCLUDE,
     });
     return this.toSortedSummaries(rows, "COMPANY");
+  }
+
+  /**
+   * Rules, in order: ended -> 409; reviewer writing again before any company
+   * message -> 409 (the company can never write first, since a conversation
+   * only exists once the reviewer has); content check -> 400, nothing saved.
+   */
+  async sendMessage(userId: string, conversationId: string, input: SendMessageInput): Promise<ConversationThread> {
+    const conversation = await this.loadThread(conversationId);
+    const side = await this.resolveSide(userId, conversation);
+    const reason = this.cannotSendReason(conversation, side);
+    if (reason === "ENDED") throw new ConflictException("This conversation has ended.");
+    if (reason === "AWAITING_COMPANY") {
+      throw new ConflictException("Wait for the company to answer before sending another message.");
+    }
+    this.assertClean(input.content);
+
+    await this.prisma.$transaction(async (tx) => {
+      const message = await tx.reviewConversationMessage.create({
+        data: { conversationId, side, authorUserId: userId, content: input.content },
+      });
+      // Your own message never counts as unread for you.
+      await tx.reviewConversation.update({
+        where: { id: conversationId },
+        data: side === "REVIEWER" ? { reviewerLastReadSeq: message.seq } : { companyLastReadSeq: message.seq },
+      });
+    });
+    return this.getThread(userId, conversationId);
+  }
+
+  /** Permanent for both sides. Ending an already-ended conversation keeps the original ender. */
+  async endConversation(userId: string, conversationId: string): Promise<ConversationThread> {
+    const conversation = await this.loadThread(conversationId);
+    const side = await this.resolveSide(userId, conversation);
+    if (!conversation.endedAt) {
+      await this.prisma.reviewConversation.update({
+        where: { id: conversationId },
+        data: { endedAt: toUtcDay(), endedBy: side },
+      });
+    }
+    return this.getThread(userId, conversationId);
+  }
+
+  async markRead(userId: string, conversationId: string): Promise<void> {
+    const conversation = await this.loadThread(conversationId);
+    const side = await this.resolveSide(userId, conversation);
+    const latest = conversation.messages[conversation.messages.length - 1];
+    if (!latest) return;
+    await this.prisma.reviewConversation.update({
+      where: { id: conversationId },
+      data: side === "REVIEWER" ? { reviewerLastReadSeq: latest.seq } : { companyLastReadSeq: latest.seq },
+    });
   }
 
   // --- internals ---------------------------------------------------------

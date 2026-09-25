@@ -150,3 +150,96 @@ describe("MessagingService inbox lists", () => {
     await expect(service.listForCompany(OUTSIDER, COMPANY)).rejects.toThrow(ForbiddenException);
   });
 });
+
+describe("MessagingService.sendMessage", () => {
+  it("refuses the reviewer's second message until the company has answered", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await expect(service.sendMessage(REVIEWER, started.id, { content: "Hello again?" })).rejects.toThrow(ConflictException);
+  });
+
+  it("becomes a normal back-and-forth once the company answers", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    const afterCompany = await service.sendMessage(OWNER, started.id, { content: "Of course, we'd like to hear more." });
+    expect(afterCompany.messages.map((m) => m.fromMe)).toEqual([false, true]);
+    const afterReviewer = await service.sendMessage(REVIEWER, started.id, { content: "The rota changed every week." });
+    expect(afterReviewer.messages.map((m) => m.content)).toEqual([
+      hello.content,
+      "Of course, we'd like to hear more.",
+      "The rota changed every week.",
+    ]);
+    expect(afterReviewer.canSend).toBe(true);
+  });
+
+  it("blocks a message that fails the content check and saves nothing", async () => {
+    const { service, prisma } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await expect(
+      service.sendMessage(OWNER, started.id, { content: "Is this Ahmet Yılmaz from the night shift?" }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma._state.messages).toHaveLength(1);
+  });
+
+  it("is not found for an outsider", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await expect(service.sendMessage(OUTSIDER, started.id, { content: "hi" })).rejects.toThrow(NotFoundException);
+  });
+
+  it("refuses any message after the conversation has ended", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await service.endConversation(REVIEWER, started.id);
+    await expect(service.sendMessage(OWNER, started.id, { content: "Wait, one more thing" })).rejects.toThrow(ConflictException);
+  });
+});
+
+describe("MessagingService.endConversation", () => {
+  it("ends it for both sides and says who ended it", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    const mine = await service.endConversation(OWNER, started.id);
+    expect(mine).toEqual(expect.objectContaining({ ended: true, endedBy: "YOU", canSend: false, cannotSendReason: "ENDED" }));
+    const theirs = await service.getThread(REVIEWER, started.id);
+    expect(theirs).toEqual(expect.objectContaining({ ended: true, endedBy: "THEM", cannotSendReason: "ENDED" }));
+  });
+
+  it("keeps the first ender when ended twice", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await service.endConversation(REVIEWER, started.id);
+    const again = await service.endConversation(OWNER, started.id);
+    expect(again.endedBy).toBe("THEM");
+  });
+
+  it("can't be restarted with a new conversation on the same review", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await service.endConversation(REVIEWER, started.id);
+    await expect(service.startConversation(REVIEWER, "review-1", hello)).rejects.toThrow(ConflictException);
+  });
+});
+
+describe("MessagingService.markRead", () => {
+  it("clears the unread flag for the side that read it", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    expect((await service.listForCompany(OWNER, COMPANY))[0].unread).toBe(true);
+    await service.markRead(OWNER, started.id);
+    expect((await service.listForCompany(OWNER, COMPANY))[0].unread).toBe(false);
+  });
+
+  it("works on an ended conversation", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await service.endConversation(REVIEWER, started.id);
+    await expect(service.markRead(OWNER, started.id)).resolves.toBeUndefined();
+  });
+
+  it("is not found for an outsider", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await expect(service.markRead(OUTSIDER, started.id)).rejects.toThrow(NotFoundException);
+  });
+});
