@@ -10,6 +10,8 @@ function basePrisma(overrides: Record<string, unknown> = {}) {
     companyAggregateScore: { findMany: jest.fn().mockResolvedValue([]) },
     socialPost: { findMany: jest.fn().mockResolvedValue([]) },
     benchmarkReportJob: { findMany: jest.fn().mockResolvedValue([]) },
+    companyOwner: { findMany: jest.fn().mockResolvedValue([]) },
+    reviewConversation: { findMany: jest.fn().mockResolvedValue([]) },
     ...overrides,
   } as never;
 }
@@ -126,5 +128,77 @@ describe("NotificationsService.list - followed-company events", () => {
     });
     const events = await new NotificationsService(prisma).list("u1");
     expect(events.map((e) => e.type)).toEqual(["COMPANY_STATUS_UPDATE", "VOTE_HELPFUL"]);
+  });
+});
+
+describe("NotificationsService.list - review conversations", () => {
+  const day = new Date("2026-09-25T00:00:00Z");
+
+  it("tells the reviewer about an unread company message, linking to their Messages tab", async () => {
+    const prisma = basePrisma({
+      reviewConversation: {
+        findMany: jest.fn().mockImplementation(({ where }) =>
+          Promise.resolve(
+            where.reviewerUserId === "u1"
+              ? [
+                  {
+                    id: "conv-1",
+                    companyId: "c1",
+                    reviewerLastReadSeq: 3,
+                    company: { name: "Acme", slug: "acme" },
+                    messages: [{ id: "m4", seq: 4, createdAt: day }],
+                  },
+                  {
+                    id: "conv-2",
+                    companyId: "c2",
+                    reviewerLastReadSeq: 9,
+                    company: { name: "Read Co", slug: "read-co" },
+                    messages: [{ id: "m8", seq: 8, createdAt: day }],
+                  },
+                ]
+              : [],
+          ),
+        ),
+      },
+    });
+    const events = await new NotificationsService(prisma).list("u1");
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "CONVERSATION_MESSAGE_FROM_COMPANY",
+        companyName: "Acme",
+        href: "/me?tab=messages&c=conv-1",
+      }),
+    ]);
+  });
+
+  it("tells an approved owner about an unread reviewer message, linking to the company inbox", async () => {
+    const prisma = basePrisma({
+      companyOwner: { findMany: jest.fn().mockResolvedValue([{ companyId: "c1" }]) },
+      reviewConversation: {
+        findMany: jest.fn().mockImplementation(({ where }) =>
+          Promise.resolve(
+            where.companyId
+              ? [
+                  {
+                    id: "conv-9",
+                    companyId: "c1",
+                    companyLastReadSeq: 0,
+                    company: { name: "Acme", slug: "acme" },
+                    messages: [{ id: "m1", seq: 1, createdAt: day }],
+                  },
+                ]
+              : [],
+          ),
+        ),
+      },
+    });
+    const events = await new NotificationsService(prisma).list("owner-1");
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "CONVERSATION_MESSAGE_FROM_REVIEWER",
+        companyName: "Acme",
+        href: "/my/companies?category=messages&company=c1&c=conv-9",
+      }),
+    ]);
   });
 });

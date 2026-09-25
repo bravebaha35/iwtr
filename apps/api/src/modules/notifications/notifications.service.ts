@@ -33,7 +33,23 @@ export class NotificationsService {
     });
     const followedCompanyIds = follows.map((f) => f.companyId);
 
-    const [votes, replies, jobPostings, followedStatusUpdates, followedPosts, followedHiring, readyReports] = await Promise.all([
+    const ownerships = await this.prisma.companyOwner.findMany({
+      where: { userId, claimStatus: "APPROVED" },
+      select: { companyId: true },
+    });
+    const ownedCompanyIds = ownerships.map((o) => o.companyId);
+
+    const [
+      votes,
+      replies,
+      jobPostings,
+      followedStatusUpdates,
+      followedPosts,
+      followedHiring,
+      readyReports,
+      myConversations,
+      companyConversations,
+    ] = await Promise.all([
       reviewIds.length > 0
         ? this.prisma.reviewVote.findMany({
             where: { reviewId: { in: reviewIds } },
@@ -109,6 +125,39 @@ export class NotificationsService {
         orderBy: { completedAt: "desc" },
         take: MAX_NOTIFICATIONS,
       }),
+      // Private review conversations (MessagingService): one notification
+      // per conversation whose newest message from the OTHER side is past
+      // the caller's read marker. As reviewer here...
+      this.prisma.reviewConversation.findMany({
+        where: { reviewerUserId: userId },
+        select: {
+          id: true,
+          companyId: true,
+          reviewerLastReadSeq: true,
+          company: { select: { name: true, slug: true } },
+          messages: { where: { side: "COMPANY" }, orderBy: { seq: "desc" }, take: 1, select: { id: true, seq: true, createdAt: true } },
+        },
+        take: MAX_NOTIFICATIONS,
+      }),
+      // ...and as an approved owner of the reviewed company.
+      ownedCompanyIds.length > 0
+        ? this.prisma.reviewConversation.findMany({
+            where: { companyId: { in: ownedCompanyIds } },
+            select: {
+              id: true,
+              companyId: true,
+              companyLastReadSeq: true,
+              company: { select: { name: true, slug: true } },
+              messages: {
+                where: { side: "REVIEWER" },
+                orderBy: { seq: "desc" },
+                take: 1,
+                select: { id: true, seq: true, createdAt: true },
+              },
+            },
+            take: MAX_NOTIFICATIONS * 3,
+          })
+        : Promise.resolve([]),
     ]);
 
     const events: Notification[] = [
@@ -164,6 +213,26 @@ export class NotificationsService {
         // session; the API re-checks ownership and expiry on download.
         href: `/api/proxy/my-companies/${job.companyId}/sector-benchmark/${job.id}/download`,
       })),
+      ...myConversations
+        .filter((c) => c.messages[0] && c.messages[0].seq > c.reviewerLastReadSeq)
+        .map((c) => ({
+          id: `conversation-${c.messages[0].id}`,
+          type: "CONVERSATION_MESSAGE_FROM_COMPANY" as NotificationType,
+          companyName: c.company.name,
+          companySlug: c.company.slug,
+          createdAt: c.messages[0].createdAt.toISOString(),
+          href: `/me?tab=messages&c=${c.id}`,
+        })),
+      ...companyConversations
+        .filter((c) => c.messages[0] && c.messages[0].seq > c.companyLastReadSeq)
+        .map((c) => ({
+          id: `conversation-${c.messages[0].id}`,
+          type: "CONVERSATION_MESSAGE_FROM_REVIEWER" as NotificationType,
+          companyName: c.company.name,
+          companySlug: c.company.slug,
+          createdAt: c.messages[0].createdAt.toISOString(),
+          href: `/my/companies?category=messages&company=${c.companyId}&c=${c.id}`,
+        })),
     ];
 
     events.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
