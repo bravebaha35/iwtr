@@ -86,7 +86,9 @@ function PhoneIcon({ className }: { className?: string }) {
 // mailto:/tel: link (a reviewer-anonymous platform never wants an accidental
 // full mail-client handoff to be the only option — copying is the more
 // reliable action on both desktop and mobile).
-function ContactButton({ icon, label, value }: { icon: "mail" | "phone"; label: string; value: string | null }) {
+// Icon-only (the label is spoken, and shown as a tooltip) so Mail, Call and
+// Apply fit on one line next to the job title.
+export function ContactButton({ icon, label, value }: { icon: "mail" | "phone"; label: string; value: string | null }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -113,10 +115,10 @@ function ContactButton({ icon, label, value }: { icon: "mail" | "phone"; label: 
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={`${label}: ${value}`}
-        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs font-medium text-foreground transition hover:bg-surface-muted"
+        title={label}
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-foreground transition hover:bg-surface-muted"
       >
         <Icon className="h-3.5 w-3.5" />
-        {label}
       </button>
       {open && (
         <div className="absolute right-0 top-full z-20 mt-1 flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground shadow-lg">
@@ -333,14 +335,13 @@ export function JobCard({
             {location || "Location not set"} · {company.category}
           </p>
 
-          {/* This card's one job title + Mail/Call/Apply, side by side so the
-              row stays short and leaves room for the description below. The
-              title chip is capped at its column's width (and truncates), and
-              when the card is too narrow to give it at least 8rem the buttons
-              wrap onto their own line instead of sliding over it. No
+          {/* This card's one job title + Mail/Call/Apply on a single line.
+              Mail and Call are icon-only so all three fit; the title chip
+              is capped at its column's width and truncates (full title in
+              its tooltip) rather than sliding under the buttons. No
               overflow-hidden here — the Contact popovers spill outside. */}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 basis-32">
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
               {posting ? (
                 <span
                   title={posting.jobTitle}
@@ -352,7 +353,7 @@ export function JobCard({
                 <span className="text-xs font-bold text-muted-foreground">No open roles listed yet</span>
               )}
             </div>
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5">
               <ContactButton icon="mail" label="Mail" value={company.contactEmail} />
               <ContactButton icon="phone" label="Call" value={company.contactPhone} />
               {posting?.id && <ApplyButton jobPostingId={posting.id} />}
