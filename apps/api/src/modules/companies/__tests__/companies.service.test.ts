@@ -546,3 +546,21 @@ describe("CompaniesService.search — maxRiskScore filter", () => {
     expect(prisma.company.findMany.mock.calls[0][0].where).not.toHaveProperty("riskScore");
   });
 });
+
+describe("CompaniesService.listForSitemap", () => {
+  it("lists only visible companies, with the date their score last changed", async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      { slug: "acme", aggregate: { updatedAt: new Date("2026-09-20T00:00:00Z") } },
+      { slug: "new-co", aggregate: null },
+    ]);
+    const service = new CompaniesService({ company: { findMany } } as any, {} as any);
+
+    const rows = await service.listForSitemap();
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { hiddenAt: null } }));
+    expect(rows).toEqual([
+      { slug: "acme", lastModified: "2026-09-20T00:00:00.000Z" },
+      { slug: "new-co", lastModified: null },
+    ]);
+  });
+});

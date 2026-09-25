@@ -42,8 +42,13 @@ export class CompaniesController {
     return this.companies.search(query);
   }
 
-  // Must be registered before "companies/:slug" — otherwise Nest's route
-  // matching would treat "filters" as a slug value for that route instead.
+  // Both must be registered before "companies/:slug" — otherwise Nest's route
+  // matching would treat "sitemap"/"filters" as a slug value for that route.
+  @Get("companies/sitemap")
+  sitemap() {
+    return this.companies.listForSitemap();
+  }
+
   @Get("companies/filters")
   filters() {
     return this.companies.listFilters();

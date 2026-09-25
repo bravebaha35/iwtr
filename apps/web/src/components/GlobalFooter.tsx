@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
-import { TermsModal } from "@/components/legal/TermsModal";
 import { KVKKModal } from "@/components/legal/KVKKModal";
 import { NoticeTakedownModal } from "@/components/legal/NoticeTakedownModal";
 import { AnonymityPolicyModal } from "@/components/legal/AnonymityPolicyModal";
@@ -16,7 +15,6 @@ import { AnonymityPolicyModal } from "@/components/legal/AnonymityPolicyModal";
 // NoticeTakedownModal/AnonymityPolicyModal) instead of routing to a
 // separate static page.
 const PRICING_HREF = "#pricing";
-const TERMS_HREF = "#terms";
 const KVKK_HREF = "#kvkk";
 const NOTICE_TAKEDOWN_HREF = "#notice-takedown";
 const ANONYMITY_HREF = "#anonymity";
@@ -74,7 +72,10 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Legal",
     links: [
-      { label: "Terms of Service", href: TERMS_HREF },
+      // Full pages (not popups) so they can be linked to, indexed and read
+      // comfortably on a phone.
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms & Conditions", href: "/terms" },
       { label: "KVKK Aydınlatma Metni", href: KVKK_HREF },
       { label: "Notice & Takedown (Uyar-Kaldır)", href: NOTICE_TAKEDOWN_HREF },
     ],
@@ -83,7 +84,6 @@ const FOOTER_COLUMNS: FooterColumn[] = [
 
 export function GlobalFooter() {
   const [showPricing, setShowPricing] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
   const [showKvkk, setShowKvkk] = useState(false);
   const [showNoticeTakedown, setShowNoticeTakedown] = useState(false);
   const [showAnonymity, setShowAnonymity] = useState(false);
@@ -95,7 +95,6 @@ export function GlobalFooter() {
   // navigations and so are never in this map).
   const popupOpeners: Record<string, () => void> = {
     [PRICING_HREF]: () => setShowPricing(true),
-    [TERMS_HREF]: () => setShowTerms(true),
     [KVKK_HREF]: () => setShowKvkk(true),
     [NOTICE_TAKEDOWN_HREF]: () => setShowNoticeTakedown(true),
     [ANONYMITY_HREF]: () => setShowAnonymity(true),
@@ -142,7 +141,6 @@ export function GlobalFooter() {
       </div>
 
       {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}
-      {showTerms && <TermsModal onClose={() => setShowTerms(false)} />}
       {showKvkk && <KVKKModal onClose={() => setShowKvkk(false)} />}
       {showNoticeTakedown && <NoticeTakedownModal onClose={() => setShowNoticeTakedown(false)} />}
       {showAnonymity && <AnonymityPolicyModal onClose={() => setShowAnonymity(false)} />}
