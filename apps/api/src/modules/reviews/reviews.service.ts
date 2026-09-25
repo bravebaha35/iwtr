@@ -42,6 +42,7 @@ import { pickRandomDisplayUsername } from "./randomized-identity.util";
 import { tallyQuestions, tallyContradictionPairs, type ContradictionPairMatchCount } from "./survey-tally.util";
 import { YELLOW_FLAG_PAIRS } from "../flags/yellow-flag-pairs.data";
 import { toUtcDay } from "../../common/time/day-precision.util";
+import { publicReviewerName } from "./display-name.util";
 import { enableRowAccess, SALARY_ACCESS } from "../../common/db/row-access";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
@@ -897,7 +898,7 @@ export class ReviewsService {
       avatarGradient: r.isRandomizedIdentity
         ? RANDOMIZED_IDENTITY_AVATAR_GRADIENT
         : (avatarByAuthor.get(r.userId)?.avatarGradient ?? null),
-      displayUsername: r.isRandomizedIdentity ? r.displayUsername : (avatarByAuthor.get(r.userId)?.reviewUsername ?? null),
+      displayUsername: publicReviewerName(r, avatarByAuthor.get(r.userId)),
       district: r.district && districtMeetsThreshold.has(r.district) ? r.district : null,
       city: r.city && cityMeetsThreshold.has(r.city) ? r.city : null,
     }));
