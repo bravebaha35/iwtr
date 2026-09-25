@@ -211,18 +211,22 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<OwnerDashboardCategory>("general-info");
   // A message notification links here as
-  // /my/companies?category=messages&company={companyId}&c={conversationId}
+  // /my/companies?category=messages&company={companyId}&c={conversationId},
+  // a new-application one as ?category=applications&company={companyId}
   // (see NotificationsService.list) - only the named company's card opens
-  // its Messages section. Read from window.location once on mount rather
+  // that section. Read from window.location once on mount rather
   // than useSearchParams so this page keeps rendering without a Suspense
   // boundary.
   const [openConversationId, setOpenConversationId] = useState<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("category") === "messages" && params.get("company") === claim.companyId) {
+    if (params.get("company") !== claim.companyId) return;
+    if (params.get("category") === "messages") {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from the URL once on mount
       setActiveCategory("messages");
       setOpenConversationId(params.get("c"));
+    } else if (params.get("category") === "applications") {
+      setActiveCategory("applications");
     }
   }, [claim.companyId]);
 

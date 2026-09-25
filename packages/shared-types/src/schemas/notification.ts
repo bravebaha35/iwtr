@@ -31,6 +31,17 @@ export const notificationTypeSchema = z.enum([
   // yet (see NotificationsService.list). Carries `href`: the right inbox.
   "CONVERSATION_MESSAGE_FROM_COMPANY",
   "CONVERSATION_MESSAGE_FROM_REVIEWER",
+  // The caller's own review reached PUBLISHED / was REJECTED.
+  "REVIEW_PUBLISHED",
+  "REVIEW_NOT_PUBLISHED",
+  // The caller's company claim was resolved by an admin.
+  "CLAIM_APPROVED",
+  "CLAIM_REJECTED",
+  // Owner-only: a CV application arrived for one of their job postings
+  // (carries jobTitle), and a new review was published on their company
+  // (timestamp is day-precision so its timing can't single out a reviewer).
+  "JOB_APPLICATION_RECEIVED",
+  "COMPANY_REVIEWED",
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 
@@ -43,5 +54,7 @@ export const notificationSchema = z.object({
   // Where clicking the notification goes, when the type can't be derived
   // from companySlug alone.
   href: z.string().optional(),
+  // JOB_APPLICATION_RECEIVED only: the posting that was applied to.
+  jobTitle: z.string().optional(),
 });
 export type Notification = z.infer<typeof notificationSchema>;

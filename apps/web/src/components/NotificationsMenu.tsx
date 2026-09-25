@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import type { Notification as ApiNotification } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet } from "@/lib/api-client";
@@ -58,7 +59,11 @@ type NotificationKind =
   // Real, derived from unread private review-conversation messages; carry
   // their own href (the right inbox).
   | "CONVERSATION_MESSAGE_FROM_COMPANY"
-  | "CONVERSATION_MESSAGE_FROM_REVIEWER";
+  | "CONVERSATION_MESSAGE_FROM_REVIEWER"
+  // Real: company claim decisions, and (owners) new CV applications.
+  | "CLAIM_APPROVED"
+  | "CLAIM_REJECTED"
+  | "JOB_APPLICATION_RECEIVED";
 
 const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   VOTE_HELPFUL: "SOCIAL",
@@ -79,6 +84,9 @@ const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   BENCHMARK_REPORT_READY: "EMPLOYER",
   CONVERSATION_MESSAGE_FROM_COMPANY: "SOCIAL",
   CONVERSATION_MESSAGE_FROM_REVIEWER: "EMPLOYER",
+  CLAIM_APPROVED: "SYSTEM",
+  CLAIM_REJECTED: "SYSTEM",
+  JOB_APPLICATION_RECEIVED: "EMPLOYER",
 };
 
 interface AppNotification {
@@ -95,6 +103,7 @@ interface AppNotification {
   companySlug?: string | null;
   // Set only when the API supplies an explicit destination.
   href?: string;
+  jobTitle?: string;
 }
 
 function describeNotification(n: AppNotification): string {
@@ -110,9 +119,11 @@ function describeNotification(n: AppNotification): string {
     case "SAME_COMPANY_REVIEWED":
       return "Someone reviewed the same company as you. Find out here!";
     case "REVIEW_PUBLISHED":
-      return "Your review is published!";
+      return n.companyName ? `Your review of ${n.companyName} is published!` : "Your review is published!";
     case "REVIEW_NOT_PUBLISHED":
-      return "Your review is not published, read the details here.";
+      return n.companyName
+        ? `Your review of ${n.companyName} wasn't published. Read the details here.`
+        : "Your review is not published, read the details here.";
     case "VERIFY_ACCOUNT":
       return "Verify your number and mail address to get started.";
     case "REVIEW_REMOVED":
@@ -128,7 +139,7 @@ function describeNotification(n: AppNotification): string {
     case "JOB_POSTING_PUBLISHED":
       return "Your job posting is up!";
     case "COMPANY_REVIEWED":
-      return "Someone reviewed your company. Find out here!";
+      return n.companyName ? `Someone reviewed ${n.companyName}. Find out here!` : "Someone reviewed your company. Find out here!";
     case "JOB_POSTING_NEEDS_INFO":
       return "Your job posting has missing/incorrect information.";
     case "BENCHMARK_REPORT_READY":
@@ -137,10 +148,26 @@ function describeNotification(n: AppNotification): string {
       return `${company} sent you a message.`;
     case "CONVERSATION_MESSAGE_FROM_REVIEWER":
       return `New message about a review of ${company}.`;
+    case "CLAIM_APPROVED":
+      return `Your claim for ${company} was approved. Your company dashboard is ready!`;
+    case "CLAIM_REJECTED":
+      return `Your claim for ${company} wasn't approved.`;
+    case "JOB_APPLICATION_RECEIVED":
+      return n.jobTitle ? `New application for ${n.jobTitle} at ${company}.` : `New application at ${company}.`;
   }
 }
 
 function hrefForNotification(n: AppNotification): string {
+  switch (n.kind) {
+    case "REVIEW_PUBLISHED":
+    case "REVIEW_NOT_PUBLISHED":
+    case "COMPANY_REVIEWED":
+    case "CLAIM_APPROVED":
+    case "CLAIM_REJECTED":
+    case "JOB_APPLICATION_RECEIVED":
+      if (n.href) return n.href;
+      break;
+  }
   switch (n.kind) {
     case "VOTE_HELPFUL":
     case "VOTE_NOT_HELPFUL":
@@ -168,6 +195,12 @@ function hrefForNotification(n: AppNotification): string {
       return "/jobs";
     case "COMPANY_REVIEWED":
       return n.companySlug ? `/companies/${n.companySlug}` : "/my/companies";
+    case "CLAIM_APPROVED":
+      return "/my/companies";
+    case "CLAIM_REJECTED":
+      return n.companySlug ? `/companies/${n.companySlug}` : "/";
+    case "JOB_APPLICATION_RECEIVED":
+      return "/my/companies";
     case "BENCHMARK_REPORT_READY":
       return n.href ?? "/my/companies";
     case "CONVERSATION_MESSAGE_FROM_COMPANY":
@@ -200,6 +233,7 @@ function toAppNotification(n: ApiNotification, readIds: Set<string>): AppNotific
     companyName: n.companyName,
     companySlug: n.companySlug,
     href: n.href,
+    jobTitle: n.jobTitle,
   };
 }
 
@@ -332,6 +366,20 @@ export function NotificationsMenu() {
   const [notifications, setNotifications] = useState<AppNotification[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Where the panel sits on screen: just under the bell, right edges lined
+  // up, never past the window's edge. It's rendered into <body> (a portal)
+  // because the header's nav row scrolls sideways on phones, and a
+  // scrolling box clips anything inside it — the panel used to open
+  // invisibly inside that 55px-tall row.
+  const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
+
+  const placePanel = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPanelPos({ top: Math.round(rect.bottom + 8), right: Math.max(12, Math.round(window.innerWidth - rect.right)) });
+  }, []);
 
   const load = useCallback(() => {
     apiGet<ApiNotification[]>("/me/notifications")
@@ -352,13 +400,23 @@ export function NotificationsMenu() {
   }, [load]);
 
   useEffect(() => {
-    if (open) load();
-  }, [open, load]);
+    if (!open) return;
+    load();
+    placePanel();
+    window.addEventListener("resize", placePanel);
+    window.addEventListener("scroll", placePanel, true);
+    return () => {
+      window.removeEventListener("resize", placePanel);
+      window.removeEventListener("scroll", placePanel, true);
+    };
+  }, [open, load, placePanel]);
 
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -393,9 +451,11 @@ export function NotificationsMenu() {
   return (
     <div ref={containerRef} className="relative font-sans">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Notifications"
+        aria-expanded={open}
         title="Notifications"
         className="relative flex flex-col items-center gap-1 rounded-lg px-2 py-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
       >
@@ -412,8 +472,15 @@ export function NotificationsMenu() {
         <span className="sr-only text-[11px] font-medium leading-none sm:not-sr-only">Notifications</span>
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-96 max-w-[92vw] rounded-2xl border border-border bg-surface p-3 shadow-xl">
+      {open &&
+        createPortal(
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Notifications"
+          style={{ top: panelPos?.top ?? 72, right: panelPos?.right ?? 12 }}
+          className="fixed z-50 w-96 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-surface p-3 font-sans shadow-xl"
+        >
           <div className="flex items-center justify-between gap-2 px-1 pb-2">
             <h2 className="text-base font-bold text-foreground">Notifications</h2>
             <button
@@ -444,8 +511,9 @@ export function NotificationsMenu() {
               ))}
             </ul>
           )}
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Notification } from "@iwtr/shared-types";
 import { NotificationsMenu } from "../NotificationsMenu";
@@ -6,7 +6,8 @@ import { clearNotificationReadState } from "@/lib/notificationReadState";
 import { announceNewNotifications } from "@/lib/notification-events";
 import * as apiClient from "@/lib/api-client";
 
-jest.mock("@/lib/auth-context", () => ({ useAuth: () => ({ role: "MEMBER" }) }));
+let mockRole = "MEMBER";
+jest.mock("@/lib/auth-context", () => ({ useAuth: () => ({ role: mockRole }) }));
 jest.mock("@/lib/api-client", () => {
   const actual = jest.requireActual("@/lib/api-client");
   return { ...actual, apiGet: jest.fn() };
@@ -24,11 +25,40 @@ const reply: Notification = {
 const badge = () => screen.getByRole("button", { name: "Notifications" }).querySelector("[data-unread-badge]");
 
 beforeEach(() => {
+  mockRole = "MEMBER";
   localStorage.clear();
   get.mockReset();
 });
 
 describe("NotificationsMenu", () => {
+  // The header's nav row scrolls sideways on phones, and a scrolling box
+  // clips anything inside it — the panel used to open invisibly inside a
+  // 55px-tall row. It must render outside the header, fixed on screen.
+  it("opens its panel outside the (clipping) header row, fixed on screen", async () => {
+    get.mockResolvedValue([reply]);
+    render(
+      <div data-testid="nav-row" style={{ overflowX: "auto" }}>
+        <NotificationsMenu />
+      </div>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const panel = await screen.findByRole("dialog", { name: "Notifications" });
+    expect(screen.getByTestId("nav-row")).not.toContainElement(panel);
+    expect(panel).toHaveClass("fixed");
+    expect(await screen.findByText("Acme replied to your review.")).toBeInTheDocument();
+  });
+
+  it("stays open when clicking inside the panel, closes when clicking elsewhere", async () => {
+    get.mockResolvedValue([reply]);
+    render(<NotificationsMenu />);
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const panel = await screen.findByRole("dialog", { name: "Notifications" });
+    await userEvent.click(within(panel).getByRole("heading", { name: "Notifications" }));
+    expect(screen.getByRole("dialog", { name: "Notifications" })).toBeInTheDocument();
+    await userEvent.click(document.body);
+    expect(screen.queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument();
+  });
+
   it("lights up for a new notification without having to open it first", async () => {
     get.mockResolvedValue([reply]);
     render(<NotificationsMenu />);
@@ -95,5 +125,47 @@ describe("NotificationsMenu", () => {
     await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
     await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("NotificationsMenu - newer notification types", () => {
+  const at = new Date().toISOString();
+
+  it("describes review outcomes and claim decisions, linking where the API says", async () => {
+    get.mockResolvedValue([
+      { id: "a", type: "REVIEW_PUBLISHED", companyName: "Acme", companySlug: "acme", createdAt: at, href: "/companies/acme" },
+      { id: "b", type: "REVIEW_NOT_PUBLISHED", companyName: "Beta", companySlug: "beta", createdAt: at, href: "/me/reviews" },
+      { id: "c", type: "CLAIM_APPROVED", companyName: "Acme", companySlug: "acme", createdAt: at, href: "/my/companies" },
+      { id: "d", type: "CLAIM_REJECTED", companyName: "Beta", companySlug: "beta", createdAt: at, href: "/companies/beta" },
+    ] satisfies Notification[]);
+    render(<NotificationsMenu />);
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    expect((await screen.findByText("Your review of Acme is published!")).closest("a")).toHaveAttribute("href", "/companies/acme");
+    expect(screen.getByText(/Your review of Beta wasn't published/).closest("a")).toHaveAttribute("href", "/me/reviews");
+    expect(screen.getByText(/claim for Acme was approved/).closest("a")).toHaveAttribute("href", "/my/companies");
+    expect(screen.getByText(/claim for Beta wasn't approved/)).toBeInTheDocument();
+  });
+
+  it("shows owners new CV applications and new reviews of their company", async () => {
+    mockRole = "COMPANY_OWNER";
+    get.mockResolvedValue([
+      {
+        id: "e",
+        type: "JOB_APPLICATION_RECEIVED",
+        companyName: "Acme",
+        companySlug: "acme",
+        createdAt: at,
+        jobTitle: "Forklift Operatörü",
+        href: "/my/companies?category=applications&company=c1",
+      },
+      { id: "f", type: "COMPANY_REVIEWED", companyName: "Acme", companySlug: "acme", createdAt: at, href: "/companies/acme" },
+    ] satisfies Notification[]);
+    render(<NotificationsMenu />);
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    expect((await screen.findByText("New application for Forklift Operatörü at Acme.")).closest("a")).toHaveAttribute(
+      "href",
+      "/my/companies?category=applications&company=c1",
+    );
+    expect(screen.getByText("Someone reviewed Acme. Find out here!")).toBeInTheDocument();
   });
 });

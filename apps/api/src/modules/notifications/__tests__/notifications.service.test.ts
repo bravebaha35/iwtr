@@ -1,5 +1,10 @@
 import { NotificationsService } from "../notifications.service";
 
+// The approved-ownership lookup vs. the resolved-claims lookup.
+const ownsC1 = jest.fn().mockImplementation(({ where }) =>
+  Promise.resolve(where.claimStatus === "APPROVED" ? [{ companyId: "c1" }] : []),
+);
+
 function basePrisma(overrides: Record<string, unknown> = {}) {
   return {
     review: { findMany: jest.fn().mockResolvedValue([]) },
@@ -12,6 +17,7 @@ function basePrisma(overrides: Record<string, unknown> = {}) {
     benchmarkReportJob: { findMany: jest.fn().mockResolvedValue([]) },
     companyOwner: { findMany: jest.fn().mockResolvedValue([]) },
     reviewConversation: { findMany: jest.fn().mockResolvedValue([]) },
+    jobApplication: { findMany: jest.fn().mockResolvedValue([]) },
     ...overrides,
   } as never;
 }
@@ -173,7 +179,7 @@ describe("NotificationsService.list - review conversations", () => {
 
   it("tells an approved owner about an unread reviewer message, linking to the company inbox", async () => {
     const prisma = basePrisma({
-      companyOwner: { findMany: jest.fn().mockResolvedValue([{ companyId: "c1" }]) },
+      companyOwner: { findMany: ownsC1 },
       reviewConversation: {
         findMany: jest.fn().mockImplementation(({ where }) =>
           Promise.resolve(
@@ -210,12 +216,141 @@ describe("NotificationsService.list - review conversations", () => {
       messages: [{ id: "m4", seq: 4, createdAt: day }],
     };
     const prisma = basePrisma({
-      companyOwner: { findMany: jest.fn().mockResolvedValue([{ companyId: "c1" }]) },
+      companyOwner: { findMany: ownsC1 },
       reviewConversation: {
         findMany: jest.fn().mockImplementation(({ where }) => Promise.resolve(where.reviewerUserId ? [reviewerSide] : [])),
       },
     });
     const events = await new NotificationsService(prisma).list("owner-1");
     expect(events.filter((e) => e.type === "CONVERSATION_MESSAGE_FROM_COMPANY")).toEqual([]);
+  });
+});
+
+describe("NotificationsService.list - reviews, claims and applications", () => {
+  const now = new Date("2026-09-25T10:30:00Z");
+
+  it("tells a reviewer their review was published, and when one wasn't", async () => {
+    const prisma = basePrisma({
+      review: {
+        findMany: jest.fn().mockImplementation(({ where }) =>
+          Promise.resolve(
+            where.userId
+              ? [
+                  {
+                    id: "r1",
+                    status: "PUBLISHED",
+                    publishedAt: now,
+                    createdAt: now,
+                    company: { name: "Acme", slug: "acme" },
+                  },
+                  {
+                    id: "r2",
+                    status: "REJECTED",
+                    publishedAt: null,
+                    createdAt: now,
+                    company: { name: "Beta", slug: "beta" },
+                  },
+                  {
+                    id: "r3",
+                    status: "PENDING_ADMIN_REVIEW",
+                    publishedAt: null,
+                    createdAt: now,
+                    company: { name: "Gamma", slug: "gamma" },
+                  },
+                ]
+              : [],
+          ),
+        ),
+      },
+    });
+    const events = await new NotificationsService(prisma).list("u1");
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "review-published-r1", type: "REVIEW_PUBLISHED", companyName: "Acme", href: "/companies/acme" }),
+        expect.objectContaining({ id: "review-rejected-r2", type: "REVIEW_NOT_PUBLISHED", companyName: "Beta", href: "/me/reviews" }),
+      ]),
+    );
+    expect(events.some((e) => e.companyName === "Gamma")).toBe(false);
+  });
+
+  it("tells a claimant their company claim was approved or not", async () => {
+    const prisma = basePrisma({
+      companyOwner: {
+        findMany: jest.fn().mockImplementation(({ where }) =>
+          Promise.resolve(
+            where.claimStatus === "APPROVED"
+              ? []
+              : [
+                  { id: "co1", claimStatus: "APPROVED", resolvedAt: now, company: { name: "Acme", slug: "acme" } },
+                  { id: "co2", claimStatus: "REJECTED", resolvedAt: now, company: { name: "Beta", slug: "beta" } },
+                ],
+          ),
+        ),
+      },
+    });
+    const events = await new NotificationsService(prisma).list("u1");
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "claim-co1", type: "CLAIM_APPROVED", companyName: "Acme", href: "/my/companies" }),
+        expect.objectContaining({ id: "claim-co2", type: "CLAIM_REJECTED", companyName: "Beta", href: "/companies/beta" }),
+      ]),
+    );
+  });
+
+  it("tells an owner about a new CV application, linking to that company's Applications", async () => {
+    const prisma = basePrisma({
+      companyOwner: { findMany: ownsC1 },
+      jobApplication: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "a1",
+            companyId: "c1",
+            createdAt: now,
+            jobPosting: { jobTitle: "Forklift Operatörü" },
+            company: { name: "Acme", slug: "acme" },
+          },
+        ]),
+      },
+    });
+    const events = await new NotificationsService(prisma).list("owner-1");
+    expect(events).toEqual([
+      expect.objectContaining({
+        id: "application-a1",
+        type: "JOB_APPLICATION_RECEIVED",
+        companyName: "Acme",
+        jobTitle: "Forklift Operatörü",
+        href: "/my/companies?category=applications&company=c1",
+      }),
+    ]);
+  });
+
+  it("tells an owner someone reviewed their company, dated to the day only", async () => {
+    const reviewFindMany = jest.fn().mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.companyId
+          ? [{ id: "r9", publishedAt: now, company: { name: "Acme", slug: "acme" } }]
+          : [],
+      ),
+    );
+    const prisma = basePrisma({ companyOwner: { findMany: ownsC1 }, review: { findMany: reviewFindMany } });
+    const events = await new NotificationsService(prisma).list("owner-1");
+    expect(events).toEqual([
+      expect.objectContaining({
+        id: "company-review-r9",
+        type: "COMPANY_REVIEWED",
+        companyName: "Acme",
+        createdAt: "2026-09-25T00:00:00.000Z",
+        href: "/companies/acme",
+      }),
+    ]);
+    // Never the owner's own review of their own company.
+    const ownerQuery = reviewFindMany.mock.calls.map((c) => c[0]).find((a) => a.where.companyId);
+    expect(ownerQuery.where.userId).toEqual({ not: "owner-1" });
+  });
+
+  it("doesn't look up applications or company reviews for someone who owns nothing", async () => {
+    const prisma = basePrisma();
+    await new NotificationsService(prisma).list("u1");
+    expect((prisma as any).jobApplication.findMany).not.toHaveBeenCalled();
   });
 });

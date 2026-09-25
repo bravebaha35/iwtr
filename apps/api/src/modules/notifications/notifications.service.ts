@@ -4,6 +4,9 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { daysRemaining } from "../job-postings/job-postings.util";
 
 const MAX_NOTIFICATIONS = 30;
+const RECENT_WINDOW_MS = 30 * 86_400_000;
+
+const startOfUtcDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
 @Injectable()
 export class NotificationsService {
@@ -22,7 +25,13 @@ export class NotificationsService {
   async list(userId: string): Promise<Notification[]> {
     const myReviews = await this.prisma.review.findMany({
       where: { userId },
-      select: { id: true, company: { select: { name: true, slug: true } } },
+      select: {
+        id: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        company: { select: { name: true, slug: true } },
+      },
     });
     const reviewIds = myReviews.map((r) => r.id);
     const companyByReview = new Map(myReviews.map((r) => [r.id, r.company]));
@@ -243,7 +252,112 @@ export class NotificationsService {
         })),
     ];
 
+    events.push(...(await this.reviewClaimAndOwnerEvents(userId, myReviews, ownedCompanyIds)));
+
     events.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     return events.slice(0, MAX_NOTIFICATIONS);
+  }
+
+  /**
+   * Review outcomes (from the caller's own reviews, already loaded), resolved
+   * company claims, and - for approved owners only - new CV applications and
+   * newly published reviews of their companies from the last 30 days.
+   */
+  private async reviewClaimAndOwnerEvents(
+    userId: string,
+    myReviews: {
+      id: string;
+      status: string;
+      publishedAt: Date | null;
+      createdAt: Date;
+      company: { name: string; slug: string };
+    }[],
+    ownedCompanyIds: string[],
+  ): Promise<Notification[]> {
+    const since = new Date(Date.now() - RECENT_WINDOW_MS);
+    const owner = ownedCompanyIds.length > 0;
+    const [claims, applications, companyReviews] = await Promise.all([
+      this.prisma.companyOwner.findMany({
+        where: { userId, claimStatus: { in: ["APPROVED", "REJECTED"] }, resolvedAt: { not: null } },
+        select: { id: true, claimStatus: true, resolvedAt: true, company: { select: { name: true, slug: true } } },
+        orderBy: { resolvedAt: "desc" },
+        take: MAX_NOTIFICATIONS,
+      }),
+      owner
+        ? this.prisma.jobApplication.findMany({
+            where: { companyId: { in: ownedCompanyIds }, createdAt: { gte: since } },
+            select: {
+              id: true,
+              companyId: true,
+              createdAt: true,
+              jobPosting: { select: { jobTitle: true } },
+              company: { select: { name: true, slug: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
+      owner
+        ? this.prisma.review.findMany({
+            where: {
+              companyId: { in: ownedCompanyIds },
+              userId: { not: userId },
+              status: "PUBLISHED",
+              publishedAt: { gte: since },
+            },
+            select: { id: true, publishedAt: true, company: { select: { name: true, slug: true } } },
+            orderBy: { publishedAt: "desc" },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return [
+      ...myReviews
+        .filter((r) => r.status === "PUBLISHED" && r.publishedAt)
+        .map((r) => ({
+          id: `review-published-${r.id}`,
+          type: "REVIEW_PUBLISHED" as NotificationType,
+          companyName: r.company.name,
+          companySlug: r.company.slug,
+          createdAt: r.publishedAt!.toISOString(),
+          href: `/companies/${r.company.slug}`,
+        })),
+      ...myReviews
+        .filter((r) => r.status === "REJECTED")
+        .map((r) => ({
+          id: `review-rejected-${r.id}`,
+          type: "REVIEW_NOT_PUBLISHED" as NotificationType,
+          companyName: r.company.name,
+          companySlug: r.company.slug,
+          createdAt: r.createdAt.toISOString(),
+          href: "/me/reviews",
+        })),
+      ...claims.map((c) => ({
+        id: `claim-${c.id}`,
+        type: (c.claimStatus === "APPROVED" ? "CLAIM_APPROVED" : "CLAIM_REJECTED") as NotificationType,
+        companyName: c.company.name,
+        companySlug: c.company.slug,
+        createdAt: (c.resolvedAt ?? new Date()).toISOString(),
+        href: c.claimStatus === "APPROVED" ? "/my/companies" : `/companies/${c.company.slug}`,
+      })),
+      ...applications.map((a) => ({
+        id: `application-${a.id}`,
+        type: "JOB_APPLICATION_RECEIVED" as NotificationType,
+        companyName: a.company.name,
+        companySlug: a.company.slug,
+        createdAt: a.createdAt.toISOString(),
+        jobTitle: a.jobPosting.jobTitle,
+        href: `/my/companies?category=applications&company=${a.companyId}`,
+      })),
+      ...companyReviews.map((r) => ({
+        id: `company-review-${r.id}`,
+        type: "COMPANY_REVIEWED" as NotificationType,
+        companyName: r.company.name,
+        companySlug: r.company.slug,
+        createdAt: startOfUtcDay(r.publishedAt!).toISOString(),
+        href: `/companies/${r.company.slug}`,
+      })),
+    ];
   }
 }
