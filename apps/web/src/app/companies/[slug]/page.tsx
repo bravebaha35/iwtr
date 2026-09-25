@@ -58,7 +58,7 @@ function RatingNarrativeBox({
       {imageSrc ? (
         // A small fixed set of local /public illustrations, not a
         // remote/arbitrary URL.
-        <Image src={imageSrc} alt="" width={448} height={576} sizes="224px" className="h-72 w-56 shrink-0 object-contain" />
+        <Image src={imageSrc} alt="" width={448} height={576} sizes="224px" priority className="h-72 w-56 shrink-0 object-contain" />
       ) : (
         <div className="h-72 w-56 shrink-0" aria-hidden="true" />
       )}

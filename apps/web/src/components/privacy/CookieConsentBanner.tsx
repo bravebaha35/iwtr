@@ -11,10 +11,15 @@ import { setConsent, useConsent } from "@/lib/consent";
  */
 export function CookieConsentBanner() {
   const consent = useConsent();
-  if (consent !== null) return null;
+  // Rendered on the server too (consent unknown = undefined), so the bar is
+  // part of the first paint instead of popping in after JavaScript loads.
+  // For a visitor who already chose, layout.tsx's boot script marks <html>
+  // before paint and globals.css hides the bar until React removes it.
+  if (consent === "accepted" || consent === "declined") return null;
 
   return (
     <section
+      id="cookie-consent"
       aria-label="Cookie consent"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface text-foreground"
     >

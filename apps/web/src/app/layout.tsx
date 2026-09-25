@@ -18,7 +18,8 @@ import "./globals.css";
 // country picker.
 import "flag-icons/css/flag-icons.min.css";
 
-// Applies the saved theme before first paint, so there's no flash of the
+// Applies the saved theme (and marks an existing cookie choice, so the
+// server-rendered cookie bar stays hidden) before first paint, so there's no flash of the
 // wrong theme on load — mirrors the logic in lib/settings-context.tsx.
 // Wrapped in try/catch since localStorage/matchMedia can throw in some
 // privacy-locked-down browsers, and a theme glitch shouldn't break the app.
@@ -27,6 +28,8 @@ const THEME_BOOT_SCRIPT = `(function(){
     var theme = localStorage.getItem('iwtr:theme');
     var isDark = theme === 'dark' || (theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', isDark);
+    var consent = localStorage.getItem('iwtr:cookie-consent');
+    if (consent === 'accepted' || consent === 'declined') document.documentElement.setAttribute('data-cookie-consent', consent);
   } catch (e) {}
 })();`;
 
