@@ -300,6 +300,8 @@ model User {
   savedJobPostings           SavedJobPosting[]
   jobApplications            JobApplication[]
   skills                     UserSkill[]
+  reviewConversations        ReviewConversation[]
+  conversationMessages       ReviewConversationMessage[]
 
   @@index([sectorId])
   @@schema("public")
@@ -559,6 +561,7 @@ model Company {
   socialPosts          SocialPost[]
   followers            CompanyFollow[]
   benchmarkReportJobs  BenchmarkReportJob[]
+  reviewConversations  ReviewConversation[]
 
   // name: helps the case-insensitive exact-match duplicate check
   // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
@@ -789,6 +792,9 @@ model Review {
   // Optional, consent-gated salary/benefits answer — its own table on
   // purpose, see SalarySubmission.
   salarySubmission    SalarySubmission?
+  // The reviewer's one private conversation with the company, possible only
+  // after a CompanyReply — see ReviewConversation.
+  conversation        ReviewConversation?
 
   @@unique([userId, companyId])
   // The @@unique below already indexes userId as its leading column, which
@@ -854,6 +860,61 @@ model CompanyReply {
   updatedAt    DateTime @updatedAt
 
   @@index([companyId])
+  @@schema("public")
+}
+
+enum ConversationSide {
+  REVIEWER
+  COMPANY
+
+  @@schema("public")
+}
+
+// A private conversation between a review's author and the reviewed company,
+// opened only by that author and only once the company has publicly replied
+// (CompanyReply). The company can never start one, and only writes after the
+// reviewer has. One per review, ever (reviewId @unique) — so ending it is
+// permanent: it can't be reopened or replaced. The company side only ever
+// sees the review's public display name (publicReviewerName); reviewerUserId
+// is for server-side access checks and is never returned to the company.
+// Timestamps are day-precision (same re-identification reasoning as
+// Review.createdAt); ordering and unread state use message seq instead.
+model ReviewConversation {
+  id                  String            @id @default(uuid())
+  reviewId            String            @unique
+  review              Review            @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company           @relation(fields: [companyId], references: [id])
+  reviewerUserId      String
+  reviewer            User              @relation(fields: [reviewerUserId], references: [id])
+  endedAt             DateTime?
+  endedBy             ConversationSide?
+  reviewerLastReadSeq Int               @default(0)
+  companyLastReadSeq  Int               @default(0)
+  createdAt           DateTime          @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+  messages            ReviewConversationMessage[]
+
+  @@index([companyId])
+  @@index([reviewerUserId])
+  @@schema("public")
+}
+
+model ReviewConversationMessage {
+  id             String             @id @default(uuid())
+  // Global, strictly increasing — the only ordering/unread key (createdAt is
+  // day-precision on purpose, so it can't order messages within a day).
+  seq            Int                @unique @default(autoincrement())
+  conversationId String
+  conversation   ReviewConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  side           ConversationSide
+  // Audit only, never returned to either side (same convention as
+  // CompanyReply.authorUserId).
+  authorUserId   String?
+  authorUser     User?              @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  content        String
+  createdAt      DateTime           @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+
+  @@index([conversationId, seq])
   @@schema("public")
 }
 

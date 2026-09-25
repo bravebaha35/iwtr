@@ -364,6 +364,13 @@ export class AdminCompaniesService {
       // Reviews (and their still-live replies) that DO move.
       this.prisma.review.updateMany({ where: { id: { in: reviewsToMove } }, data: { companyId: masterId } }),
       this.prisma.companyReply.updateMany({ where: { reviewId: { in: reviewsToMove } }, data: { companyId: masterId } }),
+      // ...and their private reviewer conversations: otherwise the master's
+      // owners couldn't open them, and deleting the duplicate below would
+      // hit their company FK. Dropped reviews' conversations cascade away.
+      this.prisma.reviewConversation.updateMany({
+        where: { reviewId: { in: reviewsToMove } },
+        data: { companyId: masterId },
+      }),
 
       // Ownerships: drop colliding ones, move the rest.
       this.prisma.companyOwner.deleteMany({ where: { id: { in: ownersToDrop } } }),

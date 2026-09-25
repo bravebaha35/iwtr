@@ -42,6 +42,7 @@ import { pickRandomDisplayUsername } from "./randomized-identity.util";
 import { tallyQuestions, tallyContradictionPairs, type ContradictionPairMatchCount } from "./survey-tally.util";
 import { YELLOW_FLAG_PAIRS } from "../flags/yellow-flag-pairs.data";
 import { toUtcDay } from "../../common/time/day-precision.util";
+import { publicReviewerName } from "./display-name.util";
 import { enableRowAccess, SALARY_ACCESS } from "../../common/db/row-access";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
@@ -897,7 +898,7 @@ export class ReviewsService {
       avatarGradient: r.isRandomizedIdentity
         ? RANDOMIZED_IDENTITY_AVATAR_GRADIENT
         : (avatarByAuthor.get(r.userId)?.avatarGradient ?? null),
-      displayUsername: r.isRandomizedIdentity ? r.displayUsername : (avatarByAuthor.get(r.userId)?.reviewUsername ?? null),
+      displayUsername: publicReviewerName(r, avatarByAuthor.get(r.userId)),
       district: r.district && districtMeetsThreshold.has(r.district) ? r.district : null,
       city: r.city && cityMeetsThreshold.has(r.city) ? r.city : null,
     }));
@@ -1072,7 +1073,7 @@ export class ReviewsService {
   async listMine(userId: string): Promise<MyReviewListItem[]> {
     const reviews = await this.prisma.review.findMany({
       where: { userId },
-      include: { company: { select: { name: true, slug: true } } },
+      include: { company: { select: { name: true, slug: true } }, conversation: { select: { id: true } } },
       orderBy: { createdAt: "desc" },
     });
     const reviewIds = reviews.map((r) => r.id);
@@ -1115,6 +1116,7 @@ export class ReviewsService {
       likeCount: likeByReview.get(r.id) ?? 0,
       dislikeCount: dislikeByReview.get(r.id) ?? 0,
       reply: toPublicReply(replyByReview.get(r.id)),
+      conversationId: r.conversation?.id ?? null,
     }));
   }
 

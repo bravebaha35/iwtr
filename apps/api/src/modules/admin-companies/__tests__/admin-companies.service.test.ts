@@ -13,6 +13,7 @@ function makePrisma(overrides: Partial<Record<string, any>> = {}) {
     review: { findMany: jest.fn().mockResolvedValue([]), updateMany: jest.fn(), deleteMany: jest.fn() },
     reviewVote: { deleteMany: jest.fn() },
     companyReply: { updateMany: jest.fn(), deleteMany: jest.fn() },
+    reviewConversation: { updateMany: jest.fn() },
     moderationQueueItem: { deleteMany: jest.fn() },
     companyOwner: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -149,6 +150,32 @@ describe("AdminCompaniesService.merge", () => {
     });
     expect(prisma.company.delete).toHaveBeenCalledWith({ where: { id: "dup-id" } });
     expect(reviews.recomputeAggregate).toHaveBeenCalledWith("master-id");
+  });
+
+  it("moves a moved review's private conversation to the master company, so the duplicate can be deleted and the master's owners can read it", async () => {
+    const prisma = makePrisma({
+      company: {
+        findUnique: jest.fn().mockImplementation(({ where: { id } }: any) =>
+          Promise.resolve(id === "master-id" ? { id: "master-id" } : { id: "dup-id", name: "Duplicate Co" }),
+        ),
+        delete: jest.fn().mockResolvedValue({}),
+      },
+      review: {
+        findMany: jest.fn().mockImplementation(({ where: { companyId } }: any) =>
+          Promise.resolve(companyId === "master-id" ? [] : [{ id: "review-move", userId: "user-fresh" }]),
+        ),
+        updateMany: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+    });
+    const service = new AdminCompaniesService(prisma as any, { recomputeAggregate: jest.fn() } as any);
+
+    await service.merge("admin-1", "master-id", "dup-id");
+
+    expect(prisma.reviewConversation.updateMany).toHaveBeenCalledWith({
+      where: { reviewId: { in: ["review-move"] } },
+      data: { companyId: "master-id" },
+    });
   });
 
   it("drops a colliding CompanyOwner row instead of silently merging two subscriptions", async () => {

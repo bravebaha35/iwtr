@@ -20,6 +20,7 @@ import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
+import { ConversationInbox } from "@/components/messaging/ConversationInbox";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
 import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
@@ -207,6 +208,21 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<OwnerDashboardCategory>("general-info");
+  // A message notification links here as
+  // /my/companies?category=messages&company={companyId}&c={conversationId}
+  // (see NotificationsService.list) - only the named company's card opens
+  // its Messages section. Read from window.location once on mount rather
+  // than useSearchParams so this page keeps rendering without a Suspense
+  // boundary.
+  const [openConversationId, setOpenConversationId] = useState<string | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("category") === "messages" && params.get("company") === claim.companyId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from the URL once on mount
+      setActiveCategory("messages");
+      setOpenConversationId(params.get("c"));
+    }
+  }, [claim.companyId]);
 
   // General Information (Box 1)
   const [name, setName] = useState(claim.companyName);
@@ -638,6 +654,18 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             )}
 
             {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
+
+            {activeCategory === "messages" && (
+              <div className="rounded-xl border border-border bg-surface p-5">
+                <h3 className="mb-1 font-semibold text-foreground">Messages</h3>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Private conversations started by reviewers you&apos;ve publicly replied to. You only see the name
+                  shown on their review. You can&apos;t start a conversation yourself, and either side can end one at
+                  any time.
+                </p>
+                <ConversationInbox mode="company" companyId={claim.companyId} initialConversationId={openConversationId} />
+              </div>
+            )}
 
             {/* Rendered here (sibling to every activeCategory block, not nested
                 inside general-info's) because both GeneralInfoCategory and

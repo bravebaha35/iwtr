@@ -7,7 +7,8 @@ export type OwnerDashboardCategory =
   | "premium-features"
   | "contact-social"
   | "reviews-ratings"
-  | "applications";
+  | "applications"
+  | "messages";
 
 const CATEGORIES: { key: OwnerDashboardCategory; label: string }[] = [
   { key: "general-info", label: "General Information" },
@@ -15,6 +16,7 @@ const CATEGORIES: { key: OwnerDashboardCategory; label: string }[] = [
   { key: "contact-social", label: "Contact & Social Media" },
   { key: "reviews-ratings", label: "Reviews & Ratings" },
   { key: "applications", label: "Applications" },
+  { key: "messages", label: "Messages" },
 ];
 
 /**
