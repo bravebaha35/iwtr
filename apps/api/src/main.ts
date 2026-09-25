@@ -5,9 +5,14 @@ import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 import { PrismaExceptionFilter } from "./common/filters/prisma-exception.filter";
+import { transportSecurity } from "./common/http/transport-security";
+import { isProductionEnv } from "./config/env";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // HSTS on every response, and HTTP -> HTTPS redirects in production (see
+  // transport-security.ts).
+  app.use(transportSecurity({ production: isProductionEnv() }));
   // No browser ever sends apps/api a cookie: apps/web's own httpOnly cookies
   // are scoped to its own origin and never leave it — every authenticated
   // browser call goes through its same-origin proxy (Bearer token, attached
