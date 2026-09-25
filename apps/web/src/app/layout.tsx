@@ -9,6 +9,7 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { MagneticPrimaryButtons } from "@/components/motion/MagneticPrimaryButtons";
 import { CookieConsentBanner } from "@/components/privacy/CookieConsentBanner";
 import { AnalyticsLoader } from "@/components/privacy/AnalyticsLoader";
+import { SITE_URL } from "@/lib/siteUrl";
 import "./globals.css";
 // Real vector flag icons (not Unicode flag emoji) — Windows renders
 // unsupported flag-emoji regional-indicator pairs as a boxed two-letter
@@ -53,9 +54,30 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 // stylesheet order, falling back to the default font with no visible error.
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
+const SITE_DESCRIPTION =
+  "Anonymous, honest workplace reviews from people who actually worked there. No names. No HR. Rate your past employers and check a company before you accept a job.";
+
+// Site-wide defaults; pages override title/description (company pages build
+// theirs from the company's name and score). The social preview image is
+// app/opengraph-image.tsx.
 export const metadata: Metadata = {
-  title: "I Worked There",
-  description: "Anonymous, honest workplace reviews.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: "I Worked There — anonymous workplace reviews", template: "%s · I Worked There" },
+  description: SITE_DESCRIPTION,
+  applicationName: "I Worked There",
+  openGraph: {
+    type: "website",
+    siteName: "I Worked There",
+    title: "I Worked There — anonymous workplace reviews",
+    description: SITE_DESCRIPTION,
+    locale: "en_US",
+    alternateLocale: ["tr_TR"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "I Worked There — anonymous workplace reviews",
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { isOwnStaticAsset } from "@/lib/imageSource";
@@ -156,6 +157,29 @@ function CompanyDetailsBox({ company }: { company: Company }) {
       </div>
     </div>
   );
+}
+
+// Per-company title, description and social preview text, so a shared or
+// search-listed company link says which workplace it is and how it scores.
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const { company, aggregate } = await apiGetPublic<CompanyDetail>(`/companies/${slug}`);
+    const title = `${company.name} reviews`;
+    const description =
+      aggregate && aggregate.reviewCount > 0
+        ? `Anonymous employee ratings for ${company.name}: ${aggregate.overallAvg.toFixed(1)}/5 (${scoreBandLabel(aggregate.overallAvg)}) from ${aggregate.reviewCount} review${aggregate.reviewCount === 1 ? "" : "s"}.`
+        : `What is it really like to work at ${company.name}? Read and write anonymous employee reviews.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: `/companies/${slug}` },
+      openGraph: { title, description, url: `/companies/${slug}`, type: "website" },
+      twitter: { card: "summary_large_image", title, description },
+    };
+  } catch {
+    return { title: "Company not found" };
+  }
 }
 
 export default async function CompanyPage({

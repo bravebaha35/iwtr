@@ -3,7 +3,10 @@ import { AdSlot } from "@/components/AdSlot";
 import { SocialShell } from "@/components/social/SocialShell";
 import { AnonGate } from "@/components/auth/AnonGate";
 
-export const metadata: Metadata = { title: "IWT Social - I Worked There" };
+export const metadata: Metadata = {
+  title: "IWT Social",
+  description: "Posts and updates from companies, with anonymous comments from people who worked there.",
+};
 
 // Separate route, its own 3-column shell (ad rail / feed / ad rail) - the
 // same shell the homepage and company page use. Not nested under any
