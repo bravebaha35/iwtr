@@ -142,45 +142,22 @@ export function matchesCategoryGroup(company: { category: string }, group: Categ
   return company.category === "Fuel & Energy";
 }
 
-function ExpandListIcon({ className }: IconProps) {
+// One arrow, pointing up while Quick Select is closed; it turns 90° to
+// point right when the list opens.
+function QuickSelectArrow({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 6h11M9 12h11M9 18h11" />
-      <circle cx="4.5" cy="6" r="1" fill="currentColor" />
-      <circle cx="4.5" cy="12" r="1" fill="currentColor" />
-      <circle cx="4.5" cy="18" r="1" fill="currentColor" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 19V5M5 12l7-7 7 7" />
     </svg>
   );
 }
 
-function CollapseListIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="4" y="4" width="6.5" height="6.5" />
-      <rect x="13.5" y="4" width="6.5" height="6.5" />
-      <rect x="4" y="13.5" width="6.5" height="6.5" />
-      <rect x="13.5" y="13.5" width="6.5" height="6.5" />
-    </svg>
-  );
-}
 
-// Same instant, theme-matched tooltip for the icon-only buttons (the
-// browser's native `title` is slower and unstyled).
-function IconTooltip({ label }: { label: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="pointer-events-none absolute -bottom-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[11px] font-medium text-background opacity-0 shadow-md transition-opacity duration-100 group-hover:opacity-100 group-focus-within:opacity-100"
-    >
-      {label}
-    </span>
-  );
-}
-
-// The Quick Select row itself — shared by the rating homepage, the Jobs page
-// and IWT Social's sidebar, so every page gets the same behavior. The first
-// button extends the row into a labelled list (icon + name per option) and
-// shrinks it back to icons only when pressed again.
+// The Quick Select control — shared by the rating homepage, the Jobs page
+// and IWT Social's sidebar, so every page behaves the same. Closed, it is a
+// single up-arrow button and nothing else. Clicking it turns the arrow to
+// point right and shows all 7 groups at once (icon + name); clicking again
+// closes it. Picking the active group again clears the filter.
 export function CategoryGroupFilter({
   value,
   onChange,
@@ -194,82 +171,56 @@ export function CategoryGroupFilter({
   highlighted?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const toggleLabel = expanded ? "Show icons only" : "Show category names";
+  const selectedLabel = CATEGORY_GROUP_BUTTONS.find((b) => b.value === value)?.label;
+  const toggleLabel = expanded
+    ? "Close quick select"
+    : `Open quick select${selectedLabel ? ` (${selectedLabel} selected)` : ""}`;
 
   return (
-    // Extended, the labelled list drops below the toggle (full width) rather
-    // than squeezing in beside it — reads cleanly in the narrow Social
-    // sidebar as well as the wide homepage/jobs toolbars.
-    <div
-      className={`flex gap-2 rounded-full ${expanded ? "flex-col items-start" : "flex-wrap items-center"} ${
-        highlighted ? "highlight-pulse" : ""
-      }`}
-    >
-      <div className="group relative flex">
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-label={toggleLabel}
-          onClick={() => setExpanded((v) => !v)}
-          className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
-            expanded
-              ? "border-river-600 bg-river-600 text-white"
-              : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
-          }`}
-        >
-          {expanded ? <CollapseListIcon className="h-5 w-5" /> : <ExpandListIcon className="h-5 w-5" />}
-        </button>
-        <IconTooltip label={toggleLabel} />
-      </div>
-
-      <div
-        role="radiogroup"
-        aria-label="Filter by category group"
-        className="flex flex-wrap items-center gap-2"
+    <div className={`flex flex-wrap items-center gap-2 rounded-full ${highlighted ? "highlight-pulse" : ""}`}>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-label={toggleLabel}
+        title={toggleLabel}
+        data-arrow={expanded ? "right" : "up"}
+        onClick={() => setExpanded((v) => !v)}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition ${
+          expanded || value
+            ? "border-river-600 bg-river-600 text-white"
+            : "border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+        }`}
       >
-        {CATEGORY_GROUP_BUTTONS.map((opt) => {
-          const checked = value === opt.value;
-          const Icon = opt.icon;
-          const colorClass = checked
-            ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-            : "border-border bg-surface text-muted-foreground hover:bg-surface-muted";
+        <QuickSelectArrow
+          className={`h-5 w-5 transition-transform duration-300 ease-out motion-reduce:transition-none ${expanded ? "rotate-90" : ""}`}
+        />
+      </button>
 
-          if (expanded) {
+      {expanded && (
+        <div role="radiogroup" aria-label="Filter by category group" className="flex flex-wrap items-center gap-2">
+          {CATEGORY_GROUP_BUTTONS.map((opt) => {
+            const checked = value === opt.value;
+            const Icon = opt.icon;
             return (
               <button
                 key={opt.value}
                 type="button"
                 role="radio"
                 aria-checked={checked}
-                aria-label={opt.label}
                 onClick={() => onChange(checked ? null : opt.value)}
-                className={`flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-medium transition ${colorClass}`}
+                className={`flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-medium transition ${
+                  checked
+                    ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+                    : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
+                }`}
               >
                 <Icon className="h-5 w-5 shrink-0" />
                 <span className="whitespace-nowrap">{opt.label}</span>
               </button>
             );
-          }
-
-          return (
-            <div key={opt.value} className="group relative flex">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={checked}
-                aria-label={opt.label}
-                onClick={() => onChange(checked ? null : opt.value)}
-                className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${colorClass}`}
-              >
-                <Icon className="h-5 w-5" />
-              </button>
-              {/* Gone once this option is picked — the selected outline
-                  already says which one it is. */}
-              {!checked && <IconTooltip label={opt.label} />}
-            </div>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }

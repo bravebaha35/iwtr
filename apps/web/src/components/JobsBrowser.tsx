@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SortButtons, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
 import Image from "next/image";
 import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
@@ -52,7 +53,6 @@ function activeMoodIndex(value: number): number {
   return 2;
 }
 
-type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "ratingDesc";
 
 // 4 columns × 4 rows at the desktop breakpoint, matching the homepage's own
 // "columns × rows" page-size convention (see WorkplaceBrowser.tsx).
@@ -330,15 +330,8 @@ export function JobsBrowser() {
     list = selectedCategory ? list.filter((c) => c.category === selectedCategory) : list;
     list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
 
-    if (sortBy === "alphabetical") {
-      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === "ratingDesc") {
-      list = [...list].sort((a, b) => (b.overallAvg ?? -1) - (a.overallAvg ?? -1));
-    } else if (sortBy === "ratingAsc") {
-      list = [...list].sort((a, b) => (a.overallAvg ?? Infinity) - (b.overallAvg ?? Infinity));
-    } else if (sortBy === "workplace") {
-      const order = WORKPLACE_TYPES.map((t) => t.value);
-      list = [...list].sort((a, b) => order.indexOf(a.workplaceTypes[0]) - order.indexOf(b.workplaceTypes[0]));
+    if (sortBy !== "default") {
+      list = sortCompaniesBy(list, sortBy);
     } else if (geo && geo !== "denied") {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
@@ -592,55 +585,7 @@ export function JobsBrowser() {
                     Create job posting !
                   </button>
                 )}
-                <div className="flex items-center gap-1 rounded-xl border border-border bg-surface-muted p-1">
-                  <button
-                    type="button"
-                    onClick={() => setSortBy((s) => (s === "alphabetical" ? "default" : "alphabetical"))}
-                    aria-pressed={sortBy === "alphabetical"}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                      sortBy === "alphabetical"
-                        ? "bg-river-600 text-white"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    A-Z
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSortBy((s) => (s === "workplace" ? "default" : "workplace"))}
-                    aria-pressed={sortBy === "workplace"}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                      sortBy === "workplace"
-                        ? "bg-river-600 text-white"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Workplace
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSortBy((s) => (s === "ratingAsc" ? "ratingDesc" : s === "ratingDesc" ? "default" : "ratingAsc"))
-                    }
-                    aria-pressed={sortBy === "ratingAsc" || sortBy === "ratingDesc"}
-                    title={
-                      sortBy === "ratingAsc"
-                        ? "Showing least-rated first"
-                        : sortBy === "ratingDesc"
-                          ? "Showing best-rated first"
-                          : "Sort by rating"
-                    }
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                      sortBy === "ratingAsc"
-                        ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400"
-                        : sortBy === "ratingDesc"
-                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400"
-                          : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Rating
-                  </button>
-                </div>
+                <SortButtons value={sortBy} onChange={setSortBy} />
               </div>
             </div>
 
