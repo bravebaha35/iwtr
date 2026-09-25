@@ -409,7 +409,7 @@ export function NotificationsMenu() {
             />
           )}
         </span>
-        <span className="text-[11px] font-medium leading-none">Notifications</span>
+        <span className="sr-only text-[11px] font-medium leading-none sm:not-sr-only">Notifications</span>
       </button>
 
       {open && (
