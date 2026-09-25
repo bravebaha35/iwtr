@@ -130,7 +130,7 @@ export function PremiumFeaturesCategory(props: PremiumFeaturesCategoryProps) {
             Save Premium Features
           </button>
           {props.premiumStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{props.premiumStatus}</p>}
-          {props.premiumError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{props.premiumError}</p>}
+          {props.premiumError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{props.premiumError}</p>}
         </BentoTile>
 
         <BentoTile title="Priority response" className="md:col-span-2">

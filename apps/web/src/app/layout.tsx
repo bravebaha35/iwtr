@@ -105,7 +105,12 @@ export default function RootLayout({
         <SettingsProvider>
           <AuthProvider>
             <GlobalHeader />
-            {children}
+            {/* The one main landmark; pages render their content inside it. At
+                least a screen tall, so the footer starts below the fold and
+                pages that fill in after loading never make it jump. */}
+            <main id="main" className="flex min-h-[100svh] flex-1 flex-col">
+              {children}
+            </main>
             <BackButton />
             <AuthModal />
           </AuthProvider>

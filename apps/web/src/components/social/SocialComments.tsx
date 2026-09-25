@@ -155,7 +155,7 @@ function CommentRow({
             title={!isAuthenticated ? "Log in to vote" : "Helpful"}
             className={`flex items-center gap-1 text-xs transition disabled:opacity-40 ${
               c.myVote === 1
-                ? "text-green-600 dark:text-green-400"
+                ? "text-green-700 dark:text-green-400"
                 : "text-muted-foreground hover:text-green-600 dark:hover:text-green-400"
             }`}
           >
@@ -171,7 +171,7 @@ function CommentRow({
             title={!isAuthenticated ? "Log in to vote" : "Not Helpful"}
             className={`flex items-center gap-1 text-xs transition disabled:opacity-40 ${
               c.myVote === -1
-                ? "text-red-600 dark:text-red-400"
+                ? "text-red-600 dark:text-red-300"
                 : "text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
             }`}
           >
@@ -225,7 +225,7 @@ function CommentRow({
                 type="button"
                 role="menuitem"
                 onClick={() => onDelete(c.id)}
-                className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-surface-muted dark:text-red-400"
+                className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-surface-muted dark:text-red-300"
               >
                 Delete
               </button>
@@ -351,7 +351,7 @@ function Composer({
         <p className="mt-0.5 text-right text-[10px] text-muted-foreground">
           {draft.length}/{MAX_COMMENT_LENGTH}
         </p>
-        {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mt-1 text-xs text-red-600 dark:text-red-300">{error}</p>}
       </div>
     </div>
   );
@@ -667,7 +667,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
             <p className="mt-3 text-xs text-muted-foreground">
               Reports are anonymous - the comment&apos;s author will never see who reported it.
             </p>
-            {reportError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{reportError}</p>}
+            {reportError && <p className="mt-2 text-xs text-red-600 dark:text-red-300">{reportError}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"

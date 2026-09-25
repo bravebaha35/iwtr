@@ -49,7 +49,7 @@ export function OwnerJobPostingsView({ companyId }: { companyId: string }) {
           Every posting you&apos;ve ever made for this company, including expired and removed ones for 30 more days.
         </p>
 
-        {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
         {postings === null && !error && <p className="text-sm text-muted-foreground">Loading...</p>}
         {postings !== null && postings.length === 0 && (
           <p className="text-sm text-muted-foreground">No job postings yet.</p>

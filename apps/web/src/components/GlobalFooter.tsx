@@ -105,7 +105,7 @@ export function GlobalFooter() {
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
         {FOOTER_COLUMNS.map((column) => (
           <div key={column.title}>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-footer-foreground">{column.title}</h3>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-footer-foreground">{column.title}</h2>
             <ul className="mt-4 space-y-3">
               {column.links.map((link) => {
                 const openPopup = popupOpeners[link.href];

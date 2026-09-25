@@ -20,7 +20,7 @@ export function LegalPage({
   sections: { id: string; heading: string; body: ReactNode }[];
 }) {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-14">
+    <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-14">
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Last updated {updated}</p>
       <h1 className="mt-2 text-3xl font-bold leading-tight text-foreground sm:text-4xl">{title}</h1>
       <div className="mt-4 text-base leading-7 text-muted-foreground">{intro}</div>
@@ -62,6 +62,6 @@ export function LegalPage({
         </Link>
         .
       </p>
-    </main>
+    </div>
   );
 }

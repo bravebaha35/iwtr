@@ -56,7 +56,7 @@ export default function AdminJobPostingsPage() {
         reject.
       </p>
 
-      {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       {postings === null && !error && <p className="text-sm text-muted-foreground">Loading...</p>}
       {postings !== null && postings.length === 0 && (

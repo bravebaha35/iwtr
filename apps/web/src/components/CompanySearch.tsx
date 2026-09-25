@@ -64,7 +64,7 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
       />
       {open && loadFailed && (
         <div
-          className={`absolute z-10 mt-1 rounded-lg border border-border bg-surface px-4 py-2 text-sm text-red-600 shadow-lg dark:text-red-400 ${
+          className={`absolute z-10 mt-1 rounded-lg border border-border bg-surface px-4 py-2 text-sm text-red-600 shadow-lg dark:text-red-300 ${
             isLarge ? "left-0 right-0" : "right-0 w-72"
           }`}
         >

@@ -9,7 +9,7 @@ import {
 
 function ChecklistRow({ label, met }: { label: string; met: boolean }) {
   return (
-    <li className={`flex items-center gap-1.5 ${met ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
+    <li className={`flex items-center gap-1.5 ${met ? "text-green-700 dark:text-green-400" : "text-muted-foreground"}`}>
       <span
         className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border transition-colors ${
           met ? "border-green-600 bg-green-600 dark:border-green-400 dark:bg-green-400" : "border-border"

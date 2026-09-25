@@ -40,7 +40,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
     return (
       <div className="rounded-xl border border-dashed border-border p-5">
         <h3 className="text-sm font-semibold text-foreground">Is this your company?</h3>
-        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+        <p className="mt-1 text-sm text-red-600 dark:text-red-300">
           Couldn&apos;t check your claim status right now — try refreshing the page.
         </p>
       </div>
@@ -90,7 +90,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
             rows={3}
             className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
           />
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
           <div className="flex gap-2">
             <button
               onClick={submitClaim}
@@ -127,7 +127,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
 
       {claim?.claimStatus === "REJECTED" && !showForm && (
         <div className="mt-1">
-          <p className="text-sm text-red-700 dark:text-red-400">Your previous claim wasn&apos;t approved.</p>
+          <p className="text-sm text-red-700 dark:text-red-300">Your previous claim wasn&apos;t approved.</p>
           <button
             onClick={() => setShowForm(true)}
             className="mt-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-muted"
@@ -146,7 +146,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
             rows={3}
             className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
           />
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
           <div className="flex gap-2">
             <button
               onClick={submitClaim}

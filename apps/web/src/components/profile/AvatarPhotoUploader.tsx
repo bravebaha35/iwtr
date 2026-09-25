@@ -110,7 +110,7 @@ export function AvatarPhotoUploader({ value, onChange }: { value: string | null;
         </span>
       </button>
 
-      {error && <p className="max-w-[200px] text-center text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="max-w-[200px] text-center text-xs text-red-600 dark:text-red-300">{error}</p>}
       <p className="text-[11px] text-muted-foreground">Recommended 800x800</p>
 
       {pendingCropFile && (

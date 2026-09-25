@@ -98,7 +98,7 @@ function Section({
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <label className="block text-xs font-medium text-muted-foreground">
-      {label} {required && <span className="text-red-600 dark:text-red-400">(required)</span>}
+      {label} {required && <span className="text-red-600 dark:text-red-300">(required)</span>}
       <div className="mt-1">{children}</div>
     </label>
   );
@@ -447,7 +447,7 @@ function CreateCompanySection({
         {submitting ? "Publishing..." : "Publish"}
       </button>
       {status && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{status}</p>}
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
     </Section>
   );
 }
@@ -487,7 +487,7 @@ function PendingSuggestionsSection({ onApprove }: { onApprove: (rawCompanyName: 
       title="Pending Review Queue"
       description="Employer names workers typed that don't match a real company yet."
     >
-      {error && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
       {suggestions === null && !error && <p className="text-sm text-muted-foreground">Loading...</p>}
       {suggestions !== null && suggestions.length === 0 && (
         <p className="text-sm text-muted-foreground">Nothing waiting for review.</p>
@@ -622,7 +622,7 @@ function EditCompanySection({
             {saving ? "Saving..." : "Save changes"}
           </button>
           {status && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{status}</p>}
-          {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
         </div>
       )}
     </Section>
@@ -697,7 +697,7 @@ function MergeDuplicatesSection({
         {merging ? "Merging..." : "Merge"}
       </button>
       {duplicateId && masterId && duplicateId === masterId && (
-        <p className="mt-2 text-sm text-red-600 dark:text-red-400">Pick two different companies.</p>
+        <p className="mt-2 text-sm text-red-600 dark:text-red-300">Pick two different companies.</p>
       )}
       {result && (
         <p className="mt-2 text-sm text-green-700 dark:text-green-400">
@@ -708,7 +708,7 @@ function MergeDuplicatesSection({
           .
         </p>
       )}
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
     </Section>
   );
 }

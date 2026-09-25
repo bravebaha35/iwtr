@@ -103,6 +103,8 @@ function stripReviewTraffic(req: NextRequest) {
 // on every response by next.config.ts's headers().)
 function httpsRedirect(req: NextRequest): NextResponse | null {
   if (process.env.NODE_ENV !== "production") return null;
+  // A local production run (next start on localhost) has no TLS in front.
+  if (["localhost", "127.0.0.1", "[::1]"].includes(req.nextUrl.hostname)) return null;
   const proto = (req.headers.get("x-forwarded-proto") ?? "").split(",")[0].trim();
   if (proto !== "http") return null;
   const url = req.nextUrl.clone();

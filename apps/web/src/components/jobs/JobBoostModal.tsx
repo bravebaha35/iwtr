@@ -267,7 +267,7 @@ export function JobBoostModal({
               </div>
             )}
 
-            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
             <label className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
               <input

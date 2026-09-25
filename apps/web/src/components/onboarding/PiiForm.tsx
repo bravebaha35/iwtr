@@ -94,7 +94,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
           </div>
         </div>
 
-        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
         <button
           type="submit"

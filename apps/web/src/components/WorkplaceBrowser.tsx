@@ -465,7 +465,7 @@ export function WorkplaceBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h3>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h2>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               {/* Red-to-green slider, no stars. Shows companies at or BELOW
@@ -584,7 +584,7 @@ export function WorkplaceBrowser() {
 
             {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
             {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
-              <p className="text-sm text-red-600 dark:text-red-400">
+              <p className="text-sm text-red-600 dark:text-red-300">
                 Couldn&apos;t load workplaces right now — check your connection and try again.
               </p>
             )}

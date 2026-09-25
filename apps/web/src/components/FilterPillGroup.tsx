@@ -176,7 +176,7 @@ export function MultiFilterPillGroup<T extends string>({
     <div>
       {showHeading && (
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h3>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h2>
           <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} disabled={disabled} />
         </div>
       )}

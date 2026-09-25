@@ -166,7 +166,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
           {hasPending ? "Generating…" : "Generate report"}
         </button>
       </div>
-      {error && <p className="text-sm text-red-700 dark:text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700 dark:text-red-300">{error}</p>}
 
       {jobs && jobs.length > 0 && (
         <ul className="flex flex-col divide-y divide-border border-t border-border">
@@ -195,7 +195,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
                 </a>
               )}
               {job.status === "FAILED" && (
-                <p className="text-xs text-red-700 dark:text-red-400">{job.errorMessage ? friendlyReportError(job.errorMessage) : "This report failed."}</p>
+                <p className="text-xs text-red-700 dark:text-red-300">{job.errorMessage ? friendlyReportError(job.errorMessage) : "This report failed."}</p>
               )}
             </li>
           ))}

@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Page not found", robots: { index: fa
  */
 export default function NotFound() {
   return (
-    <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-center gap-10 px-4 py-12 md:grid-cols-12 md:py-20">
+    <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-center gap-10 px-4 py-12 md:grid-cols-12 md:py-20">
       <div className="md:col-span-7 md:pr-8">
         <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Error 404</p>
         <h1 className="mt-3 text-4xl leading-tight text-foreground sm:text-5xl md:text-6xl">
@@ -39,6 +39,6 @@ export default function NotFound() {
           className="h-auto w-full"
         />
       </div>
-    </main>
+    </div>
   );
 }

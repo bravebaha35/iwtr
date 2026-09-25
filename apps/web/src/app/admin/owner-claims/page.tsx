@@ -73,7 +73,7 @@ export default function OwnerClaimsPage() {
         People asking to manage a company profile, and messages sent to you by approved owners.
       </p>
 
-      {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       <h2 className="mb-2 text-sm font-semibold text-foreground">Pending claims</h2>
       {claims === null && !error && <p className="text-sm text-muted-foreground">Loading...</p>}

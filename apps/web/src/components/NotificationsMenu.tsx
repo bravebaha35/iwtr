@@ -259,7 +259,7 @@ const CATEGORY_ICON: Record<NotificationCategory, (props: { className?: string }
 const CATEGORY_RING_CLASS: Record<NotificationCategory, string> = {
   SOCIAL: "border-rose-500 text-rose-600 dark:text-rose-400",
   SYSTEM: "border-river-500 text-river-600 dark:text-river-300",
-  EMPLOYER: "border-amber-500 text-amber-600 dark:text-amber-400",
+  EMPLOYER: "border-amber-500 text-amber-700 dark:text-amber-400",
 };
 
 // One row. The whole block is the link (per the brief) — icon, copy, and

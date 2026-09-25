@@ -54,7 +54,7 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      {pdfError && <p className="text-sm text-red-600 dark:text-red-400">{pdfError}</p>}
+      {pdfError && <p className="text-sm text-red-600 dark:text-red-300">{pdfError}</p>}
       <ul className="flex flex-col gap-2">
         {applications.map((a) => (
           <li

@@ -169,7 +169,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
               <p className="mt-1.5 text-xs text-green-700 dark:text-green-400">{props.workplaceTypesStatus}</p>
             )}
             {props.workplaceTypesError && (
-              <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{props.workplaceTypesError}</p>
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">{props.workplaceTypesError}</p>
             )}
           </div>
 
@@ -305,7 +305,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             Save changes
           </button>
           {props.generalInfoStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{props.generalInfoStatus}</p>}
-          {props.generalInfoError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{props.generalInfoError}</p>}
+          {props.generalInfoError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{props.generalInfoError}</p>}
         </div>
       </DashboardBox>
 

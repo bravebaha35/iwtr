@@ -45,7 +45,7 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
           onChangeGradient={setSelectedGradient}
         />
 
-        {error && <p className="mb-3 mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mb-3 mt-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
         <button
           onClick={handleContinue}

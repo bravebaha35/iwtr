@@ -127,7 +127,7 @@ export function ReviewsList({
   if (reviews.length === 0) {
     if (loadFailed) {
       return (
-        <p className="text-sm text-red-600 dark:text-red-400">
+        <p className="text-sm text-red-600 dark:text-red-300">
           Couldn&apos;t load reviews right now — try refreshing the page.
         </p>
       );
@@ -150,7 +150,7 @@ export function ReviewsList({
   return (
     <div className="flex flex-col gap-4 compact:gap-2">
       <h2 className="text-lg font-semibold text-foreground">Reviews</h2>
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       {collarOptions.length > 1 && (
         <SingleSelectPillTabs
@@ -229,7 +229,7 @@ export function ReviewsList({
               title={!isAuthenticated ? "Log in to vote" : undefined}
               className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-40 ${
                 review.myVote === -1
-                  ? "border-red-600 bg-red-50 text-red-700 dark:border-red-500 dark:bg-red-950 dark:text-red-400"
+                  ? "border-red-600 bg-red-50 text-red-700 dark:border-red-500 dark:bg-red-950 dark:text-red-300"
                   : "border-border text-muted-foreground hover:bg-surface-muted"
               }`}
             >
@@ -274,7 +274,7 @@ export function ReviewsList({
                 placeholder={`Reply as ${companyName ?? "the company"} — this is public, everyone sees it.`}
                 className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-foreground"
               />
-              {replyError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{replyError}</p>}
+              {replyError && <p className="mt-1 text-xs text-red-600 dark:text-red-300">{replyError}</p>}
               <div className="mt-2 flex items-center gap-2">
                 <button
                   type="button"

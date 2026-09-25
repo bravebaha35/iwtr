@@ -151,7 +151,7 @@ export function WorkplacePicker({
         <div className="no-scrollbar flex max-h-40 flex-col gap-0.5 overflow-y-auto rounded-lg border border-border p-1">
           {companies === null && <p className="p-2 text-xs text-muted-foreground">Loading...</p>}
           {companies !== null && filtered.length === 0 && loadFailed && (
-            <p className="p-2 text-xs text-red-600 dark:text-red-400">Couldn&apos;t load workplaces — try again.</p>
+            <p className="p-2 text-xs text-red-600 dark:text-red-300">Couldn&apos;t load workplaces — try again.</p>
           )}
           {companies !== null && filtered.length === 0 && !loadFailed && (
             <p className="p-2 text-xs text-muted-foreground">No workplaces found.</p>

@@ -52,7 +52,7 @@ function CopyIconButton({ text }: { text: string }) {
       className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
     >
       {copied ? (
-        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-green-700 dark:text-green-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       ) : (

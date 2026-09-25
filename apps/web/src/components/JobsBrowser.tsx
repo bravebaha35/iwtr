@@ -148,7 +148,7 @@ function FollowingFilterList({
 
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h3>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h2>
       <div className="flex h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-1.5">
         {loading && <p className="p-1.5 text-xs text-muted-foreground">Loading...</p>}
         {!loading && companies.length === 0 && (
@@ -438,7 +438,7 @@ export function JobsBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h3>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h2>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
@@ -495,7 +495,7 @@ export function JobsBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Score</h3>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Score</h2>
                 <RewindButton onClick={() => setMaxRiskScore(3)} active={maxRiskScore !== 3} title="Reset Risk Score filter" />
               </div>
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
@@ -614,7 +614,7 @@ export function JobsBrowser() {
               <>
                 {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
                 {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
-                  <p className="text-sm text-red-600 dark:text-red-400">
+                  <p className="text-sm text-red-600 dark:text-red-300">
                     Couldn&apos;t load workplaces right now — check your connection and try again.
                   </p>
                 )}

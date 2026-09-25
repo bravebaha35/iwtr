@@ -75,7 +75,7 @@ export function BannerUploader({
           className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
       </div>
-      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-300">{error}</p>}
     </div>
   );
 }

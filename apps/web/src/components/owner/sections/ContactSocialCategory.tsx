@@ -118,7 +118,7 @@ export function ContactSocialCategory(props: ContactSocialCategoryProps) {
         Save changes
       </button>
       {props.status && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{props.status}</p>}
-      {props.error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{props.error}</p>}
+      {props.error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{props.error}</p>}
     </div>
   );
 }

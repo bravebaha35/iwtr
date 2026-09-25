@@ -100,9 +100,9 @@ function CompanyDetailsBox({ company }: { company: Company }) {
       <h2 className="mb-4 text-lg font-semibold text-foreground">Company Details</h2>
       <div className="flex flex-col gap-4 text-sm">
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Overall Information
-          </h3>
+          </h2>
           {company.description ? (
             <p className="whitespace-pre-wrap text-foreground">{company.description}</p>
           ) : (
@@ -121,19 +121,19 @@ function CompanyDetailsBox({ company }: { company: Company }) {
         </div>
 
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h3>
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
           <p className="text-foreground">{location || "Not provided yet."}</p>
         </div>
 
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sector</h3>
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sector</h2>
           <p className="text-foreground">{company.category}</p>
         </div>
 
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Contact &amp; Social Media
-          </h3>
+          </h2>
           {socialLinks.length > 0 ? (
             <ul className="flex flex-col gap-1">
               {socialLinks.map((s) => (

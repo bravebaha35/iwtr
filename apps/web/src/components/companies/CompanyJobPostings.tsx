@@ -46,7 +46,7 @@ export function CompanyJobPostings({
   }, [company.slug]);
 
   if (error) {
-    return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>;
+    return <p className="text-sm text-red-600 dark:text-red-300">{error}</p>;
   }
   if (data === null) {
     return <p className="text-sm text-muted-foreground">Loading job postings...</p>;

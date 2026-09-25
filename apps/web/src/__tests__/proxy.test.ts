@@ -159,6 +159,14 @@ describe("proxy (HTTPS)", () => {
     expect(res.headers.get("location")).toBe("https://iworkedthere.com/jobs?x=1");
   });
 
+  it("doesn't redirect a local production run on localhost", () => {
+    (process.env as Record<string, string>).NODE_ENV = "production";
+    const res = proxy(
+      new NextRequest(new URL("/jobs", "http://localhost:3100"), { headers: { "x-forwarded-proto": "http" } }),
+    );
+    expect(res.headers.get("location")).toBeNull();
+  });
+
   it("leaves ordinary pages alone in development (no admin gate on non-admin pages)", () => {
     const res = proxy(new NextRequest(new URL("/jobs", "http://localhost:3000")));
     expect(res.headers.get("location")).toBeNull();

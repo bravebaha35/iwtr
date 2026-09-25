@@ -45,7 +45,7 @@ const CATEGORIES: { key: CategoryKey; label: string }[] = [
 const ANSWER_META: Record<SurveyAnswer, { srLabel: string; litClassName: string }> = {
   YES: {
     srLabel: "Yes",
-    litClassName: "border-green-500 bg-green-500/10 text-green-500",
+    litClassName: "border-green-500 bg-green-500/10 text-green-700",
   },
   NO: {
     srLabel: "No",
@@ -53,7 +53,7 @@ const ANSWER_META: Record<SurveyAnswer, { srLabel: string; litClassName: string 
   },
   PREFER_NOT_TO_ANSWER: {
     srLabel: "Prefer not to answer",
-    litClassName: "border-amber-400 bg-amber-400/10 text-amber-400",
+    litClassName: "border-amber-400 bg-amber-400/10 text-amber-700",
   },
 };
 
@@ -361,7 +361,7 @@ export function RateButton({
   if (!matchingEntry) {
     if (isAuthenticated && loadFailed) {
       return (
-        <p className="text-sm text-red-600 dark:text-red-400">
+        <p className="text-sm text-red-600 dark:text-red-300">
           Couldn&apos;t check whether you can rate this workplace — try refreshing the page.
         </p>
       );
@@ -428,7 +428,7 @@ export function RateButton({
                     </button>
                   ))}
                 </div>
-                {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+                {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
@@ -474,7 +474,7 @@ export function RateButton({
                 {onFinalStep && locationPrompt && (
                   <div className="border-t border-border pt-3">
                     <p className="mb-1 text-sm font-medium text-foreground">
-                      {locationPrompt} <span className="text-red-600 dark:text-red-400">*</span>
+                      {locationPrompt} <span className="text-red-600 dark:text-red-300">*</span>
                     </p>
                     <p className="mb-2 text-xs text-muted-foreground">
                       {companyName} covers more than one place — this only tags your own review and never changes{" "}
@@ -538,7 +538,7 @@ export function RateButton({
                   </div>
                 )}
 
-                {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+                {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
                 <div className="flex gap-2">
                   {step > 0 && (
