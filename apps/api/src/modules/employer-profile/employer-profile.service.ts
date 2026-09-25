@@ -84,6 +84,18 @@ export class EmployerProfileService {
     return REQUIRED_FIELDS.every((key) => fields[key] !== null);
   }
 
+  /**
+   * The owner's own first/last name from their employer profile, or null if
+   * either is missing. No verified-employer check here: the only caller
+   * (OnboardingService.getStatus) has already confirmed an approved claim.
+   */
+  async getOwnName(userId: string): Promise<{ firstName: string; lastName: string } | null> {
+    const row = await this.prisma.employerProfile.findUnique({ where: { userId } });
+    if (!row) return null;
+    const { firstName, lastName } = this.decryptRow(row);
+    return firstName && lastName ? { firstName, lastName } : null;
+  }
+
   async getMyProfile(userId: string): Promise<EmployerProfileView> {
     await this.requireVerifiedEmployer(userId);
 

@@ -162,7 +162,7 @@ function FollowingFilterList({
             aria-pressed={selectedCompanyId === c.companyId}
             className={`truncate rounded-md px-1.5 py-1 text-left text-sm transition ${
               selectedCompanyId === c.companyId
-                ? "bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300"
+                ? "bg-brand-600 font-semibold text-white"
                 : "text-foreground hover:bg-surface-muted"
             }`}
           >
@@ -407,7 +407,7 @@ export function JobsBrowser() {
                   aria-pressed={savedView}
                   className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                     savedView
-                      ? "border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-400 dark:bg-brand-950 dark:text-brand-300"
+                      ? "border-brand-600 bg-brand-600 text-white"
                       : "border-border text-foreground hover:bg-surface-muted"
                   }`}
                 >

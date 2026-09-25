@@ -96,22 +96,24 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
         </p>
       )}
 
-      <div className="mt-auto flex items-center justify-between border-t border-border/60 pt-2">
+      {/* Wraps onto a second line on narrow cards instead of squeezing the
+          words ("Hiring now", "11 reviews") into each other or off the edge. */}
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-border/60 pt-2">
         {company.overallAvg !== null ? (
           <>
             <div className="flex items-center gap-1.5">
               <span className="font-grotesk text-lg font-bold tabular-nums text-foreground">{company.overallAvg.toFixed(1)}</span>
-              <span className={`text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
+              <span className={`whitespace-nowrap text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
                 {scoreBandLabel(company.overallAvg)}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="ml-auto flex items-center gap-1.5">
               {company.isHiring && (
-                <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                <span className="whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
                   Hiring now
                 </span>
               )}
-              <span className="text-xs text-muted-foreground">
+              <span className="whitespace-nowrap text-xs text-muted-foreground">
                 {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
               </span>
             </div>
@@ -119,7 +121,7 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
         ) : (
           <div className="flex items-center gap-1.5">
             {company.isHiring && (
-              <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
+              <span className="whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
                 Hiring now
               </span>
             )}

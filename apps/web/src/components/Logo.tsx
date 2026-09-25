@@ -14,7 +14,7 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" }) {
       height={64}
       sizes="32px"
       priority
-      className={`${box} shrink-0 rounded-lg object-contain`}
+      className={`${box} shrink-0 rounded-[0.5rem] object-contain`}
     />
   );
 }

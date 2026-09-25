@@ -71,7 +71,7 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
           onClick={() => onChange(isOldest ? "newest" : "oldest")}
           aria-pressed={directionActive}
           className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
-            directionActive ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+            directionActive ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           {isOldest ? "Oldest to Newest" : "Newest to Oldest"}
@@ -81,7 +81,7 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
           onClick={() => onChange("mostLiked")}
           aria-pressed={value === "mostLiked"}
           className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
-            value === "mostLiked" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+            value === "mostLiked" ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           Most Liked
@@ -91,7 +91,7 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
           onClick={() => onChange("mostCommented")}
           aria-pressed={value === "mostCommented"}
           className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
-            value === "mostCommented" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+            value === "mostCommented" ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           Most Commented
@@ -293,7 +293,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
           aria-pressed={savedView}
           className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
             savedView
-              ? "border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-400 dark:bg-brand-950 dark:text-brand-300"
+              ? "border-brand-600 bg-brand-600 text-white"
               : "border-border text-foreground hover:bg-surface-muted"
           }`}
         >
@@ -304,9 +304,8 @@ export function SocialSidebar(props: SocialSidebarProps) {
 
       <div>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Select</h2>
-        {/* The exact same icon-pill row as the rating homepage/jobs page
-            (CategoryGroupFilter) - all 7 buckets, same icons/tooltips. */}
-        <CategoryGroupFilter value={categoryGroup} onChange={onCategoryGroupChange} />
+        {/* Same 7 groups as the rating/jobs pages, stacked vertically here. */}
+        <CategoryGroupFilter value={categoryGroup} onChange={onCategoryGroupChange} orientation="vertical" />
       </div>
     </SidebarShell>
   );

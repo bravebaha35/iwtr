@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { EmployerProfileView } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
-import { apiGet } from "@/lib/api-client";
 import { Logo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
-import { avatarLabel } from "@/lib/avatars";
+import { headerDisplayName } from "@/lib/headerDisplayName";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
 import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
@@ -69,36 +67,6 @@ export function GlobalHeader() {
   const pathname = usePathname();
   const showAccountControls = isAuthenticated && onboardingStatus?.status === "ACTIVE";
   const isCompanyOwner = useIsCompanyOwner();
-
-  // Only a claimed+APPROVED owner has this profile at all — GET 403s for
-  // everyone else, which is exactly the "verified" gate the real-name header
-  // display needs (see EmployerProfileService.requireVerifiedEmployer).
-  // Deliberately a local fetch here rather than a global auth-context change:
-  // nothing else in the app needs this yet.
-  const [employerProfile, setEmployerProfile] = useState<EmployerProfileView | null>(null);
-
-  useEffect(() => {
-    if (!isCompanyOwner) {
-      setEmployerProfile(null);
-      return;
-    }
-    let cancelled = false;
-    apiGet<EmployerProfileView>("/me/employer-profile")
-      .then((data) => {
-        if (!cancelled) setEmployerProfile(data);
-      })
-      .catch(() => {
-        if (!cancelled) setEmployerProfile(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isCompanyOwner]);
-
-  const employerDisplayName =
-    employerProfile?.firstName && employerProfile?.lastName
-      ? `${employerProfile.firstName} ${employerProfile.lastName}`
-      : null;
 
   return (
     <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-surface py-3 pr-3 sm:gap-4 sm:py-4 sm:pr-6">
@@ -203,15 +171,12 @@ export function GlobalHeader() {
               <span className="sr-only md:hidden">My profile</span>
               <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
               {/* truncate (not shrink-0 like the icon/button siblings) - a
-                  long employer display name is the one piece of this row
-                  with no fixed size of its own, so it should give up width
-                  first rather than pushing the page wider. */}
+                  long name is the one piece of this row with no fixed size
+                  of its own, so it should give up width first rather than
+                  pushing the page wider. Owners always show their real name
+                  here (see headerDisplayName). */}
               <span className="hidden max-w-[9rem] truncate text-sm font-medium text-foreground md:inline">
-                {employerDisplayName ||
-                  onboardingStatus.displayName ||
-                  onboardingStatus.reviewUsername ||
-                  avatarLabel(onboardingStatus.avatarKey) ||
-                  "Anonymous"}
+                {headerDisplayName(onboardingStatus, isCompanyOwner)}
               </span>
             </Link>
             <button

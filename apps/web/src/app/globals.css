@@ -54,12 +54,12 @@
      Paper      #FBFAF5  light page background
      Den        #333333  dark page background
      Timber     #3B2A1A  light-mode text
-     Wood       #8B5A2B  primary buttons (brand-600)
-     River      #1A5F7A  active/selected states (river-600)
+     Wood       #8B5A2B  primary buttons AND the one "selected" colour
+                         (brand-600 fill + white text, as in the city picker)
      Forest     #3D6B3F  footer band and positive accents (forest-600)
    WCAG contrast (AA needs 4.5, AAA 7): Timber/Paper 13.1, muted/Paper 6.3,
-   white/Wood 5.8, white/River 7.1, white/Forest 6.2, Birch text/Den 11.2,
-   dark muted/Den 7.4, dark muted/dark surface 6.4. River, Wood and Forest
+   white/Wood 5.8, white/Forest 6.2, Birch text/Den 11.2,
+   dark muted/Den 7.4, dark muted/dark surface 6.4. Wood and Forest
    themselves are too dark on Den, so dark mode reads their 300/400 shades.
    Borders are deliberately soft (non-text, decorative separation only). */
 :root {
@@ -136,20 +136,6 @@
   --color-brand-900: #482f16;
   --color-brand-950: #31200f;
 
-  /* River #1A5F7A (river-600) — active/selected states. Same lighter
-     300/400 rule as brand for dark mode (400 = 4.8, 300 = 6.0). */
-  --color-river-50: #f1f5f7;
-  --color-river-100: #e1eaee;
-  --color-river-200: #c8d9df;
-  --color-river-300: #adc5cf;
-  --color-river-400: #91b2bf;
-  --color-river-500: #53879b;
-  --color-river-600: #1a5f7a;
-  --color-river-700: #154e64;
-  --color-river-800: #114052;
-  --color-river-900: #0e313f;
-  --color-river-950: #09212b;
-
   /* Forest #3D6B3F (forest-600) — footer band, positive/"done" accents.
      Dark mode reads forest-300 (7.0 on Den). */
   --color-forest-50: #f2f7f1;
@@ -185,6 +171,12 @@
   --shadow-lg: 0 12px 28px -8px rgb(var(--shadow-tint) / 0.16), 0 4px 8px -4px rgb(var(--shadow-tint) / 0.08);
   --shadow-xl: 0 20px 44px -12px rgb(var(--shadow-tint) / 0.2), 0 8px 16px -8px rgb(var(--shadow-tint) / 0.08);
   --shadow-2xl: 0 28px 64px -16px rgb(var(--shadow-tint) / 0.28);
+}
+
+/* Phones flash a blue box over whatever you tap — turn that off; pressed
+   and selected states use Wood instead (see below). */
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -224,15 +216,15 @@ select,
    homepage's search box / category-button row plays once when a footer
    link (Submit a Review, Job Categories, Claim Profile) routes here with
    ?highlight=... appended, so the visitor's eye lands on the right control
-   instead of a bare navigation with no explanation. River-blue glow,
-   identical in both themes. */
+   instead of a bare navigation with no explanation. Wood glow (the one
+   "selected" colour), identical in both themes. */
 @keyframes highlight-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(26, 95, 122, 0.5);
+    box-shadow: 0 0 0 0 rgba(139, 90, 43, 0.5);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(26, 95, 122, 0);
+    box-shadow: 0 0 0 10px rgba(139, 90, 43, 0);
   }
 }
 .highlight-pulse {
@@ -251,22 +243,23 @@ button:disabled,
 }
 
 /* Native checkboxes/radios/range sliders and the keyboard focus outline
-   otherwise fall back to the browser's own blue — River instead. */
+   otherwise fall back to the browser's own blue — Wood instead, the same
+   single "selected" colour used everywhere else. */
 input[type="checkbox"],
 input[type="radio"],
 input[type="range"],
 progress {
-  accent-color: var(--color-river-600);
+  accent-color: var(--color-brand-600);
 }
 .dark input[type="checkbox"],
 .dark input[type="radio"],
 .dark input[type="range"],
 .dark progress {
-  accent-color: var(--color-river-400);
+  accent-color: var(--color-brand-400);
 }
 :focus-visible {
-  outline-color: var(--color-river-600);
+  outline-color: var(--color-brand-600);
 }
 .dark :focus-visible {
-  outline-color: var(--color-river-300);
+  outline-color: var(--color-brand-300);
 }

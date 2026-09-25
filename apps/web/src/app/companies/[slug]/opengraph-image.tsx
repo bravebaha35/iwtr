@@ -49,7 +49,7 @@ export default async function CompanyOpenGraphImage({ params }: { params: Promis
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <div style={{ fontSize: name.length > 28 ? 64 : 84, color: "#4a3018", lineHeight: 1.05 }}>{name}</div>
-          <div style={{ fontSize: 40, color: "#1a5f7a" }}>{scoreLine}</div>
+          <div style={{ fontSize: 40, color: "#8b5a2b" }}>{scoreLine}</div>
         </div>
       </div>
     ),

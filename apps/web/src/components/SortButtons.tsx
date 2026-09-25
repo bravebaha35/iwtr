@@ -1,11 +1,18 @@
 "use client";
 
-import type { WorkplaceType } from "@iwtr/shared-types";
-import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-
 // "ratingAsc"/"ratingDesc" and "alphabetical"/"alphabeticalDesc" are each
 // two states of one button, so the button can show which way it's sorting.
-export type SortOption = "default" | "alphabetical" | "alphabeticalDesc" | "workplace" | "ratingAsc" | "ratingDesc";
+export type SortOption = "default" | "alphabetical" | "alphabeticalDesc" | "ratingAsc" | "ratingDesc";
+
+const SORT_OPTIONS: readonly SortOption[] = ["default", "alphabetical", "alphabeticalDesc", "ratingAsc", "ratingDesc"];
+
+/**
+ * A sort read back from saved filters may be one that no longer exists
+ * (the old "workplace" sort was removed) — anything unknown becomes "default".
+ */
+export function normalizeSortOption(value: unknown): SortOption {
+  return SORT_OPTIONS.includes(value as SortOption) ? (value as SortOption) : "default";
+}
 
 /** The A-Z button's 3-click loop: A→Z, then Z→A, then back to the default order. */
 export function nextAlphaSort(current: SortOption): SortOption {
@@ -29,7 +36,7 @@ const collator = new Intl.Collator("tr", { sensitivity: "base" });
  * the list untouched (the caller may still apply its own order, e.g.
  * nearest-first).
  */
-export function sortCompaniesBy<T extends { name: string; overallAvg: number | null; workplaceTypes: WorkplaceType[] }>(
+export function sortCompaniesBy<T extends { name: string; overallAvg: number | null }>(
   list: T[],
   sort: SortOption,
 ): T[] {
@@ -43,11 +50,6 @@ export function sortCompaniesBy<T extends { name: string; overallAvg: number | n
     case "ratingAsc":
       // Unrated companies sink to the bottom in both directions.
       return [...list].sort((a, b) => (a.overallAvg ?? Infinity) - (b.overallAvg ?? Infinity));
-    case "workplace": {
-      // By each company's first (primary) tag only.
-      const order = WORKPLACE_TYPES.map((t) => t.value);
-      return [...list].sort((a, b) => order.indexOf(a.workplaceTypes[0]) - order.indexOf(b.workplaceTypes[0]));
-    }
     default:
       return list;
   }
@@ -55,12 +57,12 @@ export function sortCompaniesBy<T extends { name: string; overallAvg: number | n
 
 const TOGGLE_BASE = "rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200";
 const TOGGLE_OFF = "border-border bg-surface text-muted-foreground hover:text-foreground";
-const TOGGLE_ON = "border-river-600 bg-river-600 text-white";
+const TOGGLE_ON = "border-brand-600 bg-brand-600 text-white";
 
 /**
- * Three separate sort buttons (not one segmented control), used by both
- * WorkplaceBrowser and JobsBrowser. A-Z loops A→Z / Z→A / off; Workplace is
- * on/off; Rating keeps its own red/green colours for least/best-rated first.
+ * Two separate sort buttons (not one segmented control), used by both
+ * WorkplaceBrowser and JobsBrowser. A-Z loops A→Z / Z→A / off; Rating keeps
+ * its own red/green colours for least/best-rated first.
  */
 export function SortButtons({ value, onChange }: { value: SortOption; onChange: (next: SortOption) => void }) {
   const alphaOn = value === "alphabetical" || value === "alphabeticalDesc";
@@ -74,14 +76,6 @@ export function SortButtons({ value, onChange }: { value: SortOption; onChange: 
         className={`${TOGGLE_BASE} ${alphaOn ? TOGGLE_ON : TOGGLE_OFF}`}
       >
         {value === "alphabeticalDesc" ? "Z-A" : "A-Z"}
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(value === "workplace" ? "default" : "workplace")}
-        aria-pressed={value === "workplace"}
-        className={`${TOGGLE_BASE} ${value === "workplace" ? TOGGLE_ON : TOGGLE_OFF}`}
-      >
-        Workplace
       </button>
       <button
         type="button"

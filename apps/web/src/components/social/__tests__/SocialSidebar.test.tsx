@@ -21,10 +21,10 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it("renders the moved search box and the same Quick Select as the rating/jobs pages (all 7 once opened)", () => {
+it("renders the moved search box and all 7 Quick Select groups as a vertical list with names", () => {
   render(<SocialSidebar {...baseProps} isMember={false} />);
   expect(screen.getByPlaceholderText(/search a company by name/i)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /quick select/i }));
+  expect(screen.getByRole("radiogroup")).toHaveAttribute("aria-orientation", "vertical");
   for (const label of ["Firms", "Supermarket", "Franchises", "Logistics", "Clothing", "Service Providers", "Oil & Energy"]) {
     expect(screen.getByRole("radio", { name: label })).toBeInTheDocument();
   }
@@ -62,7 +62,6 @@ it("shows Following + Saved Posts for a MEMBER and toggles the saved view", () =
 it("picking a Quick Select icon reports the underlying CategoryGroup value", () => {
   const onCategoryGroupChange = jest.fn();
   render(<SocialSidebar {...baseProps} isMember={false} onCategoryGroupChange={onCategoryGroupChange} />);
-  fireEvent.click(screen.getByRole("button", { name: /quick select/i }));
   fireEvent.click(screen.getByRole("radio", { name: "Oil & Energy" }));
   expect(onCategoryGroupChange).toHaveBeenCalledWith("OIL_ENERGY");
 });

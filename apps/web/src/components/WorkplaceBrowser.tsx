@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SortButtons, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
+import { SortButtons, normalizeSortOption, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
@@ -202,7 +202,7 @@ export function WorkplaceBrowser() {
   // narrowed "All" down to their onboarding city with no action from them.
   const [geo, setGeo] = useState<Geo>(null);
   const [geoRequesting, setGeoRequesting] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>(() => initialFilters.sortBy ?? "default");
+  const [sortBy, setSortBy] = useState<SortOption>(() => normalizeSortOption(initialFilters.sortBy));
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(() => initialFilters.categoryGroup ?? null);
   const [page, setPage] = useState(() => (typeof initialFilters.page === "number" ? initialFilters.page : 1));
   const sliderTrackRef = useRef<HTMLDivElement>(null);
@@ -567,7 +567,7 @@ export function WorkplaceBrowser() {
               />
 
               {/* Separate sort buttons (see SortButtons.tsx): A-Z loops A→Z / Z→A /
-                  off, Workplace is on/off, Rating cycles least/best-rated. */}
+                  off, Rating cycles least/best-rated. */}
               <div className="ml-auto">
                 <SortButtons value={sortBy} onChange={setSortBy} />
               </div>

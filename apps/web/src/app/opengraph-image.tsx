@@ -8,7 +8,7 @@ export const contentType = "image/png";
 
 // The link preview shown when any page is shared (pages can add their own
 // opengraph-image to override). Built from the brand mark and the site's
-// natural "habitat" colours: birch background, wood and river accents.
+// natural "habitat" colours: birch background, wood accents.
 export default async function OpenGraphImage() {
   const mark = await readFile(join(process.cwd(), "public", "brand-mark.png"));
   const markSrc = `data:image/png;base64,${mark.toString("base64")}`;
@@ -24,7 +24,7 @@ export default async function OpenGraphImage() {
           gap: 56,
           padding: "0 88px",
           background: "#fbfaf5",
-          borderBottom: "24px solid #1a5f7a",
+          borderBottom: "24px solid #8b5a2b",
           fontFamily: "serif",
         }}
       >
@@ -35,7 +35,7 @@ export default async function OpenGraphImage() {
           <div style={{ fontSize: 40, color: "#8b5a2b", lineHeight: 1.25, maxWidth: 680 }}>
             No names. No HR. Just what it&apos;s really like to work there.
           </div>
-          <div style={{ fontSize: 28, color: "#1a5f7a", marginTop: 8 }}>iworkedthere.com</div>
+          <div style={{ fontSize: 28, color: "#8b5a2b", marginTop: 8 }}>iworkedthere.com</div>
         </div>
       </div>
     ),

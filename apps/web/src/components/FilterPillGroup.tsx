@@ -154,7 +154,7 @@ export function MultiFilterPillGroup<T extends string>({
           const colorClass = pillColorClassName
             ? pillColorClassName(o.value, active)
             : active
-              ? "bg-river-600 text-white"
+              ? "bg-brand-600 text-white"
               : "text-muted-foreground hover:text-foreground";
           const shapeClass = direction === "grid" ? trackSegmentGridBaseClass : trackSegmentBaseClass;
           className = `${shapeClass} ${colorClass}`;

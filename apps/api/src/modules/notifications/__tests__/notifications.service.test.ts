@@ -201,4 +201,21 @@ describe("NotificationsService.list - review conversations", () => {
       }),
     ]);
   });
+  it("never sends a company owner reviewer-side message alerts (they have no personal inbox)", async () => {
+    const reviewerSide = {
+      id: "conv-1",
+      companyId: "c2",
+      reviewerLastReadSeq: 0,
+      company: { name: "Old Employer", slug: "old-employer" },
+      messages: [{ id: "m4", seq: 4, createdAt: day }],
+    };
+    const prisma = basePrisma({
+      companyOwner: { findMany: jest.fn().mockResolvedValue([{ companyId: "c1" }]) },
+      reviewConversation: {
+        findMany: jest.fn().mockImplementation(({ where }) => Promise.resolve(where.reviewerUserId ? [reviewerSide] : [])),
+      },
+    });
+    const events = await new NotificationsService(prisma).list("owner-1");
+    expect(events.filter((e) => e.type === "CONVERSATION_MESSAGE_FROM_COMPANY")).toEqual([]);
+  });
 });

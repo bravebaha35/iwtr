@@ -21,7 +21,7 @@ export default function NotFound() {
         </p>
         <MagneticLink
           href="/"
-          className="mt-8 inline-flex items-center gap-2 rounded-full bg-river-600 px-6 py-3 text-base font-semibold text-white shadow-md hover:bg-river-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-river-600"
+          className="mt-8 inline-flex items-center gap-2 rounded-full bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-md hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
         >
           Return to Dashboard
           <span aria-hidden="true">→</span>

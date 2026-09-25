@@ -5,9 +5,9 @@ import Image from "next/image";
 import { isOwnStaticAsset } from "@/lib/imageSource";
 
 const SIZES = {
-  sm: "h-9 w-9 text-sm compact:h-7 compact:w-7 compact:text-xs rounded-lg",
-  md: "h-12 w-12 text-lg compact:h-9 compact:w-9 compact:text-sm rounded-lg",
-  lg: "h-16 w-16 text-2xl rounded-xl",
+  sm: "h-9 w-9 text-sm compact:h-7 compact:w-7 compact:text-xs rounded-[0.5rem]",
+  md: "h-12 w-12 text-lg compact:h-9 compact:w-9 compact:text-sm rounded-[0.5rem]",
+  lg: "h-16 w-16 text-2xl rounded-[0.75rem]",
 } as const;
 
 /**

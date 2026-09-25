@@ -53,7 +53,7 @@ function GeneratingBar({ status }: { status: BenchmarkReportJob["status"] }) {
       className="h-2 w-full overflow-hidden rounded-full border border-border bg-surface-muted"
     >
       <motion.div
-        className="h-full origin-left bg-river-600 dark:bg-river-400"
+        className="h-full origin-left bg-brand-600 dark:bg-brand-400"
         initial={{ scaleX: 0.05 }}
         animate={{ scaleX: target }}
         transition={reduceMotion ? { duration: 0 } : { duration: status === "QUEUED" ? 1.2 : 6, ease: SETTLE_EASE }}
@@ -150,7 +150,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
               aria-checked={scope === s.value}
               onClick={() => setScope(s.value)}
               className={`px-3 py-1.5 text-xs font-medium ${
-                scope === s.value ? "bg-river-600 text-white" : "text-foreground hover:bg-surface-muted"
+                scope === s.value ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
               }`}
             >
               {s.label}
@@ -189,7 +189,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
                   href={downloadHref(companyId, job.id)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="self-start text-sm font-semibold text-river-600 underline underline-offset-2 dark:text-river-300"
+                  className="self-start text-sm font-semibold text-brand-700 underline underline-offset-2 dark:text-brand-300"
                 >
                   Open PDF
                 </a>

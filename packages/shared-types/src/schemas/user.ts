@@ -176,6 +176,12 @@ export const onboardingStatusSchema = z.object({
   // by GlobalHeader as the member-side counterpart to the owner-side
   // employerDisplayName fallback that already exists there.
   displayName: z.string().nullable(),
+  // A verified (APPROVED claim) company owner's real name — the employer
+  // profile's name when set, otherwise the name they registered with. The
+  // header shows this for owners instead of reviewUsername/displayName, so an
+  // owner never appears under a random anonymous handle. Null for everyone
+  // who isn't an approved owner (and for an owner with no name on file).
+  ownerName: z.string().nullable(),
 });
 export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
 
