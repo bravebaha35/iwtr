@@ -8,6 +8,8 @@ import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { EmailVerificationScreen } from "@/components/auth/EmailVerificationScreen";
 import { AdminOtpScreen } from "@/components/auth/AdminOtpScreen";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/passwordValidation";
+import { loginEmailInputSchema } from "@iwtr/shared-types";
+import { formProblem } from "@/lib/validateForm";
 import {
   clearPendingVerification,
   loadPendingVerification,
@@ -105,6 +107,11 @@ export function AuthModal() {
     setError(null);
 
     if (mode === "login") {
+      const problem = formProblem(loginEmailInputSchema, { email, password }, { email: "email address" });
+      if (problem) {
+        setError(problem);
+        return;
+      }
       setSubmitting(true);
       try {
         const result = await login(email, password);

@@ -21,6 +21,8 @@ import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
 import { ConversationInbox } from "@/components/messaging/ConversationInbox";
+import { contactAdminInputSchema } from "@iwtr/shared-types";
+import { formProblem } from "@/lib/validateForm";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
 import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
@@ -488,6 +490,11 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
   async function sendContactAdminMessage() {
     if (!contactAdminMessage.trim()) return;
+    const problem = formProblem(contactAdminInputSchema, { message: contactAdminMessage.trim() });
+    if (problem) {
+      setContactAdminError(problem);
+      return;
+    }
     setSendingContactAdmin(true);
     setContactAdminError(null);
     setContactAdminStatus(null);

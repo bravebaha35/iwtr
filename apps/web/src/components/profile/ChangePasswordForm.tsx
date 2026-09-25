@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { changePasswordInputSchema } from "@iwtr/shared-types";
 import { apiPatch, ApiError } from "@/lib/api-client";
+import { formProblem } from "@/lib/validateForm";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/passwordValidation";
@@ -20,6 +22,11 @@ export function ChangePasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
+    const problem = formProblem(changePasswordInputSchema, { currentPassword, newPassword });
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     setStatus(null);

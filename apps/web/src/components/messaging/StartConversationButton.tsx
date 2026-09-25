@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ConversationThread } from "@iwtr/shared-types";
+import { sendMessageInputSchema } from "@iwtr/shared-types";
 import { ApiError, apiPost } from "@/lib/api-client";
+import { formProblem } from "@/lib/validateForm";
 
 interface Props {
   reviewId: string;
@@ -48,6 +50,11 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
   }
 
   async function send() {
+    const problem = formProblem(sendMessageInputSchema, { content: draft });
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setError(null);
     setSending(true);
     try {
