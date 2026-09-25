@@ -8,6 +8,7 @@ import { apiGet, ApiError } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { AdSlot } from "@/components/AdSlot";
 import { StartConversationButton } from "@/components/messaging/StartConversationButton";
+import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 
 const CATEGORY_FIELDS: { score: keyof MyReviewListItem; label: string }[] = [
   { score: "corporateCultureScore", label: "Corporate Culture" },
@@ -38,6 +39,8 @@ function formatDate(iso: string | null): string {
 
 export default function MyReviewsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  // Company owners get messages only through their company dashboard.
+  const isCompanyOwner = useIsCompanyOwner();
   const [reviews, setReviews] = useState<MyReviewListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -134,7 +137,7 @@ export default function MyReviewsPage() {
                 <div className="mt-3 rounded-lg bg-surface-muted p-3 text-sm">
                   <p className="mb-1 text-xs font-semibold text-foreground">Response from {review.companyName}</p>
                   <p className="text-muted-foreground">{review.reply.content}</p>
-                  {review.status === "PUBLISHED" && (
+                  {review.status === "PUBLISHED" && !isCompanyOwner && (
                     <StartConversationButton
                       reviewId={review.id}
                       companyName={review.companyName}

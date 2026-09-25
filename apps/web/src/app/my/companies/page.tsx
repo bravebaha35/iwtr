@@ -123,7 +123,7 @@ function UpgradeCheckout({
                 onClick={() => setTier(t.value)}
                 className={`flex-1 rounded-lg border px-3 py-2 text-center text-sm font-medium transition ${
                   tier === t.value
-                    ? "border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-950 dark:text-brand-300"
+                    ? "border-brand-600 bg-brand-600 text-white"
                     : "border-border text-foreground hover:bg-surface-muted"
                 }`}
               >

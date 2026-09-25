@@ -78,6 +78,8 @@ export function createFakePrisma(opts: {
       },
     },
     companyOwner: {
+      findFirst: async ({ where }: any) =>
+        opts.owners.find((o) => o.userId === where.userId && (!where.claimStatus || o.claimStatus === where.claimStatus)) ?? null,
       findUnique: async ({ where }: any) =>
         opts.owners.find(
           (o) => o.userId === where.userId_companyId.userId && o.companyId === where.userId_companyId.companyId,

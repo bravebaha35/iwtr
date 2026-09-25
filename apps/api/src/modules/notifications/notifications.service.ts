@@ -127,18 +127,26 @@ export class NotificationsService {
       }),
       // Private review conversations (MessagingService): one notification
       // per conversation whose newest message from the OTHER side is past
-      // the caller's read marker. As reviewer here...
-      this.prisma.reviewConversation.findMany({
-        where: { reviewerUserId: userId },
-        select: {
-          id: true,
-          companyId: true,
-          reviewerLastReadSeq: true,
-          company: { select: { name: true, slug: true } },
-          messages: { where: { side: "COMPANY" }, orderBy: { seq: "desc" }, take: 1, select: { id: true, seq: true, createdAt: true } },
-        },
-        take: MAX_NOTIFICATIONS,
-      }),
+      // the caller's read marker. As reviewer here (never for a company
+      // owner: they have no personal inbox, see MessagingService.listMine)...
+      ownedCompanyIds.length === 0
+        ? this.prisma.reviewConversation.findMany({
+            where: { reviewerUserId: userId },
+            select: {
+              id: true,
+              companyId: true,
+              reviewerLastReadSeq: true,
+              company: { select: { name: true, slug: true } },
+              messages: {
+                where: { side: "COMPANY" },
+                orderBy: { seq: "desc" },
+                take: 1,
+                select: { id: true, seq: true, createdAt: true },
+              },
+            },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
       // ...and as an approved owner of the reviewed company.
       ownedCompanyIds.length > 0
         ? this.prisma.reviewConversation.findMany({

@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 // Shared by WorkplaceBrowser.tsx (the rating homepage) and JobsBrowser.tsx
 // (the Jobs page) — unlike the state/filtering logic those two files keep as
 // deliberate near-duplicates (see JobsBrowser.tsx's file-header comment),
@@ -26,10 +24,7 @@ const NARROW_CATEGORY_GROUP_VALUES = [
   "Fuel & Energy",
 ];
 
-// Icon-only pills — each button's old text label now lives in aria-label
-// (screen readers) plus a custom hover/focus tooltip drawn next to the
-// button (see the CategoryGroup render below) rather than the browser's
-// native `title` tooltip, which is slower to appear and unstyled.
+// Each pill shows its icon next to its name (see CategoryGroupFilter below).
 type IconProps = { className?: string };
 function FileIcon({ className }: IconProps) {
   // "Checklist on a file" — the plain document outline plus three
@@ -142,25 +137,14 @@ export function matchesCategoryGroup(company: { category: string }, group: Categ
   return company.category === "Fuel & Energy";
 }
 
-// One arrow, pointing up while Quick Select is closed; it turns 90° to
-// point right when the list opens.
-function QuickSelectArrow({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 19V5M5 12l7-7 7 7" />
-    </svg>
-  );
-}
-
-
 // The Quick Select control — shared by the rating homepage, the Jobs page
-// and IWT Social's sidebar, so every page behaves the same. Closed, it is a
-// single up-arrow button and nothing else. Clicking it turns the arrow to
-// point right and shows all 7 groups at once (icon + name); clicking again
-// closes it. Picking the active group again clears the filter.
+// and IWT Social's sidebar. All 7 groups are always on screen with their
+// names: a horizontal row on the rating/jobs pages, a vertical list in the
+// Social sidebar. Picking the active group again clears the filter.
 export function CategoryGroupFilter({
   value,
   onChange,
+  orientation = "horizontal",
   // One-shot pulse/glow ring around the whole row — set by WorkplaceBrowser
   // when a footer link (e.g. "Job Categories") routes here specifically to
   // point at these buttons. See globals.css's .highlight-pulse.
@@ -168,59 +152,42 @@ export function CategoryGroupFilter({
 }: {
   value: CategoryGroup | null;
   onChange: (next: CategoryGroup | null) => void;
+  orientation?: "horizontal" | "vertical";
   highlighted?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const selectedLabel = CATEGORY_GROUP_BUTTONS.find((b) => b.value === value)?.label;
-  const toggleLabel = expanded
-    ? "Close quick select"
-    : `Open quick select${selectedLabel ? ` (${selectedLabel} selected)` : ""}`;
-
+  const vertical = orientation === "vertical";
   return (
-    <div className={`flex flex-wrap items-center gap-2 rounded-full ${highlighted ? "highlight-pulse" : ""}`}>
-      <button
-        type="button"
-        aria-expanded={expanded}
-        aria-label={toggleLabel}
-        title={toggleLabel}
-        data-arrow={expanded ? "right" : "up"}
-        onClick={() => setExpanded((v) => !v)}
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition ${
-          expanded || value
-            ? "border-river-600 bg-river-600 text-white"
-            : "border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-        }`}
-      >
-        <QuickSelectArrow
-          className={`h-5 w-5 transition-transform duration-300 ease-out motion-reduce:transition-none ${expanded ? "rotate-90" : ""}`}
-        />
-      </button>
-
-      {expanded && (
-        <div role="radiogroup" aria-label="Filter by category group" className="flex flex-wrap items-center gap-2">
-          {CATEGORY_GROUP_BUTTONS.map((opt) => {
-            const checked = value === opt.value;
-            const Icon = opt.icon;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="radio"
-                aria-checked={checked}
-                onClick={() => onChange(checked ? null : opt.value)}
-                className={`flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-medium transition ${
-                  checked
-                    ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
-                    : "border-border bg-surface text-muted-foreground hover:bg-surface-muted"
-                }`}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span className="whitespace-nowrap">{opt.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+    <div
+      role="radiogroup"
+      aria-label="Filter by category group"
+      aria-orientation={orientation}
+      className={`flex gap-2 ${vertical ? "flex-col items-stretch rounded-xl" : "flex-row flex-wrap items-center rounded-full"} ${
+        highlighted ? "highlight-pulse" : ""
+      }`}
+    >
+      {CATEGORY_GROUP_BUTTONS.map((opt) => {
+        const checked = value === opt.value;
+        const Icon = opt.icon;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={checked}
+            onClick={() => onChange(checked ? null : opt.value)}
+            className={`flex h-10 items-center gap-2 border px-3 text-sm font-medium transition ${
+              vertical ? "w-full rounded-xl text-left" : "rounded-full"
+            } ${
+              checked
+                ? "border-brand-600 bg-brand-600 text-white"
+                : "border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-5 w-5 shrink-0" />
+            <span className="whitespace-nowrap">{opt.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

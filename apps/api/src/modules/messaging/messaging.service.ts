@@ -86,6 +86,9 @@ export class MessagingService {
     if (!review || review.userId !== userId || review.status !== "PUBLISHED" || !review.companyReply) {
       throw new NotFoundException("Review not found");
     }
+    if (await this.ownsAnyCompany(userId)) {
+      throw new ForbiddenException("Company accounts get their messages through the company dashboard.");
+    }
     this.assertClean(input.content);
 
     let conversationId: string;
@@ -124,6 +127,9 @@ export class MessagingService {
   }
 
   async listMine(userId: string): Promise<ConversationSummary[]> {
+    // A reviewer who has since become a company owner has no personal
+    // inbox — their messages come through the company dashboard only.
+    if (await this.ownsAnyCompany(userId)) return [];
     const rows = await this.prisma.reviewConversation.findMany({
       where: { reviewerUserId: userId },
       include: SUMMARY_INCLUDE,
@@ -210,6 +216,15 @@ export class MessagingService {
     if (conversation.reviewerUserId === userId) return "REVIEWER";
     if (await this.isApprovedOwner(userId, conversation.companyId)) return "COMPANY";
     throw new NotFoundException("Conversation not found");
+  }
+
+  /** True once the user has an approved claim on any company. */
+  private async ownsAnyCompany(userId: string): Promise<boolean> {
+    const claim = await this.prisma.companyOwner.findFirst({
+      where: { userId, claimStatus: "APPROVED" },
+      select: { id: true },
+    });
+    return claim !== null;
   }
 
   /** Same 3-line check as ReviewsService.requireApprovedCompanyOwnership, kept local per module. */

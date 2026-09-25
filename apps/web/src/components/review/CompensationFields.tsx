@@ -58,7 +58,7 @@ export function CompensationFields({
       <label htmlFor="review-monthly-net-salary" className="mt-2 block text-xs font-medium text-muted-foreground">
         Monthly net salary
       </label>
-      <div className="mt-1 flex border border-border bg-surface focus-within:border-river-600 dark:focus-within:border-river-300">
+      <div className="mt-1 flex border border-border bg-surface focus-within:border-brand-600 dark:focus-within:border-brand-300">
         <span
           aria-hidden="true"
           className="flex w-11 shrink-0 items-center justify-center bg-slate-dam font-grotesk text-lg font-bold text-birch dark:bg-birch dark:text-slate-dam"
@@ -105,7 +105,7 @@ export function CompensationFields({
               onClick={() => toggleBenefit(benefit)}
               className={
                 selected
-                  ? "border border-river-600 bg-river-600 px-2.5 py-1 text-xs font-medium text-white"
+                  ? "border border-brand-600 bg-brand-600 px-2.5 py-1 text-xs font-medium text-white"
                   : "border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-surface-muted"
               }
             >

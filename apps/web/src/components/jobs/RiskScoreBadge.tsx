@@ -43,7 +43,32 @@ export function RiskTriangleIcon({ className }: { className?: string }) {
   );
 }
 
-export function RiskScoreBadge({ riskScore, className }: { riskScore: number | null; className?: string }) {
+// "short" is the job-card form: just "RS 2/3" in the score's colour, no
+// warning icons. Screen readers still hear the full "Risk Score 2 of 3".
+export function RiskScoreBadge({
+  riskScore,
+  className,
+  short = false,
+}: {
+  riskScore: number | null;
+  className?: string;
+  short?: boolean;
+}) {
+  if (short) {
+    return (
+      <span
+        className={`inline-flex text-xs font-semibold ${className ?? ""}`}
+        title={riskScore === null ? NO_OPEN_POSTING_NOTE : RISK_SCORE_NOTES[riskScore]}
+      >
+        <span aria-hidden="true" className={riskScore === null ? "text-muted-foreground" : riskScoreColorClass(riskScore)}>
+          RS {riskScore === null ? "-" : `${riskScore}/3`}
+        </span>
+        <span className="sr-only">
+          {riskScore === null ? "Risk Score not available yet" : `Risk Score ${riskScore} of 3`}
+        </span>
+      </span>
+    );
+  }
   if (riskScore === null) {
     return (
       <span

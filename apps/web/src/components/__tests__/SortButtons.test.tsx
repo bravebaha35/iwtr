@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SortButtons, nextAlphaSort, sortCompaniesBy, type SortOption } from "../SortButtons";
+import { SortButtons, nextAlphaSort, normalizeSortOption, sortCompaniesBy, type SortOption } from "../SortButtons";
 
 function Harness() {
   const [sort, setSort] = useState<SortOption>("default");
@@ -46,7 +46,7 @@ describe("A-Z sort button", () => {
   it("renders each sort as its own separate button", () => {
     render(<Harness />);
     const buttons = screen.getAllByRole("button");
-    expect(buttons.map((b) => b.textContent)).toEqual(["A-Z", "Workplace", "Rating"]);
+    expect(buttons.map((b) => b.textContent)).toEqual(["A-Z", "Rating"]);
     // No shared segmented track wrapping them.
     for (const b of buttons) expect(b.parentElement?.getAttribute("role")).toBe("group");
   });
@@ -66,5 +66,19 @@ describe("sortCompaniesBy", () => {
 
   it("leaves the order untouched for the default sort", () => {
     expect(sortCompaniesBy(rows, "default")).toBe(rows);
+  });
+});
+
+describe("normalizeSortOption", () => {
+  it("keeps the sorts that still exist", () => {
+    for (const s of ["default", "alphabetical", "alphabeticalDesc", "ratingAsc", "ratingDesc"] as const) {
+      expect(normalizeSortOption(s)).toBe(s);
+    }
+  });
+
+  it("turns a saved sort that no longer exists (or junk) back into the default", () => {
+    expect(normalizeSortOption("workplace")).toBe("default");
+    expect(normalizeSortOption(undefined)).toBe("default");
+    expect(normalizeSortOption(42)).toBe("default");
   });
 });

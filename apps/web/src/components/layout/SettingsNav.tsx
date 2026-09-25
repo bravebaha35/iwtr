@@ -16,7 +16,7 @@ const HOVER_TRANSITION = { duration: 0.12, ease: [0.2, 0.9, 0.1, 1] as const };
 const ITEM_BASE =
   "block w-full whitespace-nowrap rounded-full px-3 py-2 text-left text-sm font-medium transition-colors";
 const ITEM_IDLE = `${ITEM_BASE} text-sidebar-foreground/80 hover:bg-black/5 hover:text-sidebar-foreground dark:hover:bg-white/10`;
-const ITEM_ACTIVE = `${ITEM_BASE} bg-river-600 text-white`;
+const ITEM_ACTIVE = `${ITEM_BASE} bg-brand-600 text-white`;
 
 /**
  * The sidebar panel (light in light mode, dark in dark mode) for the settings-style pages (/me and

@@ -34,21 +34,12 @@ import { CvPreview } from "@/components/profile/CvPreview";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { SettingsNav } from "@/components/layout/SettingsNav";
 import { ConversationInbox } from "@/components/messaging/ConversationInbox";
+import { profileTabsFor, type ProfileTabKey } from "@/components/profile/profileTabs";
+import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 
 const SUPPORT_EMAIL = "iworkedthere@hotmail.com";
 
-type TabKey = "customize" | "personal" | "contact" | "education" | "cv" | "messages" | "security" | "account";
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "customize", label: "Customize" },
-  { key: "personal", label: "Personal Information" },
-  { key: "contact", label: "Contact Information" },
-  { key: "education", label: "Education & Work History" },
-  { key: "cv", label: "My CV" },
-  { key: "messages", label: "Messages" },
-  { key: "security", label: "Security" },
-  { key: "account", label: "Account Options" },
-];
+type TabKey = ProfileTabKey;
 
 const EDU_LEVELS: { level: EduLevel; label: string }[] = [
   { level: "ELEMENTARY", label: "Elementary School" },
@@ -109,12 +100,15 @@ function ProfilePageContent() {
   // state and don't touch the URL, so they never retrigger this.
   const tabParam = searchParams.get("tab");
   const conversationParam = searchParams.get("c");
+  // Owners have no Messages tab (their messages live in the company dashboard).
+  const isCompanyOwner = useIsCompanyOwner();
+  const tabs = profileTabsFor(isCompanyOwner);
   useEffect(() => {
-    if (TABS.some((t) => t.key === tabParam)) {
+    if (profileTabsFor(isCompanyOwner).some((t) => t.key === tabParam)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state from the URL
       setActiveTab(tabParam as TabKey);
     }
-  }, [tabParam, conversationParam]);
+  }, [tabParam, conversationParam, isCompanyOwner]);
 
   // Local editable form state, seeded from the loaded profile.
   const [reviewUsername, setReviewUsername] = useState<string | null>(null);
@@ -645,7 +639,7 @@ function ProfilePageContent() {
         )
       ) : (
         <SidebarContentRow>
-          <SettingsNav label="Profile sections" items={TABS} active={activeTab} onChange={setActiveTab} />
+          <SettingsNav label="Profile sections" items={tabs} active={activeTab} onChange={setActiveTab} />
 
           <div className="min-w-0 flex-1">
         <div className="flex flex-col gap-6">
@@ -1447,7 +1441,7 @@ function ProfilePageContent() {
           </>
           )}
 
-          {activeTab === "messages" && (
+          {activeTab === "messages" && !isCompanyOwner && (
             <section className="rounded-xl border border-border bg-surface p-5">
               <h2 className="mb-1 font-semibold text-foreground">Messages</h2>
               <p className="mb-4 text-sm text-muted-foreground">

@@ -333,20 +333,26 @@ export function JobCard({
             {location || "Location not set"} · {company.category}
           </p>
 
-          {/* This card's one job title + Mail/Call, side by side so the row
-              stays short and leaves room for the description below. No
+          {/* This card's one job title + Mail/Call/Apply, side by side so the
+              row stays short and leaves room for the description below. The
+              title chip is capped at its column's width (and truncates), and
+              when the card is too narrow to give it at least 8rem the buttons
+              wrap onto their own line instead of sliding over it. No
               overflow-hidden here — the Contact popovers spill outside. */}
-          <div className="mt-3 flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 flex-1 basis-32">
               {posting ? (
-                <span className="inline-block truncate rounded-full bg-brand-50 px-2 py-1 text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300">
+                <span
+                  title={posting.jobTitle}
+                  className="inline-block max-w-full truncate rounded-full bg-brand-50 px-2 py-1 align-middle text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300"
+                >
                   {posting.jobTitle}
                 </span>
               ) : (
                 <span className="text-xs font-bold text-muted-foreground">No open roles listed yet</span>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
               <ContactButton icon="mail" label="Mail" value={company.contactEmail} />
               <ContactButton icon="phone" label="Call" value={company.contactPhone} />
               {posting?.id && <ApplyButton jobPostingId={posting.id} />}
@@ -399,6 +405,7 @@ export function JobCard({
         </p>
         <RiskScoreBadge
           riskScore={company.riskScore > 0 ? company.riskScore : posting?.id ? 0 : null}
+          short
           className="shrink-0"
         />
       </div>

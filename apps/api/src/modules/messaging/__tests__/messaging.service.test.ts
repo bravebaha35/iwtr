@@ -76,6 +76,40 @@ describe("MessagingService.startConversation", () => {
   });
 });
 
+describe("MessagingService for a reviewer who has become a company owner", () => {
+  // Someone who wrote a review and later claimed their own company only
+  // gets messages through the company dashboard — no personal inbox.
+  const OTHER_COMPANY = "company-2";
+  const reviewerNowOwner = [
+    { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED" },
+    { userId: REVIEWER, companyId: OTHER_COMPANY, claimStatus: "APPROVED" },
+  ];
+
+  it("can't open a conversation from their old review", async () => {
+    const { service } = setup({ owners: reviewerNowOwner });
+    await expect(service.startConversation(REVIEWER, "review-1", hello)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("has an empty personal inbox, even with an older conversation", async () => {
+    const owners = [{ userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED" }];
+    const { service } = setup({ owners });
+    await service.startConversation(REVIEWER, "review-1", hello);
+    expect(await service.listMine(REVIEWER)).toHaveLength(1);
+    owners.push({ userId: REVIEWER, companyId: OTHER_COMPANY, claimStatus: "APPROVED" });
+    expect(await service.listMine(REVIEWER)).toEqual([]);
+  });
+
+  it("a pending (not approved) claim changes nothing", async () => {
+    const { service } = setup({
+      owners: [
+        { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED" },
+        { userId: REVIEWER, companyId: OTHER_COMPANY, claimStatus: "PENDING" },
+      ],
+    });
+    await expect(service.startConversation(REVIEWER, "review-1", hello)).resolves.toBeTruthy();
+  });
+});
+
 describe("MessagingService.getThread", () => {
   it("shows the company only the review's public name and never the reviewer's user id", async () => {
     const { service } = setup();
@@ -107,9 +141,12 @@ describe("MessagingService.getThread", () => {
     await expect(service.getThread(OWNER, started.id)).rejects.toThrow(NotFoundException);
   });
 
-  it("treats a reviewer who also owns the company as the reviewer", async () => {
-    const { service } = setup({ owners: [{ userId: REVIEWER, companyId: COMPANY, claimStatus: "APPROVED" }] });
+  it("treats a reviewer who later also owns the company as the reviewer", async () => {
+    // Opened while still only a reviewer; owners can't open new ones.
+    const owners: { userId: string; companyId: string; claimStatus: string }[] = [];
+    const { service } = setup({ owners });
     const started = await service.startConversation(REVIEWER, "review-1", hello);
+    owners.push({ userId: REVIEWER, companyId: COMPANY, claimStatus: "APPROVED" });
     const thread = await service.getThread(REVIEWER, started.id);
     expect(thread.messages[0].fromMe).toBe(true);
     expect(thread.counterpartName).toBe("Demo Finans Holding");

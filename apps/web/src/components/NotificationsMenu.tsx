@@ -258,7 +258,7 @@ const CATEGORY_ICON: Record<NotificationCategory, (props: { className?: string }
 // no washed-out tints that would fail the "equal parity" requirement.
 const CATEGORY_RING_CLASS: Record<NotificationCategory, string> = {
   SOCIAL: "border-rose-500 text-rose-600 dark:text-rose-400",
-  SYSTEM: "border-river-500 text-river-600 dark:text-river-300",
+  SYSTEM: "border-forest-500 text-forest-600 dark:text-forest-300",
   EMPLOYER: "border-amber-500 text-amber-700 dark:text-amber-400",
 };
 
