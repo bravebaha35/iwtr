@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SortButtons, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
+import Image from "next/image";
 import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { apiGet } from "@/lib/api-client";
@@ -51,7 +53,6 @@ function activeMoodIndex(value: number): number {
   return 2;
 }
 
-type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "ratingDesc";
 
 // 4 columns × 4 rows at the desktop breakpoint, matching the homepage's own
 // "columns × rows" page-size convention (see WorkplaceBrowser.tsx).
@@ -147,7 +148,7 @@ function FollowingFilterList({
 
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h3>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h2>
       <div className="flex h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-1.5">
         {loading && <p className="p-1.5 text-xs text-muted-foreground">Loading...</p>}
         {!loading && companies.length === 0 && (
@@ -329,15 +330,8 @@ export function JobsBrowser() {
     list = selectedCategory ? list.filter((c) => c.category === selectedCategory) : list;
     list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
 
-    if (sortBy === "alphabetical") {
-      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === "ratingDesc") {
-      list = [...list].sort((a, b) => (b.overallAvg ?? -1) - (a.overallAvg ?? -1));
-    } else if (sortBy === "ratingAsc") {
-      list = [...list].sort((a, b) => (a.overallAvg ?? Infinity) - (b.overallAvg ?? Infinity));
-    } else if (sortBy === "workplace") {
-      const order = WORKPLACE_TYPES.map((t) => t.value);
-      list = [...list].sort((a, b) => order.indexOf(a.workplaceTypes[0]) - order.indexOf(b.workplaceTypes[0]));
+    if (sortBy !== "default") {
+      list = sortCompaniesBy(list, sortBy);
     } else if (geo && geo !== "denied") {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
@@ -444,7 +438,7 @@ export function JobsBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h3>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h2>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
@@ -452,8 +446,10 @@ export function JobsBrowser() {
                   {RATING_TICKS.map((tick, i) => {
                     const active = activeMoodIndex(minRating) === i;
                     return (
-                      // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
-                      <img
+                      <Image
+                        width={112}
+                        height={112}
+                        sizes="56px"
                         key={tick.value}
                         src={tick.src}
                         alt={tick.alt}
@@ -499,7 +495,7 @@ export function JobsBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Score</h3>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Score</h2>
                 <RewindButton onClick={() => setMaxRiskScore(3)} active={maxRiskScore !== 3} title="Reset Risk Score filter" />
               </div>
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
@@ -589,55 +585,7 @@ export function JobsBrowser() {
                     Create job posting !
                   </button>
                 )}
-                <div className="flex items-center gap-1 rounded-xl border border-border bg-surface-muted p-1">
-                  <button
-                    type="button"
-                    onClick={() => setSortBy((s) => (s === "alphabetical" ? "default" : "alphabetical"))}
-                    aria-pressed={sortBy === "alphabetical"}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                      sortBy === "alphabetical"
-                        ? "bg-river-600 text-white"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    A-Z
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSortBy((s) => (s === "workplace" ? "default" : "workplace"))}
-                    aria-pressed={sortBy === "workplace"}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                      sortBy === "workplace"
-                        ? "bg-river-600 text-white"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Workplace
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSortBy((s) => (s === "ratingAsc" ? "ratingDesc" : s === "ratingDesc" ? "default" : "ratingAsc"))
-                    }
-                    aria-pressed={sortBy === "ratingAsc" || sortBy === "ratingDesc"}
-                    title={
-                      sortBy === "ratingAsc"
-                        ? "Showing least-rated first"
-                        : sortBy === "ratingDesc"
-                          ? "Showing best-rated first"
-                          : "Sort by rating"
-                    }
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                      sortBy === "ratingAsc"
-                        ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400"
-                        : sortBy === "ratingDesc"
-                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400"
-                          : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Rating
-                  </button>
-                </div>
+                <SortButtons value={sortBy} onChange={setSortBy} />
               </div>
             </div>
 
@@ -666,7 +614,7 @@ export function JobsBrowser() {
               <>
                 {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
                 {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
-                  <p className="text-sm text-red-600 dark:text-red-400">
+                  <p className="text-sm text-red-600 dark:text-red-300">
                     Couldn&apos;t load workplaces right now — check your connection and try again.
                   </p>
                 )}

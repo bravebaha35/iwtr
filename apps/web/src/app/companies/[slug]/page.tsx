@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Image from "next/image";
+import { isOwnStaticAsset } from "@/lib/imageSource";
 import type { Company, CompanyDetail, CompanyNarrative } from "@iwtr/shared-types";
 import { scoreBandLabel } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
@@ -55,8 +58,7 @@ function RatingNarrativeBox({
       {imageSrc ? (
         // A small fixed set of local /public illustrations, not a
         // remote/arbitrary URL.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageSrc} alt="" className="h-72 w-56 shrink-0 object-contain" />
+        <Image src={imageSrc} alt="" width={448} height={576} sizes="224px" priority className="h-72 w-56 shrink-0 object-contain" />
       ) : (
         <div className="h-72 w-56 shrink-0" aria-hidden="true" />
       )}
@@ -98,9 +100,9 @@ function CompanyDetailsBox({ company }: { company: Company }) {
       <h2 className="mb-4 text-lg font-semibold text-foreground">Company Details</h2>
       <div className="flex flex-col gap-4 text-sm">
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Overall Information
-          </h3>
+          </h2>
           {company.description ? (
             <p className="whitespace-pre-wrap text-foreground">{company.description}</p>
           ) : (
@@ -119,19 +121,19 @@ function CompanyDetailsBox({ company }: { company: Company }) {
         </div>
 
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h3>
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
           <p className="text-foreground">{location || "Not provided yet."}</p>
         </div>
 
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sector</h3>
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sector</h2>
           <p className="text-foreground">{company.category}</p>
         </div>
 
         <div>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Contact &amp; Social Media
-          </h3>
+          </h2>
           {socialLinks.length > 0 ? (
             <ul className="flex flex-col gap-1">
               {socialLinks.map((s) => (
@@ -155,6 +157,29 @@ function CompanyDetailsBox({ company }: { company: Company }) {
       </div>
     </div>
   );
+}
+
+// Per-company title, description and social preview text, so a shared or
+// search-listed company link says which workplace it is and how it scores.
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const { company, aggregate } = await apiGetPublic<CompanyDetail>(`/companies/${slug}`);
+    const title = `${company.name} reviews`;
+    const description =
+      aggregate && aggregate.reviewCount > 0
+        ? `Anonymous employee ratings for ${company.name}: ${aggregate.overallAvg.toFixed(1)}/5 (${scoreBandLabel(aggregate.overallAvg)}) from ${aggregate.reviewCount} review${aggregate.reviewCount === 1 ? "" : "s"}.`
+        : `What is it really like to work at ${company.name}? Read and write anonymous employee reviews.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: `/companies/${slug}` },
+      openGraph: { title, description, url: `/companies/${slug}`, type: "website" },
+      twitter: { card: "summary_large_image", title, description },
+    };
+  } catch {
+    return { title: "Company not found" };
+  }
 }
 
 export default async function CompanyPage({
@@ -214,11 +239,14 @@ export default async function CompanyPage({
           {/* 5:1, not 4:1 — on this full-width hero a 4:1 slab ran ~290px
               tall and read as a wall; 5:1 keeps it a cover strip. mb-14
               clears the half of the lg logo that hangs below it. */}
-          <div className="aspect-[5/1] w-full overflow-hidden rounded-xl">
-            {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
-            <img
+          <div className="relative aspect-[5/1] w-full overflow-hidden rounded-xl">
+            <Image
               src={bannerUrl}
               alt=""
+              fill
+              priority
+              sizes="(min-width: 1024px) 1024px, 100vw"
+              unoptimized={!isOwnStaticAsset(bannerUrl)}
               className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
             />
           </div>

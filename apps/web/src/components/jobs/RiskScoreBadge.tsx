@@ -18,10 +18,10 @@ export const NO_OPEN_POSTING_NOTE =
 // filter slider's tick icons in JobsBrowser.tsx so the two stay visually
 // consistent.
 export function riskScoreColorClass(riskScore: number): string {
-  if (riskScore === 0) return "text-green-600 dark:text-green-400";
-  if (riskScore === 1) return "text-amber-500 dark:text-amber-400";
-  if (riskScore === 2) return "text-orange-600 dark:text-orange-400";
-  return "text-red-600 dark:text-red-400";
+  if (riskScore === 0) return "text-green-700 dark:text-green-400";
+  if (riskScore === 1) return "text-amber-700 dark:text-amber-400";
+  if (riskScore === 2) return "text-orange-700 dark:text-orange-400";
+  return "text-red-600 dark:text-red-300";
 }
 
 export function RiskTriangleIcon({ className }: { className?: string }) {

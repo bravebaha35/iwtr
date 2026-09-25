@@ -50,7 +50,7 @@ function GeneratingBar({ status }: { status: BenchmarkReportJob["status"] }) {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(target * 100)}
-      className="h-2 w-full overflow-hidden border border-border bg-surface-muted"
+      className="h-2 w-full overflow-hidden rounded-full border border-border bg-surface-muted"
     >
       <motion.div
         className="h-full origin-left bg-river-600 dark:bg-river-400"
@@ -166,7 +166,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
           {hasPending ? "Generating…" : "Generate report"}
         </button>
       </div>
-      {error && <p className="text-sm text-red-700 dark:text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-700 dark:text-red-300">{error}</p>}
 
       {jobs && jobs.length > 0 && (
         <ul className="flex flex-col divide-y divide-border border-t border-border">
@@ -195,7 +195,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
                 </a>
               )}
               {job.status === "FAILED" && (
-                <p className="text-xs text-red-700 dark:text-red-400">{job.errorMessage ? friendlyReportError(job.errorMessage) : "This report failed."}</p>
+                <p className="text-xs text-red-700 dark:text-red-300">{job.errorMessage ? friendlyReportError(job.errorMessage) : "This report failed."}</p>
               )}
             </li>
           ))}

@@ -72,7 +72,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
 
             <PhoneNumberInput value={phoneNumber} onChange={setPhoneNumber} />
 
-            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
             <button
               type="submit"
@@ -107,7 +107,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
               className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-center text-lg tracking-[0.5em] text-foreground"
             />
 
-            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {error && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
             <button
               type="submit"

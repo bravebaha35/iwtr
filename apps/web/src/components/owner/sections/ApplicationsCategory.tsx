@@ -54,12 +54,12 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      {pdfError && <p className="text-sm text-red-600 dark:text-red-400">{pdfError}</p>}
+      {pdfError && <p className="text-sm text-red-600 dark:text-red-300">{pdfError}</p>}
       <ul className="flex flex-col gap-2">
         {applications.map((a) => (
           <li
             key={a.id}
-            className="flex items-center justify-between gap-3 border border-border bg-surface p-3"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-3"
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-bold">{a.applicantDisplayName}</p>
@@ -69,7 +69,7 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {a.viewedAt === null && (
-                <span className="rounded-none border border-border px-1.5 py-0.5 text-[10px] font-bold uppercase">
+                <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] font-bold uppercase">
                   New
                 </span>
               )}

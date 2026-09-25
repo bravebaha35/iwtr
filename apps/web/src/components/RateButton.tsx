@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createReviewInputSchema, updateReviewInputSchema } from "@iwtr/shared-types";
 import type {
   CategoryKey,
   CreateReviewRequestBody,
@@ -18,6 +19,8 @@ import type {
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { RATE_BUTTON_EMOJI } from "@/lib/rateButton";
+import { formTrapHeaders } from "@/lib/formTrap";
+import { setReviewFlowActive } from "@/lib/reviewFlow";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import {
@@ -42,7 +45,7 @@ const CATEGORIES: { key: CategoryKey; label: string }[] = [
 const ANSWER_META: Record<SurveyAnswer, { srLabel: string; litClassName: string }> = {
   YES: {
     srLabel: "Yes",
-    litClassName: "border-green-500 bg-green-500/10 text-green-500",
+    litClassName: "border-green-500 bg-green-500/10 text-green-700",
   },
   NO: {
     srLabel: "No",
@@ -50,7 +53,7 @@ const ANSWER_META: Record<SurveyAnswer, { srLabel: string; litClassName: string 
   },
   PREFER_NOT_TO_ANSWER: {
     srLabel: "Prefer not to answer",
-    litClassName: "border-amber-400 bg-amber-400/10 text-amber-400",
+    litClassName: "border-amber-400 bg-amber-400/10 text-amber-700",
   },
 };
 
@@ -176,6 +179,17 @@ export function RateButton({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SubmitReviewResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Spam trap (see lib/formTrap.ts): when the form was opened, and a hidden
+  // field only bots fill in.
+  const openedAtRef = useRef(0);
+  const [trapValue, setTrapValue] = useState("");
+
+  // Analytics firewall: nothing optional runs while the form is open (see
+  // lib/analyticsPolicy.ts).
+  useEffect(() => {
+    setReviewFlowActive(open);
+    return () => setReviewFlowActive(false);
+  }, [open]);
 
   const editing = Boolean(matchingEntry?.reviewId);
   const hasRoleStep = !editing && workplaceTypes.length > 1;
@@ -205,6 +219,8 @@ export function RateButton({
   }
 
   async function handleOpen() {
+    openedAtRef.current = Date.now();
+    setTrapValue("");
     setStep(0);
     setAnswers({});
     setGeneralThoughts("");
@@ -298,14 +314,29 @@ export function RateButton({
         city: structureType === "REGION_BASED" ? (locationValue ?? undefined) : undefined,
         compensation: toCompensationBody(compensation),
       };
+      const createBody = {
+        companyId,
+        employmentHistoryId: matchingEntry.id,
+        workplaceType: selectedWorkplaceType,
+        ...content,
+      } satisfies CreateReviewRequestBody;
+      // Same zod schema the API enforces, checked here first so a mistake
+      // is explained before anything leaves the browser.
+      const check = matchingEntry.reviewId
+        ? updateReviewInputSchema.safeParse(content)
+        : createReviewInputSchema.safeParse(createBody);
+      if (!check.success) {
+        setError(`Please check your answers: ${check.error.issues[0]?.message ?? "something is missing"}.`);
+        return;
+      }
+      const trap = { headers: formTrapHeaders({ openedAt: openedAtRef.current, trapValue }) };
       const res = matchingEntry.reviewId
-        ? await apiPatch<SubmitReviewResult>(`/reviews/${matchingEntry.reviewId}`, content satisfies UpdateReviewRequestBody)
-        : await apiPost<SubmitReviewResult>("/reviews", {
-            companyId,
-            employmentHistoryId: matchingEntry.id,
-            workplaceType: selectedWorkplaceType,
-            ...content,
-          } satisfies CreateReviewRequestBody);
+        ? await apiPatch<SubmitReviewResult>(
+            `/reviews/${matchingEntry.reviewId}`,
+            content satisfies UpdateReviewRequestBody,
+            trap,
+          )
+        : await apiPost<SubmitReviewResult>("/reviews", createBody, trap);
       setResult(res);
       router.refresh();
     } catch (err) {
@@ -330,7 +361,7 @@ export function RateButton({
   if (!matchingEntry) {
     if (isAuthenticated && loadFailed) {
       return (
-        <p className="text-sm text-red-600 dark:text-red-400">
+        <p className="text-sm text-red-600 dark:text-red-300">
           Couldn&apos;t check whether you can rate this workplace — try refreshing the page.
         </p>
       );
@@ -397,7 +428,7 @@ export function RateButton({
                     </button>
                   ))}
                 </div>
-                {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+                {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
@@ -443,7 +474,7 @@ export function RateButton({
                 {onFinalStep && locationPrompt && (
                   <div className="border-t border-border pt-3">
                     <p className="mb-1 text-sm font-medium text-foreground">
-                      {locationPrompt} <span className="text-red-600 dark:text-red-400">*</span>
+                      {locationPrompt} <span className="text-red-600 dark:text-red-300">*</span>
                     </p>
                     <p className="mb-2 text-xs text-muted-foreground">
                       {companyName} covers more than one place — this only tags your own review and never changes{" "}
@@ -462,6 +493,21 @@ export function RateButton({
 
                 {onFinalStep && (
                   <div className="border-t border-border pt-3">
+                    {/* Spam trap: invisible to people and screen readers, so only
+                        bots that fill every field ever put something here. */}
+                    <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+                      <label>
+                        Website
+                        <input
+                          type="text"
+                          name="website"
+                          tabIndex={-1}
+                          autoComplete="off"
+                          value={trapValue}
+                          onChange={(e) => setTrapValue(e.target.value)}
+                        />
+                      </label>
+                    </div>
                     <textarea
                       value={generalThoughts}
                       onChange={(e) => setGeneralThoughts(e.target.value)}
@@ -492,7 +538,7 @@ export function RateButton({
                   </div>
                 )}
 
-                {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+                {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
                 <div className="flex gap-2">
                   {step > 0 && (

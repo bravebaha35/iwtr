@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { AccountThrottlerGuard } from "./common/guards/account-throttler.guard";
 import { PrismaModule } from "./prisma/prisma.module";
 import { HealthModule } from "./modules/health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -58,6 +59,6 @@ import { MessagingModule } from "./modules/messaging/messaging.module";
     SkillsModule,
     MessagingModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: AccountThrottlerGuard }],
 })
 export class AppModule {}

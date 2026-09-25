@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Notification as ApiNotification } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
+import { markNotificationIdsRead, readNotificationIds } from "@/lib/notificationReadState";
 
 // ---------------------------------------------------------------------------
 // Notification model
@@ -20,11 +21,10 @@ import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
 // employer kinds) have no backend event source yet. This file fetches the
 // real kinds and merges in a small labeled sample set (SAMPLE_NOTIFICATIONS
 // below) so every kind's copy/icon/category/link logic is complete and
-// visible today. Swapping to a fully real feed later is a one-line change —
-// delete the SAMPLE_NOTIFICATIONS merge once the backend grows the other
-// event sources; everything else (describe/href/icon/category, unread
-// state, the employer filter) is already correct for whatever
-// NotificationsService.list eventually returns.
+// visible today. (Update 2026-09-25: the sample set was removed. It showed
+// real members made-up alerts such as "Your review is removed", and it was
+// also what appeared whenever loading failed. Only real notifications are
+// shown now; the other kinds render correctly once the API emits them.)
 // ---------------------------------------------------------------------------
 
 type NotificationCategory = "SOCIAL" | "SYSTEM" | "EMPLOYER";
@@ -190,76 +190,13 @@ function timeAgo(iso: string): string {
   return `${diffWeek} week${diffWeek === 1 ? "" : "s"} ago`;
 }
 
-function agoIso(minutesAgo: number): string {
-  return new Date(Date.now() - minutesAgo * 60_000).toISOString();
-}
 
-// Sample data standing in for the 8 kinds NotificationsService.list doesn't
-// emit yet (see the file-header comment). "i-worked-there" is a real seeded
-// company slug so these links resolve to a real page rather than a 404.
-const SAMPLE_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: "sample-same-company",
-    kind: "SAME_COMPANY_REVIEWED",
-    createdAt: agoIso(40),
-    unread: true,
-    companySlug: "i-worked-there",
-  },
-  {
-    id: "sample-review-published",
-    kind: "REVIEW_PUBLISHED",
-    createdAt: agoIso(70),
-    unread: true,
-    companySlug: "i-worked-there",
-  },
-  {
-    id: "sample-review-not-published",
-    kind: "REVIEW_NOT_PUBLISHED",
-    createdAt: agoIso(130),
-    unread: true,
-    companySlug: "i-worked-there",
-  },
-  {
-    id: "sample-verify-account",
-    kind: "VERIFY_ACCOUNT",
-    createdAt: agoIso(5),
-    unread: true,
-  },
-  {
-    id: "sample-review-removed",
-    kind: "REVIEW_REMOVED",
-    createdAt: agoIso(1600),
-    unread: false,
-    companySlug: "i-worked-there",
-  },
-  {
-    id: "sample-iwt-social",
-    kind: "IWT_SOCIAL_UPDATE",
-    createdAt: agoIso(2900),
-    unread: false,
-  },
-  {
-    id: "sample-company-reviewed",
-    kind: "COMPANY_REVIEWED",
-    createdAt: agoIso(200),
-    unread: true,
-    companySlug: "i-worked-there",
-  },
-  {
-    id: "sample-job-posting-needs-info",
-    kind: "JOB_POSTING_NEEDS_INFO",
-    createdAt: agoIso(300),
-    unread: true,
-    companyName: "your company",
-  },
-];
-
-function toAppNotification(n: ApiNotification): AppNotification {
+function toAppNotification(n: ApiNotification, readIds: Set<string>): AppNotification {
   return {
     id: n.id,
     kind: n.type,
     createdAt: n.createdAt,
-    unread: true,
+    unread: !readIds.has(n.id),
     companyName: n.companyName,
     companySlug: n.companySlug,
     href: n.href,
@@ -322,7 +259,7 @@ const CATEGORY_ICON: Record<NotificationCategory, (props: { className?: string }
 const CATEGORY_RING_CLASS: Record<NotificationCategory, string> = {
   SOCIAL: "border-rose-500 text-rose-600 dark:text-rose-400",
   SYSTEM: "border-river-500 text-river-600 dark:text-river-300",
-  EMPLOYER: "border-amber-500 text-amber-600 dark:text-amber-400",
+  EMPLOYER: "border-amber-500 text-amber-700 dark:text-amber-400",
 };
 
 // One row. The whole block is the link (per the brief) — icon, copy, and
@@ -381,51 +318,42 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
 }
 
 /**
- * Header bell — fetches GET /me/notifications on first open (not eagerly on
- * mount, since most page loads never open it), merges in SAMPLE_NOTIFICATIONS
- * for the kinds the backend doesn't emit yet (see file-header comment), and
- * caches the merged result for the rest of this mount. Unread state is local
- * only — every notification starts unread each time this mounts, since
- * neither the real feed nor the sample data carries a persisted read flag;
- * "Mark all as read" clears it for the current session.
+ * Header bell. Loads GET /me/notifications as soon as it mounts (so the
+ * unread dot shows without opening it), again every time it's opened, and
+ * whenever something on the page announces a new one (lib/notification-
+ * events.ts). Read state is remembered per browser (lib/notificationReadState)
+ * and wiped on sign-out. The bell only renders for a signed-in, active
+ * account (GlobalHeader), so nothing is ever loaded or kept for a visitor.
  */
 export function NotificationsMenu() {
   const { role } = useAuth();
   const isEmployer = role === "COMPANY_OWNER";
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open || notifications !== null) return;
+  const load = useCallback(() => {
     apiGet<ApiNotification[]>("/me/notifications")
       .then((real) => {
-        setNotifications([...real.map(toAppNotification), ...SAMPLE_NOTIFICATIONS].sort(byNewestFirst));
+        const readIds = readNotificationIds();
+        setLoadFailed(false);
+        setNotifications(real.map((n) => toAppNotification(n, readIds)).sort(byNewestFirst));
       })
       .catch(() => {
-        setNotifications([...SAMPLE_NOTIFICATIONS].sort(byNewestFirst));
+        setLoadFailed(true);
       });
-  }, [open, notifications]);
-
-  // Something on the page just produced a new notification (see
-  // lib/notification-events.ts): refetch now, even while closed, so the
-  // unread badge appears — keeping whatever was already marked read.
-  useEffect(() => {
-    function refresh() {
-      apiGet<ApiNotification[]>("/me/notifications")
-        .then((real) => {
-          setNotifications((prev) => {
-            const readIds = new Set((prev ?? []).filter((n) => !n.unread).map((n) => n.id));
-            return [...real.map(toAppNotification), ...SAMPLE_NOTIFICATIONS]
-              .map((n) => (readIds.has(n.id) ? { ...n, unread: false } : n))
-              .sort(byNewestFirst);
-          });
-        })
-        .catch(() => {});
-    }
-    window.addEventListener(NOTIFICATIONS_STALE_EVENT, refresh);
-    return () => window.removeEventListener(NOTIFICATIONS_STALE_EVENT, refresh);
   }, []);
+
+  useEffect(() => {
+    load();
+    window.addEventListener(NOTIFICATIONS_STALE_EVENT, load);
+    return () => window.removeEventListener(NOTIFICATIONS_STALE_EVENT, load);
+  }, [load]);
+
+  useEffect(() => {
+    if (open) load();
+  }, [open, load]);
 
   useEffect(() => {
     if (!open) return;
@@ -452,10 +380,12 @@ export function NotificationsMenu() {
   const unreadCount = visible?.filter((n) => n.unread).length ?? 0;
 
   function markAllRead() {
+    markNotificationIdsRead((notifications ?? []).map((n) => n.id));
     setNotifications((prev) => prev?.map((n) => ({ ...n, unread: false })) ?? prev);
   }
 
   function markOneRead(id: string) {
+    markNotificationIdsRead([id]);
     setNotifications((prev) => prev?.map((n) => (n.id === id ? { ...n, unread: false } : n)) ?? prev);
     setOpen(false);
   }
@@ -473,12 +403,13 @@ export function NotificationsMenu() {
           <BellIcon className="h-5 w-5" />
           {unreadCount > 0 && (
             <span
+              data-unread-badge
               className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-surface"
               aria-hidden="true"
             />
           )}
         </span>
-        <span className="text-[11px] font-medium leading-none">Notifications</span>
+        <span className="sr-only text-[11px] font-medium leading-none sm:not-sr-only">Notifications</span>
       </button>
 
       {open && (
@@ -495,7 +426,11 @@ export function NotificationsMenu() {
             </button>
           </div>
 
-          {visible === null ? (
+          {visible === null && loadFailed ? (
+            <p className="p-4 text-center text-sm text-muted-foreground">
+              Couldn&apos;t load your notifications. Please try again in a moment.
+            </p>
+          ) : visible === null ? (
             <p className="p-4 text-center text-sm text-muted-foreground">Loading…</p>
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-2 p-6 text-center">

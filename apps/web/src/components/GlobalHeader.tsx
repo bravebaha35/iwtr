@@ -32,11 +32,12 @@ function NavIconLink({
   children: ReactNode;
 }) {
   const className =
-    "flex flex-col items-center gap-1 rounded-lg px-2 py-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground";
+    "flex flex-col items-center gap-1 rounded-lg px-1.5 py-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground sm:px-2";
   const inner = (
     <>
       <span className="flex h-8 w-8 items-center justify-center">{children}</span>
-      <span className="text-[11px] font-medium leading-none">{label}</span>
+      {/* Icons only on phones (the label stays for screen readers). */}
+      <span className="sr-only text-[11px] font-medium leading-none sm:not-sr-only">{label}</span>
     </>
   );
   if (disabled) {
@@ -100,13 +101,15 @@ export function GlobalHeader() {
       : null;
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-surface py-4 pr-6">
+    <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-surface py-3 pr-3 sm:gap-4 sm:py-4 sm:pr-6">
       <div
-        className={`flex shrink-0 items-center gap-3 ${pathname === "/" ? "pl-6" : "pl-20"}`}
+        className={`flex shrink-0 items-center gap-3 ${pathname === "/" ? "pl-3 sm:pl-6" : "pl-14 sm:pl-20"}`}
       >
         <Link href="/" className="flex items-center gap-2">
           <Logo size="sm" />
-          <span className="text-lg font-bold text-foreground">I Worked There</span>
+          {/* Logo only on the narrowest phones, so the header never forces the
+              page wider than the screen. */}
+          <span className="hidden text-lg font-bold text-foreground min-[420px]:inline">I Worked There</span>
         </Link>
         <span className="hidden text-sm font-light italic text-muted-foreground sm:inline">
           No names. No HR. Just what it&apos;s really like to work there.
@@ -120,7 +123,7 @@ export function GlobalHeader() {
           and the avatar/logout (or login) controls stay outside that
           scrollable region and shrink-0, so they're always visible rather
           than something a visitor has to know to scroll sideways to find. */}
-      <div className="ml-auto flex min-w-0 items-center gap-4">
+      <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-4">
         {showAccountControls && role === "ADMIN" && (
           <nav className="flex min-w-0 shrink items-center gap-4 overflow-x-auto no-scrollbar text-sm text-muted-foreground">
             <Link href="/admin/dashboard" className="hover:text-brand-600 dark:hover:text-brand-400">
@@ -141,7 +144,7 @@ export function GlobalHeader() {
           </nav>
         )}
 
-        <div className="flex min-w-0 shrink items-center gap-1 overflow-x-auto thin-scrollbar">
+        <div className="flex min-w-0 shrink items-center gap-1 overflow-x-auto no-scrollbar">
           <NavIconLink href="/" label="Home" title="Home">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -191,17 +194,19 @@ export function GlobalHeader() {
         </div>
 
         {showAccountControls && onboardingStatus && (
-          <div className="flex min-w-0 items-center gap-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
             <Link
               href="/me"
+              title="My profile"
               className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted"
             >
+              <span className="sr-only md:hidden">My profile</span>
               <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
               {/* truncate (not shrink-0 like the icon/button siblings) - a
                   long employer display name is the one piece of this row
                   with no fixed size of its own, so it should give up width
                   first rather than pushing the page wider. */}
-              <span className="max-w-[9rem] truncate text-sm font-medium text-foreground">
+              <span className="hidden max-w-[9rem] truncate text-sm font-medium text-foreground md:inline">
                 {employerDisplayName ||
                   onboardingStatus.displayName ||
                   onboardingStatus.reviewUsername ||
@@ -233,7 +238,8 @@ export function GlobalHeader() {
             onClick={() => openAuthModal()}
             className="shrink-0 rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
           >
-            Login/Register
+            <span className="sm:hidden">Join</span>
+            <span className="hidden sm:inline">Login/Register</span>
           </button>
         )}
       </div>

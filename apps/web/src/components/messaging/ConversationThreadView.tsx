@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import type { ConversationThread } from "@iwtr/shared-types";
+import { sendMessageInputSchema } from "@iwtr/shared-types";
 import { ApiError, apiPost } from "@/lib/api-client";
+import { formProblem } from "@/lib/validateForm";
 
 interface Props {
   thread: ConversationThread;
@@ -40,6 +42,11 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
 
   async function send() {
     if (!draft.trim()) return;
+    const problem = formProblem(sendMessageInputSchema, { content: draft });
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setError(null);
     setSending(true);
     try {

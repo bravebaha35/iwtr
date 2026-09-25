@@ -48,21 +48,27 @@ export async function apiGet<T>(path: string): Promise<T> {
   return handle<T>(res);
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+// Extra request headers for one call (e.g. the review form's spam-trap
+// headers, see lib/formTrap.ts).
+export interface ApiRequestOptions {
+  headers?: Record<string, string>;
+}
+
+export async function apiPost<T>(path: string, body: unknown, options?: ApiRequestOptions): Promise<T> {
   const res = await fetch(`${PROXY_BASE_URL}${path}`, {
     method: "POST",
     cache: "no-store",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...options?.headers },
     body: JSON.stringify(body),
   });
   return handle<T>(res);
 }
 
-export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+export async function apiPatch<T>(path: string, body: unknown, options?: ApiRequestOptions): Promise<T> {
   const res = await fetch(`${PROXY_BASE_URL}${path}`, {
     method: "PATCH",
     cache: "no-store",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...options?.headers },
     body: JSON.stringify(body),
   });
   return handle<T>(res);

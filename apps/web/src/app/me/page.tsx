@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -77,7 +77,17 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
+// useSearchParams (the ?tab= / ?c= deep links) needs a Suspense boundary so
+// the page can still be prerendered; the inner component does the work.
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={null}>
+      <ProfilePageContent />
+    </Suspense>
+  );
+}
+
+function ProfilePageContent() {
   const { isAuthenticated, isLoading: authLoading, refreshOnboardingStatus, role } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   // Only a claimed+APPROVED owner has this at all (GET 403s otherwise, see
@@ -625,7 +635,7 @@ export default function ProfilePage() {
       {profile === null ? (
         error ? (
           <div className="rounded-xl border border-border bg-surface p-5">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
             <Link href="/" className="mt-2 inline-block text-sm text-brand-600 hover:underline dark:text-brand-400">
               &larr; Back home
             </Link>
@@ -637,7 +647,7 @@ export default function ProfilePage() {
         <SidebarContentRow>
           <SettingsNav label="Profile sections" items={TABS} active={activeTab} onChange={setActiveTab} />
 
-          <main className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1">
         <div className="flex flex-col gap-6">
           {activeTab === "customize" && (
           <>
@@ -697,7 +707,7 @@ export default function ProfilePage() {
               {avatarSaving ? "Saving..." : "Save changes"}
             </button>
             {avatarStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{avatarStatus}</p>}
-            {avatarError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{avatarError}</p>}
+            {avatarError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{avatarError}</p>}
           </div>
 
           {role === "COMPANY_OWNER" && employerProfile && (
@@ -758,7 +768,7 @@ export default function ProfilePage() {
                 {editingLocation ? (locationSaving ? "Saving..." : "Save location") : "Change location"}
               </button>
               {locationStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{locationStatus}</p>}
-              {locationError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{locationError}</p>}
+              {locationError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{locationError}</p>}
             </div>
 
             <div className="mt-4 border-t border-border pt-4">
@@ -799,7 +809,7 @@ export default function ProfilePage() {
                       Cancel
                     </button>
                   </div>
-                  {birthDateError && <p className="text-sm text-red-600 dark:text-red-400">{birthDateError}</p>}
+                  {birthDateError && <p className="text-sm text-red-600 dark:text-red-300">{birthDateError}</p>}
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
@@ -863,7 +873,7 @@ export default function ProfilePage() {
                 rows={6}
                 value={customExperienceDraft}
                 onChange={(e) => setCustomExperienceDraft(e.target.value)}
-                className="mt-1 w-full rounded-none border border-border bg-surface px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               />
             </div>
 
@@ -876,7 +886,7 @@ export default function ProfilePage() {
               {personalSaving ? "Saving..." : "Save"}
             </button>
             {personalStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{personalStatus}</p>}
-            {personalError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{personalError}</p>}
+            {personalError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{personalError}</p>}
           </div>
           </>
           )}
@@ -947,7 +957,7 @@ export default function ProfilePage() {
                       Cancel
                     </button>
                   </div>
-                  {phoneError && <p className="text-sm text-red-600 dark:text-red-400">{phoneError}</p>}
+                  {phoneError && <p className="text-sm text-red-600 dark:text-red-300">{phoneError}</p>}
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
@@ -1063,7 +1073,7 @@ export default function ProfilePage() {
                         <button type="button" onClick={() => startEditEducation(e)} className="text-brand-600 hover:underline dark:text-brand-400">
                           Edit
                         </button>
-                        <button type="button" onClick={() => deleteEducation(e.id)} className="text-red-600 hover:underline dark:text-red-400">
+                        <button type="button" onClick={() => deleteEducation(e.id)} className="text-red-600 hover:underline dark:text-red-300">
                           Remove
                         </button>
                       </span>
@@ -1072,7 +1082,7 @@ export default function ProfilePage() {
                 )}
               </ul>
             )}
-            {eduError && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{eduError}</p>}
+            {eduError && <p className="mb-2 text-sm text-red-600 dark:text-red-300">{eduError}</p>}
             {showAddEdu ? (
               <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
                 <div className="grid grid-cols-8 gap-2">
@@ -1249,7 +1259,7 @@ export default function ProfilePage() {
                           <button type="button" onClick={() => startEditEmployment(e)} className="text-brand-600 hover:underline dark:text-brand-400">
                             Edit
                           </button>
-                          <button type="button" onClick={() => deleteEmployment(e.id)} className="text-red-600 hover:underline dark:text-red-400">
+                          <button type="button" onClick={() => deleteEmployment(e.id)} className="text-red-600 hover:underline dark:text-red-300">
                             Remove
                           </button>
                         </>
@@ -1259,7 +1269,7 @@ export default function ProfilePage() {
                 ),
               )}
             </ul>
-            {jobError && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{jobError}</p>}
+            {jobError && <p className="mb-2 text-sm text-red-600 dark:text-red-300">{jobError}</p>}
 
             {showAddJob ? (
               <div className="flex flex-col gap-3 rounded-lg border border-border p-3">
@@ -1350,7 +1360,7 @@ export default function ProfilePage() {
                     maxLength={80}
                     value={displayNameDraft}
                     onChange={(e) => setDisplayNameDraft(e.target.value)}
-                    className="mt-1 w-full rounded-none border border-border bg-surface px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                   />
                 </div>
                 <label className="flex items-center gap-2 text-sm">
@@ -1388,12 +1398,12 @@ export default function ProfilePage() {
                   type="button"
                   onClick={saveCv}
                   disabled={cvSaving}
-                  className="self-start rounded-none border border-border bg-sidebar px-4 py-2 text-sm font-bold text-sidebar-foreground transition disabled:opacity-50"
+                  className="self-start rounded-full border border-border bg-sidebar px-4 py-2 text-sm font-bold text-sidebar-foreground transition disabled:opacity-50"
                 >
                   {cvSaving ? "Saving..." : "Save CV"}
                 </button>
                 {cvStatus && <p className="text-sm text-green-700 dark:text-green-400">{cvStatus}</p>}
-                {cvError && <p className="text-sm text-red-600 dark:text-red-400">{cvError}</p>}
+                {cvError && <p className="text-sm text-red-600 dark:text-red-300">{cvError}</p>}
               </div>
               <div className="flex-1">
                 <div className="mb-2 flex items-center justify-between">
@@ -1456,7 +1466,7 @@ export default function ProfilePage() {
 
           {activeTab === "account" && <AccountOptionsPanel email={profile.email} />}
         </div>
-          </main>
+          </div>
         </SidebarContentRow>
       )}
     </div>

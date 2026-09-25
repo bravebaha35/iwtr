@@ -44,7 +44,7 @@ export function RemoveJobPostingModal({
       >
         <h3 className="mb-1 text-sm font-semibold text-foreground">Are you sure you want to remove this post ?</h3>
         <p className="mb-4 text-xs text-muted-foreground">{jobTitle}</p>
-        {error && <p className="mb-3 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mb-3 text-xs text-red-600 dark:text-red-300">{error}</p>}
         <div className="flex flex-col gap-2">
           <button
             type="button"

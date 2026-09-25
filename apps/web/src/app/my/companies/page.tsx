@@ -21,6 +21,8 @@ import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
 import { ConversationInbox } from "@/components/messaging/ConversationInbox";
+import { contactAdminInputSchema } from "@iwtr/shared-types";
+import { formProblem } from "@/lib/validateForm";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
 import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
@@ -178,7 +180,7 @@ function UpgradeCheckout({
               className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
             />
           </div>
-          {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
           <div className="mt-2 flex gap-2">
             <button
               onClick={startCheckout}
@@ -488,6 +490,11 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
   async function sendContactAdminMessage() {
     if (!contactAdminMessage.trim()) return;
+    const problem = formProblem(contactAdminInputSchema, { message: contactAdminMessage.trim() });
+    if (problem) {
+      setContactAdminError(problem);
+      return;
+    }
     setSendingContactAdmin(true);
     setContactAdminError(null);
     setContactAdminStatus(null);
@@ -534,7 +541,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         </div>
       </div>
 
-      {detailError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{detailError}</p>}
+      {detailError && <p className="mb-3 text-sm text-red-600 dark:text-red-300">{detailError}</p>}
 
       {claim.hidden && (
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
@@ -702,7 +709,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           Send message
         </button>
         {contactAdminStatus && <p className="mt-3 text-sm text-green-700 dark:text-green-400">{contactAdminStatus}</p>}
-        {contactAdminError && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{contactAdminError}</p>}
+        {contactAdminError && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{contactAdminError}</p>}
       </div>
     </div>
   );
@@ -748,7 +755,7 @@ export default function MyCompaniesPage() {
           company&rdquo; on its page to add one here.
         </p>
 
-        {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
         {claims === null && <p className="text-sm text-muted-foreground">Loading...</p>}
         {claims !== null && claims.length === 0 && (
           <p className="text-sm text-muted-foreground">You haven&apos;t claimed any companies yet.</p>

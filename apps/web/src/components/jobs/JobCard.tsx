@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { isOwnStaticAsset } from "@/lib/imageSource";
 import {
   type CompanyListItem,
   type CompanyVibeFlags,
@@ -50,7 +52,7 @@ function CopyIconButton({ text }: { text: string }) {
       className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
     >
       {copied ? (
-        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-green-700 dark:text-green-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       ) : (
@@ -262,11 +264,13 @@ export function JobCard({
           clear the protruding logo. No ring around the logo: a transparent
           brand image should read as transparent, not sit in a coloured box. */}
       <div className="relative">
-        <div className="aspect-[4/1] w-full overflow-hidden rounded-t-xl">
-          {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed set of local /public default banners, or an owner-submitted URL */}
-          <img
+        <div className="relative aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+          <Image
             src={bannerUrl}
             alt=""
+            fill
+            sizes="(min-width: 1280px) 320px, (min-width: 640px) 50vw, 100vw"
+            unoptimized={!isOwnStaticAsset(bannerUrl)}
             className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
           />
         </div>
@@ -285,7 +289,7 @@ export function JobCard({
               name-only. */}
           <div className="flex items-start justify-between gap-2">
             <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
+              <span className="line-clamp-2 min-w-0 font-display text-lg leading-snug text-foreground">
                 {company.name}
                 <CompanyVerificationTick
                   badgeTier={company.badgeTier}

@@ -146,7 +146,7 @@ export function SurveyHighlights({ companySlug }: { companySlug: string }) {
 
   if (loadFailed) {
     return (
-      <p className="text-sm text-red-600 dark:text-red-400">
+      <p className="text-sm text-red-600 dark:text-red-300">
         Couldn&apos;t load the survey highlights right now.
       </p>
     );
@@ -208,7 +208,7 @@ export function SurveyHighlights({ companySlug }: { companySlug: string }) {
               <QuestionRow q={mostAgreed} />
             </div>
             <div className="border-t border-border pt-4">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-red-700 dark:text-red-400">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-red-700 dark:text-red-300">
                 Most disputed
               </p>
               <QuestionRow q={mostDisputed} />

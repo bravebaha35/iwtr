@@ -105,7 +105,7 @@ export function CityDistrictPicker({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h3>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -186,14 +186,14 @@ export function CityDistrictPicker({
                   type="button"
                   onClick={() => toggleExpanded(p.name)}
                   aria-label={isExpanded ? `Collapse ${p.name}` : `Expand ${p.name}`}
-                  className="w-4 shrink-0 text-[10px] text-muted-foreground"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] text-muted-foreground hover:bg-surface-muted"
                 >
                   {isExpanded ? "▾" : "▸"}
                 </button>
                 <button
                   type="button"
                   onClick={handleCityClick}
-                  className={`flex-1 truncate rounded px-1.5 py-0.5 text-left text-xs font-medium transition ${
+                  className={`min-h-6 flex-1 truncate rounded px-1.5 py-1 text-left text-xs font-medium transition ${
                     cityActive ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
                   }`}
                 >
@@ -201,7 +201,7 @@ export function CityDistrictPicker({
                 </button>
               </div>
               {isExpanded && (
-                <div className="ml-5 mt-0.5 flex flex-wrap gap-1">
+                <div className="ml-7 mt-1 flex flex-wrap gap-1.5">
                   {matchingDistricts.map((d) => {
                     const key = districtKey(p.name, d);
                     // Picking a city shows every company in it (still true —
@@ -226,7 +226,7 @@ export function CityDistrictPicker({
                         key={key}
                         type="button"
                         onClick={handleClick}
-                        className={`rounded-full px-2 py-0.5 text-[11px] transition ${
+                        className={`min-h-6 rounded-full px-2.5 py-1 text-[11px] transition ${
                           active
                             ? "bg-brand-600 text-white"
                             : "border border-border text-muted-foreground hover:bg-surface-muted"

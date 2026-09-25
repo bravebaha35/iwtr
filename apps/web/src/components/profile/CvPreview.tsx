@@ -192,7 +192,7 @@ export function CvPreview({
           {profile.sector && <span className="mr-6 mb-1">{profile.sector.label}</span>}
         </div>
         {profile.isPublicEmployee && (
-          <span className="mt-2 inline-block rounded-none border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+          <span className="mt-2 inline-block rounded-full border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
             Public Sector Employee
           </span>
         )}

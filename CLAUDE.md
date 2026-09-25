@@ -109,6 +109,12 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - `admin-queue/` — approve/reject/request-more-info actions on reviews the moderation pipeline routed to
   `PENDING_ADMIN_REVIEW`. Approving here runs the same publish side effects as an auto-publish (aggregate
   recompute, PII purge check) — see `AdminQueueService.approve`.
+- `messaging/` — private reviewer ↔ company conversations (`ReviewConversation`/`ReviewConversationMessage`).
+  Only a review's author can open one, only after a `CompanyReply`; the company can never start one. The
+  caller's side is resolved server-side on every call (outsiders get 404); the company only ever sees
+  `publicReviewerName` (the review's public display name), never a user id. Timestamps are day-precision;
+  ordering/unread use the message `seq`. Anything that moves or deletes reviews/companies must carry
+  `ReviewConversation.companyId` along (company merge does).
 
 ### Data model (`apps/api/prisma/schema.prisma`)
 
@@ -148,8 +154,16 @@ raw JWT) and exposes `register`/`login`/`logout`/`refreshOnboardingStatus`. `src
 to reach `apps/api`; `apiGetPublic` is a direct-to-`apps/api` escape hatch for the one unauthenticated
 Server Component fetch (`app/companies/[slug]/page.tsx`), which has no browser cookies to proxy anyway.
 
-The homepage (`src/app/page.tsx`) is the single router for top-level app state: not logged in → `AuthModal`;
-logged in but `status !== "ACTIVE"` → `OnboardingFlow`; otherwise the main authenticated shell.
+The homepage (`src/app/page.tsx` → `components/HomeClient.tsx`) is the single router for top-level app state:
+not logged in → register prompt; logged in but `status !== "ACTIVE"` → `OnboardingFlow`; otherwise the main
+authenticated shell. The server page passes whether a session cookie exists, so a logged-out visitor's prompt is
+server-rendered.
+
+**Privacy plumbing in `src/proxy.ts`** (runs on every request): HTTP→HTTPS redirect in production; review and
+conversation traffic has identifying headers (user-agent, IP forwarding, referer, …) stripped before any handler
+sees it; the review form's spam trap (`lib/formTrap.ts`: hidden field + minimum fill time) is rejected there, so a
+bot submission never reaches `apps/api` or any log. Analytics may only load via `components/privacy/AnalyticsLoader`
+— consent-gated, public pages only, and switched off while the review form is open (`lib/analyticsPolicy.ts`).
 
 ## Environment / local setup gotchas
 

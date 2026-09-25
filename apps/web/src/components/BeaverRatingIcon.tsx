@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { RATING_TICKS, activeMoodIndex } from "@/lib/beaverRating";
 
 const SIZES = { sm: "h-10 w-10", md: "h-16 w-16" } as const;
@@ -19,7 +20,13 @@ export function BeaverRatingIcon({
   }
   const tick = RATING_TICKS[activeMoodIndex(score)];
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
-    <img src={tick.src} alt={tick.alt} className={`${SIZES[size]} shrink-0 object-contain ${className}`} />
+    <Image
+      src={tick.src}
+      alt={tick.alt}
+      width={128}
+      height={128}
+      sizes="64px"
+      className={`${SIZES[size]} shrink-0 object-contain ${className}`}
+    />
   );
 }

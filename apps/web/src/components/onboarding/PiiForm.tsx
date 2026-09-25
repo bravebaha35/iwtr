@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { piiOnboardingInputSchema } from "@iwtr/shared-types";
 import { apiPost, ApiError } from "@/lib/api-client";
+import { formProblem } from "@/lib/validateForm";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
 
@@ -19,17 +21,23 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
       setError("Please fill in your birth date, country, and city.");
       return;
     }
+    const body = {
+      firstName,
+      lastName,
+      birthDate,
+      country: location.country,
+      city: location.city,
+      district: location.district ?? undefined,
+    };
+    const problem = formProblem(piiOnboardingInputSchema, body, { birthDate: "birth date" });
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
-      await apiPost("/onboarding/pii", {
-        firstName,
-        lastName,
-        birthDate,
-        country: location.country,
-        city: location.city,
-        district: location.district ?? undefined,
-      });
+      await apiPost("/onboarding/pii", body);
       onSubmitted();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong.");
@@ -86,7 +94,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
           </div>
         </div>
 
-        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
         <button
           type="submit"

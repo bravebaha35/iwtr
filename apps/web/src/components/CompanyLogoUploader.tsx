@@ -157,7 +157,7 @@ export function CompanyLogoUploader({
         </div>
       )}
 
-      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-300">{error}</p>}
 
       <p className="text-[11px] text-muted-foreground">
         PNG, under {LOGO_MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB. You&apos;ll be able to crop it to a square after

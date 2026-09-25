@@ -344,7 +344,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                 <button
                   type="button"
                   onClick={() => removeJob(i)}
-                  className="self-start text-xs text-red-600 hover:underline dark:text-red-400"
+                  className="self-start text-xs text-red-600 hover:underline dark:text-red-300"
                 >
                   Remove
                 </button>
@@ -353,7 +353,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
           ))}
         </div>
 
-        {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mt-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
         <button
           type="submit"

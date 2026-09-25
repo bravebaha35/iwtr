@@ -13,14 +13,20 @@ export function AnonGate({
   title,
   description,
   children,
+  assumeAnonymous = false,
 }: {
   title: string;
   description: string;
   children: ReactNode;
+  // Set by a server component that saw no session cookie at all: the visitor
+  // is certainly logged out, so the register prompt is rendered right away
+  // (server-side, part of the first paint) instead of after the browser's
+  // own session check.
+  assumeAnonymous?: boolean;
 }) {
   const { isLoading, isAuthenticated, openAuthModal } = useAuth();
 
-  if (isLoading) {
+  if (isLoading && !assumeAnonymous) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading...</p>

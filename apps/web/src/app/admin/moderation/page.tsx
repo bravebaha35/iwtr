@@ -63,7 +63,7 @@ export default function ModerationQueuePage() {
         Reviews the AI flagged as low-confidence or worth a second look before publishing.
       </p>
 
-      {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       {items === null && !error && <p className="text-sm text-muted-foreground">Loading...</p>}
       {items !== null && items.length === 0 && (

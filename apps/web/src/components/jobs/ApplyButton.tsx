@@ -14,6 +14,7 @@ import {
   getHasSeenApplyCvPrompt,
   markSeenApplyCvPrompt,
 } from "@/lib/cvDisclosurePrefs";
+import { loadWatermarkDataUrl, stampCvWatermark } from "@/lib/cvPdfWatermark";
 
 // Renders the actual CvPreview off-screen (never visible to the user as a
 // second copy on the page) purely so html2pdf.js has a real DOM node with
@@ -80,7 +81,12 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
         // off at one page instead of spanning multiple.
         pagebreak: { mode: ["css", "legacy"] },
       };
-      const blob: Blob = await html2pdf().set(pdfOptions).from(hiddenPreviewRef.current).outputPdf("blob");
+      // Beaver logo stamped onto the bottom-left corner of every finished
+      // page at 50% opacity (see lib/cvPdfWatermark.ts).
+      const watermark = await loadWatermarkDataUrl();
+      const pdf = await html2pdf().set(pdfOptions).from(hiddenPreviewRef.current).toPdf().get("pdf");
+      stampCvWatermark(pdf, watermark);
+      const blob: Blob = pdf.output("blob");
 
       setState("sending");
       const formData = new FormData();
@@ -149,7 +155,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.97 }}
         transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
-        className="flex h-7 items-center gap-1 rounded-none border border-border bg-sidebar px-2 text-xs font-bold text-sidebar-foreground transition disabled:opacity-50"
+        className="flex h-7 items-center gap-1 rounded-full border border-border bg-sidebar px-2 text-xs font-bold text-sidebar-foreground transition disabled:opacity-50"
       >
         {state === "done"
           ? "Applied"

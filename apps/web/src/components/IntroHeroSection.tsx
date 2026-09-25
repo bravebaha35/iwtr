@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { AdSlot } from "@/components/AdSlot";
@@ -137,9 +138,11 @@ export function IntroHeroSection() {
                 aria-label="Already working or worked somewhere? Share your experience."
                 className="h-40 w-40 shrink-0 md:h-48 md:w-48"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element -- public/ asset referenced by path, not a static import */}
-                <img
+                <Image
                   src={contributorHovered ? "/bulankunduz.png" : "/dusunenkunduz.png"}
+                  width={258}
+                  height={384}
+                  sizes="(min-width: 768px) 192px, 160px"
                   alt="Already working or worked somewhere? Share your experience."
                   className="h-full w-full object-contain"
                 />
@@ -148,9 +151,12 @@ export function IntroHeroSection() {
 
             {/* Visual graphic */}
             <div className="flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element -- public/ asset referenced by path, not a static import */}
-              <img
+              <Image
                 src="/IWT%20Intro%20Real.png"
+                width={1264}
+                height={848}
+                sizes="(min-width: 768px) 512px, 100vw"
+                priority
                 alt="I Worked There"
                 className="h-auto w-full max-w-lg object-contain"
               />

@@ -118,7 +118,7 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
   if (loadFailed) {
     return (
       <div className="h-auto overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans lg:h-[672px]">
-        <p className="text-sm text-red-600 dark:text-red-400">Couldn&apos;t load workplace flags right now.</p>
+        <p className="text-sm text-red-600 dark:text-red-300">Couldn&apos;t load workplace flags right now.</p>
       </div>
     );
   }

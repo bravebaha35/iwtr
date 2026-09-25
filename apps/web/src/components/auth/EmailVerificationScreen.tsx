@@ -107,7 +107,7 @@ export function EmailVerificationScreen({
 
       <OtpInput value={code} onChange={handleCodeChange} autoFocus />
 
-      {error && <p className="mt-3 text-center text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-3 text-center text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       <button
         type="button"

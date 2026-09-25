@@ -141,7 +141,7 @@ export function SocialComposer({
         </div>
       )}
 
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       <div className="mt-3 flex items-center gap-2">
         <button

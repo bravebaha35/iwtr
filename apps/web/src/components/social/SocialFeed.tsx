@@ -98,7 +98,7 @@ export function SocialFeed({
 
   return (
     <div className="flex flex-col gap-4">
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
       {!loading && !error && posts.length === 0 && (
         <p className="text-sm text-muted-foreground">
           {scope.kind === "saved" ? "You haven't saved any posts yet." : "No posts yet."}

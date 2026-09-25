@@ -30,7 +30,7 @@ function FollowingList() {
 
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h3>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h2>
       <div className="flex h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-1.5">
         {loading && <p className="p-1.5 text-xs text-muted-foreground">Loading...</p>}
         {!loading && companies.length === 0 && (
@@ -64,7 +64,7 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
 
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort</h3>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort</h2>
       <div className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface-muted p-1">
         <button
           type="button"
@@ -192,7 +192,7 @@ function SeeThemOn({ links }: { links: CompanySocialLinks }) {
 
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">See Them On</h3>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">See Them On</h2>
       {/* Tight, asymmetrical wrap - not a fixed grid - so a company with 2
           links doesn't leave a row of empty cells and one with 7 wraps
           naturally. */}
@@ -303,7 +303,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
       )}
 
       <div>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Select</h3>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Select</h2>
         {/* The exact same icon-pill row as the rating homepage/jobs page
             (CategoryGroupFilter) - all 7 buckets, same icons/tooltips. */}
         <CategoryGroupFilter value={categoryGroup} onChange={onCategoryGroupChange} />

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import { isOwnStaticAsset } from "@/lib/imageSource";
 import { avatarEmoji } from "@/lib/avatars";
 import { avatarGradientCss } from "@/lib/avatarGradients";
 
@@ -34,10 +36,12 @@ export function Avatar({
 
   if (photoUrl && !photoFailed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={photoUrl}
         alt=""
+        width={128}
+        height={128}
+        unoptimized={!isOwnStaticAsset(photoUrl)}
         onError={() => setPhotoFailed(true)}
         className={`${SIZES[size]} shrink-0 rounded-full object-cover`}
       />

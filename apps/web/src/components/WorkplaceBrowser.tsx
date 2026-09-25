@@ -1,7 +1,9 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SortButtons, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
@@ -19,13 +21,6 @@ import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { RATING_TICKS, activeMoodIndex } from "@/lib/beaverRating";
 
 type Geo = { lat: number; lng: number } | "denied" | null;
-
-// "ratingAsc"/"ratingDesc" are two separate states (not one "rating" value
-// the Rating button just flips) because the button cycles through three
-// distinct looks — neutral, red-outlined (worst first), green-outlined
-// (best first) — and each needs its own stored state to read back on
-// re-render.
-type SortOption = "default" | "alphabetical" | "workplace" | "ratingAsc" | "ratingDesc";
 
 // 4 columns × 5 rows at the desktop breakpoint — see CompanyCard/grid below.
 const RESULTS_PAGE_SIZE = 20;
@@ -357,21 +352,8 @@ export function WorkplaceBrowser() {
     let list = selectedCategory ? companies.filter((c) => c.category === selectedCategory) : companies;
     list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
 
-    if (sortBy === "alphabetical") {
-      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === "ratingDesc") {
-      list = [...list].sort((a, b) => (b.overallAvg ?? -1) - (a.overallAvg ?? -1));
-    } else if (sortBy === "ratingAsc") {
-      // Unrated companies (no overallAvg) fall back to +Infinity on both
-      // sides here, same as the -1 fallback above for the descending case
-      // — either way they sink to the bottom instead of contaminating the
-      // "least rated" or "best rated" end of the list.
-      list = [...list].sort((a, b) => (a.overallAvg ?? Infinity) - (b.overallAvg ?? Infinity));
-    } else if (sortBy === "workplace") {
-      // Sorts by each company's first (primary) tag only — not a full
-      // multi-key sort — since a company can carry up to 2 workplaceTypes.
-      const order = WORKPLACE_TYPES.map((t) => t.value);
-      list = [...list].sort((a, b) => order.indexOf(a.workplaceTypes[0]) - order.indexOf(b.workplaceTypes[0]));
+    if (sortBy !== "default") {
+      list = sortCompaniesBy(list, sortBy);
     } else if (geo && geo !== "denied") {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
@@ -483,7 +465,7 @@ export function WorkplaceBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h3>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h2>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               {/* Red-to-green slider, no stars. Shows companies at or BELOW
@@ -506,8 +488,10 @@ export function WorkplaceBrowser() {
                   {RATING_TICKS.map((tick, i) => {
                     const active = activeMoodIndex(minRating) === i;
                     return (
-                      // eslint-disable-next-line @next/next/no-img-element -- tiny fixed-size static mood art
-                      <img
+                      <Image
+                        width={112}
+                        height={112}
+                        sizes="56px"
                         key={tick.value}
                         src={tick.src}
                         alt={tick.alt}
@@ -582,61 +566,10 @@ export function WorkplaceBrowser() {
                 highlighted={highlightTarget === "categories"}
               />
 
-              {/* Standalone toggle buttons instead of a "Sort by" dropdown —
-                  every option is visible and clickable directly. A-Z and
-                  Workplace are plain on/off toggles (click again to go
-                  back to the default order); Rating instead cycles
-                  through three states on each click — neutral, red
-                  outline (least-rated first), green outline (best-rated
-                  first), then back to neutral. */}
-              <div className="ml-auto flex items-center gap-1 rounded-xl border border-border bg-surface-muted p-1">
-                <button
-                  type="button"
-                  onClick={() => setSortBy((s) => (s === "alphabetical" ? "default" : "alphabetical"))}
-                  aria-pressed={sortBy === "alphabetical"}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    sortBy === "alphabetical"
-                      ? "bg-river-600 text-white"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  A-Z
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSortBy((s) => (s === "workplace" ? "default" : "workplace"))}
-                  aria-pressed={sortBy === "workplace"}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    sortBy === "workplace"
-                      ? "bg-river-600 text-white"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Workplace
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSortBy((s) => (s === "ratingAsc" ? "ratingDesc" : s === "ratingDesc" ? "default" : "ratingAsc"))
-                  }
-                  aria-pressed={sortBy === "ratingAsc" || sortBy === "ratingDesc"}
-                  title={
-                    sortBy === "ratingAsc"
-                      ? "Showing least-rated first"
-                      : sortBy === "ratingDesc"
-                        ? "Showing best-rated first"
-                        : "Sort by rating"
-                  }
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                    sortBy === "ratingAsc"
-                      ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400"
-                      : sortBy === "ratingDesc"
-                        ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400"
-                        : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Rating
-                </button>
+              {/* Separate sort buttons (see SortButtons.tsx): A-Z loops A→Z / Z→A /
+                  off, Workplace is on/off, Rating cycles least/best-rated. */}
+              <div className="ml-auto">
+                <SortButtons value={sortBy} onChange={setSortBy} />
               </div>
             </div>
 
@@ -651,7 +584,7 @@ export function WorkplaceBrowser() {
 
             {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
             {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
-              <p className="text-sm text-red-600 dark:text-red-400">
+              <p className="text-sm text-red-600 dark:text-red-300">
                 Couldn&apos;t load workplaces right now — check your connection and try again.
               </p>
             )}

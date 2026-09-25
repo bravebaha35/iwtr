@@ -383,6 +383,20 @@ export class CompaniesService {
   // Distinct city values currently in use, to drive the location picker
   // without hardcoding a fixed option list. workplaceType is a small closed
   // enum, so the client reads it directly from shared-types instead.
+  /**
+   * Every public company page, for apps/web/src/app/sitemap.ts: just the slug
+   * and when its score last changed (a new published review), so the
+   * sitemap stays a small response even with thousands of companies.
+   */
+  async listForSitemap(): Promise<{ slug: string; lastModified: string | null }[]> {
+    const rows = await this.prisma.company.findMany({
+      where: PUBLIC_COMPANY_WHERE,
+      select: { slug: true, aggregate: { select: { updatedAt: true } } },
+      orderBy: { slug: "asc" },
+    });
+    return rows.map((r) => ({ slug: r.slug, lastModified: r.aggregate?.updatedAt.toISOString() ?? null }));
+  }
+
   async listFilters(): Promise<CompanyFilters> {
     const cities = await this.prisma.company.findMany({
       where: { ...PUBLIC_COMPANY_WHERE, city: { not: null } },

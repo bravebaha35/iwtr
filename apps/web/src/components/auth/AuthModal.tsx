@@ -8,6 +8,8 @@ import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { EmailVerificationScreen } from "@/components/auth/EmailVerificationScreen";
 import { AdminOtpScreen } from "@/components/auth/AdminOtpScreen";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/passwordValidation";
+import { loginEmailInputSchema } from "@iwtr/shared-types";
+import { formProblem } from "@/lib/validateForm";
 import {
   clearPendingVerification,
   loadPendingVerification,
@@ -105,6 +107,11 @@ export function AuthModal() {
     setError(null);
 
     if (mode === "login") {
+      const problem = formProblem(loginEmailInputSchema, { email, password }, { email: "email address" });
+      if (problem) {
+        setError(problem);
+        return;
+      }
       setSubmitting(true);
       try {
         const result = await login(email, password);
@@ -293,7 +300,7 @@ export function AuthModal() {
                 Gmail, Hotmail, Outlook, or Windows Live only for now.
               </p>
             )}
-            {emailError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{emailError}</p>}
+            {emailError && <p className="mt-1 text-xs text-red-600 dark:text-red-300">{emailError}</p>}
           </div>
 
           {mode === "register" ? (
@@ -316,14 +323,14 @@ export function AuthModal() {
                 maxLength={PASSWORD_MAX_LENGTH}
               />
               {confirmPassword.length > 0 && !passwordsMatch && (
-                <p className="-mt-1 text-xs text-red-600 dark:text-red-400">Passwords don&apos;t match.</p>
+                <p className="-mt-1 text-xs text-red-600 dark:text-red-300">Passwords don&apos;t match.</p>
               )}
             </>
           ) : (
             <PasswordInput value={password} onChange={setPassword} placeholder="Password" autoComplete="current-password" />
           )}
 
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
           <button
             type="submit"
@@ -360,7 +367,7 @@ export function AuthModal() {
               onClick={handleDevAdminLogin}
               disabled={devLoggingIn !== null}
               title={DEV_ADMIN_EMAIL}
-              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
             >
               {devLoggingIn === "admin" ? "Logging in..." : "Dev: Log in as Admin"}
             </button>
@@ -369,7 +376,7 @@ export function AuthModal() {
               onClick={handleDevOwnerLogin}
               disabled={devLoggingIn !== null}
               title={DEV_OWNER_EMAIL}
-              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
             >
               {devLoggingIn === "owner" ? "Logging in..." : "Dev: Log in as Owner (I Worked There / Demo Finans Holding)"}
             </button>
@@ -378,7 +385,7 @@ export function AuthModal() {
               onClick={handleDevMemberLogin}
               disabled={devLoggingIn !== null}
               title={DEV_TEST_MEMBER_EMAIL}
-              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+              className="w-full rounded-lg border border-dashed border-amber-500/60 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
             >
               {devLoggingIn === "member" ? "Logging in..." : "Dev: Log in as Mehmet Ahmetoğlu (test member)"}
             </button>

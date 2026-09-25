@@ -76,7 +76,7 @@ export default function MyReviewsPage() {
           already posted there.
         </p>
 
-        {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
         {reviews === null && <p className="text-sm text-muted-foreground">Loading...</p>}
         {reviews !== null && reviews.length === 0 && (
           <p className="text-sm text-muted-foreground">

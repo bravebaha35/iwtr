@@ -50,7 +50,7 @@ function DashboardBox({ title, className = "", children }: { title: string; clas
 // padding; the grid itself sets each tile's span.
 function BentoTile({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
   return (
-    <section className={`flex flex-col border border-border bg-surface p-4 ${className}`}>
+    <section className={`flex flex-col rounded-2xl border border-border bg-surface p-4 ${className}`}>
       <h4 className="mb-2 text-sm font-semibold text-foreground">{title}</h4>
       {children}
     </section>
@@ -130,7 +130,7 @@ export function PremiumFeaturesCategory(props: PremiumFeaturesCategoryProps) {
             Save Premium Features
           </button>
           {props.premiumStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{props.premiumStatus}</p>}
-          {props.premiumError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{props.premiumError}</p>}
+          {props.premiumError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{props.premiumError}</p>}
         </BentoTile>
 
         <BentoTile title="Priority response" className="md:col-span-2">
@@ -154,7 +154,7 @@ export function PremiumFeaturesCategory(props: PremiumFeaturesCategoryProps) {
             <button
               type="button"
               onClick={() => props.setShowRivalAnalytics(true)}
-              className="border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
+              className="rounded-full border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
             >
               Request Rival Analytics
             </button>

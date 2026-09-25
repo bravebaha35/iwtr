@@ -106,7 +106,7 @@ export function JobSetupModal({
         </label>
 
         {detailError && (
-          <p className="mb-4 text-sm text-red-600 dark:text-red-400">
+          <p className="mb-4 text-sm text-red-600 dark:text-red-300">
             Couldn&apos;t load company details.{" "}
             <button type="button" onClick={loadDetail} className="underline">
               Retry

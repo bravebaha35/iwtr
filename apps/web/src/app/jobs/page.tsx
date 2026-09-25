@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { JobsBrowser } from "@/components/JobsBrowser";
 
 export const metadata: Metadata = {
-  title: "Jobs — I Worked There",
+  title: "Jobs",
+  description: "Open positions at companies rated anonymously by the people who worked there.",
 };
 
 // A separate page from the homepage rating browser on purpose — see

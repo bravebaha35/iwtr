@@ -66,7 +66,7 @@ function ReportedCommentsPanel() {
   return (
     <div className="mb-8">
       <h2 className="mb-2 text-lg font-semibold text-foreground">Reported comments</h2>
-      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
       <div className="flex flex-col gap-2">
         {comments?.map((c) => (
           <div key={c.id} className="rounded-lg border border-border bg-surface p-3">
@@ -104,7 +104,7 @@ function ReportedCommentsPanel() {
                 type="button"
                 onClick={() => removeComment(c.id)}
                 disabled={busyId === c.id}
-                className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
               >
                 Remove
               </button>
@@ -176,7 +176,7 @@ function CompanyPostsPanel({
 
   return (
     <div className="mt-3 rounded-lg border border-border bg-surface-muted p-3">
-      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       {posts === null && !error && <p className="text-sm text-muted-foreground">Loading posts...</p>}
       {posts !== null && posts.length === 0 && (
@@ -189,7 +189,7 @@ function CompanyPostsPanel({
             <button
               type="button"
               onClick={wipeFeed}
-              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
             >
               Wipe IWT Social feed
             </button>
@@ -221,7 +221,7 @@ function CompanyPostsPanel({
                   type="button"
                   onClick={() => removePost(post.id)}
                   disabled={removingId === post.id}
-                  className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                  className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
                 >
                   Remove
                 </button>
@@ -301,7 +301,7 @@ function CompanyRow({
         </div>
       </div>
 
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       {expanded && <CompanyPostsPanel company={company} onWiped={() => {}} />}
     </div>
@@ -381,7 +381,7 @@ export default function AdminContentPage() {
         </button>
       </form>
 
-      {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       {companies === null && !error && <p className="text-sm text-muted-foreground">Loading...</p>}
       {companies !== null && companies.length === 0 && (

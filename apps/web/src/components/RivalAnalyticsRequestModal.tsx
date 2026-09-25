@@ -238,7 +238,7 @@ export function RivalAnalyticsRequestModal({
                   </>
                 )}
 
-                {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+                {error && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
                 <button
                   type="button"
@@ -291,7 +291,7 @@ function RivalAnalyticsResult({ result, onClose }: { result: RivalAnalyticsReque
 
   return (
     <div className="text-center">
-      <p className="text-sm text-red-600 dark:text-red-400">{result.priceNote}</p>
+      <p className="text-sm text-red-600 dark:text-red-300">{result.priceNote}</p>
       <button
         type="button"
         onClick={onClose}

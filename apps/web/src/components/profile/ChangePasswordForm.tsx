@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { changePasswordInputSchema } from "@iwtr/shared-types";
 import { apiPatch, ApiError } from "@/lib/api-client";
+import { formProblem } from "@/lib/validateForm";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/passwordValidation";
@@ -20,6 +22,11 @@ export function ChangePasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
+    const problem = formProblem(changePasswordInputSchema, { currentPassword, newPassword });
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     setStatus(null);
@@ -72,13 +79,13 @@ export function ChangePasswordForm() {
             maxLength={PASSWORD_MAX_LENGTH}
           />
           {confirmNewPassword.length > 0 && !passwordsMatch && (
-            <p className="mt-1 text-xs text-red-600 dark:text-red-400">Passwords don&apos;t match.</p>
+            <p className="mt-1 text-xs text-red-600 dark:text-red-300">Passwords don&apos;t match.</p>
           )}
         </div>
       </div>
 
       {status && <p className="mt-3 text-sm text-green-700 dark:text-green-400">{status}</p>}
-      {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       <button
         type="submit"
