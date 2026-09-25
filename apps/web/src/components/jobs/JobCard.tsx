@@ -289,7 +289,7 @@ export function JobCard({
               name-only. */}
           <div className="flex items-start justify-between gap-2">
             <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
+              <span className="line-clamp-2 min-w-0 font-display text-lg leading-snug text-foreground">
                 {company.name}
                 <CompanyVerificationTick
                   badgeTier={company.badgeTier}

@@ -14,7 +14,7 @@ const HOVER_TRANSITION = { duration: 0.12, ease: [0.2, 0.9, 0.1, 1] as const };
 
 // Fixed class strings only — nothing here is ever built from user input.
 const ITEM_BASE =
-  "block w-full whitespace-nowrap rounded-sm px-3 py-2 text-left text-sm font-medium transition-colors";
+  "block w-full whitespace-nowrap rounded-full px-3 py-2 text-left text-sm font-medium transition-colors";
 const ITEM_IDLE = `${ITEM_BASE} text-sidebar-foreground/80 hover:bg-black/5 hover:text-sidebar-foreground dark:hover:bg-white/10`;
 const ITEM_ACTIVE = `${ITEM_BASE} bg-river-600 text-white`;
 
@@ -42,7 +42,7 @@ export function SettingsNav<K extends string>({
     <aside className="shrink-0 sm:w-56">
       <nav
         aria-label={label}
-        className="flex flex-row gap-1 overflow-x-auto rounded-sm border border-border bg-sidebar p-2 sm:flex-col sm:overflow-visible"
+        className="flex flex-row gap-1 overflow-x-auto rounded-2xl border border-border bg-sidebar p-2 sm:flex-col sm:overflow-visible"
       >
         {items.map((item) => {
           if ("href" in item) {

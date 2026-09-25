@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { DM_Serif_Display, Google_Sans_Flex } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { BackButton } from "@/components/BackButton";
@@ -30,29 +30,23 @@ const THEME_BOOT_SCRIPT = `(function(){
   } catch (e) {}
 })();`;
 
-// Primary typeface — chosen for brand authority plus reliable rendering of
-// Turkish workplace titles (İ/ı/Ş/ş/Ğ/ğ/Ç/ç/Ö/ö/Ü/ü) and 1-5 score digits.
-// "latin-ext" is mandatory here, not just "latin": Turkish-specific letters
-// live in the Latin Extended-A Unicode block, not the base Latin subset.
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta-sans",
+// Body and UI text: Google Sans Flex (variable, with its roundness axis —
+// globals.css sets it part-way up for friendlier letterforms). Headings: DM
+// Serif Display. "latin-ext" is mandatory for both: Turkish letters
+// (İ/ı/Ş/ş/Ğ/ğ/Ç/ç/Ö/ö/Ü/ü) live in Latin Extended-A, not base Latin.
+const googleSansFlex = Google_Sans_Flex({
+  variable: "--font-google-sans-flex",
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
+  axes: ["ROND"],
+  display: "swap",
 });
 
-// CvPreview.tsx's headings use a second, distinct display face. Note this is
-// NOT a second instance of Plus Jakarta Sans: the CV preview's "font-jakarta"
-// Tailwind utility (see globals.css) intentionally maps back onto the single
-// plusJakartaSans instance above (`--font-plus-jakarta-sans`) rather than
-// loading the same Google Font twice under a second variable name, which
-// would double the font payload for no benefit.
-// The CSS variable is named distinctly from globals.css's Tailwind theme key
-// (--font-grotesk) on purpose — matching the Jakarta font's own
-// --font-plus-jakarta-sans convention above. Naming it --font-grotesk here
-// too would make globals.css's `--font-grotesk: var(--font-grotesk);` a
-// self-referential cycle that can silently resolve to nothing depending on
-// stylesheet order, falling back to the default font with no visible error.
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
+const dmSerifDisplay = DM_Serif_Display({
+  variable: "--font-dm-serif-display",
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+});
 
 const SITE_DESCRIPTION =
   "Anonymous, honest workplace reviews from people who actually worked there. No names. No HR. Rate your past employers and check a company before you accept a job.";
@@ -88,16 +82,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      // plusJakartaSans.variable is applied on <body> below per spec, but it
-      // must ALSO be present here: globals.css's `@theme inline` declares
-      // `--font-sans: var(--font-plus-jakarta-sans)` at :root, and a CSS
-      // custom-property reference resolves against whatever's visible AT THE
-      // ELEMENT DECLARING IT — not at wherever it's later used. Since :root
-      // IS <html>, --font-plus-jakarta-sans has to be defined here too, or
-      // --font-sans resolves to nothing and every font-sans/body font-family
-      // rule silently falls back to the browser default (verified live: this
-      // exact failure happened when the variable was only on <body>).
-      className={`${plusJakartaSans.variable} ${spaceGrotesk.variable} h-full antialiased`}
+      // The font variables are applied on <body> below too, but must ALSO be
+      // here: globals.css's `@theme inline` declares `--font-sans:
+      // var(--font-google-sans-flex)` at :root, and a custom-property
+      // reference resolves at the element declaring it. Since :root IS
+      // <html>, without them here --font-sans resolves to nothing and every
+      // font-sans rule silently falls back to the browser default.
+      className={`${googleSansFlex.variable} ${dmSerifDisplay.variable} h-full antialiased`}
       // The boot script below sets `.dark`/`data-density` synchronously,
       // before React hydrates, so the server-rendered markup never matches —
       // that's expected (it's what avoids a flash of the wrong theme), so
@@ -109,7 +100,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body
-        className={`${plusJakartaSans.variable} ${spaceGrotesk.variable} min-h-full flex flex-col bg-background text-foreground`}
+        className={`${googleSansFlex.variable} ${dmSerifDisplay.variable} min-h-full flex flex-col bg-background text-foreground`}
       >
         <SettingsProvider>
           <AuthProvider>

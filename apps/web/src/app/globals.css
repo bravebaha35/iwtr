@@ -49,45 +49,49 @@
   background-color: var(--muted-foreground);
 }
 
-/* "Beaver Habitat" palette (2026-09-24). Named anchors:
-     Birch      #F4F1EA  light page background
-     Slate Dam  #2C3539  dark-mode background, borders, footer band
-     Timber     #4A3018  light-mode body text
-     River      #1A5F7A  active states (river-* scale below)
-     Wood       #8B5A2B  primary buttons (brand-600 below)
-   Contrast (WCAG AA needs 4.5): Timber/Birch 10.8, River/Birch 6.3,
-   white/Wood 5.8, Birch/Slate Dam 11.1. River and Wood themselves FAIL on
-   Slate Dam (1.8 / 2.2), which is why dark mode reads the lighter
-   brand-400 / river-300 shades instead. */
+/* "Friendly Habitat" (2026-09-25) — the Beaver Habitat colours, softened
+   and rounded. Named anchors:
+     Paper      #FBFAF5  light page background
+     Den        #333333  dark page background
+     Timber     #3B2A1A  light-mode text
+     Wood       #8B5A2B  primary buttons (brand-600)
+     River      #1A5F7A  active/selected states (river-600)
+     Forest     #3D6B3F  footer band and positive accents (forest-600)
+   WCAG contrast (AA needs 4.5, AAA 7): Timber/Paper 13.1, muted/Paper 6.3,
+   white/Wood 5.8, white/River 7.1, white/Forest 6.2, Birch text/Den 11.2,
+   dark muted/Den 7.4, dark muted/dark surface 6.4. River, Wood and Forest
+   themselves are too dark on Den, so dark mode reads their 300/400 shades.
+   Borders are deliberately soft (non-text, decorative separation only). */
 :root {
-  --background: #f4f1ea; /* Birch */
-  --foreground: #4a3018; /* Timber */
-  --surface: #fbf9f4;
-  --surface-muted: #e9e4d8;
-  --muted-foreground: #6b5440; /* 6.3 on Birch */
-  --border: #2c3539; /* Slate Dam — deliberately heavy */
-  /* Settings-page sidebars (/me, /my/companies) follow the theme: a light
-     panel here, a dark one under .dark. Timber on this is 9.3:1. */
-  --sidebar: #e9e4d8;
-  --sidebar-foreground: #4a3018; /* Timber */
+  --background: #fbfaf5; /* Paper */
+  --foreground: #3b2a1a; /* Timber */
+  --surface: #ffffff;
+  --surface-muted: #f1ede3;
+  --muted-foreground: #6b5a48;
+  --border: #d6cebe;
+  /* Settings-page sidebars (/me, /my/companies) follow the theme. */
+  --sidebar: #f3efe6;
+  --sidebar-foreground: #3b2a1a;
   /* The footer is the one band that stays dark in both themes (see
-     GlobalFooter.tsx), so it has its own fixed pair. */
-  --footer: #2c3539; /* Slate Dam */
-  --footer-foreground: #f4f1ea; /* Birch */
+     GlobalFooter.tsx): deep forest. */
+  --footer: #263a2b;
+  --footer-foreground: #f5f1e8;
+  /* Soft, warm shadow tint used by the --shadow-* scale below. */
+  --shadow-tint: 59 42 26;
 }
 
 .dark {
-  --background: #2c3539; /* Slate Dam */
-  --foreground: #f4f1ea; /* Birch */
-  --surface: #343f44;
-  --surface-muted: #3e4a4f;
-  --muted-foreground: #c2bcb0; /* 5.7 on --surface */
-  --border: #6b7a80;
-  /* Darker than the page so the panel still reads as its own column. */
-  --sidebar: #1e2528;
-  --sidebar-foreground: #f4f1ea;
-  --footer: #1e2528;
-  --footer-foreground: #f4f1ea;
+  --background: #333333; /* Den */
+  --foreground: #f5f1e8;
+  --surface: #3d3c3a;
+  --surface-muted: #484642;
+  --muted-foreground: #cdc5b6;
+  --border: #5c5a55;
+  --sidebar: #2b2b2a;
+  --sidebar-foreground: #f5f1e8;
+  --footer: #1f2e23;
+  --footer-foreground: #f5f1e8;
+  --shadow-tint: 0 0 0;
 }
 
 @theme inline {
@@ -97,26 +101,18 @@
   --color-surface-muted: var(--surface-muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
-  /* Plus Jakarta Sans is the site-wide typeface, used through --font-sans
-     below. CvPreview.tsx (the CV editor's live preview on /me) additionally
-     needs its own Tailwind utility names — font-jakarta reuses this exact
-     same loaded font (no second network font, just a second theme key
-     pointing at the same `--font-plus-jakarta-sans` variable from
-     layout.tsx) and font-grotesk is Space Grotesk, a distinct display face
-     for data headers and prominent numbers (company scores, the CV
-     preview's headings), loaded in layout.tsx under its
-     own `--font-space-grotesk` variable (deliberately NOT named
-     `--font-grotesk` — reusing this key's own name there would make the
-     line below a self-referential cycle instead of pointing at the actual
-     loaded font). */
-  --font-sans: var(--font-plus-jakarta-sans);
-  --font-jakarta: var(--font-plus-jakarta-sans);
-  --font-grotesk: var(--font-space-grotesk);
+  /* Typography: Google Sans Flex for body and UI text, DM Serif Display
+     for headings (both loaded in layout.tsx via next/font). */
+  --font-sans: var(--font-google-sans-flex);
+  --font-display: var(--font-dm-serif-display);
+  /* Older utility names kept working: both now resolve to the body face. */
+  --font-jakarta: var(--font-google-sans-flex);
+  --font-grotesk: var(--font-google-sans-flex);
 
-  /* Named Beaver Habitat colors (see the palette comment on :root). */
-  --color-birch: #f4f1ea;
-  --color-slate-dam: #2c3539;
-  --color-timber: #4a3018;
+  /* Named habitat colors (see the palette comment on :root). */
+  --color-birch: #f5f1e8;
+  --color-slate-dam: #333333;
+  --color-timber: #3b2a1a;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-footer: var(--footer);
@@ -154,44 +150,62 @@
   --color-river-900: #0e313f;
   --color-river-950: #09212b;
 
-  /* Square corners site-wide: every rounded-xs … rounded-4xl resolves to
-     0px, so the 350+ existing rounded-* classes change in one place.
-     rounded-full (avatars, pills, toggles) is untouched. */
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
-  --radius-4xl: 0px;
+  /* Forest #3D6B3F (forest-600) — footer band, positive/"done" accents.
+     Dark mode reads forest-300 (7.0 on Den). */
+  --color-forest-50: #f2f7f1;
+  --color-forest-100: #e1ede0;
+  --color-forest-200: #c6dcc3;
+  --color-forest-300: #a9c9a4;
+  --color-forest-400: #83ad7d;
+  --color-forest-500: #5a8a56;
+  --color-forest-600: #3d6b3f;
+  --color-forest-700: #315733;
+  --color-forest-800: #274529;
+  --color-forest-900: #1d341f;
+  --color-forest-950: #122114;
 
-  /* No soft, blurred Tailwind shadows. Small ones (cards, inputs) are gone
-     outright — the heavy borders already separate them. Floating layers
-     (dropdowns, popovers and modals use lg/xl/2xl) get a hard, unblurred
-     offset in the border color instead, so they still read as lifted. */
-  --shadow-2xs: 0 0 #0000;
-  --shadow-xs: 0 0 #0000;
-  --shadow-sm: 0 0 #0000;
-  --shadow-md: 0 0 #0000;
-  --shadow-lg: 4px 4px 0 0 var(--border);
-  --shadow-xl: 4px 4px 0 0 var(--border);
-  --shadow-2xl: 6px 6px 0 0 var(--border);
-  --inset-shadow-2xs: 0 0 #0000;
-  --inset-shadow-xs: 0 0 #0000;
-  --inset-shadow-sm: 0 0 #0000;
-  --drop-shadow-xs: 0 0 #0000;
-  --drop-shadow-sm: 0 0 #0000;
-  --drop-shadow-md: 0 0 #0000;
-  --drop-shadow-lg: 0 0 #0000;
-  --drop-shadow-xl: 0 0 #0000;
-  --drop-shadow-2xl: 0 0 #0000;
+  /* Apple-style continuous curves site-wide: every rounded-* class resolves
+     to a generous radius from here, so the 350+ existing rounded-* classes
+     change in one place (rounded-lg on buttons/inputs becomes a soft 1rem,
+     rounded-xl cards 1.25rem). rounded-full is untouched. */
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.75rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 1.75rem;
+  --radius-4xl: 2rem;
+
+  /* Soft, diffuse, warm shadows (Apple-like) instead of hard offsets. */
+  --shadow-2xs: 0 1px 1px rgb(var(--shadow-tint) / 0.04);
+  --shadow-xs: 0 1px 2px rgb(var(--shadow-tint) / 0.06);
+  --shadow-sm: 0 1px 3px rgb(var(--shadow-tint) / 0.08), 0 1px 2px rgb(var(--shadow-tint) / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(var(--shadow-tint) / 0.1), 0 2px 4px -2px rgb(var(--shadow-tint) / 0.06);
+  --shadow-lg: 0 12px 28px -8px rgb(var(--shadow-tint) / 0.16), 0 4px 8px -4px rgb(var(--shadow-tint) / 0.08);
+  --shadow-xl: 0 20px 44px -12px rgb(var(--shadow-tint) / 0.2), 0 8px 16px -8px rgb(var(--shadow-tint) / 0.08);
+  --shadow-2xl: 0 28px 64px -16px rgb(var(--shadow-tint) / 0.28);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  /* Google Sans Flex's roundness axis, part-way up: friendlier letterforms. */
+  font-variation-settings: "ROND" 50;
+}
+
+/* Every heading uses DM Serif Display. It has one weight, so font-bold on a
+   heading must not be faked by the browser (smeared strokes). */
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis-weight: none;
+  letter-spacing: 0;
 }
 
 /* Tailwind's preflight leaves <button> at the browser default arrow cursor
@@ -210,21 +224,19 @@ select,
    homepage's search box / category-button row plays once when a footer
    link (Submit a Review, Job Categories, Claim Profile) routes here with
    ?highlight=... appended, so the visitor's eye lands on the right control
-   instead of a bare navigation with no explanation. Single hardcoded
-   brand-600 hex (#8B5A2B, no light/dark variant — see the brand-* comment
-   above) keeps the glow identical in both themes. Eased with the site's
-   sharp SNAP curve (lib/motion/easings.ts), not a generic ease-out. */
+   instead of a bare navigation with no explanation. River-blue glow,
+   identical in both themes. */
 @keyframes highlight-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(139, 90, 43, 0.55);
+    box-shadow: 0 0 0 0 rgba(26, 95, 122, 0.5);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(139, 90, 43, 0);
+    box-shadow: 0 0 0 10px rgba(26, 95, 122, 0);
   }
 }
 .highlight-pulse {
-  animation: highlight-pulse 0.8s cubic-bezier(0.87, 0, 0.13, 1) 3;
+  animation: highlight-pulse 1s cubic-bezier(0.4, 0, 0.2, 1) 3;
 }
 
 button:disabled,

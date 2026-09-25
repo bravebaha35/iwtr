@@ -50,7 +50,7 @@ function GeneratingBar({ status }: { status: BenchmarkReportJob["status"] }) {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(target * 100)}
-      className="h-2 w-full overflow-hidden border border-border bg-surface-muted"
+      className="h-2 w-full overflow-hidden rounded-full border border-border bg-surface-muted"
     >
       <motion.div
         className="h-full origin-left bg-river-600 dark:bg-river-400"

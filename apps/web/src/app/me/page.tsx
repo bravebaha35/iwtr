@@ -863,7 +863,7 @@ export default function ProfilePage() {
                 rows={6}
                 value={customExperienceDraft}
                 onChange={(e) => setCustomExperienceDraft(e.target.value)}
-                className="mt-1 w-full rounded-none border border-border bg-surface px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               />
             </div>
 
@@ -1350,7 +1350,7 @@ export default function ProfilePage() {
                     maxLength={80}
                     value={displayNameDraft}
                     onChange={(e) => setDisplayNameDraft(e.target.value)}
-                    className="mt-1 w-full rounded-none border border-border bg-surface px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                   />
                 </div>
                 <label className="flex items-center gap-2 text-sm">
@@ -1388,7 +1388,7 @@ export default function ProfilePage() {
                   type="button"
                   onClick={saveCv}
                   disabled={cvSaving}
-                  className="self-start rounded-none border border-border bg-sidebar px-4 py-2 text-sm font-bold text-sidebar-foreground transition disabled:opacity-50"
+                  className="self-start rounded-full border border-border bg-sidebar px-4 py-2 text-sm font-bold text-sidebar-foreground transition disabled:opacity-50"
                 >
                   {cvSaving ? "Saving..." : "Save CV"}
                 </button>

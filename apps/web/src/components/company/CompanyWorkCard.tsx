@@ -76,7 +76,7 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
 
       {/* The logo already sits above, overlapping the banner's bottom-left
           corner, so this row is just the name + verification tick. */}
-      <p className="line-clamp-2 min-w-0 font-semibold leading-snug text-foreground">
+      <h3 className="line-clamp-2 min-w-0 text-lg leading-snug text-foreground">
         {company.name}
         <CompanyVerificationTick
           badgeTier={company.badgeTier}
@@ -84,7 +84,7 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
           size={15}
           className="ml-1.5"
         />
-      </p>
+      </h3>
 
       <p className="text-xs text-muted-foreground">
         <WorkTypeLabel workplaceTypes={company.workplaceTypes} /> · {company.category}
