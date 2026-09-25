@@ -243,3 +243,16 @@ describe("MessagingService.markRead", () => {
     await expect(service.markRead(OUTSIDER, started.id)).rejects.toThrow(NotFoundException);
   });
 });
+
+describe("MessagingService blocked-message wording", () => {
+  it("explains a blocked message in plain words, not internal codes", async () => {
+    const { service } = setup();
+    const err = await service
+      .startConversation(REVIEWER, "review-1", { content: "Please call me on 0532 123 45 67" })
+      .catch((e: BadRequestException) => e);
+    const body = (err as BadRequestException).getResponse() as { message: string; violationTypes: string[] };
+    expect(body.message).toContain("a phone number");
+    expect(body.message).not.toContain("PII_PHONE_NUMBER");
+    expect(body.violationTypes).toEqual(["PII_PHONE_NUMBER"]);
+  });
+});

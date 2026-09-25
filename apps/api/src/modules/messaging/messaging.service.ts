@@ -8,6 +8,7 @@ import {
 import { Prisma } from "@prisma/client";
 import type {
   CannotSendReason,
+  ContentViolationType,
   ConversationSummary,
   ConversationThread,
   SendMessageInput,
@@ -48,6 +49,16 @@ type ThreadRow = Prisma.ReviewConversationGetPayload<{ include: typeof THREAD_IN
 type ConversationRow = Omit<ThreadRow, "messages"> & { messages: ThreadRow["messages"] };
 
 const toDay = (d: Date) => d.toISOString().slice(0, 10);
+
+// Plain-language reasons for a blocked message (the raw codes stay in
+// violationTypes for any client that wants them).
+const VIOLATION_WORDING: Record<ContentViolationType, string> = {
+  NAME_OR_SURNAME: "a person's name",
+  JOB_TITLE: "a specific job title that could identify someone",
+  PROFANITY: "offensive words",
+  ABUSE_OR_INSULT: "insults or shouting",
+  PII_PHONE_NUMBER: "a phone number",
+};
 
 /**
  * Private reviewer <-> company conversations (see
@@ -212,8 +223,9 @@ export class MessagingService {
   private assertClean(content: string): void {
     const check = this.moderation.checkContent([content]);
     if (check.violates) {
+      const reasons = [...new Set(check.violationTypes.map((t) => VIOLATION_WORDING[t]))].join(", ");
       throw new BadRequestException({
-        message: `Your message couldn't be sent: ${check.violationTypes.join(", ")}. Please remove any names, contact details or offensive words and try again.`,
+        message: `Your message couldn't be sent because it seems to contain ${reasons}. Please rephrase it and try again.`,
         violationTypes: check.violationTypes,
       });
     }
