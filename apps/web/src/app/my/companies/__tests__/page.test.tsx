@@ -104,7 +104,7 @@ function generalInfoBox(): HTMLElement {
   return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
 }
 
-test("side panel lists the six sections in order, and only the active one's content renders", async () => {
+test("side panel lists the five sections in order, and only the active one's content renders", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
@@ -116,7 +116,6 @@ test("side panel lists the six sections in order, and only the active one's cont
     "Contact & Social Media",
     "Reviews & Ratings",
     "Applications",
-    "Messages",
   ]);
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
@@ -254,13 +253,3 @@ test("Premium Features box is hidden on the Free tier", async () => {
   expect(within(upsellBox).getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
 });
 
-test("a message notification link opens that company's Messages section", async () => {
-  window.history.pushState({}, "", `/my/companies?category=messages&company=${claim.companyId}`);
-  try {
-    render(<MyCompaniesPage />);
-    expect(await screen.findByRole("heading", { name: "Messages" })).toBeInTheDocument();
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/owner/companies/${claim.companyId}/conversations`));
-  } finally {
-    window.history.pushState({}, "", "/");
-  }
-});

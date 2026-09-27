@@ -22,17 +22,24 @@ function review(overrides: Partial<FakeReview> = {}): FakeReview {
   };
 }
 
-function setup(opts: { reviews?: FakeReview[]; owners?: { userId: string; companyId: string; claimStatus: string }[] } = {}) {
+type Owner = { userId: string; companyId: string; claimStatus: string; createdAt?: Date };
+
+function setup(opts: { reviews?: FakeReview[]; owners?: Owner[]; ownerNames?: Record<string, string> } = {}) {
   const prisma = createFakePrisma({
     reviews: opts.reviews ?? [review()],
     users: [
-      { id: REVIEWER, reviewUsername: "Quiet Beaver" },
+      { id: REVIEWER, reviewUsername: "Quiet Beaver", avatarKey: "office_owl", avatarGradient: "sunset" },
       { id: OWNER, reviewUsername: "Owner Handle" },
     ],
-    companies: [{ id: COMPANY, name: "Demo Finans Holding", slug: "demo-finans-holding" }],
+    companies: [
+      { id: COMPANY, name: "Demo Finans Holding", slug: "demo-finans-holding", mainPhotoUrl: "/uploads/logo.webp" },
+      { id: "company-2", name: "Demo Lojistik", slug: "demo-lojistik" },
+    ],
     owners: opts.owners ?? [{ userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED" }],
   });
-  return { prisma, service: new MessagingService(prisma, new ModerationService()) };
+  const names = opts.ownerNames ?? { [OWNER]: "Ahmet Yılmaz" };
+  const employerProfile = { getRepresentativeName: async (userId: string) => names[userId] ?? null };
+  return { prisma, service: new MessagingService(prisma, new ModerationService(), employerProfile as any) };
 }
 
 const hello = { content: "Thanks for replying, can I explain the shift issue in more detail?" };
@@ -185,6 +192,75 @@ describe("MessagingService inbox lists", () => {
   it("forbids the company inbox to someone who isn't an approved owner", async () => {
     const { service } = setup();
     await expect(service.listForCompany(OUTSIDER, COMPANY)).rejects.toThrow(ForbiddenException);
+  });
+
+  it("gives an owner one inbox across every company they own, and nothing for anyone else", async () => {
+    const reviews = [review(), review({ id: "review-2", companyId: "company-2" })];
+    const owners = [
+      { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED" },
+      { userId: OWNER, companyId: "company-2", claimStatus: "APPROVED" },
+    ];
+    const { service } = setup({ reviews, owners });
+    await service.startConversation(REVIEWER, "review-1", hello);
+    await service.startConversation(REVIEWER, "review-2", hello);
+    const list = await service.listForOwner(OWNER);
+    expect(list.map((c) => c.companyName).sort()).toEqual(["Demo Finans Holding", "Demo Lojistik"]);
+    expect(await service.listForOwner(OUTSIDER)).toEqual([]);
+    expect(await service.listForOwner(REVIEWER)).toEqual([]);
+  });
+});
+
+describe("MessagingService conversation identity", () => {
+  it("shows both sides the company logo and the review's public name and avatar", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    const companyView = await service.getThread(OWNER, started.id);
+    for (const view of [started, companyView]) {
+      expect(view).toEqual(
+        expect.objectContaining({
+          companyName: "Demo Finans Holding",
+          companyLogoUrl: "/uploads/logo.webp",
+          reviewerName: "Quiet Beaver",
+          reviewerAvatarKey: "office_owl",
+          reviewerAvatarGradient: "sunset",
+        }),
+      );
+    }
+  });
+
+  it("hides the account's own avatar behind the generic one on a randomized review", async () => {
+    const { service } = setup({ reviews: [review({ isRandomizedIdentity: true, displayUsername: "Sleepy Otter" })] });
+    await service.startConversation(REVIEWER, "review-1", hello);
+    const [row] = await service.listForCompany(OWNER, COMPANY);
+    expect(row).toEqual(expect.objectContaining({ reviewerName: "Sleepy Otter", reviewerAvatarKey: "randomized_identity" }));
+    expect(JSON.stringify(row)).not.toContain("office_owl");
+  });
+
+  it("names the answering owner for the reviewer only", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    expect(started.ownerName).toBe("Ahmet Yılmaz");
+    expect((await service.getThread(OWNER, started.id)).ownerName).toBeNull();
+  });
+
+  it("names the owner who wrote last, falling back to the first owner once they no longer own the company", async () => {
+    const SECOND = "user-owner-2";
+    const owners: Owner[] = [
+      { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-01-01") },
+      { userId: SECOND, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-02-01") },
+    ];
+    const { service } = setup({ owners, ownerNames: { [OWNER]: "Ahmet Yılmaz", [SECOND]: "Elif Kaya" } });
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await service.sendMessage(SECOND, started.id, { content: "Thanks, happy to hear more about the shifts." });
+    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBe("Elif Kaya");
+    owners[1].claimStatus = "REVOKED";
+    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBe("Ahmet Yılmaz");
+  });
+
+  it("leaves the owner name empty when no owner has filled in their employer profile", async () => {
+    const { service } = setup({ ownerNames: {} });
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    expect(started.ownerName).toBeNull();
   });
 });
 

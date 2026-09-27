@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
 import { markNotificationIdsRead, readNotificationIds } from "@/lib/notificationReadState";
+import { HeartIcon } from "@/components/icons/HeartIcon";
 
 // ---------------------------------------------------------------------------
 // Notification model
@@ -204,9 +205,9 @@ function hrefForNotification(n: AppNotification): string {
     case "BENCHMARK_REPORT_READY":
       return n.href ?? "/my/companies";
     case "CONVERSATION_MESSAGE_FROM_COMPANY":
-      return n.href ?? "/me?tab=messages";
+      return n.href ?? "/messages";
     case "CONVERSATION_MESSAGE_FROM_REVIEWER":
-      return n.href ?? "/my/companies?category=messages";
+      return n.href ?? "/messages";
   }
 }
 
@@ -254,12 +255,8 @@ function BellIcon({ className }: { className?: string }) {
 // Social: a heart (as suggested in the brief) covers votes/replies/"same
 // company" alike — one consistent glyph per category reads faster at a
 // glance than a different icon per kind.
-function HeartIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-      <path d="M12 21s-7.5-4.6-10-9.2C.5 8.3 2.3 5 5.6 5c1.8 0 3.3.9 4.4 2.4C11.1 5.9 12.6 5 14.4 5c3.3 0 5.1 3.3 3.6 6.8C19.5 16.4 12 21 12 21z" />
-    </svg>
-  );
+function SocialHeartIcon({ className }: { className?: string }) {
+  return <HeartIcon className={className} filled />;
 }
 // System: a shield — account/review/platform status events.
 function ShieldIcon({ className }: { className?: string }) {
@@ -284,7 +281,7 @@ function BriefcaseIcon({ className }: { className?: string }) {
 }
 
 const CATEGORY_ICON: Record<NotificationCategory, (props: { className?: string }) => React.JSX.Element> = {
-  SOCIAL: HeartIcon,
+  SOCIAL: SocialHeartIcon,
   SYSTEM: ShieldIcon,
   EMPLOYER: BriefcaseIcon,
 };

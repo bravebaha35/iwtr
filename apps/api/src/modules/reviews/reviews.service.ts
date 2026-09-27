@@ -7,8 +7,6 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
-  RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
-  RANDOMIZED_IDENTITY_AVATAR_KEY,
   findDistrictInProvince,
   findProvinceByCityName,
   findRegionByProvinceName,
@@ -42,7 +40,7 @@ import { pickRandomDisplayUsername } from "./randomized-identity.util";
 import { tallyQuestions, tallyContradictionPairs, type ContradictionPairMatchCount } from "./survey-tally.util";
 import { YELLOW_FLAG_PAIRS } from "../flags/yellow-flag-pairs.data";
 import { toUtcDay } from "../../common/time/day-precision.util";
-import { publicReviewerName } from "./display-name.util";
+import { publicReviewerAvatar, publicReviewerName } from "./display-name.util";
 import { enableRowAccess, SALARY_ACCESS } from "../../common/db/row-access";
 
 const AUTO_PUBLISH_THRESHOLD = 0.8;
@@ -894,10 +892,7 @@ export class ReviewsService {
       // the one place those get swapped, so a randomized review can never be
       // correlated back to the same author's other reviews via a repeating
       // avatar/name (see REVIEW.md rule #8).
-      avatarKey: r.isRandomizedIdentity ? RANDOMIZED_IDENTITY_AVATAR_KEY : (avatarByAuthor.get(r.userId)?.avatarKey ?? null),
-      avatarGradient: r.isRandomizedIdentity
-        ? RANDOMIZED_IDENTITY_AVATAR_GRADIENT
-        : (avatarByAuthor.get(r.userId)?.avatarGradient ?? null),
+      ...publicReviewerAvatar(r, avatarByAuthor.get(r.userId)),
       displayUsername: publicReviewerName(r, avatarByAuthor.get(r.userId)),
       district: r.district && districtMeetsThreshold.has(r.district) ? r.district : null,
       city: r.city && cityMeetsThreshold.has(r.city) ? r.city : null,

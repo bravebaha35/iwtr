@@ -18,6 +18,7 @@ import { ratingImageSrc } from "@/lib/ratingNarrative";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
+import { CompanyActions } from "@/components/companies/CompanyActions";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -254,7 +255,7 @@ export default async function CompanyPage({
             <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="lg" />
           </div>
         </div>
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold text-foreground">
@@ -279,14 +280,18 @@ export default async function CompanyPage({
               </div>
             </div>
           </div>
-          <RateButton
-            companyId={company.id}
-            companyName={company.name}
-            workplaceTypes={company.workplaceTypes}
-            structureType={company.structureType}
-            city={company.city}
-            region={company.region}
-          />
+          {/* Follow / Report / Share sit level with the company name. */}
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            <CompanyActions company={company} />
+            <RateButton
+              companyId={company.id}
+              companyName={company.name}
+              workplaceTypes={company.workplaceTypes}
+              structureType={company.structureType}
+              city={company.city}
+              region={company.region}
+            />
+          </div>
         </div>
 
         {/* Everything below the header is split into three tabs (Ratings /

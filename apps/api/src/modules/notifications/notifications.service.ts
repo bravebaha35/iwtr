@@ -238,7 +238,7 @@ export class NotificationsService {
           companyName: c.company.name,
           companySlug: c.company.slug,
           createdAt: c.messages[0].createdAt.toISOString(),
-          href: `/me?tab=messages&c=${c.id}`,
+          href: `/messages?c=${c.id}`,
         })),
       ...companyConversations
         .filter((c) => c.messages[0] && c.messages[0].seq > c.companyLastReadSeq)
@@ -248,7 +248,7 @@ export class NotificationsService {
           companyName: c.company.name,
           companySlug: c.company.slug,
           createdAt: c.messages[0].createdAt.toISOString(),
-          href: `/my/companies?category=messages&company=${c.companyId}&c=${c.id}`,
+          href: `/messages?c=${c.id}`,
         })),
     ];
 

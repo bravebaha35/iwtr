@@ -13,7 +13,7 @@ import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
-// uses (Home, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
+// uses (Home, Messages, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
 // own component since it also owns a dropdown). `disabled` is for IWT
 // Social: present and visible, but inert until that feature exists.
 function NavIconLink({
@@ -119,6 +119,16 @@ export function GlobalHeader() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </NavIconLink>
+
+          {showAccountControls && (
+            <NavIconLink href="/messages" label="Messages" title="Private messages">
+              {/* Closed envelope. */}
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+            </NavIconLink>
+          )}
 
           {showAccountControls &&
             (role === "COMPANY_OWNER" ? (

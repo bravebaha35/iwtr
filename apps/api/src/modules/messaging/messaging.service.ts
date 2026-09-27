@@ -15,7 +15,8 @@ import type {
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
-import { publicReviewerName } from "../reviews/display-name.util";
+import { EmployerProfileService } from "../employer-profile/employer-profile.service";
+import { publicReviewerAvatar, publicReviewerName } from "../reviews/display-name.util";
 import { toUtcDay } from "../../common/time/day-precision.util";
 
 type Side = "REVIEWER" | "COMPANY";
@@ -33,10 +34,10 @@ const THREAD_INCLUDE = {
       isRandomizedIdentity: true,
       displayUsername: true,
       generalThoughts: true,
-      user: { select: { reviewUsername: true } },
+      user: { select: { reviewUsername: true, avatarKey: true, avatarGradient: true } },
     },
   },
-  company: { select: { name: true, slug: true } },
+  company: { select: { name: true, slug: true, mainPhotoUrl: true } },
   messages: { orderBy: { seq: "asc" } },
 } satisfies Prisma.ReviewConversationInclude;
 
@@ -69,13 +70,14 @@ const VIOLATION_WORDING: Record<ContentViolationType, string> = {
  * APPROVED owner of the company is COMPANY, anyone else gets a 404 (not a
  * 403, so outsiders can't probe which conversations exist). Nothing returned
  * to either side carries a user id, and the company only ever sees the
- * review's public display name.
+ * review's public display name and avatar.
  */
 @Injectable()
 export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly moderation: ModerationService,
+    private readonly employerProfile: EmployerProfileService,
   ) {}
 
   async startConversation(userId: string, reviewId: string, input: SendMessageInput): Promise<ConversationThread> {
@@ -143,6 +145,20 @@ export class MessagingService {
     }
     const rows = await this.prisma.reviewConversation.findMany({
       where: { companyId },
+      include: SUMMARY_INCLUDE,
+    });
+    return this.toSortedSummaries(rows, "COMPANY");
+  }
+
+  /** The top-bar Messages inbox for an owner: every company they have an approved claim on, in one list. */
+  async listForOwner(userId: string): Promise<ConversationSummary[]> {
+    const claims = await this.prisma.companyOwner.findMany({
+      where: { userId, claimStatus: "APPROVED" },
+      select: { companyId: true },
+    });
+    if (claims.length === 0) return [];
+    const rows = await this.prisma.reviewConversation.findMany({
+      where: { companyId: { in: claims.map((c) => c.companyId) } },
       include: SUMMARY_INCLUDE,
     });
     return this.toSortedSummaries(rows, "COMPANY");
@@ -252,19 +268,49 @@ export class MessagingService {
     return null;
   }
 
-  private toSummary(conversation: ConversationRow, side: Side): ConversationSummary {
+  /**
+   * The real name the reviewer sees for "who is answering" (2026-09-27
+   * product decision: owners are shown by their real name). The owner who
+   * wrote the company's latest message if they still own it, else the
+   * company's first approved owner. Only ever computed for the reviewer
+   * side, and only from the owner's employer profile, never the PII vault.
+   */
+  private async ownerNameFor(conversation: { id: string; companyId: string }): Promise<string | null> {
+    const lastCompanyMessage = await this.prisma.reviewConversationMessage.findFirst({
+      where: { conversationId: conversation.id, side: "COMPANY", authorUserId: { not: null } },
+      orderBy: { seq: "desc" },
+      select: { authorUserId: true },
+    });
+    let ownerUserId = lastCompanyMessage?.authorUserId ?? null;
+    if (!ownerUserId || !(await this.isApprovedOwner(ownerUserId, conversation.companyId))) {
+      const firstOwner = await this.prisma.companyOwner.findFirst({
+        where: { companyId: conversation.companyId, claimStatus: "APPROVED" },
+        orderBy: { createdAt: "asc" },
+        select: { userId: true },
+      });
+      ownerUserId = firstOwner?.userId ?? null;
+    }
+    return ownerUserId ? this.employerProfile.getRepresentativeName(ownerUserId) : null;
+  }
+
+  private async toSummary(conversation: ConversationRow, side: Side): Promise<ConversationSummary> {
     // A thread row holds every message oldest-first; a summary row holds only
     // the newest one (SUMMARY_INCLUDE) — the last element is the newest either way.
     const last = conversation.messages[conversation.messages.length - 1];
     const myLastRead = side === "REVIEWER" ? conversation.reviewerLastReadSeq : conversation.companyLastReadSeq;
+    const reviewerName = publicReviewerName(conversation.review, conversation.review.user) ?? FALLBACK_REVIEWER_NAME;
+    const reviewerAvatar = publicReviewerAvatar(conversation.review, conversation.review.user);
     return {
       id: conversation.id,
       reviewId: conversation.reviewId,
-      counterpartName:
-        side === "REVIEWER"
-          ? conversation.company.name
-          : (publicReviewerName(conversation.review, conversation.review.user) ?? FALLBACK_REVIEWER_NAME),
+      counterpartName: side === "REVIEWER" ? conversation.company.name : reviewerName,
       companySlug: side === "REVIEWER" ? conversation.company.slug : null,
+      companyName: conversation.company.name,
+      companyLogoUrl: conversation.company.mainPhotoUrl,
+      reviewerName,
+      reviewerAvatarKey: reviewerAvatar.avatarKey,
+      reviewerAvatarGradient: reviewerAvatar.avatarGradient,
+      ownerName: side === "REVIEWER" ? await this.ownerNameFor(conversation) : null,
       lastMessagePreview: last ? last.content.slice(0, PREVIEW_LENGTH) : "",
       lastMessageDay: toDay(last ? last.createdAt : conversation.createdAt),
       unread: last ? last.seq > myLastRead : false,
@@ -273,16 +319,15 @@ export class MessagingService {
     };
   }
 
-  private toSortedSummaries(rows: ConversationRow[], side: Side): ConversationSummary[] {
+  private toSortedSummaries(rows: ConversationRow[], side: Side): Promise<ConversationSummary[]> {
     const lastSeq = (row: ConversationRow) => row.messages[0]?.seq ?? 0;
-    return [...rows].sort((a, b) => lastSeq(b) - lastSeq(a)).map((row) => this.toSummary(row, side));
+    return Promise.all([...rows].sort((a, b) => lastSeq(b) - lastSeq(a)).map((row) => this.toSummary(row, side)));
   }
 
-  private toThread(conversation: ThreadRow, side: Side): ConversationThread {
+  private async toThread(conversation: ThreadRow, side: Side): Promise<ConversationThread> {
     const reason = this.cannotSendReason(conversation, side);
     return {
-      ...this.toSummary(conversation, side),
-      companyName: conversation.company.name,
+      ...(await this.toSummary(conversation, side)),
       reviewExcerpt: conversation.review.generalThoughts?.slice(0, REVIEW_EXCERPT_LENGTH) ?? null,
       messages: conversation.messages.map((m) => ({
         id: m.id,

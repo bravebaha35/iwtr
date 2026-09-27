@@ -20,7 +20,6 @@ import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
-import { ConversationInbox } from "@/components/messaging/ConversationInbox";
 import { contactAdminInputSchema } from "@iwtr/shared-types";
 import { formProblem } from "@/lib/validateForm";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
@@ -210,22 +209,16 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<OwnerDashboardCategory>("general-info");
-  // A message notification links here as
-  // /my/companies?category=messages&company={companyId}&c={conversationId},
-  // a new-application one as ?category=applications&company={companyId}
-  // (see NotificationsService.list) - only the named company's card opens
-  // that section. Read from window.location once on mount rather
-  // than useSearchParams so this page keeps rendering without a Suspense
-  // boundary.
-  const [openConversationId, setOpenConversationId] = useState<string | null>(null);
+  // A new-application notification links here as
+  // ?category=applications&company={companyId} (see NotificationsService.list)
+  // - only the named company's card opens that section. Read from
+  // window.location once on mount rather than useSearchParams so this page
+  // keeps rendering without a Suspense boundary.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("company") !== claim.companyId) return;
-    if (params.get("category") === "messages") {
+    if (params.get("category") === "applications") {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from the URL once on mount
-      setActiveCategory("messages");
-      setOpenConversationId(params.get("c"));
-    } else if (params.get("category") === "applications") {
       setActiveCategory("applications");
     }
   }, [claim.companyId]);
@@ -665,18 +658,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             )}
 
             {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
-
-            {activeCategory === "messages" && (
-              <div className="rounded-xl border border-border bg-surface p-5">
-                <h3 className="mb-1 font-semibold text-foreground">Messages</h3>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Private conversations started by reviewers you&apos;ve publicly replied to. You only see the name
-                  shown on their review. You can&apos;t start a conversation yourself, and either side can end one at
-                  any time.
-                </p>
-                <ConversationInbox mode="company" companyId={claim.companyId} initialConversationId={openConversationId} />
-              </div>
-            )}
 
             {/* Rendered here (sibling to every activeCategory block, not nested
                 inside general-info's) because both GeneralInfoCategory and
