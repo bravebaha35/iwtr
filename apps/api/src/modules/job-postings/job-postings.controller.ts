@@ -55,8 +55,10 @@ export class JobPostingsController {
   // Trustworthiness comes from JobPostingsService immediately calling back
   // into iyzico with our own API secret, never from trusting this body.
   @Post("job-postings/boost-checkout-callback")
-  async boostCheckoutCallback(@Body() body: { token?: string }, @Res() res: Response) {
-    if (body?.token) {
+  async boostCheckoutCallback(@Body() body: { token?: unknown }, @Res() res: Response) {
+    // Only a plain string token is ever passed on to iyzico - this route is
+    // public, so anything else in the body is ignored.
+    if (typeof body?.token === "string" && body.token.length > 0 && body.token.length <= 256) {
       await this.jobPostings.completeCheckout(body.token).catch((err) => {
         // Best-effort: still send the user back into the app either way.
         // Still logged so a genuine DB/API error here isn't invisible.

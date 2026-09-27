@@ -26,8 +26,10 @@ export class PaymentsController {
   // comes from PaymentsService immediately calling back into iyzico with our
   // own API secret to confirm status — never from trusting this request body.
   @Post("payments/iyzico/callback")
-  async callback(@Body() body: { token?: string }, @Res() res: Response) {
-    if (body?.token) {
+  async callback(@Body() body: { token?: unknown }, @Res() res: Response) {
+    // Only a plain string token is ever passed on to iyzico - this route is
+    // public, so anything else in the body is ignored.
+    if (typeof body?.token === "string" && body.token.length > 0 && body.token.length <= 256) {
       await this.payments.handleCheckoutCallback(body.token).catch((err) => {
         // Best-effort: still send the user back into the app either way —
         // a failed status lookup shouldn't strand them on a blank response.
