@@ -36,4 +36,10 @@ async function bootstrap() {
   console.log(`API listening on http://localhost:${port}/v1`);
 }
 
-bootstrap();
+bootstrap().catch((err: unknown) => {
+  // A failed start (port taken, bad config, DB unreachable at boot) must end
+  // the process with an error, not leave an unhandled rejection behind.
+  // eslint-disable-next-line no-console
+  console.error("API failed to start", err);
+  process.exit(1);
+});

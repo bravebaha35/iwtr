@@ -26,15 +26,15 @@ function strictify(schema: ZodTypeAny): ZodTypeAny {
     );
     return rebuild({ shape: () => shape, unknownKeys: "strict" });
   }
-  if (schema instanceof z.ZodArray) return rebuild({ type: strictify(schema._def.type) });
-  if (schema instanceof z.ZodEffects) return rebuild({ schema: strictify(schema._def.schema) });
+  if (schema instanceof z.ZodArray) return rebuild({ type: strictify(schema._def.type as ZodTypeAny) });
+  if (schema instanceof z.ZodEffects) return rebuild({ schema: strictify(schema._def.schema as ZodTypeAny) });
   if (
     schema instanceof z.ZodOptional ||
     schema instanceof z.ZodNullable ||
     schema instanceof z.ZodDefault ||
     schema instanceof z.ZodCatch
   ) {
-    return rebuild({ innerType: strictify(schema._def.innerType) });
+    return rebuild({ innerType: strictify(schema._def.innerType as ZodTypeAny) });
   }
   if (schema instanceof z.ZodUnion || schema instanceof z.ZodDiscriminatedUnion) {
     const options = (schema._def.options as ZodTypeAny[]).map(strictify);
