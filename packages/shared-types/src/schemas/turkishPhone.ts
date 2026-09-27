@@ -77,3 +77,59 @@ export const companyContactPhoneSchema = z.string().superRefine((value, ctx) => 
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: result.error });
   }
 });
+
+// --- Finding phone numbers inside free text (private messages, reviews,
+// social comments). Different job from the validators above: those check a
+// single form field; this scans prose for anything that looks like a
+// Turkish number someone typed out, however they grouped it.
+
+// A digit, then 9-13 more digits, with up to 2 separator characters between
+// any two digits: "0532 123 45 67", "0532-123-4567", "(0532) 1234567",
+// "+90 532 123 45 67", and the spaced-out "0 5 3 2 1 2 3 4 5 6 7" all match
+// as one candidate. The 2-character cap keeps two numbers separated by
+// " / " or a word from merging into one. The candidate must also be the
+// whole run of digits (nothing digit-like right before or after it), so a
+// slice out of a longer figure such as an IBAN never counts.
+const PHONE_CANDIDATE_PATTERN = /(?<!\d[\s.\-()/]{0,2})\+?\d(?:[\s.\-()/]{0,2}\d){9,13}(?![\s.\-()/]{0,2}\d)/g;
+
+function nationalNumberOf(digits: string): { national: string; hadTrunkPrefix: boolean } | null {
+  if (digits.length === 10) return { national: digits, hadTrunkPrefix: false };
+  if (digits.length === 11 && digits.startsWith("0")) return { national: digits.slice(1), hadTrunkPrefix: true };
+  if (digits.length === 12 && digits.startsWith("90")) return { national: digits.slice(2), hadTrunkPrefix: true };
+  if (digits.length === 13 && digits.startsWith("900")) return { national: digits.slice(3), hadTrunkPrefix: true };
+  if (digits.length === 14 && digits.startsWith("0090")) return { national: digits.slice(4), hadTrunkPrefix: true };
+  return null;
+}
+
+function isPhoneShaped(digits: string): boolean {
+  const parsed = nationalNumberOf(digits);
+  if (!parsed) return false;
+  const { national, hadTrunkPrefix } = parsed;
+  // "5.000.000.000" is an amount, not a number anyone can call.
+  if (/^\d{3}0{7}$/.test(national)) return false;
+  // Mobile (5xx): counts with or without the leading 0 / +90, since people
+  // write "532 123 45 67" all the time.
+  if (national.startsWith("5")) return true;
+  // Landline (2xx/3xx/4xx): only with a 0 / +90 in front AND a real province
+  // area code, so an ordinary 10-digit figure isn't mistaken for one.
+  return hadTrunkPrefix && isRealTurkishAreaCode(national.slice(0, 3));
+}
+
+/** Every Turkish mobile or landline number written in `text`, as typed. */
+export function findTurkishPhoneNumbers(text: string): string[] {
+  const found: string[] = [];
+  for (const match of text.matchAll(PHONE_CANDIDATE_PATTERN)) {
+    if (isPhoneShaped(match[0].replace(/\D/g, ""))) found.push(match[0].trim());
+  }
+  return found;
+}
+
+export function containsTurkishPhoneNumber(text: string): boolean {
+  return findTurkishPhoneNumbers(text).length > 0;
+}
+
+// Shown next to a private message that shares a phone number (and under the
+// message box while one is being typed). Sharing is allowed once both sides
+// have talked it through; this is the reminder, not a block.
+export const PHONE_SHARING_NOTE =
+  "Our main purpose is protecting your anonymity. Be careful while sharing your phone number.";

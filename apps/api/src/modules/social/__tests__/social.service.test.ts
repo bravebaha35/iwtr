@@ -1207,3 +1207,54 @@ describe("SocialService.trendingToday", () => {
     expect(result.mostCommented).toEqual([]);
   });
 });
+
+describe("SocialService times (members see the hour, admins the exact moment)", () => {
+  const exact = new Date("2026-09-27T14:37:52.123Z");
+  const hour = "2026-09-27T14:00:00.000Z";
+
+  function prismaWith() {
+    return {
+      company: { findUnique: jest.fn().mockResolvedValue({ id: "c1" }) },
+      socialPost: {
+        findUnique: jest.fn().mockResolvedValue({ id: "p1" }),
+        findMany: jest.fn().mockResolvedValue([
+          { id: "p1", companyId: "c1", imageUrls: [], caption: "hi", createdAt: exact,
+            company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE", workplaceTypes: [] } },
+        ]),
+      },
+      socialComment: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "cm1", postId: "p1", body: "first", createdAt: exact, authorUserId: "u1", parentCommentId: null, identityMode: "PERSONAL_CHOSEN" },
+          { id: "cm2", postId: "p1", body: "reply", createdAt: exact, authorUserId: "u1", parentCommentId: "cm1", identityMode: "PERSONAL_CHOSEN" },
+        ]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+      socialCommentVote: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([{ id: "u1", avatarKey: null, avatarGradient: null, reviewUsername: "One" }]) },
+    } as never;
+  }
+
+  it("rounds a post's time down to the hour on the public feed", async () => {
+    const page = await new SocialService(prismaWith(), moderationPass).feed(undefined, {});
+    expect(page.posts[0].createdAt).toBe(hour);
+  });
+
+  it("rounds a comment's time down to the hour", async () => {
+    const out = await new SocialService(prismaWith(), moderationPass).listComments(undefined, "p1");
+    expect(out.map((c) => c.createdAt)).toEqual([hour, hour]);
+  });
+
+  it("gives the admin the exact time of posts and of every comment and reply", async () => {
+    const service = new SocialService(prismaWith(), moderationPass);
+    const feed = await service.adminCompanyFeed("c1", {});
+    expect(feed.posts[0].createdAt).toBe(exact.toISOString());
+    const comments = await service.adminPostComments("p1");
+    expect(comments).toEqual([
+      expect.objectContaining({ id: "cm1", createdAt: exact.toISOString(), isReply: false, displayUsername: "One" }),
+      expect.objectContaining({ id: "cm2", createdAt: exact.toISOString(), isReply: true }),
+    ]);
+    expect(comments.every((c) => !("authorUserId" in c))).toBe(true);
+  });
+});

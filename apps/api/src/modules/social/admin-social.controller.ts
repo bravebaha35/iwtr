@@ -31,6 +31,13 @@ export class AdminSocialController {
     return this.social.adminCompanyFeed(id, { cursor });
   }
 
+  // GET admin/social/posts/:id/comments — every comment and reply on one
+  // post with its exact time (members only ever see the hour).
+  @Get("posts/:id/comments")
+  postComments(@Param("id", new ParseUUIDPipe()) id: string) {
+    return this.social.adminPostComments(id);
+  }
+
   // GET admin/social/reported-comments — every comment with at least one
   // report, flagged (crossed 3 reports + matched the content filter) ones
   // first. No author identity in the response (see SocialService.

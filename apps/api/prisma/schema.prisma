@@ -605,6 +605,11 @@ model CompanyOwner {
   rivalAnalyticsTier            RivalAnalyticsTier?
   rivalAnalyticsFreeRequestUsed Boolean             @default(false)
 
+  // "Show company owner's name during messaging" tick-box (owner dashboard,
+  // Contact & Social Media). Off by default: until this owner ticks it, a
+  // reviewer they message sees "Company representative", not their name.
+  showNameInMessages Boolean @default(false)
+
   @@unique([userId, companyId])
   // OwnerService's claims-queue list (admin) and EmployerProfileService's
   // requireVerifiedEmployer check both filter by claimStatus alone — the

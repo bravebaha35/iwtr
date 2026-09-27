@@ -16,6 +16,7 @@ import {
   type ReportSocialCommentInput,
   type ReportSocialCommentResult,
   type AdminReportedSocialComment,
+  type AdminSocialComment,
   type SavedPostToggleResult,
   type SocialCommentIdentityContext,
   type SocialCommentVoteResult,
@@ -32,6 +33,7 @@ import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "../companies/
 import { decryptField, unwrapDek } from "../employer-profile/crypto.util";
 import { pickRandomDisplayUsername } from "../reviews/randomized-identity.util";
 import { processSocialImage } from "./social-image.util";
+import { toUtcHour } from "../../common/time/day-precision.util";
 
 // Local disk, dev-safe - same pattern as OwnerService.uploadLogo. Served at
 // /uploads/social/ by main.ts's existing useStaticAssets(cwd/uploads, prefix
@@ -245,7 +247,31 @@ export class SocialService {
     if (!company) {
       throw new NotFoundException("Company not found");
     }
-    return this.pageFromWhere(undefined, { companyId: company.id }, opts.cursor);
+    // Exact times: the admin sees the real moment each post went up.
+    return this.pageFromWhere(undefined, { companyId: company.id }, opts.cursor, "newest", { exactTimes: true });
+  }
+
+  // ADMIN-only: every comment and reply on one post, oldest first, with the
+  // EXACT time each was written - the legal record members never see (they
+  // get hour precision, see toUtcHour). Still no author account in the
+  // response, same as listReportedComments.
+  async adminPostComments(postId: string): Promise<AdminSocialComment[]> {
+    await this.requirePost(postId);
+    const rows = await this.prisma.socialComment.findMany({
+      where: { postId },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 5000,
+    });
+    const serialized = await this.serializeComments(rows, undefined, { exactTimes: true });
+    const parentById = new Map(rows.map((r) => [r.id, r.parentCommentId]));
+    return serialized.map((c) => ({
+      id: c.id,
+      body: c.body,
+      createdAt: c.createdAt,
+      identityMode: c.identityMode,
+      displayUsername: c.displayUsername,
+      isReply: parentById.get(c.id) != null,
+    }));
   }
 
   // --- ADMIN content moderation (AdminSocialController, ADMIN-only). A hard
@@ -398,6 +424,7 @@ export class SocialService {
     where: Prisma.SocialPostWhereInput,
     cursor: string | undefined,
     sort: SocialCompanySort = "newest",
+    options: { exactTimes?: boolean } = {},
   ): Promise<SocialFeedPage> {
     // id is always the final tie-breaker: createdAt alone is not unique
     // (same-millisecond posts from a seed script or a burst) and an unstable
@@ -419,7 +446,7 @@ export class SocialService {
     });
     const hasMore = rows.length > SOCIAL_FEED_PAGE_SIZE;
     const pageRows = hasMore ? rows.slice(0, SOCIAL_FEED_PAGE_SIZE) : rows;
-    const posts = await this.serializePosts(pageRows, viewerUserId);
+    const posts = await this.serializePosts(pageRows, viewerUserId, options);
     return { posts, nextCursor: hasMore ? pageRows[pageRows.length - 1].id : null };
   }
 
@@ -434,6 +461,7 @@ export class SocialService {
       company: { slug: string; name: string; mainPhotoUrl: string | null; badgeTier: string; workplaceTypes: PublicSocialPost["companyWorkplaceTypes"] };
     }>,
     viewerUserId: string | undefined,
+    options: { exactTimes?: boolean } = {},
   ): Promise<PublicSocialPost[]> {
     const ids = rows.map((r) => r.id);
     const [likeCounts, commentCounts, myLikes, mySaves] = await Promise.all([
@@ -467,7 +495,8 @@ export class SocialService {
       companyWorkplaceTypes: r.company.workplaceTypes,
       imageUrls: r.imageUrls,
       caption: r.caption,
-      createdAt: r.createdAt.toISOString(),
+      // Hour precision for everyone but an admin (see toUtcHour).
+      createdAt: (options.exactTimes ? r.createdAt : toUtcHour(r.createdAt)).toISOString(),
       likeCount: likeByPost.get(r.id) ?? 0,
       commentCount: commentByPost.get(r.id) ?? 0,
       likedByMe: viewerUserId ? likedByMe.has(r.id) : null,
@@ -984,6 +1013,7 @@ export class SocialService {
       randomUsername: string | null;
     }>,
     viewerUserId: string | undefined,
+    options: { exactTimes?: boolean } = {},
   ): Promise<PublicSocialComment[]> {
     // authorUserId is null when the comment's author has since deleted their
     // account (SocialComment.authorUserId is onDelete: SetNull). The comment
@@ -1056,7 +1086,8 @@ export class SocialService {
         id: r.id,
         postId: r.postId,
         body: r.body,
-        createdAt: r.createdAt.toISOString(),
+        // Hour precision for everyone but an admin (see toUtcHour).
+        createdAt: (options.exactTimes ? r.createdAt : toUtcHour(r.createdAt)).toISOString(),
         identityMode: r.identityMode,
         ...identity,
         mine: viewerUserId !== undefined && r.authorUserId === viewerUserId,

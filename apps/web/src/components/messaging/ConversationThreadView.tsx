@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ConversationThread } from "@iwtr/shared-types";
-import { sendMessageInputSchema } from "@iwtr/shared-types";
+import { containsTurkishPhoneNumber, PHONE_SHARING_NOTE, sendMessageInputSchema } from "@iwtr/shared-types";
 import { ApiError, apiPost } from "@/lib/api-client";
 import { formProblem } from "@/lib/validateForm";
 import { ConversationStatus, CounterpartPicture, SidePicture } from "./conversationIdentity";
@@ -21,6 +21,24 @@ function formatDay(day: string): string {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+// Shown under any message with a phone number in it, and under the message
+// box while one is being typed. Numbers are allowed (both sides may agree to
+// swap them); this is a reminder, not a block.
+function PhoneSharingNote({ className = "" }: { className?: string }) {
+  return (
+    <p
+      role="note"
+      className={`flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100 ${className}`}
+    >
+      <svg viewBox="0 0 24 24" className="mt-px h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+        <path d="M12 8v4M12 16h.01" />
+      </svg>
+      {PHONE_SHARING_NOTE}
+    </p>
+  );
 }
 
 /**
@@ -120,20 +138,20 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
           <li key={group.day} className="flex flex-col gap-2">
             <p className="text-center text-xs font-medium text-muted-foreground">{formatDay(group.day)}</p>
             {group.messages.map((message) => (
-              <div
-                key={message.id}
-                className={message.fromMe ? "flex flex-row-reverse items-end gap-2" : "flex items-end gap-2"}
-              >
-                <SidePicture conversation={thread} side={message.fromMe ? mySide : theirSide} />
-                <p
-                  className={
-                    message.fromMe
-                      ? "max-w-[85%] whitespace-pre-wrap break-words rounded-lg bg-brand-600 px-3 py-2 text-sm text-white"
-                      : "max-w-[85%] whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-                  }
-                >
-                  {message.content}
-                </p>
+              <div key={message.id} className={message.fromMe ? "flex flex-col items-end gap-1" : "flex flex-col items-start gap-1"}>
+                <div className={message.fromMe ? "flex flex-row-reverse items-end gap-2" : "flex items-end gap-2"}>
+                  <SidePicture conversation={thread} side={message.fromMe ? mySide : theirSide} />
+                  <p
+                    className={
+                      message.fromMe
+                        ? "max-w-[85%] whitespace-pre-wrap break-words rounded-lg bg-brand-600 px-3 py-2 text-sm text-white"
+                        : "max-w-[85%] whitespace-pre-wrap break-words rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
+                    }
+                  >
+                    {message.content}
+                  </p>
+                </div>
+                {message.sharesPhoneNumber && <PhoneSharingNote className="mx-10 max-w-[85%]" />}
               </div>
             ))}
           </li>
@@ -152,9 +170,10 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
           disabled={!thread.canSend || sending}
           maxLength={2000}
           rows={3}
-          placeholder={thread.canSend ? "Write a message. Don't include names or contact details." : ""}
+          placeholder={thread.canSend ? "Write a message. Don't include anyone's name." : ""}
           className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground disabled:opacity-50"
         />
+        {thread.canSend && containsTurkishPhoneNumber(draft) && <PhoneSharingNote />}
         {error && (
           <p role="alert" className="text-sm text-red-700 dark:text-red-300">
             {error}

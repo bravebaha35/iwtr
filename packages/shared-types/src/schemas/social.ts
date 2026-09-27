@@ -235,6 +235,19 @@ export const adminReportedSocialCommentSchema = z.object({
 });
 export type AdminReportedSocialComment = z.infer<typeof adminReportedSocialCommentSchema>;
 
+// Admin-only view of one post's comments (GET admin/social/posts/:id/comments):
+// the EXACT time each comment was written - members and companies only ever
+// see it to the hour. No author account, only the name shown publicly.
+export const adminSocialCommentSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  createdAt: z.string().datetime(),
+  identityMode: commentIdentityModeSchema,
+  displayUsername: z.string().nullable(),
+  isReply: z.boolean(),
+});
+export type AdminSocialComment = z.infer<typeof adminSocialCommentSchema>;
+
 export const socialPostLikeResultSchema = z.object({
   postId: z.string(),
   likeCount: z.number().int(),

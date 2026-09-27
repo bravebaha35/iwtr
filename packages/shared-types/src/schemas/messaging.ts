@@ -46,8 +46,23 @@ export const conversationMessageSchema = z.object({
   fromMe: z.boolean(),
   day: z.string(),
   content: z.string(),
+  // The message has a Turkish phone number in it: both sides see
+  // PHONE_SHARING_NOTE under it (numbers are allowed, not blocked).
+  sharesPhoneNumber: z.boolean(),
 });
 export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
+
+// The owner dashboard's "Show company owner's name during messaging"
+// tick-box (one per owner per company). ownerName is the name reviewers would
+// see - from the owner's employer profile, null until they fill it in.
+export const ownerMessagingNameSchema = z.object({
+  showNameInMessages: z.boolean(),
+  ownerName: z.string().nullable(),
+});
+export type OwnerMessagingName = z.infer<typeof ownerMessagingNameSchema>;
+
+export const updateOwnerMessagingNameInputSchema = z.object({ showNameInMessages: z.boolean() });
+export type UpdateOwnerMessagingNameInput = z.infer<typeof updateOwnerMessagingNameInputSchema>;
 
 export const conversationThreadSchema = conversationSummarySchema.extend({
   // Short excerpt of the review's general thoughts, for context.

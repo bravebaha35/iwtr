@@ -22,7 +22,7 @@ function review(overrides: Partial<FakeReview> = {}): FakeReview {
   };
 }
 
-type Owner = { userId: string; companyId: string; claimStatus: string; createdAt?: Date };
+type Owner = { userId: string; companyId: string; claimStatus: string; createdAt?: Date; showNameInMessages?: boolean };
 
 function setup(opts: { reviews?: FakeReview[]; owners?: Owner[]; ownerNames?: Record<string, string> } = {}) {
   const prisma = createFakePrisma({
@@ -35,7 +35,7 @@ function setup(opts: { reviews?: FakeReview[]; owners?: Owner[]; ownerNames?: Re
       { id: COMPANY, name: "Demo Finans Holding", slug: "demo-finans-holding", mainPhotoUrl: "/uploads/logo.webp" },
       { id: "company-2", name: "Demo Lojistik", slug: "demo-lojistik" },
     ],
-    owners: opts.owners ?? [{ userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED" }],
+    owners: opts.owners ?? [{ userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", showNameInMessages: true }],
   });
   const names = opts.ownerNames ?? { [OWNER]: "Ahmet Yılmaz" };
   const employerProfile = { getRepresentativeName: async (userId: string) => names[userId] ?? null };
@@ -77,9 +77,23 @@ describe("MessagingService.startConversation", () => {
   it("blocks an opening message that fails the content check and saves nothing", async () => {
     const { service, prisma } = setup();
     await expect(
-      service.startConversation(REVIEWER, "review-1", { content: "Please call me on 0532 123 45 67" }),
+      service.startConversation(REVIEWER, "review-1", { content: "You are all s t u p i d" }),
     ).rejects.toThrow(BadRequestException);
     expect(prisma._state.conversations).toHaveLength(0);
+  });
+
+  it("lets a phone number through and marks that message for the warning note", async () => {
+    const { service } = setup();
+    const thread = await service.startConversation(REVIEWER, "review-1", {
+      content: "If you agree, my number is 0532 123 45 67",
+    });
+    expect(thread.messages.map((m) => m.sharesPhoneNumber)).toEqual([true]);
+  });
+
+  it("does not mark an ordinary message", async () => {
+    const { service } = setup();
+    const thread = await service.startConversation(REVIEWER, "review-1", hello);
+    expect(thread.messages.map((m) => m.sharesPhoneNumber)).toEqual([false]);
   });
 });
 
@@ -246,8 +260,8 @@ describe("MessagingService conversation identity", () => {
   it("names the owner who wrote last, falling back to the first owner once they no longer own the company", async () => {
     const SECOND = "user-owner-2";
     const owners: Owner[] = [
-      { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-01-01") },
-      { userId: SECOND, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-02-01") },
+      { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-01-01"), showNameInMessages: true },
+      { userId: SECOND, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-02-01"), showNameInMessages: true },
     ];
     const { service } = setup({ owners, ownerNames: { [OWNER]: "Ahmet Yılmaz", [SECOND]: "Elif Kaya" } });
     const started = await service.startConversation(REVIEWER, "review-1", hello);
@@ -261,6 +275,30 @@ describe("MessagingService conversation identity", () => {
     const { service } = setup({ ownerNames: {} });
     const started = await service.startConversation(REVIEWER, "review-1", hello);
     expect(started.ownerName).toBeNull();
+  });
+
+  it("hides the owner name until the owner ticks 'Show company owner's name during messaging'", async () => {
+    const owners: Owner[] = [{ userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", showNameInMessages: false }];
+    const { service } = setup({ owners });
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    expect(started.ownerName).toBeNull();
+
+    expect(await service.getOwnerMessagingName(OWNER, COMPANY)).toEqual({ showNameInMessages: false, ownerName: "Ahmet Yılmaz" });
+    expect(await service.setOwnerMessagingName(OWNER, COMPANY, true)).toEqual({
+      showNameInMessages: true,
+      ownerName: "Ahmet Yılmaz",
+    });
+    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBe("Ahmet Yılmaz");
+
+    await service.setOwnerMessagingName(OWNER, COMPANY, false);
+    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBeNull();
+  });
+
+  it("only lets an approved owner of that company read or change the tick-box", async () => {
+    const { service } = setup();
+    await expect(service.getOwnerMessagingName(REVIEWER, COMPANY)).rejects.toThrow(ForbiddenException);
+    await expect(service.setOwnerMessagingName(REVIEWER, COMPANY, true)).rejects.toThrow(ForbiddenException);
+    await expect(service.setOwnerMessagingName(OWNER, "company-2", true)).rejects.toThrow(ForbiddenException);
   });
 });
 
@@ -361,11 +399,11 @@ describe("MessagingService blocked-message wording", () => {
   it("explains a blocked message in plain words, not internal codes", async () => {
     const { service } = setup();
     const err = await service
-      .startConversation(REVIEWER, "review-1", { content: "Please call me on 0532 123 45 67" })
+      .startConversation(REVIEWER, "review-1", { content: "you idiot" })
       .catch((e: BadRequestException) => e);
     const body = (err as BadRequestException).getResponse() as { message: string; violationTypes: string[] };
-    expect(body.message).toContain("a phone number");
-    expect(body.message).not.toContain("PII_PHONE_NUMBER");
-    expect(body.violationTypes).toEqual(["PII_PHONE_NUMBER"]);
+    expect(body.message).toContain("offensive words");
+    expect(body.message).not.toContain("PROFANITY");
+    expect(body.violationTypes).toEqual(["PROFANITY"]);
   });
 });

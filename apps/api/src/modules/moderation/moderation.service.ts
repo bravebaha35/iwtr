@@ -1,5 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import type { ContentCheckResult, SkippableViolationType, TrustScoreResult } from "@iwtr/shared-types";
+import {
+  containsTurkishPhoneNumber,
+  type ContentCheckResult,
+  type SkippableViolationType,
+  type TrustScoreResult,
+} from "@iwtr/shared-types";
+import { findProfanity } from "./profanity-matcher";
 
 // Small, deliberately simple word lists for the Phase 1 stand-in. Swap this
 // whole class for a Claude-backed implementation later (see plan) — nothing
@@ -211,10 +217,11 @@ export class ModerationService {
     // Categories the caller opts out of. SocialService.createPost passes
     // ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"] for an employer's own
     // post caption: it may name its own staff and job roles and write an
-    // all-caps announcement in its own post. Only those three are opt-outable
-    // (see SkippableViolationType) - profanity, sexual content and phone
-    // numbers always apply. With no options this stays byte-identical to the
-    // original.
+    // all-caps announcement in its own post. MessagingService passes
+    // ["PII_PHONE_NUMBER"]: two people in a private conversation may agree to
+    // swap numbers (they get a warning note instead). Profanity and sexual
+    // content always apply (see SkippableViolationType). With no options this
+    // stays byte-identical to the original.
     const skip = new Set<SkippableViolationType>(options?.skipViolationTypes ?? []);
     const combined = texts.filter(Boolean).join(" \n ");
     const lower = combined.toLowerCase();
@@ -225,8 +232,13 @@ export class ModerationService {
     // behavior, unchanged) plus the space-agnostic evasion variant.
     // SEXUAL_CONTENT_WORDS is newly wired in here too — it previously only
     // guarded display names, never actual review content.
-    const hasPlainProfanity = [...PROFANITY_WORDS, ...SEXUAL_CONTENT_WORDS].some((w) => matchesAsWord(lower, w));
-    const hasEvasiveProfanity = SPACE_AGNOSTIC_PROFANITY_PATTERNS.some((p) => p.test(layoutFolded));
+    // The big English + Turkish list (profanity-lexicon.ts) runs alongside
+    // the original short lists; see profanity-matcher.ts for the dodges it undoes.
+    const lexicon = findProfanity(combined);
+    const hasPlainProfanity =
+      [...PROFANITY_WORDS, ...SEXUAL_CONTENT_WORDS].some((w) => matchesAsWord(lower, w)) || lexicon.plain;
+    const hasEvasiveProfanity =
+      SPACE_AGNOSTIC_PROFANITY_PATTERNS.some((p) => p.test(layoutFolded)) || lexicon.evasive;
     if (hasPlainProfanity || hasEvasiveProfanity) violationTypes.push("PROFANITY");
 
     // --- Names/surnames: existing two-capitalized-words heuristic, plus the
@@ -264,8 +276,10 @@ export class ModerationService {
     // Gated by skipViolationTypes: an employer may name a role in its own caption.
     if (hasJobTitleNearName && !skip.has("JOB_TITLE")) violationTypes.push("JOB_TITLE");
 
-    // --- Phone numbers: dedicated shape-based PII check, not a keyword.
-    if (PHONE_PATTERN.test(combined)) {
+    // --- Phone numbers: dedicated shape-based PII check, not a keyword. The
+    // shared detector adds +90/0090 forms, brackets and real landlines.
+    const hasPhoneNumber = PHONE_PATTERN.test(combined) || containsTurkishPhoneNumber(combined);
+    if (hasPhoneNumber && !skip.has("PII_PHONE_NUMBER")) {
       violationTypes.push("PII_PHONE_NUMBER");
     }
 
