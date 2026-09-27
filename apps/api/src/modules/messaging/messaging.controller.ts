@@ -31,6 +31,12 @@ export class MessagingController {
     return this.messaging.listMine(user.id);
   }
 
+  // The top-bar Messages page for an owner: all their companies in one list.
+  @Get("owner/conversations")
+  listForOwner(@CurrentUser() user: AuthenticatedUser) {
+    return this.messaging.listForOwner(user.id);
+  }
+
   @Get("owner/companies/:companyId/conversations")
   listForCompany(
     @CurrentUser() user: AuthenticatedUser,

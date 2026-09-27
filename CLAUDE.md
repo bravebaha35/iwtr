@@ -115,6 +115,12 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `publicReviewerName` (the review's public display name), never a user id. Timestamps are day-precision;
   ordering/unread use the message `seq`. Anything that moves or deletes reviews/companies must carry
   `ReviewConversation.companyId` along (company merge does).
+  Both sides read their inbox on the top-bar `/messages` page (owners get one list across all their
+  companies via `GET owner/conversations`). Each side sees the review's public name/avatar (randomized
+  stand-ins included) and the company logo; the reviewer also sees the answering owner's real name, taken
+  from `EmployerProfile` only — never the PII vault.
+- `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per
+  company) and the admin queue on `/admin/content`.
 
 ### Data model (`apps/api/prisma/schema.prisma`)
 

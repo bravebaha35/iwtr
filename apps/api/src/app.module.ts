@@ -26,6 +26,7 @@ import { SocialModule } from "./modules/social/social.module";
 import { FollowsModule } from "./modules/follows/follows.module";
 import { SkillsModule } from "./modules/skills/skills.module";
 import { MessagingModule } from "./modules/messaging/messaging.module";
+import { CompanyReportsModule } from "./modules/company-reports/company-reports.module";
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { MessagingModule } from "./modules/messaging/messaging.module";
     FollowsModule,
     SkillsModule,
     MessagingModule,
+    CompanyReportsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: AccountThrottlerGuard }],
 })

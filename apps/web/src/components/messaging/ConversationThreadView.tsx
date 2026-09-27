@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ConversationThread } from "@iwtr/shared-types";
 import { sendMessageInputSchema } from "@iwtr/shared-types";
 import { ApiError, apiPost } from "@/lib/api-client";
 import { formProblem } from "@/lib/validateForm";
+import { ConversationStatus, CounterpartPicture, SidePicture } from "./conversationIdentity";
 
 interface Props {
   thread: ConversationThread;
@@ -30,6 +31,15 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLOListElement>(null);
+  const mySide = mode === "reviewer" ? "REVIEWER" : "COMPANY";
+  const theirSide = mode === "reviewer" ? "COMPANY" : "REVIEWER";
+
+  // Newest message in view on open and after every send.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [thread.id, thread.messages.length]);
 
   const disabledReason =
     thread.cannotSendReason === "ENDED"
@@ -79,16 +89,20 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold text-foreground">{thread.counterpartName}</h3>
-          {thread.reviewExcerpt && (
-            <p className="mt-1 line-clamp-2 text-xs italic text-muted-foreground">
-              {mode === "company" ? "About their review: " : "About your review: "}
-              &ldquo;{thread.reviewExcerpt}&rdquo;
-            </p>
-          )}
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <CounterpartPicture conversation={thread} mode={mode} />
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-foreground">{thread.companyName}</h3>
+            <ConversationStatus conversation={thread} mode={mode} />
+            {thread.reviewExcerpt && (
+              <p className="mt-1 line-clamp-2 text-xs italic text-muted-foreground">
+                {mode === "company" ? "About their review: " : "About your review: "}
+                &ldquo;{thread.reviewExcerpt}&rdquo;
+              </p>
+            )}
+          </div>
         </div>
         {!thread.ended && (
           <button
@@ -101,12 +115,16 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
         )}
       </header>
 
-      <ol className="flex flex-col gap-4" aria-label="Messages">
+      <ol ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1" aria-label="Messages">
         {groups.map((group) => (
           <li key={group.day} className="flex flex-col gap-2">
             <p className="text-center text-xs font-medium text-muted-foreground">{formatDay(group.day)}</p>
             {group.messages.map((message) => (
-              <div key={message.id} className={message.fromMe ? "flex justify-end" : "flex justify-start"}>
+              <div
+                key={message.id}
+                className={message.fromMe ? "flex flex-row-reverse items-end gap-2" : "flex items-end gap-2"}
+              >
+                <SidePicture conversation={thread} side={message.fromMe ? mySide : theirSide} />
                 <p
                   className={
                     message.fromMe
@@ -122,7 +140,7 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
         ))}
       </ol>
 
-      <div className="flex flex-col gap-2 border-t border-border pt-3">
+      <div className="flex shrink-0 flex-col gap-2 border-t border-border pt-3">
         {disabledReason && <p className="text-sm text-muted-foreground">{disabledReason}</p>}
         <label htmlFor={`reply-${thread.id}`} className="sr-only">
           Your message

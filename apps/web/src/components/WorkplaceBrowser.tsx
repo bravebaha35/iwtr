@@ -545,7 +545,11 @@ export function WorkplaceBrowser() {
             <Suspense fallback={null}>
               <HighlightParamListener onHighlight={onHighlight} />
             </Suspense>
-            <div className="mb-4 flex flex-wrap items-center gap-2">
+            {/* Two rows: the search box with the sort buttons right beside
+                it, then the Quick Select pills on their own row - so the
+                sort buttons never get pushed off the right edge by a long
+                row of pills. */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <input
                 type="search"
                 placeholder="Search a workplace by name..."
@@ -556,21 +560,20 @@ export function WorkplaceBrowser() {
                 }`}
               />
 
-              {/* Curated category-group quick filter — a coarser,
-                  single-select alternative to the free-text Sector dropdown
-                  above, for the 4 groupings that matter most on the browse
-                  page. Sits between the search box and the sort buttons. */}
+              {/* Separate sort buttons (see SortButtons.tsx): A-Z loops A→Z / Z→A /
+                  off, Rating cycles least/best-rated. */}
+              <SortButtons value={sortBy} onChange={setSortBy} />
+            </div>
+
+            {/* Curated category-group quick filter — a coarser, single-select
+                alternative to the free-text Sector dropdown above, for the
+                groupings that matter most on the browse page. */}
+            <div className="mb-4">
               <CategoryGroupFilter
                 value={categoryGroup}
                 onChange={setCategoryGroup}
                 highlighted={highlightTarget === "categories"}
               />
-
-              {/* Separate sort buttons (see SortButtons.tsx): A-Z loops A→Z / Z→A /
-                  off, Rating cycles least/best-rated. */}
-              <div className="ml-auto">
-                <SortButtons value={sortBy} onChange={setSortBy} />
-              </div>
             </div>
 
             {geo && geo !== "denied" && (

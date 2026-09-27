@@ -1,8 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { AdminCompanySummary, AdminReportedSocialComment, PublicSocialPost, SocialFeedPage } from "@iwtr/shared-types";
-import { SOCIAL_COMMENT_REPORT_REASON_LABELS } from "@iwtr/shared-types";
+import type {
+  AdminCompanyReport,
+  AdminCompanySummary,
+  AdminReportedSocialComment,
+  CompanyReportReason,
+  PublicSocialPost,
+  SocialFeedPage,
+} from "@iwtr/shared-types";
+import { COMPANY_REPORT_REASON_LABELS, SOCIAL_COMMENT_REPORT_REASON_LABELS } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiDelete, apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 
@@ -107,6 +114,80 @@ function ReportedCommentsPanel() {
                 className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
               >
                 Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Companies members flagged with the Report button on a company page, most
+// reported first. Dismiss closes every open report on that company (see
+// CompanyReportsService); fixing or hiding the company itself is done from
+// the company list below or the company's own admin tools.
+function ReportedCompaniesPanel() {
+  const [reports, setReports] = useState<AdminCompanyReport[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiGet<AdminCompanyReport[]>("/admin/company-reports")
+      .then(setReports)
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load reported companies."));
+  }, []);
+
+  async function dismiss(companyId: string) {
+    setBusyId(companyId);
+    try {
+      await apiPost(`/admin/company-reports/${companyId}/dismiss`, {});
+      setReports((prev) => (prev ? prev.filter((r) => r.companyId !== companyId) : prev));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't dismiss those reports.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (reports === null && !error) return <p className="text-sm text-muted-foreground">Loading reported companies...</p>;
+  if (reports !== null && reports.length === 0) return null;
+
+  return (
+    <div className="mb-8">
+      <h2 className="mb-2 text-lg font-semibold text-foreground">Reported companies</h2>
+      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
+      <div className="flex flex-col gap-2">
+        {reports?.map((r) => (
+          <div key={r.companyId} className="rounded-lg border border-border bg-surface p-3">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <a
+                href={`/companies/${r.companySlug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-semibold text-foreground hover:underline"
+              >
+                {r.companyName}
+              </a>
+              <span className="text-xs font-medium text-muted-foreground">
+                {r.reportCount} report{r.reportCount === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div className="mb-1 flex flex-wrap gap-1">
+              {Object.entries(r.reasonCounts).map(([reason, count]) => (
+                <span key={reason} className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {COMPANY_REPORT_REASON_LABELS[reason as CompanyReportReason] ?? reason} x{count}
+                </span>
+              ))}
+            </div>
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => dismiss(r.companyId)}
+                disabled={busyId === r.companyId}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
+              >
+                Dismiss
               </button>
             </div>
           </div>
@@ -358,6 +439,7 @@ export default function AdminContentPage() {
         Hide a company from every public surface, wipe its IWT Social feed, or remove individual posts.
       </p>
 
+      <ReportedCompaniesPanel />
       <ReportedCommentsPanel />
 
       <form

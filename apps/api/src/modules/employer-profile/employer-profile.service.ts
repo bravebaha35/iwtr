@@ -96,6 +96,16 @@ export class EmployerProfileService {
     return firstName && lastName ? { firstName, lastName } : null;
   }
 
+  /**
+   * "First Last" for an owner answering a reviewer in a private conversation
+   * (MessagingService) - owners are shown to reviewers by their real name.
+   * Employer profile only; null until the owner has filled in both names.
+   */
+  async getRepresentativeName(userId: string): Promise<string | null> {
+    const name = await this.getOwnName(userId);
+    return name ? `${name.firstName} ${name.lastName}` : null;
+  }
+
   async getMyProfile(userId: string): Promise<EmployerProfileView> {
     await this.requireVerifiedEmployer(userId);
 

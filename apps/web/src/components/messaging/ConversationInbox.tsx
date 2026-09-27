@@ -4,19 +4,24 @@ import { useCallback, useEffect, useState } from "react";
 import type { ConversationSummary, ConversationThread } from "@iwtr/shared-types";
 import { apiGet, apiPost } from "@/lib/api-client";
 import { ConversationThreadView } from "./ConversationThreadView";
+import { ConversationStatus, CounterpartPicture } from "./conversationIdentity";
 
-type Props = ({ mode: "reviewer" } | { mode: "company"; companyId: string }) & {
+type Props = {
+  // Which side the viewer is on: a reviewer's own inbox, or an owner's inbox
+  // across every company they own. The API re-checks this on every call.
+  mode: "reviewer" | "company";
   // Opens this conversation on load (from a notification link's `c` param).
   initialConversationId?: string | null;
 };
 
 /**
- * Private reviewer <-> company conversations — the reviewer's "Messages" tab
- * on /me and the owner dashboard's "Messages" category share this one
- * component. Which side the viewer is on is decided by the API, not here.
+ * Private reviewer <-> company conversations, shown on the top-bar Messages
+ * page (/messages) for both sides. A fixed-height panel: the conversation
+ * list on the left, the open conversation on the right, each scrolling on
+ * its own. On phones only one of the two shows at a time.
  */
 export function ConversationInbox(props: Props) {
-  const listPath = props.mode === "company" ? `/owner/companies/${props.companyId}/conversations` : "/me/conversations";
+  const listPath = props.mode === "company" ? "/owner/conversations" : "/me/conversations";
   const [list, setList] = useState<ConversationSummary[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(props.initialConversationId ?? null);
@@ -67,6 +72,7 @@ export function ConversationInbox(props: Props) {
                 ...r,
                 ended: updated.ended,
                 endedBy: updated.endedBy,
+                ownerName: updated.ownerName,
                 lastMessagePreview: updated.lastMessagePreview,
                 lastMessageDay: updated.lastMessageDay,
                 unread: false,
@@ -83,38 +89,52 @@ export function ConversationInbox(props: Props) {
       <p className="text-sm text-muted-foreground">
         {props.mode === "company"
           ? "No messages yet. When a reviewer you've replied to writes to you, it will show up here."
-          : "No messages yet. After a company replies to one of your reviews, you can message it privately from My Reviews."}
+          : "No messages yet. After a company replies to one of your reviews, you can message it privately from My Ratings."}
       </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4 md:flex-row">
-      <ul className="flex shrink-0 flex-col gap-2 md:w-64" aria-label="Conversations">
+    <div className="flex h-[min(44rem,calc(100dvh-14rem))] min-h-[26rem] gap-4">
+      <ul
+        className={`${selectedId ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col gap-2 overflow-y-auto pr-1 md:w-80`}
+        aria-label="Conversations"
+      >
         {list.map((row) => (
           <li key={row.id}>
             <button
               type="button"
               onClick={() => setSelectedId(row.id)}
               aria-current={row.id === selectedId ? "true" : undefined}
-              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+              className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition ${
                 row.id === selectedId ? "border-border bg-surface-muted" : "border-border bg-surface hover:bg-surface-muted"
               }`}
             >
-              <span className="flex items-center justify-between gap-2">
-                <span className="truncate font-semibold text-foreground">{row.counterpartName}</span>
-                {row.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-brand-600" aria-label="Unread" />}
-              </span>
-              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                {row.ended ? "Ended · " : ""}
-                {row.lastMessagePreview}
+              <CounterpartPicture conversation={row} mode={props.mode} />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="truncate font-semibold text-foreground">{row.companyName}</span>
+                  {row.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-brand-600" aria-label="Unread" />}
+                </span>
+                <ConversationStatus conversation={row} mode={props.mode} />
               </span>
             </button>
           </li>
         ))}
       </ul>
 
-      <section className="min-w-0 flex-1 rounded-lg border border-border bg-surface p-4">
+      <section
+        className={`${selectedId ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col rounded-lg border border-border bg-surface p-4`}
+      >
+        {selectedId && (
+          <button
+            type="button"
+            onClick={() => setSelectedId(null)}
+            className="mb-3 self-start text-sm font-medium text-muted-foreground hover:text-foreground md:hidden"
+          >
+            ← All conversations
+          </button>
+        )}
         {threadError ? (
           <p className="text-sm text-red-700 dark:text-red-300">{threadError}</p>
         ) : thread && thread.id === selectedId ? (

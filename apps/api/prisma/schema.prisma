@@ -296,6 +296,7 @@ model User {
   followedByUsers            UserFollow[]                @relation("UserFollowFollowing")
   savedPosts                 SavedPost[]
   socialCommentReports       SocialCommentReport[]
+  companyReports             CompanyReport[]
   socialCommentIdentityLocks SocialCommentIdentityLock[]
   savedJobPostings           SavedJobPosting[]
   jobApplications            JobApplication[]
@@ -460,6 +461,7 @@ model EmploymentHistory {
 }
 
 model Company {
+  reports          CompanyReport[]
   id               String          @id @default(uuid())
   slug             String          @unique
   name             String
@@ -1241,6 +1243,26 @@ model SocialCommentReport {
 
   @@unique([commentId, reporterId])
   @@index([commentId])
+  @@schema("public")
+}
+
+// A member flagging a company page (fake/duplicate, wrong details, offensive
+// content, scam) from the Report button on /companies/[slug]. One open report
+// per member per company; an admin dismissing the company's reports sets
+// dismissedAt on all of them, and a later report from the same member
+// reopens theirs.
+model CompanyReport {
+  id          String    @id @default(uuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reporterId  String?
+  reporter    User?     @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  reason      String
+  createdAt   DateTime  @default(now())
+  dismissedAt DateTime?
+
+  @@unique([companyId, reporterId])
+  @@index([companyId])
   @@schema("public")
 }
 

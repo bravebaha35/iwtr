@@ -33,9 +33,7 @@ import { AccountOptionsPanel } from "@/components/profile/AccountOptionsPanel";
 import { CvPreview } from "@/components/profile/CvPreview";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { SettingsNav } from "@/components/layout/SettingsNav";
-import { ConversationInbox } from "@/components/messaging/ConversationInbox";
-import { profileTabsFor, type ProfileTabKey } from "@/components/profile/profileTabs";
-import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
+import { PROFILE_TABS, type ProfileTabKey } from "@/components/profile/profileTabs";
 
 const SUPPORT_EMAIL = "iworkedthere@hotmail.com";
 
@@ -68,7 +66,7 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-// useSearchParams (the ?tab= / ?c= deep links) needs a Suspense boundary so
+// useSearchParams (the ?tab= deep link) needs a Suspense boundary so
 // the page can still be prerendered; the inner component does the work.
 export default function ProfilePage() {
   return (
@@ -93,22 +91,17 @@ function ProfilePageContent() {
   const searchParams = useSearchParams();
 
   // Lets ApplyButton.tsx's CV gate land a member directly on this tab
-  // (`/me?tab=cv`), and a message notification on the Messages tab
-  // (`/me?tab=messages&c=...`), instead of the default "Customize" tab.
+  // (`/me?tab=cv`) instead of the default "Customize" tab.
   // Re-runs when the URL's query changes (a notification clicked while
   // already on /me doesn't remount the page); tab clicks are pure client
   // state and don't touch the URL, so they never retrigger this.
   const tabParam = searchParams.get("tab");
-  const conversationParam = searchParams.get("c");
-  // Owners have no Messages tab (their messages live in the company dashboard).
-  const isCompanyOwner = useIsCompanyOwner();
-  const tabs = profileTabsFor(isCompanyOwner);
   useEffect(() => {
-    if (profileTabsFor(isCompanyOwner).some((t) => t.key === tabParam)) {
+    if (PROFILE_TABS.some((t) => t.key === tabParam)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tab state from the URL
       setActiveTab(tabParam as TabKey);
     }
-  }, [tabParam, conversationParam, isCompanyOwner]);
+  }, [tabParam]);
 
   // Local editable form state, seeded from the loaded profile.
   const [reviewUsername, setReviewUsername] = useState<string | null>(null);
@@ -639,7 +632,7 @@ function ProfilePageContent() {
         )
       ) : (
         <SidebarContentRow>
-          <SettingsNav label="Profile sections" items={tabs} active={activeTab} onChange={setActiveTab} />
+          <SettingsNav label="Profile sections" items={PROFILE_TABS} active={activeTab} onChange={setActiveTab} />
 
           <div className="min-w-0 flex-1">
         <div className="flex flex-col gap-6">
@@ -1439,21 +1432,6 @@ function ProfilePageContent() {
             </div>
           )}
           </>
-          )}
-
-          {activeTab === "messages" && !isCompanyOwner && (
-            <section className="rounded-xl border border-border bg-surface p-5">
-              <h2 className="mb-1 font-semibold text-foreground">Messages</h2>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Private conversations with companies that replied to your reviews. They only ever see your
-                review name, never your account.
-              </p>
-              <ConversationInbox
-                key={conversationParam ?? "inbox"}
-                mode="reviewer"
-                initialConversationId={conversationParam}
-              />
-            </section>
           )}
 
           {activeTab === "security" && <ChangePasswordForm />}

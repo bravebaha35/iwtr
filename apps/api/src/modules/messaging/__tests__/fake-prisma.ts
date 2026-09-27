@@ -44,9 +44,9 @@ const DAY = new Date("2026-09-25T00:00:00.000Z");
 
 export function createFakePrisma(opts: {
   reviews: FakeReview[];
-  users: { id: string; reviewUsername: string | null }[];
-  companies: { id: string; name: string; slug: string }[];
-  owners: { userId: string; companyId: string; claimStatus: string }[];
+  users: { id: string; reviewUsername: string | null; avatarKey?: string | null; avatarGradient?: string | null }[];
+  companies: { id: string; name: string; slug: string; mainPhotoUrl?: string | null }[];
+  owners: { userId: string; companyId: string; claimStatus: string; createdAt?: Date }[];
 }) {
   const conversations: Conv[] = [];
   const messages: Msg[] = [];
@@ -57,9 +57,15 @@ export function createFakePrisma(opts: {
     if (include?.review) {
       const r = opts.reviews.find((x) => x.id === c.reviewId)!;
       const u = opts.users.find((x) => x.id === r.userId) ?? null;
-      out.review = { ...r, user: u ? { reviewUsername: u.reviewUsername } : null };
+      out.review = {
+        ...r,
+        user: u ? { reviewUsername: u.reviewUsername, avatarKey: u.avatarKey ?? null, avatarGradient: u.avatarGradient ?? null } : null,
+      };
     }
-    if (include?.company) out.company = opts.companies.find((x) => x.id === c.companyId);
+    if (include?.company) {
+      const company = opts.companies.find((x) => x.id === c.companyId)!;
+      out.company = { mainPhotoUrl: null, ...company };
+    }
     if (include?.messages) {
       let list = messages.filter((m) => m.conversationId === c.id).sort((a, b) => a.seq - b.seq);
       if (include.messages.orderBy?.seq === "desc") list = list.reverse();
@@ -78,8 +84,20 @@ export function createFakePrisma(opts: {
       },
     },
     companyOwner: {
-      findFirst: async ({ where }: any) =>
-        opts.owners.find((o) => o.userId === where.userId && (!where.claimStatus || o.claimStatus === where.claimStatus)) ?? null,
+      findFirst: async ({ where, orderBy }: any) => {
+        const matches = opts.owners.filter(
+          (o) =>
+            (!where.userId || o.userId === where.userId) &&
+            (!where.companyId || o.companyId === where.companyId) &&
+            (!where.claimStatus || o.claimStatus === where.claimStatus),
+        );
+        if (orderBy?.createdAt === "asc") {
+          matches.sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
+        }
+        return matches[0] ?? null;
+      },
+      findMany: async ({ where }: any) =>
+        opts.owners.filter((o) => o.userId === where.userId && (!where.claimStatus || o.claimStatus === where.claimStatus)),
       findUnique: async ({ where }: any) =>
         opts.owners.find(
           (o) => o.userId === where.userId_companyId.userId && o.companyId === where.userId_companyId.companyId,
@@ -117,7 +135,11 @@ export function createFakePrisma(opts: {
       },
       findMany: async ({ where, include }: any) =>
         conversations
-          .filter((c) => Object.entries(where).every(([k, v]) => (c as any)[k] === v))
+          .filter((c) =>
+            Object.entries(where).every(([k, v]: [string, any]) =>
+              v && typeof v === "object" && Array.isArray(v.in) ? v.in.includes((c as any)[k]) : (c as any)[k] === v,
+            ),
+          )
           .map((c) => assemble(c, include)),
       update: async ({ where, data }: any) => {
         const c = conversations.find((x) => x.id === where.id)!;
@@ -130,6 +152,18 @@ export function createFakePrisma(opts: {
         const m: Msg = { id: uuid(), seq: ++seq, createdAt: DAY, authorUserId: null, ...data };
         messages.push(m);
         return { ...m };
+      },
+      // Newest matching message (the only query shape MessagingService uses).
+      findFirst: async ({ where }: any) => {
+        const matches = messages
+          .filter(
+            (m) =>
+              m.conversationId === where.conversationId &&
+              (!where.side || m.side === where.side) &&
+              (!where.authorUserId || m.authorUserId !== null),
+          )
+          .sort((a, b) => b.seq - a.seq);
+        return matches[0] ? { ...matches[0] } : null;
       },
     },
   };

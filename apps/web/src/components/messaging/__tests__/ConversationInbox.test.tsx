@@ -14,6 +14,12 @@ const summary: ConversationSummary = {
   reviewId: "22222222-2222-4222-8222-222222222222",
   counterpartName: "Quiet Beaver",
   companySlug: null,
+  companyName: "Demo Finans Holding",
+  companyLogoUrl: null,
+  reviewerName: "Quiet Beaver",
+  reviewerAvatarKey: null,
+  reviewerAvatarGradient: null,
+  ownerName: null,
   lastMessagePreview: "Can I explain the shift issue?",
   lastMessageDay: "2026-09-25",
   unread: true,
@@ -25,7 +31,6 @@ function thread(overrides: Partial<ConversationThread> = {}): ConversationThread
   return {
     ...summary,
     unread: false,
-    companyName: "Demo Finans Holding",
     reviewExcerpt: "Managers were fair but the shifts were long.",
     messages: [{ id: "33333333-3333-4333-8333-333333333333", fromMe: false, day: "2026-09-25", content: "Can I explain the shift issue?" }],
     canSend: true,
@@ -47,10 +52,10 @@ beforeEach(() => {
 });
 
 describe("ConversationInbox", () => {
-  it("loads the company inbox and opens a conversation, marking it read", async () => {
-    render(<ConversationInbox mode="company" companyId="c1" />);
+  it("loads the owner inbox and opens a conversation, marking it read", async () => {
+    render(<ConversationInbox mode="company" />);
     await userEvent.click(await screen.findByRole("button", { name: /Quiet Beaver/ }));
-    expect(get).toHaveBeenCalledWith("/owner/companies/c1/conversations");
+    expect(get).toHaveBeenCalledWith("/owner/conversations");
     expect(await screen.findByText("Can I explain the shift issue?", { selector: "p" })).toBeInTheDocument();
     expect(post).toHaveBeenCalledWith(`/conversations/${summary.id}/read`, {});
   });
@@ -78,7 +83,7 @@ describe("ConversationInbox", () => {
         ? Promise.reject(new apiClient.ApiError("Your message couldn't be sent: PHONE_NUMBER.", 400, null))
         : Promise.resolve(undefined),
     );
-    render(<ConversationInbox mode="company" companyId="c1" initialConversationId={summary.id} />);
+    render(<ConversationInbox mode="company" initialConversationId={summary.id} />);
     const box = await screen.findByRole("textbox");
     await userEvent.type(box, "Call 0532 123 45 67");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -91,12 +96,36 @@ describe("ConversationInbox", () => {
     post.mockImplementation((path: string) =>
       Promise.resolve(path.endsWith("/end") ? thread({ ended: true, endedBy: "YOU", canSend: false, cannotSendReason: "ENDED" }) : undefined),
     );
-    render(<ConversationInbox mode="company" companyId="c1" initialConversationId={summary.id} />);
+    render(<ConversationInbox mode="company" initialConversationId={summary.id} />);
     await userEvent.click(await screen.findByRole("button", { name: "End conversation" }));
     expect(confirm).toHaveBeenCalled();
     expect(post).toHaveBeenCalledWith(`/conversations/${summary.id}/end`, {});
     expect(await screen.findByText(/You ended this conversation/)).toBeInTheDocument();
     confirm.mockRestore();
+  });
+
+  it("shows the company name, a status and the reviewer's review name to the company", async () => {
+    render(<ConversationInbox mode="company" />);
+    const row = await screen.findByRole("button", { name: /Demo Finans Holding/ });
+    expect(row).toHaveTextContent("Active");
+    expect(row).toHaveTextContent("Quiet Beaver");
+  });
+
+  it("shows the reviewer the answering owner's name, or a stand-in until they add one", async () => {
+    get.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith("/conversations")
+          ? [summary, { ...summary, id: "44444444-4444-4444-8444-444444444444", ended: true, ownerName: "Ahmet Yılmaz" }]
+          : thread(),
+      ),
+    );
+    render(<ConversationInbox mode="reviewer" />);
+    const rows = await screen.findAllByRole("button", { name: /Demo Finans Holding/ });
+    expect(rows[0]).toHaveTextContent("Active");
+    expect(rows[0]).toHaveTextContent("Company representative");
+    expect(rows[1]).toHaveTextContent("Ended");
+    expect(rows[1]).toHaveTextContent("Ahmet Yılmaz");
+    expect(rows[0]).not.toHaveTextContent("Quiet Beaver");
   });
 
   it("shows an empty state when there are no conversations", async () => {

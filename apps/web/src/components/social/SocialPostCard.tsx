@@ -12,19 +12,13 @@ import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { shortRelativeTime } from "./socialTime";
 import { SocialComments } from "./SocialComments";
 import { ImageLightbox } from "./ImageLightbox";
+import { HeartIcon } from "@/components/icons/HeartIcon";
 
 // Universally-recognized social glyphs (spec item 2) instead of the old
 // text buttons - heart/speech-bubble/bookmark, filled once active. No save
 // *count* is shown next to the bookmark: PublicSocialPost has no such field
 // (SavedPost is a private per-user preference on the API side, never a
 // public tally - see REVIEW.md).
-function HeartIcon({ className, filled }: { className?: string; filled: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 21s-7.5-4.6-10-9.2C.5 8.3 2.3 5 5.6 5c1.8 0 3.3.9 4.4 2.4C11.1 5.9 12.6 5 14.4 5c3.3 0 5.1 3.3 3.6 6.8C19.5 16.4 12 21 12 21z" />
-    </svg>
-  );
-}
 function CommentIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

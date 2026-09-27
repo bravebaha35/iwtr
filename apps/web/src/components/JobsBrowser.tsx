@@ -561,8 +561,9 @@ export function JobsBrowser() {
 
           {/* Results */}
           <div ref={resultsTopRef} className="min-w-0 flex-1">
-            {/* Two rows: search (+ the owner's Create button) on top, then
-                Quick Select on the left with the sort buttons on the right. */}
+            {/* Two rows: search with the sort buttons right beside it (+ the
+                owner's Create button) on top, then Quick Select on its own
+                row - same layout as the homepage (WorkplaceBrowser.tsx). */}
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <input
                 type="search"
@@ -571,6 +572,7 @@ export function JobsBrowser() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
               />
+              <SortButtons value={sortBy} onChange={setSortBy} />
               {isCompanyOwner && (
                 <button
                   type="button"
@@ -581,16 +583,11 @@ export function JobsBrowser() {
                 </button>
               )}
             </div>
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              {/* Same curated category-group quick filter as the rating
-                  homepage (WorkplaceBrowser.tsx) — shared markup/config via
-                  lib/categoryGroups.tsx, this page's own selection state. */}
-              <div className="min-w-0 flex-1">
-                <CategoryGroupFilter value={categoryGroup} onChange={setCategoryGroup} />
-              </div>
-              <div className="ml-auto shrink-0">
-                <SortButtons value={sortBy} onChange={setSortBy} />
-              </div>
+            {/* Same curated category-group quick filter as the rating
+                homepage (WorkplaceBrowser.tsx) — shared markup/config via
+                lib/categoryGroups.tsx, this page's own selection state. */}
+            <div className="mb-4">
+              <CategoryGroupFilter value={categoryGroup} onChange={setCategoryGroup} />
             </div>
 
             {geo && geo !== "denied" && (

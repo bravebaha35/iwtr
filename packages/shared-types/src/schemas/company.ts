@@ -375,3 +375,37 @@ export const companyDetailSchema = z.object({
   aggregate: companyAggregateScoreSchema.nullable(),
 });
 export type CompanyDetail = z.infer<typeof companyDetailSchema>;
+
+// "Report" button on a company page. Same fixed-reasons approach as
+// SOCIAL_COMMENT_REPORT_REASONS: keys are what CompanyReport.reason stores,
+// labels are the exact sentences the reporter picks from and admins read.
+export const companyReportReasonSchema = z.enum(["FAKE_OR_DUPLICATE", "WRONG_INFORMATION", "OFFENSIVE_CONTENT", "SCAM"]);
+export type CompanyReportReason = z.infer<typeof companyReportReasonSchema>;
+
+export const COMPANY_REPORT_REASONS: CompanyReportReason[] = [
+  "FAKE_OR_DUPLICATE",
+  "WRONG_INFORMATION",
+  "OFFENSIVE_CONTENT",
+  "SCAM",
+];
+
+export const COMPANY_REPORT_REASON_LABELS: Record<CompanyReportReason, string> = {
+  FAKE_OR_DUPLICATE: "This company is fake or a duplicate.",
+  WRONG_INFORMATION: "The company's details are wrong.",
+  OFFENSIVE_CONTENT: "Offensive photos, logo or text.",
+  SCAM: "Suspected scam or fake job ads.",
+};
+
+export const reportCompanyInputSchema = z.object({ reason: companyReportReasonSchema });
+export type ReportCompanyInput = z.infer<typeof reportCompanyInputSchema>;
+
+// One row per reported company in the admin queue, open reports only.
+export const adminCompanyReportSchema = z.object({
+  companyId: z.string(),
+  companyName: z.string(),
+  companySlug: z.string(),
+  reportCount: z.number().int(),
+  reasonCounts: z.record(companyReportReasonSchema, z.number().int()),
+  lastReportedAt: z.string(),
+});
+export type AdminCompanyReport = z.infer<typeof adminCompanyReportSchema>;
