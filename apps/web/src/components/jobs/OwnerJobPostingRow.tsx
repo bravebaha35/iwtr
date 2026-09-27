@@ -4,11 +4,12 @@ import { useState } from "react";
 import type { OwnerJobPosting } from "@iwtr/shared-types";
 import { RemoveJobPostingModal } from "@/components/jobs/RemoveJobPostingModal";
 
+// Plain words for the owner - no internal status names.
 const STATUS_LABEL: Record<OwnerJobPosting["status"], string> = {
-  PUBLISHED: "Live",
-  PENDING_ADMIN: "Awaiting admin review",
-  REJECTED: "Rejected",
-  FILLED: "Filled",
+  PUBLISHED: "Live on the Jobs page",
+  PENDING_ADMIN: "Waiting for our team to approve it",
+  REJECTED: "Not approved by our team",
+  FILLED: "Position filled",
 };
 
 // Owner-oriented, not the public JobCard — an owner looking at their own

@@ -8,11 +8,11 @@ describe("WorkTypeLabel", () => {
     expect(primary).toHaveClass("font-bold");
   });
 
-  it("renders the secondary work-type in a normal weight after a slash", () => {
-    render(<WorkTypeLabel workplaceTypes={["SERVICE", "OFFICE"]} />);
+  it("renders the secondary work-type in a normal weight right after the bold primary, with no slash", () => {
+    const { container } = render(<WorkTypeLabel workplaceTypes={["SERVICE", "OFFICE"]} />);
     expect(screen.getByText("Service")).toHaveClass("font-bold");
     expect(screen.getByText("Office")).toHaveClass("font-normal");
-    expect(screen.getByText(/\//)).toBeInTheDocument();
+    expect(container.textContent).toBe("Service Office");
   });
 
   it("shows nothing for a secondary when the company has only one work-type", () => {

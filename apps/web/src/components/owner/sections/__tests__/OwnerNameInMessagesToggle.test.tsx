@@ -29,7 +29,7 @@ test("starts unticked and saves the owner's choice straight away", async () => {
 
   await userEvent.click(box);
   expect(patch).toHaveBeenCalledWith(`/my-companies/${COMPANY}/messaging-name`, { showNameInMessages: true });
-  expect(await screen.findByText("Saved.")).toBeInTheDocument();
+  expect(await screen.findByText("Setting saved.")).toBeInTheDocument();
   expect(box).toBeChecked();
 });
 
