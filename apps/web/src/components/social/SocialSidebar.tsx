@@ -137,16 +137,6 @@ function XIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-function LinkedinIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
-      <path d="M8 10.5V17" />
-      <circle cx="8" cy="7.3" r="0.9" fill="currentColor" stroke="none" />
-      <path d="M12 17v-4c0-1.4 1-2.3 2.3-2.3 1.2 0 1.7.9 1.7 2.3v4" />
-    </svg>
-  );
-}
 function YoutubeIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -155,23 +145,15 @@ function YoutubeIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-function GlassdoorIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 3v14a2 2 0 0 0 2 2h1" />
-      <path d="M17 21V7a2 2 0 0 0-2-2h-1" />
-    </svg>
-  );
-}
 
 type CompanySocialLinks = Pick<
   Company,
-  "facebookUrl" | "instagramUrl" | "whatsappUrl" | "xUrl" | "linkedinUrl" | "youtubeUrl" | "glassdoorUrl"
+  "facebookUrl" | "instagramUrl" | "whatsappUrl" | "xUrl" | "youtubeUrl"
 >;
 
-// All 7 owner-editable social fields, shown only when set - including
-// linkedinUrl/youtubeUrl/glassdoorUrl, which existed on Company already but
-// were never rendered publicly anywhere before this. No sanitization
+// The 5 owner-editable social fields, shown only when set. LinkedIn and
+// Glassdoor were dropped from the owner dashboard on 2026-09-27 (product
+// decision), so any value still stored for them is no longer shown. No sanitization
 // happens here: httpUrlSchema already restricts every one of these fields
 // to http(s):// at write time (owner dashboard save path), so any value
 // reaching this component is already scheme-safe - same trust boundary the
@@ -182,9 +164,7 @@ function SeeThemOn({ links }: { links: CompanySocialLinks }) {
     links.instagramUrl ? { label: "Instagram", href: links.instagramUrl, icon: <InstagramIcon className="h-4 w-4" /> } : null,
     links.whatsappUrl ? { label: "WhatsApp", href: links.whatsappUrl, icon: <WhatsappIcon className="h-4 w-4" /> } : null,
     links.xUrl ? { label: "X", href: links.xUrl, icon: <XIcon className="h-4 w-4" /> } : null,
-    links.linkedinUrl ? { label: "LinkedIn", href: links.linkedinUrl, icon: <LinkedinIcon className="h-4 w-4" /> } : null,
     links.youtubeUrl ? { label: "YouTube", href: links.youtubeUrl, icon: <YoutubeIcon className="h-4 w-4" /> } : null,
-    links.glassdoorUrl ? { label: "Glassdoor", href: links.glassdoorUrl, icon: <GlassdoorIcon className="h-4 w-4" /> } : null,
   ];
   const entries = allEntries.filter((v): v is { label: string; href: string; icon: ReactNode } => v !== null);
 
@@ -194,7 +174,7 @@ function SeeThemOn({ links }: { links: CompanySocialLinks }) {
     <div>
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">See Them On</h2>
       {/* Tight, asymmetrical wrap - not a fixed grid - so a company with 2
-          links doesn't leave a row of empty cells and one with 7 wraps
+          links doesn't leave a row of empty cells and one with 5 wraps
           naturally. */}
       <div className="flex flex-wrap gap-2">
         {entries.map(({ label, href, icon }) => (

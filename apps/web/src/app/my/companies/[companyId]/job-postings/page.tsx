@@ -1,10 +1,8 @@
-import { OwnerJobPostingsView } from "@/components/jobs/OwnerJobPostingsView";
+import { redirect } from "next/navigation";
 
-export default async function OwnerJobPostingsPage({
-  params,
-}: {
-  params: Promise<{ companyId: string }>;
-}) {
+// Job Postings is now a section of the owner dashboard itself; this old
+// standalone page only forwards any saved link to it.
+export default async function OwnerJobPostingsPage({ params }: { params: Promise<{ companyId: string }> }) {
   const { companyId } = await params;
-  return <OwnerJobPostingsView companyId={companyId} />;
+  redirect(`/my/companies?company=${encodeURIComponent(companyId)}&category=job-postings`);
 }

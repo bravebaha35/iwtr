@@ -19,16 +19,20 @@ import { badgeLabelForOwnerTier, canUseBanner } from "@/lib/pricingTiers";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
-import { OwnerDashboardSidePanel, type OwnerDashboardCategory } from "@/components/owner/OwnerDashboardSidePanel";
+import {
+  OwnerDashboardSidePanel,
+  isOwnerDashboardCategory,
+  type OwnerDashboardCategory,
+} from "@/components/owner/OwnerDashboardSidePanel";
 import { contactAdminInputSchema } from "@iwtr/shared-types";
 import { formProblem } from "@/lib/validateForm";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
 import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
 import { ContactSocialCategory } from "@/components/owner/sections/ContactSocialCategory";
-import { OwnerNameInMessagesToggle } from "@/components/owner/sections/OwnerNameInMessagesToggle";
 import { ReviewsRatingsCategory } from "@/components/owner/sections/ReviewsRatingsCategory";
 import { ApplicationsCategory } from "@/components/owner/sections/ApplicationsCategory";
+import { JobPostingsCategory } from "@/components/owner/sections/JobPostingsCategory";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -210,17 +214,19 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<OwnerDashboardCategory>("general-info");
-  // A new-application notification links here as
-  // ?category=applications&company={companyId} (see NotificationsService.list)
-  // - only the named company's card opens that section. Read from
+  // Links can open a section directly as ?company={companyId}&category=...
+  // (a new-application notification uses category=applications, see
+  // NotificationsService.list; the old job-postings page redirects with
+  // category=job-postings) - only the named company opens it. Read from
   // window.location once on mount rather than useSearchParams so this page
   // keeps rendering without a Suspense boundary.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("company") !== claim.companyId) return;
-    if (params.get("category") === "applications") {
+    const category = params.get("category");
+    if (category && isOwnerDashboardCategory(category)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from the URL once on mount
-      setActiveCategory("applications");
+      setActiveCategory(category);
     }
   }, [claim.companyId]);
 
@@ -258,9 +264,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [instagramUrl, setInstagramUrl] = useState("");
   const [whatsappUrl, setWhatsappUrl] = useState("");
   const [xUrl, setXUrl] = useState("");
-  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [glassdoorUrl, setGlassdoorUrl] = useState("");
   const [contactSaving, setContactSaving] = useState(false);
   const [contactStatus, setContactStatus] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
@@ -311,9 +315,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           setInstagramUrl(c.instagramUrl ?? "");
           setWhatsappUrl(c.whatsappUrl ?? "");
           setXUrl(c.xUrl ?? "");
-          setLinkedinUrl(c.linkedinUrl ?? "");
           setYoutubeUrl(c.youtubeUrl ?? "");
-          setGlassdoorUrl(c.glassdoorUrl ?? "");
         }
       } catch (err) {
         setDetailError(err instanceof ApiError ? err.message : "Couldn't load this company's details.");
@@ -473,9 +475,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       if (instagramUrl.trim()) body.instagramUrl = instagramUrl.trim();
       if (whatsappUrl.trim()) body.whatsappUrl = whatsappUrl.trim();
       if (xUrl.trim()) body.xUrl = xUrl.trim();
-      if (linkedinUrl.trim()) body.linkedinUrl = linkedinUrl.trim();
       if (youtubeUrl.trim()) body.youtubeUrl = youtubeUrl.trim();
-      if (glassdoorUrl.trim()) body.glassdoorUrl = glassdoorUrl.trim();
       await apiPatch(`/my-companies/${claim.companyId}`, body);
       await loadDetail("contact");
       setContactStatus("Saved.");
@@ -556,7 +556,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           <OwnerDashboardSidePanel
             active={activeCategory}
             onChange={setActiveCategory}
-            jobPostingsHref={`/my/companies/${claim.companyId}/job-postings`}
           />
 
           <section className="min-w-0 flex-1">
@@ -627,34 +626,28 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             )}
 
             {activeCategory === "contact-social" && (
-              <>
-                <ContactSocialCategory
-                  city={city}
-                  contactEmail={contactEmail}
-                  setContactEmail={setContactEmail}
-                  contactPhone={contactPhone}
-                  setContactPhone={setContactPhone}
-                  facebookUrl={facebookUrl}
-                  setFacebookUrl={setFacebookUrl}
-                  instagramUrl={instagramUrl}
-                  setInstagramUrl={setInstagramUrl}
-                  whatsappUrl={whatsappUrl}
-                  setWhatsappUrl={setWhatsappUrl}
-                  xUrl={xUrl}
-                  setXUrl={setXUrl}
-                  linkedinUrl={linkedinUrl}
-                  setLinkedinUrl={setLinkedinUrl}
-                  youtubeUrl={youtubeUrl}
-                  setYoutubeUrl={setYoutubeUrl}
-                  glassdoorUrl={glassdoorUrl}
-                  setGlassdoorUrl={setGlassdoorUrl}
-                  onSave={saveContact}
-                  saving={contactSaving}
-                  status={contactStatus}
-                  error={contactError}
-                />
-                <OwnerNameInMessagesToggle companyId={claim.companyId} />
-              </>
+              <ContactSocialCategory
+                companyId={claim.companyId}
+                city={city}
+                contactEmail={contactEmail}
+                setContactEmail={setContactEmail}
+                contactPhone={contactPhone}
+                setContactPhone={setContactPhone}
+                facebookUrl={facebookUrl}
+                setFacebookUrl={setFacebookUrl}
+                instagramUrl={instagramUrl}
+                setInstagramUrl={setInstagramUrl}
+                whatsappUrl={whatsappUrl}
+                setWhatsappUrl={setWhatsappUrl}
+                xUrl={xUrl}
+                setXUrl={setXUrl}
+                youtubeUrl={youtubeUrl}
+                setYoutubeUrl={setYoutubeUrl}
+                onSave={saveContact}
+                saving={contactSaving}
+                status={contactStatus}
+                error={contactError}
+              />
             )}
 
             {activeCategory === "reviews-ratings" && (
@@ -662,6 +655,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             )}
 
             {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
+
+            {activeCategory === "job-postings" && <JobPostingsCategory companyId={claim.companyId} />}
 
             {/* Rendered here (sibling to every activeCategory block, not nested
                 inside general-info's) because both GeneralInfoCategory and
@@ -704,10 +699,68 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   );
 }
 
+const TAB_BASE = "whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors";
+const TAB_IDLE = `${TAB_BASE} text-sidebar-foreground/80 hover:bg-black/5 hover:text-sidebar-foreground dark:hover:bg-white/10`;
+const TAB_ACTIVE = `${TAB_BASE} bg-brand-600 text-white`;
+
+// One tab per approved company, in the same pill style as the profile and
+// dashboard side panels. Only shown when the owner has more than one.
+function CompanyTabs({
+  companies,
+  selectedId,
+  onSelect,
+}: {
+  companies: MyCompanyClaim[];
+  selectedId: string;
+  onSelect: (companyId: string) => void;
+}) {
+  return (
+    <nav
+      aria-label="Your companies"
+      className="mb-6 flex flex-row gap-1 overflow-x-auto rounded-2xl border border-border bg-sidebar p-2"
+    >
+      {companies.map((c) => {
+        const active = c.companyId === selectedId;
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onSelect(c.companyId)}
+            aria-current={active ? "page" : undefined}
+            className={active ? TAB_ACTIVE : TAB_IDLE}
+          >
+            {c.companyName}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 export default function MyCompaniesPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [claims, setClaims] = useState<MyCompanyClaim[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Which company is open. Starts from ?company= (notification links, the
+  // old job-postings page) and is written back so a refresh stays put.
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from the URL once on mount
+    setSelectedCompanyId(new URLSearchParams(window.location.search).get("company"));
+  }, []);
+
+  function selectCompany(companyId: string) {
+    setSelectedCompanyId(companyId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("company", companyId);
+    url.searchParams.delete("category");
+    window.history.replaceState(null, "", url);
+  }
+
+  const ownedCompanies = useMemo(() => claims?.filter((c) => c.claimStatus === "APPROVED") ?? [], [claims]);
+  const otherClaims = useMemo(() => claims?.filter((c) => c.claimStatus !== "APPROVED") ?? [], [claims]);
+  const openCompany = ownedCompanies.find((c) => c.companyId === selectedCompanyId) ?? ownedCompanies[0] ?? null;
 
   const load = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -750,25 +803,32 @@ export default function MyCompaniesPage() {
           <p className="text-sm text-muted-foreground">You haven&apos;t claimed any companies yet.</p>
         )}
 
-        <div className="flex flex-col gap-4 compact:gap-2">
-          {claims?.map((claim) =>
-            claim.claimStatus === "APPROVED" ? (
-              <OwnedCompanyCard key={claim.id} claim={claim} />
-            ) : (
-              <div
-                key={claim.id}
-                className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 compact:p-2.5"
-              >
-                <Link href={`/companies/${claim.companySlug}`} className="font-medium text-foreground hover:underline">
-                  {claim.companyName}
-                </Link>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[claim.claimStatus]}`}>
-                  {claim.claimStatus === "PENDING" ? "Pending review" : "Not approved"}
-                </span>
-              </div>
-            ),
-          )}
-        </div>
+        {ownedCompanies.length > 1 && openCompany && (
+          <CompanyTabs companies={ownedCompanies} selectedId={openCompany.companyId} onSelect={selectCompany} />
+        )}
+
+        {openCompany && <OwnedCompanyCard key={openCompany.id} claim={openCompany} />}
+
+        {otherClaims.length > 0 && (
+          <div className={openCompany ? "mt-8" : ""}>
+            {openCompany && <h2 className="mb-3 text-sm font-semibold text-foreground">Other claims</h2>}
+            <div className="flex flex-col gap-4 compact:gap-2">
+              {otherClaims.map((claim) => (
+                <div
+                  key={claim.id}
+                  className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 compact:p-2.5"
+                >
+                  <Link href={`/companies/${claim.companySlug}`} className="font-medium text-foreground hover:underline">
+                    {claim.companyName}
+                  </Link>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[claim.claimStatus]}`}>
+                    {claim.claimStatus === "PENDING" ? "Pending review" : "Not approved"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <AdSlot />

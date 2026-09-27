@@ -79,6 +79,8 @@ function mockApiGet() {
     if (path === `/companies/${claim.companySlug}`) return Promise.resolve(detail);
     if (path === `/companies/${claim.companySlug}/reviews`) return Promise.resolve([]);
     if (path === `/owner/companies/${claim.companyId}/conversations`) return Promise.resolve([]);
+    if (path.endsWith("/messaging-name")) return Promise.resolve({ showNameInMessages: false, ownerName: null });
+    if (path.endsWith("/job-postings")) return Promise.resolve([]);
     return Promise.reject(new Error(`Unhandled apiGet path in test: ${path}`));
   });
 }
@@ -104,7 +106,7 @@ function generalInfoBox(): HTMLElement {
   return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
 }
 
-test("side panel lists the five sections in order, and only the active one's content renders", async () => {
+test("side panel lists the six sections in order, and only the active one's content renders", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
@@ -116,6 +118,7 @@ test("side panel lists the five sections in order, and only the active one's con
     "Contact & Social Media",
     "Reviews & Ratings",
     "Applications",
+    "Job Postings",
   ]);
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
@@ -253,3 +256,43 @@ test("Premium Features box is hidden on the Free tier", async () => {
   expect(within(upsellBox).getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
 });
 
+
+test("an owner of several companies picks one from tabs under the heading", async () => {
+  const user = userEvent.setup();
+  const second: MyCompanyClaim = { ...claim, id: "claim-2", companyId: "company-2", companyName: "Beta Ltd", companySlug: "beta-ltd" };
+  (apiGet as jest.Mock).mockImplementation((path: string) => {
+    if (path === "/me/company-claims") return Promise.resolve([claim, second]);
+    if (path === "/companies/acme-corp") return Promise.resolve(detail);
+    if (path === "/companies/beta-ltd") {
+      return Promise.resolve({ ...detail, company: { ...detail.company, id: "company-2", slug: "beta-ltd", name: "Beta Ltd" } });
+    }
+    return Promise.resolve([]);
+  });
+  render(<MyCompaniesPage />);
+
+  const tabs = await screen.findByRole("navigation", { name: "Your companies" });
+  expect(within(tabs).getAllByRole("button").map((b) => b.textContent)).toEqual(["Acme Corp", "Beta Ltd"]);
+  expect(within(tabs).getByRole("button", { name: "Acme Corp" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: "Acme Corp" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Beta Ltd" })).not.toBeInTheDocument();
+
+  await user.click(within(tabs).getByRole("button", { name: "Beta Ltd" }));
+  expect(await screen.findByRole("link", { name: "Beta Ltd" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Acme Corp" })).not.toBeInTheDocument();
+  expect(window.location.search).toContain("company=company-2");
+});
+
+test("a single company gets no tab bar", async () => {
+  await renderLoadedPage();
+  expect(screen.queryByRole("navigation", { name: "Your companies" })).not.toBeInTheDocument();
+});
+
+test("Job Postings opens inside the dashboard with plain wording", async () => {
+  const user = userEvent.setup();
+  await renderLoadedPage();
+  await user.click(screen.getByRole("button", { name: "Job Postings" }));
+  expect(screen.getByRole("heading", { name: "Job Postings", level: 3 })).toBeInTheDocument();
+  expect(screen.getByText(/All the job ads you.ve posted for this company/)).toBeInTheDocument();
+  expect(await screen.findByText("You haven't posted any jobs yet.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Post a new job" })).toHaveAttribute("href", "/jobs");
+});

@@ -20,7 +20,7 @@ export function OwnerNameInMessagesToggle({ companyId }: { companyId: string }) 
     let cancelled = false;
     apiGet<OwnerMessagingName>(`/my-companies/${companyId}/messaging-name`)
       .then((s) => {
-        if (!cancelled) setSetting(s);
+        if (!cancelled && s) setSetting(s);
       })
       .catch(() => {
         if (!cancelled) setError("Couldn't load this setting.");
@@ -45,7 +45,7 @@ export function OwnerNameInMessagesToggle({ companyId }: { companyId: string }) 
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-border p-6">
+    <div>
       <label className="flex cursor-pointer items-start gap-3">
         <input
           type="checkbox"
@@ -58,13 +58,13 @@ export function OwnerNameInMessagesToggle({ companyId }: { companyId: string }) 
           <span className="block text-sm font-medium text-foreground">Show company owner&apos;s name during messaging.</span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
             {setting?.ownerName
-              ? `Reviewers you message will see "${setting.ownerName}". When unticked they see "Company representative".`
+              ? `Reviewers you message will see "${setting.ownerName}". When unticked they see "Company representative". Saves as soon as you click it.`
               : `Reviewers see "Company representative". To show your name, first add your first and last name in Edit Profile.`}
           </span>
         </span>
       </label>
-      {saved && <p className="mt-2 text-sm text-green-700 dark:text-green-400">Saved.</p>}
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
+      {saved && <p className="mt-2 text-xs text-green-700 dark:text-green-400">Setting saved.</p>}
+      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-300">{error}</p>}
     </div>
   );
 }

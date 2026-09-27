@@ -216,9 +216,7 @@ export function CompanyProfileTabs({
                   instagramUrl: company.instagramUrl,
                   whatsappUrl: company.whatsappUrl,
                   xUrl: company.xUrl,
-                  linkedinUrl: company.linkedinUrl,
                   youtubeUrl: company.youtubeUrl,
-                  glassdoorUrl: company.glassdoorUrl,
                 }}
               />
               <div className="flex min-w-0 flex-1 justify-center">
