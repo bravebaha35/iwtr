@@ -10,3 +10,16 @@
 export function toUtcDay(date: Date = new Date()): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
+
+/**
+ * IWT Social posts and comments are shown only to the hour ("1h ago",
+ * "3h ago" - never "4m ago"): a minute-exact time next to an anonymous
+ * comment is the same re-identification risk as above. The database keeps
+ * the exact moment (the legal record, visible to admins only); this is
+ * applied to everything sent to members and companies.
+ */
+export function toUtcHour(date: Date): Date {
+  const hour = new Date(date);
+  hour.setUTCMinutes(0, 0, 0);
+  return hour;
+}

@@ -5,6 +5,7 @@ import type {
   AdminCompanyReport,
   AdminCompanySummary,
   AdminReportedSocialComment,
+  AdminSocialComment,
   CompanyReportReason,
   PublicSocialPost,
   SocialFeedPage,
@@ -17,6 +18,49 @@ import { apiDelete, apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client
 // SocialService.listReportedComments.
 function reportReasonLabel(reason: string): string {
   return SOCIAL_COMMENT_REPORT_REASON_LABELS[reason as keyof typeof SOCIAL_COMMENT_REPORT_REASON_LABELS] ?? "No reason given";
+}
+
+// Admins see the exact second a post or comment went up - the legal record.
+// Members and companies only ever see it to the hour ("1h ago").
+function formatExactTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+// Every comment and reply on one post, with exact times (admin-only API).
+function PostCommentsLog({ postId }: { postId: string }) {
+  const [comments, setComments] = useState<AdminSocialComment[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiGet<AdminSocialComment[]>(`/admin/social/posts/${postId}/comments`)
+      .then(setComments)
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load the comments."));
+  }, [postId]);
+
+  if (error) return <p className="mt-2 text-xs text-red-600 dark:text-red-300">{error}</p>;
+  if (comments === null) return <p className="mt-2 text-xs text-muted-foreground">Loading comments...</p>;
+  if (comments.length === 0) return <p className="mt-2 text-xs text-muted-foreground">No comments.</p>;
+  return (
+    <ol className="mt-2 flex flex-col gap-1.5" aria-label="Comments with exact times">
+      {comments.map((c) => (
+        <li key={c.id} className={`rounded-md border border-border bg-surface-muted px-2.5 py-1.5 ${c.isReply ? "ml-6" : ""}`}>
+          <p className="text-[11px] text-muted-foreground">
+            <time dateTime={c.createdAt} className="font-mono">{formatExactTime(c.createdAt)}</time> ·{" "}
+            {c.displayUsername ?? "Anonymous"}
+            {c.isReply ? " · reply" : ""}
+          </p>
+          <p className="whitespace-pre-wrap text-sm text-foreground">{c.body}</p>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 // Every comment with at least one report, flagged (crossed 3 reports AND
@@ -81,6 +125,9 @@ function ReportedCommentsPanel() {
               <span className="text-xs font-medium text-muted-foreground">
                 {c.reportCount} report{c.reportCount === 1 ? "" : "s"}
               </span>
+              <time dateTime={c.createdAt} className="font-mono text-[11px] text-muted-foreground">
+                Written {formatExactTime(c.createdAt)}
+              </time>
               {c.flaggedForReview && (
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-950 dark:text-red-300">
                   Filter match{c.flaggedReviewReason ? `: ${c.flaggedReviewReason}` : ""}
@@ -213,6 +260,7 @@ function CompanyPostsPanel({
   const [posts, setPosts] = useState<PublicSocialPost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -277,35 +325,47 @@ function CompanyPostsPanel({
           </div>
           <div className="flex flex-col gap-2">
             {posts.map((post) => (
-              <div
-                key={post.id}
-                className="flex items-center gap-3 rounded-lg border border-border bg-surface p-2.5"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element -- owner/user-submitted photo, not a static asset */}
-                <img
-                  src={post.imageUrls[0]}
-                  alt=""
-                  className="h-14 w-14 shrink-0 rounded-md object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  {post.caption && (
-                    <p className="truncate text-sm text-foreground" title={post.caption}>
-                      {post.caption}
+              <div key={post.id} className="rounded-lg border border-border bg-surface p-2.5">
+                <div className="flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- owner/user-submitted photo, not a static asset */}
+                  <img
+                    src={post.imageUrls[0]}
+                    alt=""
+                    className="h-14 w-14 shrink-0 rounded-md object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    {post.caption && (
+                      <p className="truncate text-sm text-foreground" title={post.caption}>
+                        {post.caption}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      <time dateTime={post.createdAt} className="font-mono">{formatExactTime(post.createdAt)}</time> ·{" "}
+                      {post.likeCount} likes ·{" "}
+                      {post.commentCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setOpenCommentsFor((id) => (id === post.id ? null : post.id))}
+                          aria-expanded={openCommentsFor === post.id}
+                          className="font-medium text-foreground underline-offset-2 hover:underline"
+                        >
+                          {post.commentCount} comments {openCommentsFor === post.id ? "▴" : "▾"}
+                        </button>
+                      ) : (
+                        "0 comments"
+                      )}
                     </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(post.createdAt).toLocaleString()} · {post.likeCount} likes · {post.commentCount}{" "}
-                    comments
-                  </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePost(post.id)}
+                    disabled={removingId === post.id}
+                    className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removePost(post.id)}
-                  disabled={removingId === post.id}
-                  className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
-                >
-                  Remove
-                </button>
+                {openCommentsFor === post.id && <PostCommentsLog postId={post.id} />}
               </div>
             ))}
           </div>

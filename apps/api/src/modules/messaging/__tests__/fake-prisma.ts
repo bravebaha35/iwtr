@@ -102,6 +102,14 @@ export function createFakePrisma(opts: {
         opts.owners.find(
           (o) => o.userId === where.userId_companyId.userId && o.companyId === where.userId_companyId.companyId,
         ) ?? null,
+      update: async ({ where, data }: any) => {
+        const o = opts.owners.find(
+          (x) => x.userId === where.userId_companyId.userId && x.companyId === where.userId_companyId.companyId,
+        );
+        if (!o) throw new Error("owner not found");
+        Object.assign(o, data);
+        return o;
+      },
     },
     reviewConversation: {
       create: async ({ data, include }: any) => {

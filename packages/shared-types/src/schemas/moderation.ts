@@ -14,11 +14,14 @@ export type ContentViolationType = z.infer<typeof contentViolationTypeSchema>;
 // options.skipViolationTypes. An employer's own IWT Social post caption
 // passes all three (SocialService.createPost): it may name its own staff,
 // name a job role, and write an all-caps announcement in its own post.
-// PROFANITY and PII_PHONE_NUMBER are deliberately NOT skippable.
+// PROFANITY is never skippable. PII_PHONE_NUMBER is skipped only for private
+// reviewer <-> company messages (MessagingService), where the two sides may
+// agree to swap numbers - those get a warning note instead of a block.
 export const skippableViolationTypeSchema = z.enum([
   "NAME_OR_SURNAME",
   "JOB_TITLE",
   "ABUSE_OR_INSULT",
+  "PII_PHONE_NUMBER",
 ]);
 export type SkippableViolationType = z.infer<typeof skippableViolationTypeSchema>;
 

@@ -32,7 +32,7 @@ function thread(overrides: Partial<ConversationThread> = {}): ConversationThread
     ...summary,
     unread: false,
     reviewExcerpt: "Managers were fair but the shifts were long.",
-    messages: [{ id: "33333333-3333-4333-8333-333333333333", fromMe: false, day: "2026-09-25", content: "Can I explain the shift issue?" }],
+    messages: [{ id: "33333333-3333-4333-8333-333333333333", fromMe: false, day: "2026-09-25", content: "Can I explain the shift issue?", sharesPhoneNumber: false }],
     canSend: true,
     cannotSendReason: null,
     ...overrides,
@@ -126,6 +126,19 @@ describe("ConversationInbox", () => {
     expect(rows[1]).toHaveTextContent("Ended");
     expect(rows[1]).toHaveTextContent("Ahmet Yılmaz");
     expect(rows[0]).not.toHaveTextContent("Quiet Beaver");
+  });
+
+  it("warns under a message that shares a phone number, and while one is being typed", async () => {
+    const withNumber = thread({
+      messages: [
+        { id: "44444444-4444-4444-8444-444444444444", fromMe: false, day: "2026-09-25", content: "My number is 0532 123 45 67", sharesPhoneNumber: true },
+      ],
+    });
+    get.mockImplementation((path: string) => Promise.resolve(path.startsWith("/conversations/") ? withNumber : [summary]));
+    render(<ConversationInbox mode="reviewer" initialConversationId={summary.id} />);
+    expect(await screen.findAllByText(/Be careful while sharing your phone number/)).toHaveLength(1);
+    await userEvent.type(screen.getByLabelText("Your message"), "mine is 0533 765 43 21");
+    expect(screen.getAllByText(/Be careful while sharing your phone number/)).toHaveLength(2);
   });
 
   it("shows an empty state when there are no conversations", async () => {

@@ -26,6 +26,7 @@ import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
 import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
 import { ContactSocialCategory } from "@/components/owner/sections/ContactSocialCategory";
+import { OwnerNameInMessagesToggle } from "@/components/owner/sections/OwnerNameInMessagesToggle";
 import { ReviewsRatingsCategory } from "@/components/owner/sections/ReviewsRatingsCategory";
 import { ApplicationsCategory } from "@/components/owner/sections/ApplicationsCategory";
 
@@ -626,31 +627,34 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             )}
 
             {activeCategory === "contact-social" && (
-              <ContactSocialCategory
-                city={city}
-                contactEmail={contactEmail}
-                setContactEmail={setContactEmail}
-                contactPhone={contactPhone}
-                setContactPhone={setContactPhone}
-                facebookUrl={facebookUrl}
-                setFacebookUrl={setFacebookUrl}
-                instagramUrl={instagramUrl}
-                setInstagramUrl={setInstagramUrl}
-                whatsappUrl={whatsappUrl}
-                setWhatsappUrl={setWhatsappUrl}
-                xUrl={xUrl}
-                setXUrl={setXUrl}
-                linkedinUrl={linkedinUrl}
-                setLinkedinUrl={setLinkedinUrl}
-                youtubeUrl={youtubeUrl}
-                setYoutubeUrl={setYoutubeUrl}
-                glassdoorUrl={glassdoorUrl}
-                setGlassdoorUrl={setGlassdoorUrl}
-                onSave={saveContact}
-                saving={contactSaving}
-                status={contactStatus}
-                error={contactError}
-              />
+              <>
+                <ContactSocialCategory
+                  city={city}
+                  contactEmail={contactEmail}
+                  setContactEmail={setContactEmail}
+                  contactPhone={contactPhone}
+                  setContactPhone={setContactPhone}
+                  facebookUrl={facebookUrl}
+                  setFacebookUrl={setFacebookUrl}
+                  instagramUrl={instagramUrl}
+                  setInstagramUrl={setInstagramUrl}
+                  whatsappUrl={whatsappUrl}
+                  setWhatsappUrl={setWhatsappUrl}
+                  xUrl={xUrl}
+                  setXUrl={setXUrl}
+                  linkedinUrl={linkedinUrl}
+                  setLinkedinUrl={setLinkedinUrl}
+                  youtubeUrl={youtubeUrl}
+                  setYoutubeUrl={setYoutubeUrl}
+                  glassdoorUrl={glassdoorUrl}
+                  setGlassdoorUrl={setGlassdoorUrl}
+                  onSave={saveContact}
+                  saving={contactSaving}
+                  status={contactStatus}
+                  error={contactError}
+                />
+                <OwnerNameInMessagesToggle companyId={claim.companyId} />
+              </>
             )}
 
             {activeCategory === "reviews-ratings" && (

@@ -216,10 +216,15 @@ function hrefForNotification(n: AppNotification): string {
   }
 }
 
-function timeAgo(iso: string): string {
+// Social-post times come from the API rounded to the hour (see the API's
+// toUtcHour), so they never read finer than "1 hour ago".
+const HOUR_PRECISION_KINDS: ReadonlySet<NotificationKind> = new Set(["COMPANY_NEW_SOCIAL_POST"]);
+
+function timeAgo(iso: string, hourPrecision = false): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (diffSec < 60) return "Just now";
   const diffMin = Math.floor(diffSec / 60);
+  if (hourPrecision && diffMin < 60) return "1 hour ago";
+  if (diffSec < 60) return "Just now";
   if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
   const diffHour = Math.floor(diffMin / 60);
   if (diffHour < 24) return `${diffHour} hour${diffHour === 1 ? "" : "s"} ago`;
@@ -383,7 +388,7 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
               )}
             </span>
           </span>
-          <span className="mt-1 block text-xs text-muted-foreground">{timeAgo(n.createdAt)}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{timeAgo(n.createdAt, HOUR_PRECISION_KINDS.has(n.kind))}</span>
         </span>
       </RowLink>
     </li>

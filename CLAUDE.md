@@ -118,7 +118,15 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   Both sides read their inbox on the top-bar `/messages` page (owners get one list across all their
   companies via `GET owner/conversations`). Each side sees the review's public name/avatar (randomized
   stand-ins included) and the company logo; the reviewer also sees the answering owner's real name, taken
-  from `EmployerProfile` only — never the PII vault.
+  from `EmployerProfile` only — never the PII vault — and only once that owner ticked "Show company owner's name
+  during messaging" (`CompanyOwner.showNameInMessages`, default off); otherwise "Company representative".
+  Phone numbers are allowed in messages (skipped via `skipViolationTypes`) and flagged `sharesPhoneNumber` so
+  both sides see a warning note; reviews and IWT Social still block them.
+- IWT Social post/comment times go out to members and companies rounded to the hour (`toUtcHour`); the DB keeps
+  the exact moment, which only the admin endpoints return (legal record).
+- `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
+  matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
+  everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").
 - `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per
   company) and the admin queue on `/admin/content`.
 

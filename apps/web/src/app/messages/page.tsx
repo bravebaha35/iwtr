@@ -41,7 +41,7 @@ function MessagesPageInner() {
         <h1 className="mb-1 text-xl font-semibold text-foreground">Messages</h1>
         <p className="mb-5 text-sm text-muted-foreground">
           {isCompanyOwner
-            ? "Private conversations started by reviewers you've publicly replied to. You only see the name and avatar shown on their review, and they see your name. You can't start a conversation yourself, and either side can end one at any time."
+            ? "Private conversations started by reviewers you've publicly replied to. You only see the name and avatar shown on their review, and they see \"Company representative\" unless you tick \"Show company owner's name during messaging\" in your dashboard. You can't start a conversation yourself, and either side can end one at any time."
             : "Private conversations with companies that replied to your reviews. They only ever see your review name and avatar, never your account."}
         </p>
         <ConversationInbox

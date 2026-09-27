@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Notification, NotificationType } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { daysRemaining } from "../job-postings/job-postings.util";
+import { toUtcHour } from "../../common/time/day-precision.util";
 
 const MAX_NOTIFICATIONS = 30;
 const RECENT_WINDOW_MS = 30 * 86_400_000;
@@ -220,7 +221,8 @@ export class NotificationsService {
         type: "COMPANY_NEW_SOCIAL_POST" as NotificationType,
         companyName: p.company.name,
         companySlug: p.company.slug,
-        createdAt: p.createdAt.toISOString(),
+        // Hour precision, same as the post itself on IWT Social.
+        createdAt: toUtcHour(p.createdAt).toISOString(),
       })),
       ...followedHiring.map((j) => ({
         id: `company-hiring-${j.id}`,

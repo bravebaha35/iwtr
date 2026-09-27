@@ -6,12 +6,14 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import type {
-  CannotSendReason,
-  ContentViolationType,
-  ConversationSummary,
-  ConversationThread,
-  SendMessageInput,
+import {
+  containsTurkishPhoneNumber,
+  type CannotSendReason,
+  type ContentViolationType,
+  type ConversationSummary,
+  type ConversationThread,
+  type OwnerMessagingName,
+  type SendMessageInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
@@ -150,6 +152,32 @@ export class MessagingService {
     return this.toSortedSummaries(rows, "COMPANY");
   }
 
+  /** The owner dashboard tick-box: whether reviewers see this owner's name, and the name they would see. */
+  async getOwnerMessagingName(userId: string, companyId: string): Promise<OwnerMessagingName> {
+    const ownership = await this.prisma.companyOwner.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+      select: { claimStatus: true, showNameInMessages: true },
+    });
+    if (ownership?.claimStatus !== "APPROVED") {
+      throw new ForbiddenException("You are not an approved owner of this company");
+    }
+    return {
+      showNameInMessages: ownership.showNameInMessages,
+      ownerName: await this.employerProfile.getRepresentativeName(userId),
+    };
+  }
+
+  async setOwnerMessagingName(userId: string, companyId: string, show: boolean): Promise<OwnerMessagingName> {
+    if (!(await this.isApprovedOwner(userId, companyId))) {
+      throw new ForbiddenException("You are not an approved owner of this company");
+    }
+    await this.prisma.companyOwner.update({
+      where: { userId_companyId: { userId, companyId } },
+      data: { showNameInMessages: show },
+    });
+    return this.getOwnerMessagingName(userId, companyId);
+  }
+
   /** The top-bar Messages inbox for an owner: every company they have an approved claim on, in one list. */
   async listForOwner(userId: string): Promise<ConversationSummary[]> {
     const claims = await this.prisma.companyOwner.findMany({
@@ -252,7 +280,9 @@ export class MessagingService {
   }
 
   private assertClean(content: string): void {
-    const check = this.moderation.checkContent([content]);
+    // Phone numbers are allowed here (the two sides may agree to swap them);
+    // such messages carry sharesPhoneNumber so both sides see a warning note.
+    const check = this.moderation.checkContent([content], { skipViolationTypes: ["PII_PHONE_NUMBER"] });
     if (check.violates) {
       const reasons = [...new Set(check.violationTypes.map((t) => VIOLATION_WORDING[t]))].join(", ");
       throw new BadRequestException({
@@ -269,11 +299,13 @@ export class MessagingService {
   }
 
   /**
-   * The real name the reviewer sees for "who is answering" (2026-09-27
-   * product decision: owners are shown by their real name). The owner who
+   * The real name the reviewer sees for "who is answering": the owner who
    * wrote the company's latest message if they still own it, else the
-   * company's first approved owner. Only ever computed for the reviewer
-   * side, and only from the owner's employer profile, never the PII vault.
+   * company's first approved owner - and only if that owner ticked "Show
+   * company owner's name during messaging" (CompanyOwner.showNameInMessages);
+   * otherwise null, shown as "Company representative". Only ever computed
+   * for the reviewer side, and only from the owner's employer profile, never
+   * the PII vault.
    */
   private async ownerNameFor(conversation: { id: string; companyId: string }): Promise<string | null> {
     const lastCompanyMessage = await this.prisma.reviewConversationMessage.findFirst({
@@ -290,7 +322,12 @@ export class MessagingService {
       });
       ownerUserId = firstOwner?.userId ?? null;
     }
-    return ownerUserId ? this.employerProfile.getRepresentativeName(ownerUserId) : null;
+    if (!ownerUserId) return null;
+    const ownership = await this.prisma.companyOwner.findUnique({
+      where: { userId_companyId: { userId: ownerUserId, companyId: conversation.companyId } },
+      select: { showNameInMessages: true },
+    });
+    return ownership?.showNameInMessages ? this.employerProfile.getRepresentativeName(ownerUserId) : null;
   }
 
   private async toSummary(conversation: ConversationRow, side: Side): Promise<ConversationSummary> {
@@ -334,6 +371,7 @@ export class MessagingService {
         fromMe: m.side === side,
         day: toDay(m.createdAt),
         content: m.content,
+        sharesPhoneNumber: containsTurkishPhoneNumber(m.content),
       })),
       canSend: reason === null,
       cannotSendReason: reason,
