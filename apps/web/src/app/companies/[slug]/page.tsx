@@ -188,11 +188,13 @@ export default async function CompanyPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ tab?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[]; review?: string | string[] }>;
 }) {
   const { slug } = await params;
-  const { tab } = await searchParams;
+  const { tab, review } = await searchParams;
   const initialTab = Array.isArray(tab) ? tab[0] : tab;
+  // From a notification link: the review to scroll to and pulse.
+  const highlightReviewId = Array.isArray(review) ? review[0] : review;
 
   let detail: CompanyDetail;
   try {
@@ -372,6 +374,7 @@ export default async function CompanyPage({
                 companySlug={slug}
                 workplaceTypes={company.workplaceTypes}
                 companyName={company.name}
+                highlightReviewId={highlightReviewId}
               />
             </div>
           }

@@ -8,6 +8,13 @@ const RECENT_WINDOW_MS = 30 * 86_400_000;
 
 const startOfUtcDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
+// Where a review-related notification lands: the review itself on its
+// company page, which scrolls to it and pulses its outline (ReviewsList
+// reads ?review=). Review ids are already public (every published review
+// carries its id for voting), so this reveals nothing new.
+const reviewHref = (companySlug: string | undefined, reviewId: string) =>
+  companySlug ? `/companies/${companySlug}?review=${reviewId}` : `/me/reviews?review=${reviewId}`;
+
 @Injectable()
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -184,6 +191,7 @@ export class NotificationsService {
         companyName: companyByReview.get(v.reviewId)?.name ?? "",
         companySlug: companyByReview.get(v.reviewId)?.slug ?? null,
         createdAt: v.createdAt.toISOString(),
+        href: reviewHref(companyByReview.get(v.reviewId)?.slug, v.reviewId),
       })),
       ...replies.map((r) => ({
         id: `reply-${r.id}`,
@@ -191,6 +199,7 @@ export class NotificationsService {
         companyName: companyByReview.get(r.reviewId)?.name ?? "",
         companySlug: companyByReview.get(r.reviewId)?.slug ?? null,
         createdAt: r.createdAt.toISOString(),
+        href: reviewHref(companyByReview.get(r.reviewId)?.slug, r.reviewId),
       })),
       ...jobPostings.map((p) => ({
         id: `job-posting-${p.id}`,
@@ -321,7 +330,7 @@ export class NotificationsService {
           companyName: r.company.name,
           companySlug: r.company.slug,
           createdAt: r.publishedAt!.toISOString(),
-          href: `/companies/${r.company.slug}`,
+          href: reviewHref(r.company.slug, r.id),
         })),
       ...myReviews
         .filter((r) => r.status === "REJECTED")
@@ -331,7 +340,8 @@ export class NotificationsService {
           companyName: r.company.name,
           companySlug: r.company.slug,
           createdAt: r.createdAt.toISOString(),
-          href: "/me/reviews",
+          // Not public, so it opens on the reviewer's own My Ratings page.
+          href: `/me/reviews?review=${r.id}`,
         })),
       ...claims.map((c) => ({
         id: `claim-${c.id}`,
@@ -356,7 +366,7 @@ export class NotificationsService {
         companyName: r.company.name,
         companySlug: r.company.slug,
         createdAt: startOfUtcDay(r.publishedAt!).toISOString(),
-        href: `/companies/${r.company.slug}`,
+        href: reviewHref(r.company.slug, r.id),
       })),
     ];
   }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SortButtons, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
+import { sortCompaniesBy, type SortOption } from "@/components/SortButtons";
+import { SearchSortBox } from "@/components/SearchSortBox";
 import Image from "next/image";
 import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
@@ -20,7 +21,7 @@ import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
-import { riskScoreColorClass, RISK_SCORE_NOTES, RiskTriangleIcon } from "@/components/jobs/RiskScoreBadge";
+import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
 import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
@@ -185,7 +186,6 @@ export function JobsBrowser() {
   // trivially matches every company, same reasoning minRating's top end
   // (5) already uses for its own "Any" state.
   const [maxRiskScore, setMaxRiskScore] = useState(3);
-  const riskSliderTrackRef = useRef<HTMLDivElement>(null);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -232,37 +232,6 @@ export function JobsBrowser() {
   function handleSliderPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (e.buttons !== 1) return;
     applyRatingFromClientX(e.currentTarget, e.clientX);
-  }
-
-  function stepRiskScore(delta: number) {
-    setMaxRiskScore((prev) => Math.min(3, Math.max(0, prev + delta)));
-  }
-
-  useEffect(() => {
-    const el = riskSliderTrackRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      stepRiskScore(e.deltaY < 0 ? 1 : -1);
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
-
-  function applyRiskScoreFromClientX(el: HTMLDivElement, clientX: number) {
-    const rect = el.getBoundingClientRect();
-    const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    setMaxRiskScore(Math.round(fraction * 3));
-  }
-
-  function handleRiskSliderPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    applyRiskScoreFromClientX(e.currentTarget, e.clientX);
-  }
-
-  function handleRiskSliderPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (e.buttons !== 1) return;
-    applyRiskScoreFromClientX(e.currentTarget, e.clientX);
   }
 
   function requestNearMe() {
@@ -493,59 +462,7 @@ export function JobsBrowser() {
               </div>
             </div>
 
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Score</h2>
-                <RewindButton onClick={() => setMaxRiskScore(3)} active={maxRiskScore !== 3} title="Reset Risk Score filter" />
-              </div>
-              <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
-                <div className="relative pt-8">
-                  {[0, 1, 2, 3].map((tickValue) => {
-                    const active = maxRiskScore === tickValue;
-                    // Grows from 14px (tick 0) to 26px (tick 3) — "exclamation
-                    // mark gets bigger and bigger until 3" per the design.
-                    const sizePx = 14 + tickValue * 4;
-                    return (
-                      <span
-                        key={tickValue}
-                        className={`absolute top-0 flex items-center justify-center transition-all duration-200 ${
-                          active ? "scale-110 opacity-100" : "scale-90 opacity-40 grayscale"
-                        } ${riskScoreColorClass(tickValue)}`}
-                        style={{ left: `${(tickValue / 3) * 100}%`, width: sizePx, height: sizePx, transform: "translateX(-50%)" }}
-                      >
-                        <RiskTriangleIcon className="h-full w-full" />
-                      </span>
-                    );
-                  })}
-
-                  <div
-                    ref={riskSliderTrackRef}
-                    onPointerDown={handleRiskSliderPointerDown}
-                    onPointerMove={handleRiskSliderPointerMove}
-                    className="relative h-2 w-full cursor-pointer touch-none rounded-full"
-                    style={{ background: "linear-gradient(to right, #22c55e, #f97316, #ef4444)" }}
-                    title="Click and drag along the slider, or scroll, to choose a maximum Risk Score"
-                  >
-                    {[0, 1, 2, 3].map((tickValue) => (
-                      <span
-                        key={tickValue}
-                        className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-white/70"
-                        style={{ left: `${(tickValue / 3) * 100}%` }}
-                      />
-                    ))}
-                    <span
-                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
-                      style={{ left: `${(maxRiskScore / 3) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <span className="text-center text-xs font-normal text-muted-foreground">
-                  {maxRiskScore === 3 ? "Any" : `${maxRiskScore} and Below`}
-                </span>
-                <p className="text-xs text-muted-foreground">{RISK_SCORE_NOTES[maxRiskScore]}</p>
-              </div>
-            </div>
+            <RiskScoreFilter value={maxRiskScore} onChange={setMaxRiskScore} />
 
             <CityDistrictPicker
               selectedCities={selectedCities}
@@ -561,18 +478,11 @@ export function JobsBrowser() {
 
           {/* Results */}
           <div ref={resultsTopRef} className="min-w-0 flex-1">
-            {/* Two rows: search with the sort buttons right beside it (+ the
+            {/* Two rows: search + sort in one pill (SearchSortBox, + the
                 owner's Create button) on top, then Quick Select on its own
                 row - same layout as the homepage (WorkplaceBrowser.tsx). */}
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <input
-                type="search"
-                placeholder="Search a workplace by name..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground"
-              />
-              <SortButtons value={sortBy} onChange={setSortBy} />
+              <SearchSortBox query={query} onQueryChange={setQuery} sortBy={sortBy} onSortChange={setSortBy} />
               {isCompanyOwner && (
                 <button
                   type="button"

@@ -43,6 +43,8 @@ export default function MyReviewsPage() {
   const isCompanyOwner = useIsCompanyOwner();
   const [reviews, setReviews] = useState<MyReviewListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // From a notification link (?review=): scroll to that review and pulse its outline.
+  const [pulsingId, setPulsingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -57,6 +59,24 @@ export default function MyReviewsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!reviews) return;
+    const target = new URLSearchParams(window.location.search).get("review");
+    if (!target || !reviews.some((r) => r.id === target)) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("review");
+    window.history.replaceState(window.history.state, "", url.toString());
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot reaction to the loaded list + link
+    setPulsingId(target);
+  }, [reviews]);
+
+  useEffect(() => {
+    if (!pulsingId) return;
+    document.getElementById(`review-${pulsingId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = window.setTimeout(() => setPulsingId(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [pulsingId]);
 
   if (authLoading) return null;
 
@@ -89,7 +109,13 @@ export default function MyReviewsPage() {
 
         <div className="flex flex-col gap-4 compact:gap-2">
           {reviews?.map((review) => (
-            <div key={review.id} className="rounded-xl border border-border bg-surface p-5 compact:p-3">
+            <div
+              key={review.id}
+              id={`review-${review.id}`}
+              className={`scroll-mt-24 rounded-xl border border-border bg-surface p-5 compact:p-3 ${
+                pulsingId === review.id ? "highlight-pulse" : ""
+              }`}
+            >
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 {review.companySlug ? (
                   <Link

@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { BackButton } from "@/components/BackButton";
 import { GlobalHeader } from "@/components/GlobalHeader";
+import { HomeFiltersReset } from "@/components/HomeFiltersReset";
 import { GlobalFooter } from "@/components/GlobalFooter";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { MagneticPrimaryButtons } from "@/components/motion/MagneticPrimaryButtons";
@@ -108,6 +109,7 @@ export default function RootLayout({
         <SettingsProvider>
           <AuthProvider>
             <GlobalHeader />
+            <HomeFiltersReset />
             {/* The one main landmark; pages render their content inside it. At
                 least a screen tall, so the footer starts below the fold and
                 pages that fill in after loading never make it jump. */}
