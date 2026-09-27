@@ -64,10 +64,9 @@ export const companyJobPostingsSchema = z.object({
 export type CompanyJobPostings = z.infer<typeof companyJobPostingsSchema>;
 
 // boost is null for "Continue without boost". billing is required only when
-// the chosen boost isn't covered by a free monthly allowance — same
-// optional-only-on-the-paid-path shape rivalAnalyticsRequestInputSchema
-// already uses for the exact same iyzico one-time-checkout mechanism (see
-// owner.ts), reusing checkoutBillingInputSchema rather than a new billing shape.
+// the chosen boost isn't covered by a free monthly allowance (iyzico
+// one-time checkout), reusing checkoutBillingInputSchema rather than a new
+// billing shape.
 export const createJobPostingInputSchema = z.object({
   jobTitle: z.string().trim().min(1).max(200),
   description: z.string().min(1).max(600),
@@ -91,8 +90,7 @@ export const createJobPostingResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("PUBLISHED"), jobPosting: jobPostingSchema, boostError: z.string().optional() }),
   z.object({ status: z.literal("PENDING_ADMIN"), jobPosting: jobPostingSchema, boostError: z.string().optional() }),
   // iyzico is configured and the boost picked isn't covered by a free
-  // credit — same shape as rivalAnalyticsRequestResultSchema's
-  // CHECKOUT_REQUIRED branch (owner.ts).
+  // credit - here is the hosted checkout form to pay for it.
   z.object({
     status: z.literal("CHECKOUT_REQUIRED"),
     jobPosting: jobPostingSchema,

@@ -88,6 +88,9 @@ export const updateCompanyInputSchema = z
     // OwnerService.updateMyCompany's own server-side check against whatever
     // is already stored for the field not included in a given request.
     contactEmail: z.union([z.string().email(), z.literal("")]).optional(),
+    // Optional extra emails; "" clears one.
+    contactEmail2: z.union([z.string().email(), z.literal("")]).optional(),
+    contactEmail3: z.union([z.string().email(), z.literal("")]).optional(),
     // Turkey-specific: a mobile number (any 05XX prefix) or a landline whose
     // area code is a real one of the 81 provinces' — see
     // schemas/turkishPhone.ts. Deliberately stricter than the generic E.164
@@ -119,6 +122,20 @@ export const updateCompanyInputSchema = z
     path: ["contactEmail"],
   });
 export type UpdateCompanyInput = z.infer<typeof updateCompanyInputSchema>;
+
+// How many public review replies a company has left this month (owner
+// dashboard, Reviews & Ratings). limit/remaining are null on an unlimited
+// plan. Counted per company per calendar month (UTC), new replies only -
+// editing an existing reply is free.
+export const replyAllowanceSchema = z.object({
+  tier: ownerTierSchema,
+  limit: z.number().int().nullable(),
+  usedThisMonth: z.number().int(),
+  remaining: z.number().int().nullable(),
+  // YYYY-MM-DD: the first day of next month, when the count starts over.
+  resetsOn: z.string(),
+});
+export type ReplyAllowance = z.infer<typeof replyAllowanceSchema>;
 
 export const contactAdminInputSchema = z.object({
   message: z.string().min(1).max(2000),
@@ -157,24 +174,3 @@ export const plusCheckoutResultSchema = z.object({
 });
 export type PlusCheckoutResult = z.infer<typeof plusCheckoutResultSchema>;
 
-// Only Enterprise gets a one-time free pull; every other tier (including no
-// tier at all) always pays, gated by apps/api's decideRivalAnalyticsAccess.
-// `billing` is required only on the paid path — omitted entirely on a free
-// Enterprise pull, which needs no invoice/checkout details at all.
-export const rivalAnalyticsRequestInputSchema = z.object({
-  requestingCompanyId: z.string().uuid(),
-  billing: checkoutBillingInputSchema.optional(),
-});
-export type RivalAnalyticsRequestInput = z.infer<typeof rivalAnalyticsRequestInputSchema>;
-
-export const rivalAnalyticsRequestResultSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("SENT"), recipientEmail: z.string(), usedFreeCredit: z.boolean() }),
-  // iyzico isn't configured with real credentials yet (see IyzicoProvider) —
-  // same "not set up yet" condition the Plus checkout flow already surfaces.
-  z.object({ status: z.literal("PAYMENT_REQUIRED"), priceNote: z.string() }),
-  // iyzico IS configured — here's the hosted Checkout Form to complete
-  // payment; the report is generated and emailed once the callback confirms
-  // the charge succeeded, not synchronously with this response.
-  z.object({ status: z.literal("CHECKOUT_REQUIRED"), checkoutFormContent: z.string(), token: z.string() }),
-]);
-export type RivalAnalyticsRequestResult = z.infer<typeof rivalAnalyticsRequestResultSchema>;

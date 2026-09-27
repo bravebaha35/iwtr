@@ -18,16 +18,6 @@ export const PRICING_TIERS: { key: PricingTierKey; label: string; rank: number }
   { key: "enterprise", label: "Enterprise", rank: 3 },
 ];
 
-// CompanyOwner.rivalAnalyticsTier is nullable STARTER/PRO/ENTERPRISE — null
-// maps to "free" here, matching how decideRivalAnalyticsAccess already
-// treats a null tier as the lowest rung.
-export function tierKeyFromRivalAnalyticsTier(tier: "STARTER" | "PRO" | "ENTERPRISE" | null): PricingTierKey {
-  if (tier === "STARTER") return "starter";
-  if (tier === "PRO") return "pro";
-  if (tier === "ENTERPRISE") return "enterprise";
-  return "free";
-}
-
 export function tierRank(key: PricingTierKey): number {
   return PRICING_TIERS.find((t) => t.key === key)?.rank ?? 0;
 }
@@ -46,7 +36,7 @@ export function tierKeyFromOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTE
 // The one label shown as a company's verification badge (browse card,
 // company page header, dashboard) — null on Free. Derived straight from the
 // "verified-badge" pricing-matrix row so this can never drift from the copy
-// shown in PricingComparisonTable/PremiumFeaturesPanel.
+// shown in PricingComparisonTable and the owner dashboard.
 export function badgeLabelForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): string | null {
   const value = pricingFeature("verified-badge").values[tierKeyFromOwnerTier(tier)];
   return value === "No" ? null : value;
@@ -100,47 +90,23 @@ export const PRICING_FEATURE_ROWS: PricingFeatureRow[] = [
     },
   },
   {
-    id: "hr-analytics",
-    label: "HR Analytics Dashboard Access",
-    values: {
-      free: `Only see company's "Questions and Answers", change logo, add contact information.`,
-      starter: `See "Questions and Answers", Green Flags & Redflags, add logo and banner, general information, contact information.`,
-      pro: `See "Questions and Answers", Green Flags & Redflags, Most "Yes" answered question, Most "No" answered question (both in top 5 form), add logo and banner, general information, contact information.`,
-      enterprise: `See "Questions and Answers", Green Flags & Redflags, Most "Yes" answered question, Most "No" answered question (both in top 5 form), suggestions about company below top 5, add logo and banner, general information, contact information.`,
-    },
-  },
-  {
-    id: "benchmarking",
-    label: "Industry and Competitor Benchmarking",
+    // Premium Features › Benchmark Reports on the owner dashboard. The HR
+    // Analytics Report is a placeholder until its feature is specified.
+    id: "benchmark-reports",
+    label: "Benchmark Reports",
     values: {
       free: "No",
-      starter: "Only the industry average.",
-      pro: "Monthly single competitor comparison, Industry and Competitor Benchmarking",
-      enterprise: "Monthly Competitor & Regional Benchmarking Report",
+      starter: "No",
+      pro: "No",
+      enterprise: "Sector Benchmark Report and HR Analytics Report",
     },
-    lockedBelowRank: 1,
+    lockedBelowRank: 3,
   },
   {
     id: "job-ads",
     label: "Posting Featured Job Ads",
     values: { free: "No*", starter: "2 Ads Monthly", pro: "5 Ads Monthly", enterprise: "10 Ads Monthly" },
     lockedBelowRank: 1,
-  },
-  {
-    id: "candidate-tracking",
-    label: "Candidate Tracking & Talent Pool Access",
-    values: {
-      free: `Only see who applied for them and message them in "Job" section.`,
-      starter: `Only see who applied for them and message them in "Job" section.`,
-      pro: `Advanced HR Filtering, only see who applied for them and message them in "Job" section.`,
-      enterprise: `Advanced HR Filtering, only see who applied for them and message them in "Job" section.`,
-    },
-  },
-  {
-    id: "export-data",
-    label: "Exporting HR Data (PDF / Excel Report)",
-    values: { free: "No", starter: "No", pro: "Monthly Reports", enterprise: "Unlimited Reports" },
-    lockedBelowRank: 2,
   },
   {
     id: "hr-seats",

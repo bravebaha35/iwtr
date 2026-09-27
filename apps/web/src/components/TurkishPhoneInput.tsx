@@ -97,8 +97,10 @@ export function TurkishPhoneInput({
 
       {kind === "LANDLINE" ? (
         <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <div className="w-40 shrink-0">
+          {/* Province and area code sit side by side at exactly the same
+              width and height, like two halves of one field. */}
+          <div className="grid grid-cols-2 items-center gap-2">
+            <div className="min-w-0">
               <SingleSelectDropdown
                 value={selectedProvince?.plate ?? null}
                 options={PROVINCE_OPTIONS}
@@ -116,13 +118,13 @@ export function TurkishPhoneInput({
               // İstanbul's the one real case: two working area codes for the
               // same province — a small pick between exactly those two,
               // still nothing free-form.
-              <div className="flex shrink-0 gap-1">
+              <div className="flex min-w-0 gap-1">
                 {codesForSelectedProvince.map((code) => (
                   <button
                     key={code}
                     type="button"
                     onClick={() => onChange(`+90${code}${localDigits}`)}
-                    className={pillClass(code === areaCode)}
+                    className={`flex-1 ${pillClass(code === areaCode)}`}
                   >
                     0{code}
                   </button>
@@ -131,7 +133,7 @@ export function TurkishPhoneInput({
             ) : (
               <div
                 aria-label="Area code (fixed by province)"
-                className="flex w-20 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-muted px-2 py-2 text-sm text-muted-foreground"
+                className="flex w-full items-center rounded-lg border border-border bg-surface-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground"
               >
                 {areaCode ? `0${areaCode}` : "—"}
               </div>

@@ -30,6 +30,8 @@ import {
   type UpdateEmploymentHistoryInput,
   type UpdateReviewInput,
   type WorkplaceType,
+  type OwnerTier,
+  type ReplyAllowance,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
@@ -68,6 +70,16 @@ function toPublicReply(r: { id: string; content: string; createdAt: Date } | und
 // castVote) — purely a badge-tier signal now.
 const CONTRIBUTOR_COMPANY_COUNT = 3;
 const TOP_CONTRIBUTOR_COMPANY_COUNT = 5;
+
+// New public review replies per company per calendar month, by the replying
+// owner's plan (pricing table: "Monthly Comment Response Count"). null =
+// unlimited.
+export const MONTHLY_REPLY_LIMITS: Record<OwnerTier, number | null> = {
+  FREE: 2,
+  BLUE: 6,
+  BLUE_PLUS: 10,
+  ENTERPRISE: null,
+};
 
 @Injectable()
 export class ReviewsService {
@@ -1122,13 +1134,38 @@ export class ReviewsService {
    * query and reviews.service.ts otherwise has no reason to depend on the
    * owner module.
    */
-  private async requireApprovedCompanyOwnership(userId: string, companyId: string): Promise<void> {
+  private async requireApprovedCompanyOwnership(userId: string, companyId: string) {
     const ownership = await this.prisma.companyOwner.findUnique({
       where: { userId_companyId: { userId, companyId } },
     });
     if (!ownership || ownership.claimStatus !== "APPROVED") {
       throw new ForbiddenException("You don't have an approved claim on this company");
     }
+    return ownership;
+  }
+
+  /**
+   * How many new public replies this company can still post this month on
+   * the replying owner's plan (MONTHLY_REPLY_LIMITS). A lapsed paid plan
+   * counts as Free. Editing an existing reply never uses one up.
+   */
+  async replyAllowance(userId: string, companyId: string): Promise<ReplyAllowance> {
+    const ownership = await this.requireApprovedCompanyOwnership(userId, companyId);
+    const tier: OwnerTier = ownership.planStatus === "ACTIVE" ? ownership.tier : "FREE";
+    const limit = MONTHLY_REPLY_LIMITS[tier];
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const usedThisMonth = await this.prisma.companyReply.count({
+      where: { companyId, createdAt: { gte: monthStart } },
+    });
+    return {
+      tier,
+      limit,
+      usedThisMonth,
+      remaining: limit === null ? null : Math.max(0, limit - usedThisMonth),
+      resetsOn: nextMonth.toISOString().slice(0, 10),
+    };
   }
 
   /**
@@ -1144,7 +1181,12 @@ export class ReviewsService {
     if (!review || review.status !== "PUBLISHED") {
       throw new NotFoundException("Review not found");
     }
-    await this.requireApprovedCompanyOwnership(userId, review.companyId);
+    const allowance = await this.replyAllowance(userId, review.companyId);
+    if (allowance.remaining === 0) {
+      throw new ForbiddenException(
+        `You've used all ${allowance.limit} replies included in your plan this month. You can reply again from ${allowance.resetsOn}, or upgrade your plan for more.`,
+      );
+    }
 
     const contentCheck = this.moderation.checkContent([input.content]);
     if (contentCheck.violates) {

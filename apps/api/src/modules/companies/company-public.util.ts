@@ -29,6 +29,8 @@ export interface PublicCompanyFields {
   isChainStore: boolean;
   isHiring: boolean;
   contactEmail: string | null;
+  contactEmail2: string | null;
+  contactEmail3: string | null;
   contactPhone: string | null;
   facebookUrl: string | null;
   instagramUrl: string | null;
@@ -62,6 +64,8 @@ export function toPublicCompany(c: PublicCompanyFields, hasApprovedOwner: boolea
     isChainStore: c.isChainStore,
     isHiring: c.isHiring,
     contactEmail: c.contactEmail,
+    contactEmail2: c.contactEmail2,
+    contactEmail3: c.contactEmail3,
     contactPhone: c.contactPhone,
     facebookUrl: c.facebookUrl,
     instagramUrl: c.instagramUrl,

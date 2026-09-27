@@ -32,14 +32,14 @@ afterEach(() => {
 });
 
 it("shows an upsell and makes no API call below Enterprise", () => {
-  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise={false} />);
+  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise={false} city="İstanbul" />);
   expect(screen.getByText(/Available on the Enterprise plan/)).toBeInTheDocument();
   expect(apiGet).not.toHaveBeenCalled();
 });
 
 it("links a READY report to its download route through the auth proxy", async () => {
   (apiGet as jest.Mock).mockResolvedValue([job({})]);
-  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise />);
+  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise city="İstanbul" />);
   expect(await screen.findByRole("link", { name: "Open PDF" })).toHaveAttribute(
     "href",
     `/api/proxy/my-companies/${COMPANY}/sector-benchmark/22222222-2222-4222-8222-222222222222/download`,
@@ -53,12 +53,11 @@ it("queues a report, shows a progress bar while it builds, and tells the bell wh
   const bell = jest.fn();
   window.addEventListener(NOTIFICATIONS_STALE_EVENT, bell);
 
-  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise />);
+  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise city="İstanbul" />);
   await act(async () => {});
-  fireEvent.click(screen.getByRole("radio", { name: "My company's city" }));
-  fireEvent.click(screen.getByRole("button", { name: "Generate report" }));
+  fireEvent.click(screen.getByRole("button", { name: "Generate Report" }));
 
-  await waitFor(() => expect(apiPost).toHaveBeenCalledWith(`/my-companies/${COMPANY}/sector-benchmark`, { scope: "CITY" }));
+  await waitFor(() => expect(apiPost).toHaveBeenCalledWith(`/my-companies/${COMPANY}/sector-benchmark`, {}));
   expect(await screen.findByRole("progressbar", { name: "Generating report" })).toBeInTheDocument();
 
   (apiGet as jest.Mock).mockResolvedValue([job({})]);
@@ -75,7 +74,7 @@ it("explains the anonymity lock in plain words on a FAILED report", async () => 
   (apiGet as jest.Mock).mockResolvedValue([
     job({ status: "FAILED", errorMessage: "Insufficient Data to Ensure Anonymity", expiresAt: null }),
   ]);
-  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise />);
+  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise city="İstanbul" />);
   expect(await screen.findByText(/Not enough companies in your sector have reviews yet/)).toBeInTheDocument();
   expect(screen.queryByText("Insufficient Data to Ensure Anonymity")).not.toBeInTheDocument();
 });
@@ -83,8 +82,18 @@ it("explains the anonymity lock in plain words on a FAILED report", async () => 
 it("explains a refused request (anonymity lock) in plain words", async () => {
   (apiGet as jest.Mock).mockResolvedValue([]);
   (apiPost as jest.Mock).mockRejectedValue(new ApiError("Insufficient Data to Ensure Anonymity", 403, null));
-  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise />);
+  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise city="İstanbul" />);
   await act(async () => {});
-  fireEvent.click(screen.getByRole("button", { name: "Generate report" }));
+  fireEvent.click(screen.getByRole("button", { name: "Generate Report" }));
   expect(await screen.findByText(/at least 5 different reviewers from at least 3 different companies/)).toBeInTheDocument();
+});
+
+it("offers only one choice: a report for the company's own city", async () => {
+  (apiGet as jest.Mock).mockResolvedValue([]);
+  render(<SectorBenchmarkTile companyId={COMPANY} isEnterprise city="İstanbul" />);
+  await act(async () => {});
+  expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+  expect(screen.queryByText(/All of Turkey/)).not.toBeInTheDocument();
+  expect(screen.getByText(/in your sector in İstanbul/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Generate Report" })).toBeInTheDocument();
 });

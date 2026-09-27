@@ -191,6 +191,8 @@ export class OwnerService {
         city: location?.city,
         district: location?.district,
         contactEmail: emptyToNull(input.contactEmail),
+        contactEmail2: emptyToNull(input.contactEmail2),
+        contactEmail3: emptyToNull(input.contactEmail3),
         contactPhone: emptyToNull(input.contactPhone),
         facebookUrl: input.facebookUrl,
         instagramUrl: input.instagramUrl,

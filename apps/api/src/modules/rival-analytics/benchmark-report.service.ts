@@ -48,8 +48,8 @@ function startOfUtcDay(now: Date): Date {
 /**
  * Request / list / download for Sector Benchmark Reports. Requesting only
  * queues a job — BenchmarkReportWorker builds the PDF in the background.
- * Sector = the requester's own Company.category; scope CITY narrows it to
- * the requester's own Company.city.
+ * Always the requester's own sector (Company.category) in the requester's
+ * own company city (Company.city).
  */
 @Injectable()
 export class BenchmarkReportService {
@@ -58,16 +58,16 @@ export class BenchmarkReportService {
     private readonly sectorBenchmark: SectorBenchmarkService,
   ) {}
 
-  async request(userId: string, companyId: string, input: SectorBenchmarkRequest): Promise<BenchmarkReportJob> {
+  async request(userId: string, companyId: string, _input: SectorBenchmarkRequest = {}): Promise<BenchmarkReportJob> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
     if (ownership.tier !== "ENTERPRISE") {
       throw new ForbiddenException("Sector Benchmark Reports are part of the Enterprise plan.");
     }
 
     const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId } });
-    const city = input.scope === "CITY" ? company.city : null;
-    if (input.scope === "CITY" && !city) {
-      throw new BadRequestException("Your company has no city on file, so only an all-Turkey report is possible.");
+    const city = company.city;
+    if (!city) {
+      throw new BadRequestException("Add your company's city in General Information first - the report compares companies in your city.");
     }
 
     const requestedToday = await this.prisma.benchmarkReportJob.count({

@@ -81,6 +81,8 @@ function CompanyDetailsBox({ company }: { company: Company }) {
 
   const socialLinks: { label: string; href: string; external: boolean }[] = [
     company.contactEmail ? { label: "Email", href: `mailto:${company.contactEmail}`, external: false } : null,
+    company.contactEmail2 ? { label: "Email 2", href: `mailto:${company.contactEmail2}`, external: false } : null,
+    company.contactEmail3 ? { label: "Email 3", href: `mailto:${company.contactEmail3}`, external: false } : null,
     company.contactPhone ? { label: "Phone", href: `tel:${company.contactPhone}`, external: false } : null,
     company.facebookUrl ? { label: "Facebook", href: company.facebookUrl, external: true } : null,
     company.instagramUrl ? { label: "Instagram", href: company.instagramUrl, external: true } : null,
@@ -375,6 +377,9 @@ export default async function CompanyPage({
                 workplaceTypes={company.workplaceTypes}
                 companyName={company.name}
                 highlightReviewId={highlightReviewId}
+                // Spotlight is a paid feature: a pick left over from a lapsed
+                // plan isn't pinned.
+                featuredReviewId={company.badgeTier !== "FREE" ? company.featuredReviewId : null}
               />
             </div>
           }

@@ -525,6 +525,10 @@ model Company {
   // description/website. All nullable: most existing companies won't have
   // these filled in until an owner claims and fills them out.
   contactEmail String?
+  // Optional 2nd and 3rd public contact emails (e.g. HR and careers
+  // inboxes), shown under the main one on the company page.
+  contactEmail2 String?
+  contactEmail3 String?
   contactPhone String?
   facebookUrl  String?
   instagramUrl String?

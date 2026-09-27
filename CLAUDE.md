@@ -127,6 +127,11 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
   matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").
+- `rival-analytics/` — now only the Sector Benchmark Report (always the owner's own sector in the owner's own
+  city). The competitor "Rival Analytics" report was removed 2026-09-27 (legal decision) — don't bring it back;
+  its DB tables are left untouched.
+- Company replies to reviews are capped per company per calendar month by the replying owner's plan
+  (`MONTHLY_REPLY_LIMITS` in reviews.service.ts: Free 2, Blue 6, Blue+ 10, Enterprise unlimited); edits are free.
 - `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per
   company) and the admin queue on `/admin/content`.
 

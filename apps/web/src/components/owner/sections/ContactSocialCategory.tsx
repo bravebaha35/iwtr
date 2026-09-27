@@ -8,6 +8,10 @@ export interface ContactSocialCategoryProps {
   city: string | null;
   contactEmail: string;
   setContactEmail: (v: string) => void;
+  contactEmail2: string;
+  setContactEmail2: (v: string) => void;
+  contactEmail3: string;
+  setContactEmail3: (v: string) => void;
   contactPhone: string;
   setContactPhone: (v: string) => void;
   facebookUrl: string;
@@ -66,16 +70,38 @@ export function ContactSocialCategory(props: ContactSocialCategoryProps) {
           Add at least one: an email or a phone number. Adding both is best.
         </p>
         <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 sm:grid-cols-2">
-          <label className={FIELD_LABEL}>
-            Email
-            <input
-              type="email"
-              value={props.contactEmail}
-              onChange={(e) => props.setContactEmail(e.target.value)}
-              placeholder="hr@company.com"
-              className={INPUT}
-            />
-          </label>
+          <div className="flex flex-col gap-3">
+            <label className={FIELD_LABEL}>
+              Email
+              <input
+                type="email"
+                value={props.contactEmail}
+                onChange={(e) => props.setContactEmail(e.target.value)}
+                placeholder="hr@company.com"
+                className={INPUT}
+              />
+            </label>
+            <label className={FIELD_LABEL}>
+              Second email <span className="font-normal">(optional)</span>
+              <input
+                type="email"
+                value={props.contactEmail2}
+                onChange={(e) => props.setContactEmail2(e.target.value)}
+                placeholder="careers@company.com"
+                className={INPUT}
+              />
+            </label>
+            <label className={FIELD_LABEL}>
+              Third email <span className="font-normal">(optional)</span>
+              <input
+                type="email"
+                value={props.contactEmail3}
+                onChange={(e) => props.setContactEmail3(e.target.value)}
+                placeholder="info@company.com"
+                className={INPUT}
+              />
+            </label>
+          </div>
 
           <div className={FIELD_LABEL}>
             Phone number

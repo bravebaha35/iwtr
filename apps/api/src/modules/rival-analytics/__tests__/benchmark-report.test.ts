@@ -52,9 +52,7 @@ function sectorStub(eligible = true) {
 describe("BenchmarkReportService.request", () => {
   it("queues a job for the requester's own sector and city", async () => {
     const prisma = makePrisma();
-    const job = await new BenchmarkReportService(prisma as never, sectorStub() as never).request(USER, COMPANY, {
-      scope: "CITY",
-    });
+    const job = await new BenchmarkReportService(prisma as never, sectorStub() as never).request(USER, COMPANY);
     expect(prisma.benchmarkReportJob.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { requestedByUserId: USER, companyId: COMPANY, sectorCategory: "Supermarket", city: "İstanbul" },
@@ -69,7 +67,7 @@ describe("BenchmarkReportService.request", () => {
       companyOwner: { findUnique: jest.fn().mockResolvedValue({ claimStatus: "APPROVED", tier: "BLUE_PLUS" }) },
     });
     await expect(
-      new BenchmarkReportService(prisma as never, sectorStub() as never).request(USER, COMPANY, { scope: "TURKEY" }),
+      new BenchmarkReportService(prisma as never, sectorStub() as never).request(USER, COMPANY, {}),
     ).rejects.toThrow(ForbiddenException);
     expect(prisma.benchmarkReportJob.create).not.toHaveBeenCalled();
   });
@@ -78,7 +76,7 @@ describe("BenchmarkReportService.request", () => {
     const prisma = makePrisma();
     prisma.benchmarkReportJob.count.mockResolvedValue(3);
     const error = await new BenchmarkReportService(prisma as never, sectorStub() as never)
-      .request(USER, COMPANY, { scope: "TURKEY" })
+      .request(USER, COMPANY, {})
       .catch((e) => e);
     expect(error).toBeInstanceOf(HttpException);
     expect(error.getStatus()).toBe(429);
@@ -87,8 +85,20 @@ describe("BenchmarkReportService.request", () => {
   it("never queues a job for a sector that fails the anonymity lock", async () => {
     const prisma = makePrisma();
     await expect(
-      new BenchmarkReportService(prisma as never, sectorStub(false) as never).request(USER, COMPANY, { scope: "TURKEY" }),
+      new BenchmarkReportService(prisma as never, sectorStub(false) as never).request(USER, COMPANY, {}),
     ).rejects.toThrow("Insufficient Data to Ensure Anonymity");
+    expect(prisma.benchmarkReportJob.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("BenchmarkReportService.request without a city", () => {
+  it("asks the owner to add their city instead of building a report", async () => {
+    const prisma = makePrisma({
+      company: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: COMPANY, category: "Supermarket", city: null }) },
+    });
+    await expect(new BenchmarkReportService(prisma as never, sectorStub() as never).request(USER, COMPANY)).rejects.toThrow(
+      /Add your company's city/,
+    );
     expect(prisma.benchmarkReportJob.create).not.toHaveBeenCalled();
   });
 });

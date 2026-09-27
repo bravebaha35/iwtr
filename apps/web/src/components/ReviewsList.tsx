@@ -24,6 +24,8 @@ export function ReviewsList({
   canReply = false,
   initialVisibleCount,
   highlightReviewId,
+  featuredReviewId,
+  onReplyPosted,
 }: {
   companySlug: string;
   // The company's own (up to 2) workplace-type tags, passed down from the
@@ -47,6 +49,12 @@ export function ReviewsList({
   // (collar filter and collapse cleared), scrolled into view, and its
   // outline pulses like the footer's highlight links.
   highlightReviewId?: string;
+  // The owner's "Featured review spotlight" pick: pinned above every other
+  // review with a "Featured" label.
+  featuredReviewId?: string | null;
+  // Owner dashboard: a NEW reply was posted (edits don't count), so the
+  // monthly reply allowance shown above the list can refresh.
+  onReplyPosted?: () => void;
 }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
@@ -138,6 +146,7 @@ export function ReviewsList({
         : await apiPost<CompanyReply>(`/reviews/${reviewId}/reply`, { content: replyText });
       setReviews((prev) => (prev ?? []).map((r) => (r.id === reviewId ? { ...r, reply } : r)));
       setReplyDraftFor(null);
+      if (!isEdit) onReplyPosted?.();
     } catch (err) {
       setReplyError(err instanceof ApiError ? err.message : "Couldn't post that reply.");
     } finally {
@@ -168,7 +177,10 @@ export function ReviewsList({
   // than one workplace type — a single-type company has nothing to filter,
   // so the tabs (and their color-coding) simply don't render.
   const collarOptions = WORKPLACE_TYPES.filter((t) => workplaceTypes?.includes(t.value));
-  const filteredReviews = activeCollar ? reviews.filter((r) => r.workplaceType === activeCollar) : reviews;
+  const byCollar = activeCollar ? reviews.filter((r) => r.workplaceType === activeCollar) : reviews;
+  // The featured review always comes first; everything else keeps its order.
+  const featured = featuredReviewId ? byCollar.find((r) => r.id === featuredReviewId) : undefined;
+  const filteredReviews = featured ? [featured, ...byCollar.filter((r) => r !== featured)] : byCollar;
   const collapsed = initialVisibleCount !== undefined && !expanded && filteredReviews.length > initialVisibleCount;
   const visibleReviews = collapsed ? filteredReviews.slice(0, initialVisibleCount) : filteredReviews;
 
@@ -196,8 +208,16 @@ export function ReviewsList({
           id={`review-${review.id}`}
           className={`scroll-mt-24 rounded-xl border border-border border-l-2 bg-surface p-5 compact:p-3 ${collarBorderClass(review.workplaceType)} ${
             pulsingId === review.id ? "highlight-pulse" : ""
-          }`}
+          } ${review === featured ? "ring-1 ring-amber-400/70" : ""}`}
         >
+          {review === featured && (
+            <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
+                <path d="M16 3a1 1 0 0 1 .7 1.7L15 6.4V10l3.3 3.3a1 1 0 0 1-.7 1.7H13v6a1 1 0 0 1-2 0v-6H6.4a1 1 0 0 1-.7-1.7L9 10V6.4L7.3 4.7A1 1 0 0 1 8 3h8Z" />
+              </svg>
+              Featured by {companyName ?? "the company"}
+            </p>
+          )}
           <div className="mb-3 compact:mb-1.5 flex items-center gap-2">
             <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />
             {review.displayUsername && (

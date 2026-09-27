@@ -24,15 +24,18 @@ import {
   isOwnerDashboardCategory,
   type OwnerDashboardCategory,
 } from "@/components/owner/OwnerDashboardSidePanel";
-import { contactAdminInputSchema } from "@iwtr/shared-types";
-import { formProblem } from "@/lib/validateForm";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { GeneralInfoCategory } from "@/components/owner/sections/GeneralInfoCategory";
-import { PremiumFeaturesCategory } from "@/components/owner/sections/PremiumFeaturesCategory";
 import { ContactSocialCategory } from "@/components/owner/sections/ContactSocialCategory";
 import { ReviewsRatingsCategory } from "@/components/owner/sections/ReviewsRatingsCategory";
 import { ApplicationsCategory } from "@/components/owner/sections/ApplicationsCategory";
 import { JobPostingsCategory } from "@/components/owner/sections/JobPostingsCategory";
+import { SupportCategory } from "@/components/owner/sections/SupportCategory";
+import { FeaturedReviewCategory } from "@/components/owner/sections/FeaturedReviewCategory";
+import { BenchmarkReportsCategory } from "@/components/owner/sections/BenchmarkReportsCategory";
+import { FeaturedJobAdsCategory, HrSeatsCategory } from "@/components/owner/sections/PlanPreviewCategories";
+import { PremiumLocked } from "@/components/owner/sections/PremiumLocked";
+import { TierInfoDialog } from "@/components/owner/TierInfoDialog";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -254,11 +257,11 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [premiumSaving, setPremiumSaving] = useState(false);
   const [premiumStatus, setPremiumStatus] = useState<string | null>(null);
   const [premiumError, setPremiumError] = useState<string | null>(null);
-  const [showRivalAnalytics, setShowRivalAnalytics] = useState(false);
-  const [freeRivalAnalyticsRequestJustUsed, setFreeRivalAnalyticsRequestJustUsed] = useState(false);
 
   // Contact & Social Media
   const [contactEmail, setContactEmail] = useState("");
+  const [contactEmail2, setContactEmail2] = useState("");
+  const [contactEmail3, setContactEmail3] = useState("");
   const [contactPhone, setContactPhone] = useState("+90");
   const [facebookUrl, setFacebookUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
@@ -269,15 +272,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [contactStatus, setContactStatus] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
 
-  const [contactAdminMessage, setContactAdminMessage] = useState("");
-  const [contactAdminStatus, setContactAdminStatus] = useState<string | null>(null);
-  const [contactAdminError, setContactAdminError] = useState<string | null>(null);
-  const [sendingContactAdmin, setSendingContactAdmin] = useState(false);
-
   const [showPricing, setShowPricing] = useState(false);
+  const [showTierInfo, setShowTierInfo] = useState(false);
 
-  const rivalAnalyticsFreeRequestUsed = claim.rivalAnalyticsFreeRequestUsed || freeRivalAnalyticsRequestJustUsed;
-  const hasFreeRivalAnalyticsRequest = claim.rivalAnalyticsTier === "ENTERPRISE" && !rivalAnalyticsFreeRequestUsed;
   const hasActivePaidTier = claim.tier !== "FREE" && claim.planStatus === "ACTIVE";
 
   // `scope` limits which category's local field state gets overwritten by
@@ -310,6 +307,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         }
         if (!scope || scope === "contact") {
           setContactEmail(c.contactEmail ?? "");
+          setContactEmail2(c.contactEmail2 ?? "");
+          setContactEmail3(c.contactEmail3 ?? "");
           setContactPhone(c.contactPhone ?? "+90");
           setFacebookUrl(c.facebookUrl ?? "");
           setInstagramUrl(c.instagramUrl ?? "");
@@ -424,22 +423,14 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     }
   }
 
-  async function savePremium() {
+  async function saveFeaturedReview(reviewId: string | null) {
     setPremiumSaving(true);
     setPremiumError(null);
     setPremiumStatus(null);
     try {
-      const body: Record<string, unknown> = {};
-      if (featuredReviewId !== (detail?.company.featuredReviewId ?? null)) {
-        body.featuredReviewId = featuredReviewId;
-      }
-      if (Object.keys(body).length === 0) {
-        setPremiumError("Change at least one field before saving.");
-        return;
-      }
-      await apiPatch(`/my-companies/${claim.companyId}`, body);
+      await apiPatch(`/my-companies/${claim.companyId}`, { featuredReviewId: reviewId });
       await loadDetail("premium");
-      setPremiumStatus("Saved.");
+      setPremiumStatus(reviewId ? "Pinned. It now shows first on your company page." : "Unpinned.");
     } catch (err) {
       setPremiumError(err instanceof ApiError ? err.message : "Couldn't save changes.");
     } finally {
@@ -469,6 +460,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     try {
       const body: Record<string, string> = {
         contactEmail: trimmedEmail,
+        // "" clears an optional email the owner emptied.
+        contactEmail2: contactEmail2.trim(),
+        contactEmail3: contactEmail3.trim(),
         contactPhone: trimmedPhone,
       };
       if (facebookUrl.trim()) body.facebookUrl = facebookUrl.trim();
@@ -483,27 +477,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       setContactError(err instanceof ApiError ? err.message : "Couldn't save changes.");
     } finally {
       setContactSaving(false);
-    }
-  }
-
-  async function sendContactAdminMessage() {
-    if (!contactAdminMessage.trim()) return;
-    const problem = formProblem(contactAdminInputSchema, { message: contactAdminMessage.trim() });
-    if (problem) {
-      setContactAdminError(problem);
-      return;
-    }
-    setSendingContactAdmin(true);
-    setContactAdminError(null);
-    setContactAdminStatus(null);
-    try {
-      await apiPost(`/my-companies/${claim.companyId}/contact-admin`, { message: contactAdminMessage.trim() });
-      setContactAdminMessage("");
-      setContactAdminStatus("Message sent to the admin.");
-    } catch (err) {
-      setContactAdminError(err instanceof ApiError ? err.message : "Couldn't send the message.");
-    } finally {
-      setSendingContactAdmin(false);
     }
   }
 
@@ -526,9 +499,14 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         <div className="flex items-center gap-2">
           {/* The owner is looking at their own company — always claimed. */}
           <CompanyVerificationTick badgeTier={claim.tier} claimed size={22} />
-          <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
+          <button
+            type="button"
+            onClick={() => setShowTierInfo(true)}
+            aria-haspopup="dialog"
+            className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 hover:underline dark:bg-brand-900 dark:text-brand-300"
+          >
             {claim.tier === "FREE" ? "Free Tier" : `${badgeLabel ?? claim.tier} Tier`}
-          </span>
+          </button>
           <button
             type="button"
             onClick={() => setShowPricing(true)}
@@ -538,6 +516,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           </button>
         </div>
       </div>
+
+      {showTierInfo && <TierInfoDialog tier={claim.tier} onClose={() => setShowTierInfo(false)} />}
 
       {detailError && <p className="mb-3 text-sm text-red-600 dark:text-red-300">{detailError}</p>}
 
@@ -603,34 +583,16 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
               />
             )}
 
-            {activeCategory === "premium-features" && (
-              <PremiumFeaturesCategory
-                claim={claim}
-                companySlug={claim.companySlug}
-                companyId={claim.companyId}
-                hasActivePaidTier={hasActivePaidTier}
-                onStartUpgrade={setPendingUpgradeTier}
-                featuredReviewId={featuredReviewId}
-                setFeaturedReviewId={setFeaturedReviewId}
-                onSavePremium={savePremium}
-                premiumSaving={premiumSaving}
-                premiumStatus={premiumStatus}
-                premiumError={premiumError}
-                showRivalAnalytics={showRivalAnalytics}
-                setShowRivalAnalytics={setShowRivalAnalytics}
-                hasFreeRivalAnalyticsRequest={hasFreeRivalAnalyticsRequest}
-                rivalAnalyticsFreeRequestUsed={rivalAnalyticsFreeRequestUsed}
-                onFreeCreditUsed={() => setFreeRivalAnalyticsRequestJustUsed(true)}
-                onOpenPricing={() => setShowPricing(true)}
-              />
-            )}
-
             {activeCategory === "contact-social" && (
               <ContactSocialCategory
                 companyId={claim.companyId}
                 city={city}
                 contactEmail={contactEmail}
                 setContactEmail={setContactEmail}
+                contactEmail2={contactEmail2}
+                setContactEmail2={setContactEmail2}
+                contactEmail3={contactEmail3}
+                setContactEmail3={setContactEmail3}
                 contactPhone={contactPhone}
                 setContactPhone={setContactPhone}
                 facebookUrl={facebookUrl}
@@ -651,16 +613,66 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             )}
 
             {activeCategory === "reviews-ratings" && (
-              <ReviewsRatingsCategory companySlug={claim.companySlug} companyName={detail?.company.name ?? claim.companyName} detail={detail} />
+              <ReviewsRatingsCategory
+                companyId={claim.companyId}
+                companySlug={claim.companySlug}
+                companyName={detail?.company.name ?? claim.companyName}
+                detail={detail}
+              />
             )}
 
             {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
 
             {activeCategory === "job-postings" && <JobPostingsCategory companyId={claim.companyId} />}
 
+            {activeCategory === "customer-support" && <SupportCategory companyId={claim.companyId} tier={claim.tier} />}
+
+            {activeCategory === "featured-review" &&
+              (hasActivePaidTier ? (
+                <FeaturedReviewCategory
+                  companySlug={claim.companySlug}
+                  featuredReviewId={featuredReviewId}
+                  savedFeaturedReviewId={detail?.company.featuredReviewId ?? null}
+                  setFeaturedReviewId={setFeaturedReviewId}
+                  onSave={saveFeaturedReview}
+                  saving={premiumSaving}
+                  status={premiumStatus}
+                  error={premiumError}
+                />
+              ) : (
+                <PremiumLocked
+                  title="Featured Review Spotlight"
+                  description="Pin one of your published reviews to the top of your company page, with a Featured label."
+                  onStartUpgrade={setPendingUpgradeTier}
+                  onOpenPricing={() => setShowPricing(true)}
+                />
+              ))}
+
+            {activeCategory === "benchmark-reports" && (
+              <BenchmarkReportsCategory
+                companyId={claim.companyId}
+                isEnterprise={claim.tier === "ENTERPRISE" && hasActivePaidTier}
+                city={detail?.company.city ?? null}
+              />
+            )}
+
+            {activeCategory === "featured-job-ads" &&
+              (hasActivePaidTier ? (
+                <FeaturedJobAdsCategory tier={claim.tier} />
+              ) : (
+                <PremiumLocked
+                  title="Posting Featured Job Ads"
+                  description="Show your job ads above the others on the Jobs page."
+                  onStartUpgrade={setPendingUpgradeTier}
+                  onOpenPricing={() => setShowPricing(true)}
+                />
+              ))}
+
+            {activeCategory === "hr-seats" && <HrSeatsCategory tier={hasActivePaidTier ? claim.tier : "FREE"} />}
+
             {/* Rendered here (sibling to every activeCategory block, not nested
-                inside general-info's) because both GeneralInfoCategory and
-                PremiumFeaturesCategory can set pendingUpgradeTier via
+                inside general-info's) because GeneralInfoCategory and the locked
+                Premium Features sections can set pendingUpgradeTier via
                 onStartUpgrade — this must show regardless of which tab is
                 active when the upgrade button was clicked. */}
             {pendingUpgradeTier && (
@@ -674,27 +686,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         </SidebarContentRow>
       </fieldset>
 
-      <div className="mt-5 border-t border-border pt-4">
-        <label className="text-xs font-medium text-muted-foreground">
-          Contact the admin (one-way — they can&apos;t reply here, but can reach you by email)
-          <textarea
-            value={contactAdminMessage}
-            onChange={(e) => setContactAdminMessage(e.target.value)}
-            rows={2}
-            placeholder="e.g. our details are wrong, or we have a question"
-            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-          />
-        </label>
-        <button
-          onClick={sendContactAdminMessage}
-          disabled={sendingContactAdmin || !contactAdminMessage.trim()}
-          className="mt-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
-        >
-          Send message
-        </button>
-        {contactAdminStatus && <p className="mt-3 text-sm text-green-700 dark:text-green-400">{contactAdminStatus}</p>}
-        {contactAdminError && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{contactAdminError}</p>}
-      </div>
     </div>
   );
 }
