@@ -44,6 +44,8 @@ const PUBLIC_COMPANY_SELECT = {
   isChainStore: true,
   isHiring: true,
   contactEmail: true,
+  contactEmail2: true,
+  contactEmail3: true,
   contactPhone: true,
   facebookUrl: true,
   instagramUrl: true,

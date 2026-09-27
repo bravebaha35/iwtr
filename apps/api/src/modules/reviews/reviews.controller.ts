@@ -128,6 +128,12 @@ export class ReviewsController {
 
   // A company owner posting/editing their one public reply is a low-rate
   // action same as reviewing — no need for vote's higher throttle tier.
+  // Owner dashboard: replies left this month on the owner's plan.
+  @Get("my-companies/:companyId/reply-allowance")
+  replyAllowance(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
+    return this.reviews.replyAllowance(user.id, companyId);
+  }
+
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("reviews/:id/reply")
   replyToReview(

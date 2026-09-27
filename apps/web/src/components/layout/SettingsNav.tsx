@@ -14,7 +14,7 @@ const HOVER_TRANSITION = { duration: 0.12, ease: [0.2, 0.9, 0.1, 1] as const };
 
 // Fixed class strings only — nothing here is ever built from user input.
 const ITEM_BASE =
-  "block w-full whitespace-nowrap rounded-full px-3 py-2 text-left text-sm font-medium transition-colors";
+  "block w-full whitespace-nowrap rounded-full px-3 py-2 text-left text-sm font-medium transition-colors sm:whitespace-normal";
 const ITEM_IDLE = `${ITEM_BASE} text-sidebar-foreground/80 hover:bg-black/5 hover:text-sidebar-foreground dark:hover:bg-white/10`;
 const ITEM_ACTIVE = `${ITEM_BASE} bg-brand-600 text-white`;
 
@@ -24,7 +24,25 @@ const ITEM_ACTIVE = `${ITEM_BASE} bg-brand-600 text-white`;
  * places it as a sibling of the content column instead of inside any card.
  * Horizontal scrolling tab strip on mobile, vertical list from sm: up.
  */
-export function SettingsNav<K extends string>({
+export function SettingsNav<K extends string>(props: {
+  label: string;
+  items: SettingsNavItem<K>[];
+  active: K | null;
+  onChange: (key: K) => void;
+}) {
+  return (
+    <aside className="shrink-0 sm:w-56">
+      <SettingsNavList {...props} />
+    </aside>
+  );
+}
+
+/**
+ * Just the panel, without the <aside> - for a sidebar made of more than one
+ * panel (the owner dashboard: standard sections, then Premium Features).
+ * `active` null = nothing in this panel is selected.
+ */
+export function SettingsNavList<K extends string>({
   label,
   items,
   active,
@@ -32,43 +50,41 @@ export function SettingsNav<K extends string>({
 }: {
   label: string;
   items: SettingsNavItem<K>[];
-  active: K;
+  active: K | null;
   onChange: (key: K) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const hover = reduceMotion ? undefined : { x: 4 };
 
   return (
-    <aside className="shrink-0 sm:w-56">
-      <nav
-        aria-label={label}
-        className="flex flex-row gap-1 overflow-x-auto rounded-2xl border border-border bg-sidebar p-2 sm:flex-col sm:overflow-visible"
-      >
-        {items.map((item) => {
-          if ("href" in item) {
-            return (
-              <motion.div key={item.key} whileHover={hover} transition={HOVER_TRANSITION}>
-                <Link href={item.href} className={ITEM_IDLE}>
-                  {item.label}
-                </Link>
-              </motion.div>
-            );
-          }
-          const isActive = item.key === active;
+    <nav
+      aria-label={label}
+      className="flex flex-row gap-1 overflow-x-auto rounded-2xl border border-border bg-sidebar p-2 sm:flex-col sm:overflow-visible"
+    >
+      {items.map((item) => {
+        if ("href" in item) {
           return (
             <motion.div key={item.key} whileHover={hover} transition={HOVER_TRANSITION}>
-              <button
-                type="button"
-                onClick={() => onChange(item.key)}
-                aria-current={isActive ? "page" : undefined}
-                className={isActive ? ITEM_ACTIVE : ITEM_IDLE}
-              >
+              <Link href={item.href} className={ITEM_IDLE}>
                 {item.label}
-              </button>
+              </Link>
             </motion.div>
           );
-        })}
-      </nav>
-    </aside>
+        }
+        const isActive = item.key === active;
+        return (
+          <motion.div key={item.key} whileHover={hover} transition={HOVER_TRANSITION}>
+            <button
+              type="button"
+              onClick={() => onChange(item.key)}
+              aria-current={isActive ? "page" : undefined}
+              className={isActive ? ITEM_ACTIVE : ITEM_IDLE}
+            >
+              {item.label}
+            </button>
+          </motion.div>
+        );
+      })}
+    </nav>
   );
 }

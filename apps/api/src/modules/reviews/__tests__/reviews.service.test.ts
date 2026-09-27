@@ -495,3 +495,64 @@ describe("ReviewsService.listMine", () => {
     expect(rows.map((r) => r.conversationId)).toEqual(["conv-1", null]);
   });
 });
+
+describe("ReviewsService monthly reply allowance", () => {
+  const COMPANY = "company-1";
+  const OWNER = "owner-1";
+
+  function setup(opts: { tier: string; planStatus?: string; used: number }) {
+    const prisma = {
+      companyOwner: {
+        findUnique: jest.fn().mockResolvedValue({
+          claimStatus: "APPROVED",
+          tier: opts.tier,
+          planStatus: opts.planStatus ?? "ACTIVE",
+        }),
+      },
+      companyReply: {
+        count: jest.fn().mockResolvedValue(opts.used),
+        create: jest.fn().mockImplementation(({ data }) => ({ ...data, id: "reply-1", createdAt: new Date(), updatedAt: new Date() })),
+      },
+      review: { findUnique: jest.fn().mockResolvedValue({ id: "review-1", companyId: COMPANY, status: "PUBLISHED" }) },
+    };
+    const service = new ReviewsService(prisma as any, new ModerationService(), { purgeTcKimlikNoIfPresent: jest.fn() } as any);
+    return { prisma, service };
+  }
+
+  it.each([
+    ["FREE", 2],
+    ["BLUE", 6],
+    ["BLUE_PLUS", 10],
+  ])("gives a %s company %i replies a month and counts what is used", async (tier, limit) => {
+    const { service } = setup({ tier, used: 1 });
+    const allowance = await service.replyAllowance(OWNER, COMPANY);
+    expect(allowance).toEqual(expect.objectContaining({ tier, limit, usedThisMonth: 1, remaining: limit - 1 }));
+    expect(allowance.resetsOn).toMatch(/^\d{4}-\d{2}-01$/);
+  });
+
+  it("is unlimited on Enterprise", async () => {
+    const { service } = setup({ tier: "ENTERPRISE", used: 40 });
+    expect(await service.replyAllowance(OWNER, COMPANY)).toEqual(
+      expect.objectContaining({ limit: null, remaining: null, usedThisMonth: 40 }),
+    );
+  });
+
+  it("treats a lapsed paid plan as Free", async () => {
+    const { service } = setup({ tier: "BLUE_PLUS", planStatus: "PAST_DUE", used: 0 });
+    expect(await service.replyAllowance(OWNER, COMPANY)).toEqual(expect.objectContaining({ tier: "FREE", limit: 2 }));
+  });
+
+  it("refuses a new reply once the month's replies are used up, and saves nothing", async () => {
+    const { service, prisma } = setup({ tier: "FREE", used: 2 });
+    await expect(service.replyToReview(OWNER, "review-1", { content: "Thank you for the feedback." })).rejects.toThrow(
+      /used all 2 replies/,
+    );
+    expect(prisma.companyReply.create).not.toHaveBeenCalled();
+  });
+
+  it("still lets a reply through while some are left", async () => {
+    const { service, prisma } = setup({ tier: "FREE", used: 1 });
+    await service.replyToReview(OWNER, "review-1", { content: "Thank you for the feedback." });
+    expect(prisma.companyReply.create).toHaveBeenCalled();
+  });
+});

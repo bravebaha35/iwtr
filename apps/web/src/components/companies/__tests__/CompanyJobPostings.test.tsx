@@ -26,6 +26,8 @@ const company: Company = {
   isChainStore: false,
   isHiring: true,
   contactEmail: null,
+  contactEmail2: null,
+  contactEmail3: null,
   contactPhone: null,
   facebookUrl: null,
   instagramUrl: null,

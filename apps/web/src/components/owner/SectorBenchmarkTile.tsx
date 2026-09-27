@@ -2,17 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import type { BenchmarkReportJob, SectorBenchmarkRequest } from "@iwtr/shared-types";
+import type { BenchmarkReportJob } from "@iwtr/shared-types";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 import { SETTLE_EASE } from "@/lib/motion/easings";
 import { announceNewNotifications } from "@/lib/notification-events";
 
 const POLL_MS = 3_000;
-
-const SCOPES: { value: SectorBenchmarkRequest["scope"]; label: string }[] = [
-  { value: "TURKEY", label: "All of Turkey" },
-  { value: "CITY", label: "My company's city" },
-];
 
 function isPending(job: BenchmarkReportJob) {
   return job.status === "QUEUED" || job.status === "RUNNING";
@@ -63,14 +58,22 @@ function GeneratingBar({ status }: { status: BenchmarkReportJob["status"] }) {
 }
 
 /**
- * Sector Benchmark Report tile on the owner dashboard's Premium Features
- * tab. Enterprise-only: orders a report (queued on the API, built in the
- * background), polls while one is being built, and lists recent reports
- * with a download link for 7 days.
+ * Sector Benchmark Report on the owner dashboard (Premium Features ›
+ * Benchmark Reports). Enterprise-only: orders a report for the company's
+ * own sector in its own city (queued on the API, built in the background),
+ * polls while one is being built, and lists recent reports with a download
+ * link for 7 days.
  */
-export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: string; isEnterprise: boolean }) {
+export function SectorBenchmarkTile({
+  companyId,
+  isEnterprise,
+  city,
+}: {
+  companyId: string;
+  isEnterprise: boolean;
+  city: string | null;
+}) {
   const [jobs, setJobs] = useState<BenchmarkReportJob[] | null>(null);
-  const [scope, setScope] = useState<SectorBenchmarkRequest["scope"]>("TURKEY");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingIds = useRef<Set<string>>(new Set());
@@ -112,9 +115,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
     setError(null);
     setSubmitting(true);
     try {
-      const job = await apiPost<BenchmarkReportJob>(`/my-companies/${companyId}/sector-benchmark`, {
-        scope,
-      } satisfies SectorBenchmarkRequest);
+      const job = await apiPost<BenchmarkReportJob>(`/my-companies/${companyId}/sector-benchmark`, {});
       pendingIds.current.add(job.id);
       setJobs((prev) => [job, ...(prev ?? [])]);
     } catch (err) {
@@ -137,35 +138,9 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">
         Salary ranges, benefits, the 10 questions your sector agrees and disagrees on most, and its risk of staff
-        leaving. Built only from anonymous data, and only when enough people and companies are behind every figure.
+        leaving - compared across companies in your sector{city ? ` in ${city}` : " in your city"}. Built only from
+        anonymous data, and only when enough people and companies are behind every figure.
       </p>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <div role="radiogroup" aria-label="Report scope" className="flex border border-border">
-          {SCOPES.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              role="radio"
-              aria-checked={scope === s.value}
-              onClick={() => setScope(s.value)}
-              className={`px-3 py-1.5 text-xs font-medium ${
-                scope === s.value ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={generate}
-          disabled={submitting || hasPending}
-          className="bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-        >
-          {hasPending ? "Generating…" : "Generate report"}
-        </button>
-      </div>
       {error && <p className="text-sm text-red-700 dark:text-red-300">{error}</p>}
 
       {jobs && jobs.length > 0 && (
@@ -174,7 +149,7 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
             <li key={job.id} className="flex flex-col gap-1.5 py-2">
               <div className="flex items-baseline justify-between gap-3 text-sm">
                 <span className="font-medium text-foreground">
-                  {job.sectorCategory} · {job.city ?? "All of Turkey"}
+                  {job.sectorCategory}{job.city ? ` · ${job.city}` : ""}
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {new Date(job.createdAt).toLocaleDateString()}
@@ -201,6 +176,17 @@ export function SectorBenchmarkTile({ companyId, isEnterprise }: { companyId: st
           ))}
         </ul>
       )}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={generate}
+          disabled={submitting || hasPending}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+        >
+          {hasPending ? "Generating…" : "Generate Report"}
+        </button>
+      </div>
     </div>
   );
 }

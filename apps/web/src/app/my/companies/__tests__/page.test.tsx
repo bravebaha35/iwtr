@@ -56,6 +56,8 @@ const detail: CompanyDetail = {
     isChainStore: false,
     isHiring: false,
     contactEmail: "contact@acme.test",
+    contactEmail2: null,
+    contactEmail3: null,
     contactPhone: "+902121234567",
     facebookUrl: null,
     instagramUrl: null,
@@ -106,7 +108,7 @@ function generalInfoBox(): HTMLElement {
   return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
 }
 
-test("side panel lists the six sections in order, and only the active one's content renders", async () => {
+test("side panel lists the standard sections, then Premium Features as its own panel", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
@@ -114,11 +116,19 @@ test("side panel lists the six sections in order, and only the active one's cont
   const tabs = within(nav).getAllByRole("button");
   expect(tabs.map((t) => t.textContent)).toEqual([
     "General Information",
-    "Premium Features",
     "Contact & Social Media",
     "Reviews & Ratings",
     "Applications",
     "Job Postings",
+    "Customer Support & Service Level (SLA)",
+  ]);
+  expect(screen.getByRole("heading", { name: "Premium Features", level: 2 })).toBeInTheDocument();
+  const premium = screen.getByRole("navigation", { name: "Premium features" });
+  expect(within(premium).getAllByRole("button").map((t) => t.textContent)).toEqual([
+    "Featured Review Spotlight",
+    "Benchmark Reports",
+    "Posting Featured Job Ads",
+    "HR Manager Licenses",
   ]);
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
@@ -130,7 +140,7 @@ test("side panel lists the six sections in order, and only the active one's cont
   expect(screen.queryByRole("heading", { name: "General Information", level: 3 })).not.toBeInTheDocument();
 
   await user.click(within(nav).getByRole("button", { name: "Reviews & Ratings" }));
-  expect(screen.getByRole("heading", { name: "Reviews & Ratings" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Ratings", level: 3 })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Contact & Social Media" })).not.toBeInTheDocument();
 });
 
@@ -242,18 +252,52 @@ test("saving General Information sends the changed fields in one request", async
   );
 });
 
-test("Premium Features box is hidden on the Free tier", async () => {
+test("on the Free tier a premium section shows what it does and the plans that unlock it", async () => {
+  const user = userEvent.setup();
   await renderLoadedPage();
 
-  expect(screen.queryByRole("heading", { name: "Premium Features" })).not.toBeInTheDocument();
-  // Scoped to the 3-tier upsell row specifically — GeneralInfoCategory also
-  // renders a second, separate Blue+ upsell button next to the (also
-  // Free-tier-gated) banner-image field, so an unscoped query for "Blue+"
-  // matches two buttons.
-  const upsellBox = screen.getByText(/unlock on a paid tier/).parentElement as HTMLElement;
-  expect(within(upsellBox).getByRole("button", { name: /^Blue — /})).toBeInTheDocument();
-  expect(within(upsellBox).getByRole("button", { name: /^Blue\+ — /})).toBeInTheDocument();
-  expect(within(upsellBox).getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Featured Review Spotlight" }));
+  const locked = screen.getByRole("heading", { name: /Featured Review Spotlight/, level: 3 }).parentElement as HTMLElement;
+  expect(within(locked).getByText(/Pin one of your published reviews/)).toBeInTheDocument();
+  expect(within(locked).getByRole("button", { name: /^Blue — /})).toBeInTheDocument();
+  expect(within(locked).getByRole("button", { name: /^Blue\+ — /})).toBeInTheDocument();
+  expect(within(locked).getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
+});
+
+test("the tier label opens a closeable note about the Verified Employer Badge", async () => {
+  const user = userEvent.setup();
+  await renderLoadedPage();
+
+  await user.click(screen.getByRole("button", { name: "Free Tier" }));
+  const dialog = screen.getByRole("dialog", { name: "Verified Employer Badge" });
+  expect(within(dialog).getByText(/The badge would appear next to your company name/)).toBeInTheDocument();
+  await user.click(within(dialog).getByRole("button", { name: "Close" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("Reviews & Ratings shows how many replies are left this month between Ratings and Reviews", async () => {
+  const user = userEvent.setup();
+  (apiGet as jest.Mock).mockImplementation((path: string) => {
+    if (path === "/me/company-claims") return Promise.resolve([claim]);
+    if (path === `/companies/${claim.companySlug}`) return Promise.resolve(detail);
+    if (path.endsWith("/reply-allowance")) {
+      return Promise.resolve({ tier: "FREE", limit: 2, usedThisMonth: 1, remaining: 1, resetsOn: "2026-10-01" });
+    }
+    return Promise.resolve([]);
+  });
+  await renderLoadedPage();
+  await user.click(screen.getByRole("button", { name: "Reviews & Ratings" }));
+  const replies = await screen.findByRole("region", { name: "Monthly comment responses" });
+  expect(replies).toHaveTextContent("1 of 2 replies left");
+  expect(replies).toHaveTextContent("1 October");
+});
+
+test("Customer Support shows the plan's support and the message form to the admin", async () => {
+  const user = userEvent.setup();
+  await renderLoadedPage();
+  await user.click(screen.getByRole("button", { name: "Customer Support & Service Level (SLA)" }));
+  expect(screen.getByText("Standard mail")).toBeInTheDocument();
+  expect(screen.getByLabelText(/Contact the admin/)).toBeInTheDocument();
 });
 
 

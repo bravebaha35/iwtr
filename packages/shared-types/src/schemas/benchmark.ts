@@ -86,10 +86,12 @@ export const compensationInputSchema = z
 export type CompensationInput = z.output<typeof compensationInputSchema>;
 export type CompensationRequestBody = z.input<typeof compensationInputSchema>;
 
+// A report always covers the requester's own sector in the requester's own
+// company city (2026-09-27 product decision - the all-of-Turkey option was
+// removed). The body carries nothing else; "scope" is accepted only so an
+// older client that still sends { scope: "CITY" } keeps working.
 export const sectorBenchmarkRequestSchema = z.object({
-  // TURKEY = every company in the requester's sector; CITY = only those in
-  // the requester's own company city.
-  scope: z.enum(["TURKEY", "CITY"]),
+  scope: z.literal("CITY").optional(),
 });
 export type SectorBenchmarkRequest = z.infer<typeof sectorBenchmarkRequestSchema>;
 

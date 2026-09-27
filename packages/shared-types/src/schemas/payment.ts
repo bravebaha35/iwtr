@@ -15,9 +15,8 @@ export const billingAddressSchema = z.object({
 export type BillingAddress = z.infer<typeof billingAddressSchema>;
 
 // Shared by every "collect billing details, hand them to iyzico" flow —
-// Plus/tier checkout below AND Rival Analytics' one-time report purchase
-// (owner.ts's rivalAnalyticsRequestInputSchema), which needs the exact same
-// buyer/invoice fields but has no "tier" of its own to attach.
+// Plus/tier checkout below AND the one-time job-boost purchase, which needs
+// the exact same buyer/invoice fields but has no "tier" of its own to attach.
 export const checkoutBillingInputSchema = z.object({
   buyerName: z.string().min(1),
   buyerSurname: z.string().min(1),

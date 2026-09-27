@@ -1,8 +1,7 @@
 import { JobPostingsController } from "../../job-postings/job-postings.controller";
-import { RivalAnalyticsController } from "../../rival-analytics/rival-analytics.controller";
 import { PaymentsController } from "../payments.controller";
 
-// The three iyzico return routes are public (the payer's browser lands on
+// The iyzico return routes are public (the payer's browser lands on
 // them), so the body is untrusted: only a plain string token may ever reach
 // the server-side status lookup, and the browser is always redirected back.
 describe("public checkout callbacks", () => {
@@ -18,11 +17,6 @@ describe("public checkout callbacks", () => {
       name: "job posting boost",
       method: "boostCheckoutCallback",
       build: (fn: jest.Mock) => new JobPostingsController({ completeCheckout: fn } as any),
-    },
-    {
-      name: "rival analytics",
-      method: "callback",
-      build: (fn: jest.Mock) => new RivalAnalyticsController({ completeCheckout: fn } as any),
     },
   ];
 

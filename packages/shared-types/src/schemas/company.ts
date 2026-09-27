@@ -78,6 +78,8 @@ export const companySchema = z.object({
   // description/website). All nullable: most companies won't have these
   // filled in until an owner claims and sets them.
   contactEmail: z.string().email().nullable(),
+  contactEmail2: z.string().email().nullable(),
+  contactEmail3: z.string().email().nullable(),
   contactPhone: z.string().nullable(),
   facebookUrl: httpUrlSchema.nullable(),
   instagramUrl: httpUrlSchema.nullable(),

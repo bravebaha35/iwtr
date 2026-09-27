@@ -57,7 +57,7 @@ const DURATION_COPY: Record<BoostDurationDays, string> = {
  * Job Creation Flow, Modal 2 ("Boosts"): 3 duration boxes, a free-boosts-
  * remaining line driven by the owner's Rival Analytics tier (reused as the
  * membership-tier signal — see decideBoostAccess.ts), and the same iyzico
- * one-time-checkout flow RivalAnalyticsRequestModal already uses for a paid
+ * one-time-checkout flow (the removed competitor report used it too) for a paid
  * boost. Only the 7-day box can ever be free (spec: "Starter = 1 '7-days'
  * boost") — 14/21-day boosts always require payment.
  */

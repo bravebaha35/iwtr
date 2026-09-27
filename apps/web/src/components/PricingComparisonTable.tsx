@@ -79,12 +79,8 @@ const ROWS: PricingRow[] = [
     values: pricingFeature("comment-response").values,
   },
   {
-    label: pricingFeature("hr-analytics").label,
-    values: pricingFeature("hr-analytics").values,
-  },
-  {
-    label: pricingFeature("benchmarking").label,
-    values: pricingFeature("benchmarking").values,
+    label: pricingFeature("benchmark-reports").label,
+    values: pricingFeature("benchmark-reports").values,
   },
   {
     label: pricingFeature("job-ads").label,
@@ -98,14 +94,6 @@ const ROWS: PricingRow[] = [
       pro: pricingFeature("job-ads").values.pro,
       enterprise: pricingFeature("job-ads").values.enterprise,
     },
-  },
-  {
-    label: pricingFeature("candidate-tracking").label,
-    values: pricingFeature("candidate-tracking").values,
-  },
-  {
-    label: pricingFeature("export-data").label,
-    values: pricingFeature("export-data").values,
   },
   {
     label: pricingFeature("hr-seats").label,

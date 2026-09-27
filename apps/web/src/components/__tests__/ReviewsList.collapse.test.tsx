@@ -43,3 +43,12 @@ it("reveals, scrolls to and pulses the review a notification linked to", async (
   expect(card).toHaveClass("highlight-pulse");
   expect(scrollIntoView).toHaveBeenCalled();
 });
+
+it("pins the owner's featured review above all others with a Featured label", async () => {
+  (apiClient.apiGet as jest.Mock).mockResolvedValue(Array.from({ length: 4 }, (_, i) => review(`r${i}`)));
+  const { container } = render(<ReviewsList companySlug="acme" companyName="Acme" featuredReviewId="r3" />);
+  await screen.findByText(/thought r3/);
+  const cards = [...container.querySelectorAll("[id^='review-']")].map((el) => el.id);
+  expect(cards).toEqual(["review-r3", "review-r0", "review-r1", "review-r2"]);
+  expect(screen.getByText("Featured by Acme")).toBeInTheDocument();
+});
