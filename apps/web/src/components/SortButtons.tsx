@@ -55,7 +55,9 @@ export function sortCompaniesBy<T extends { name: string; overallAvg: number | n
   }
 }
 
-const TOGGLE_BASE = "rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200";
+const TOGGLE_SIZE = "px-4 py-2 text-sm";
+// Inside SearchSortBox, where they sit in the search pill's own height.
+const TOGGLE_SIZE_COMPACT = "px-3 py-1 text-xs";
 const TOGGLE_OFF = "border-border bg-surface text-muted-foreground hover:text-foreground";
 const TOGGLE_ON = "border-brand-600 bg-brand-600 text-white";
 
@@ -64,16 +66,25 @@ const TOGGLE_ON = "border-brand-600 bg-brand-600 text-white";
  * WorkplaceBrowser and JobsBrowser. A-Z loops A→Z / Z→A / off; Rating keeps
  * its own red/green colours for least/best-rated first.
  */
-export function SortButtons({ value, onChange }: { value: SortOption; onChange: (next: SortOption) => void }) {
+export function SortButtons({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: SortOption;
+  onChange: (next: SortOption) => void;
+  compact?: boolean;
+}) {
   const alphaOn = value === "alphabetical" || value === "alphabeticalDesc";
+  const base = `rounded-full border font-medium transition-all duration-200 ${compact ? TOGGLE_SIZE_COMPACT : TOGGLE_SIZE}`;
   return (
-    <div role="group" aria-label="Sort" className="flex flex-wrap items-center gap-2">
+    <div role="group" aria-label="Sort" className={`flex items-center ${compact ? "shrink-0 gap-1.5" : "flex-wrap gap-2"}`}>
       <button
         type="button"
         onClick={() => onChange(nextAlphaSort(value))}
         aria-pressed={alphaOn}
         title={value === "alphabetical" ? "Sorted A to Z" : value === "alphabeticalDesc" ? "Sorted Z to A" : "Sort A to Z"}
-        className={`${TOGGLE_BASE} ${alphaOn ? TOGGLE_ON : TOGGLE_OFF}`}
+        className={`${base} ${alphaOn ? TOGGLE_ON : TOGGLE_OFF}`}
       >
         {value === "alphabeticalDesc" ? "Z-A" : "A-Z"}
       </button>
@@ -84,12 +95,12 @@ export function SortButtons({ value, onChange }: { value: SortOption; onChange: 
         title={
           value === "ratingAsc" ? "Showing least-rated first" : value === "ratingDesc" ? "Showing best-rated first" : "Sort by rating"
         }
-        className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+        className={`${base} ${
           value === "ratingAsc"
-            ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400"
+            ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400"
             : value === "ratingDesc"
-              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : `border ${TOGGLE_OFF}`
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400"
+              : TOGGLE_OFF
         }`}
       >
         Rating

@@ -168,4 +168,18 @@ describe("NotificationsMenu - newer notification types", () => {
     );
     expect(screen.getByText("Someone reviewed Acme. Find out here!")).toBeInTheDocument();
   });
+
+  it("opens a vote or reply on the review itself", async () => {
+    get.mockResolvedValue([
+      { id: "v", type: "VOTE_NOT_HELPFUL", companyName: "Acme", companySlug: "acme", createdAt: at, href: "/companies/acme?review=r1" },
+      { ...reply, href: "/companies/acme?review=r2" },
+    ] satisfies Notification[]);
+    render(<NotificationsMenu />);
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    expect((await screen.findByText(/found your review .Not Helpful./)).closest("a")).toHaveAttribute(
+      "href",
+      "/companies/acme?review=r1",
+    );
+    expect(screen.getByText("Acme replied to your review.").closest("a")).toHaveAttribute("href", "/companies/acme?review=r2");
+  });
 });

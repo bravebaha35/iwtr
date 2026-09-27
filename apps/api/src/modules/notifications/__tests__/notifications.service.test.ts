@@ -134,6 +134,8 @@ describe("NotificationsService.list - followed-company events", () => {
     });
     const events = await new NotificationsService(prisma).list("u1");
     expect(events.map((e) => e.type)).toEqual(["COMPANY_STATUS_UPDATE", "VOTE_HELPFUL"]);
+    // A vote opens the voted-on review itself, which the company page pulses.
+    expect(events[1].href).toBe("/companies/own?review=r1");
   });
 });
 
@@ -266,8 +268,8 @@ describe("NotificationsService.list - reviews, claims and applications", () => {
     const events = await new NotificationsService(prisma).list("u1");
     expect(events).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "review-published-r1", type: "REVIEW_PUBLISHED", companyName: "Acme", href: "/companies/acme" }),
-        expect.objectContaining({ id: "review-rejected-r2", type: "REVIEW_NOT_PUBLISHED", companyName: "Beta", href: "/me/reviews" }),
+        expect.objectContaining({ id: "review-published-r1", type: "REVIEW_PUBLISHED", companyName: "Acme", href: "/companies/acme?review=r1" }),
+        expect.objectContaining({ id: "review-rejected-r2", type: "REVIEW_NOT_PUBLISHED", companyName: "Beta", href: "/me/reviews?review=r2" }),
       ]),
     );
     expect(events.some((e) => e.companyName === "Gamma")).toBe(false);
@@ -340,7 +342,7 @@ describe("NotificationsService.list - reviews, claims and applications", () => {
         type: "COMPANY_REVIEWED",
         companyName: "Acme",
         createdAt: "2026-09-25T00:00:00.000Z",
-        href: "/companies/acme",
+        href: "/companies/acme?review=r9",
       }),
     ]);
     // Never the owner's own review of their own company.

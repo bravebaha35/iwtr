@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SortButtons, normalizeSortOption, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
+import { normalizeSortOption, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
+import { SearchSortBox } from "@/components/SearchSortBox";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
@@ -17,6 +18,8 @@ import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
 import { CompanyWorkCard } from "@/components/company/CompanyWorkCard";
+import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
+import { HOME_FILTERS_STORAGE_KEY } from "@/lib/homeFilters";
 import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { RATING_TICKS, activeMoodIndex } from "@/lib/beaverRating";
 
@@ -110,7 +113,8 @@ type HighlightTarget = "search" | "categories";
 // only because useSearchParams requires a Suspense boundary for the build;
 // fallback is null since this renders nothing itself.
 // Persists every filter/search/sort/page choice across a visit to a company
-// page and back (BackButton.tsx's router.back(), or the header logo — both
+// page and back (and only that: HomeFiltersReset clears it the moment the
+// visitor goes to any other page, e.g. Jobs, so coming back starts fresh) (BackButton.tsx's router.back(), or the header logo — both
 // land back on "/", and the App Router fully remounts this client component
 // on that navigation rather than restoring its previous instance, so plain
 // useState alone loses everything). sessionStorage rather than the URL: this
@@ -121,12 +125,13 @@ type HighlightTarget = "search" | "categories";
 // Deliberately excludes `geo`: reusing a stored device position without a
 // fresh "Near Me" click would silently reintroduce the exact behavior the
 // geo state's own comment above rules out.
-const FILTER_STORAGE_KEY = "iwtr:homeFilters";
+const FILTER_STORAGE_KEY = HOME_FILTERS_STORAGE_KEY;
 
 interface PersistedFilters {
   workplaceTypes: WorkplaceType[];
   selectedCategory: string | null;
   minRating: number;
+  maxRiskScore: number;
   selectedCities: string[];
   selectedDistrictKeys: string[];
   query: string;
@@ -182,6 +187,10 @@ export function WorkplaceBrowser() {
   );
   const [selectedCategory, setSelectedCategory] = useState<string | null>(() => initialFilters.selectedCategory ?? null);
   const [minRating, setMinRating] = useState(() => (typeof initialFilters.minRating === "number" ? initialFilters.minRating : 0));
+  // 3 = "Any" (Risk Score's own maximum), same as the Jobs page.
+  const [maxRiskScore, setMaxRiskScore] = useState(() =>
+    typeof initialFilters.maxRiskScore === "number" ? initialFilters.maxRiskScore : 3,
+  );
   const [selectedCities, setSelectedCities] = useState<string[]>(() =>
     Array.isArray(initialFilters.selectedCities) ? initialFilters.selectedCities : [],
   );
@@ -307,6 +316,7 @@ export function WorkplaceBrowser() {
     if (selectedCities.length > 0) params.set("cities", selectedCities.join(","));
     if (selectedDistrictKeys.length > 0) params.set("districtKeys", selectedDistrictKeys.join(","));
     if (minRating > 0) params.set("minRating", String(minRating));
+    if (maxRiskScore < 3) params.set("maxRiskScore", String(maxRiskScore));
 
     let cancelled = false;
     setLoadError(false);
@@ -326,7 +336,7 @@ export function WorkplaceBrowser() {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating]);
+  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore]);
 
   // Changing which workplace type(s) are active can make the current
   // category selection unavailable (or just irrelevant) — reset it rather
@@ -347,8 +357,15 @@ export function WorkplaceBrowser() {
   // workplace type selected ("All"), every sector is shown.
   const sectorOptions = useMemo(() => sectorsForWorkplaceTypes(workplaceTypes), [workplaceTypes]);
 
-  const visibleCompanies = useMemo(() => {
-    if (!companies) return null;
+  // Workplaces with no reviews yet stay out of the default view - the
+  // homepage opens on real ratings only. Pressing A-Z, a Quick Select
+  // button, or searching for a name brings them in, and even then rated
+  // workplaces always come first.
+  const showUnrated =
+    sortBy === "alphabetical" || sortBy === "alphabeticalDesc" || categoryGroup !== null || query.trim() !== "";
+
+  const { visibleCompanies, hiddenUnratedCount } = useMemo(() => {
+    if (!companies) return { visibleCompanies: null, hiddenUnratedCount: 0 };
     let list = selectedCategory ? companies.filter((c) => c.category === selectedCategory) : companies;
     list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
 
@@ -357,8 +374,12 @@ export function WorkplaceBrowser() {
     } else if (geo && geo !== "denied") {
       list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
     }
-    return list;
-  }, [companies, selectedCategory, categoryGroup, geo, sortBy]);
+    const rated = list.filter((c) => c.reviewCount > 0);
+    const unrated = list.filter((c) => c.reviewCount === 0);
+    return showUnrated
+      ? { visibleCompanies: [...rated, ...unrated], hiddenUnratedCount: 0 }
+      : { visibleCompanies: rated, hiddenUnratedCount: unrated.length };
+  }, [companies, selectedCategory, categoryGroup, geo, sortBy, showUnrated]);
 
   // Any change to what's being shown should land back on page 1 — otherwise
   // narrowing a filter can strand you on a now-nonexistent page 12 of 2.
@@ -368,7 +389,7 @@ export function WorkplaceBrowser() {
       return;
     }
     setPage(1);
-  }, [workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, sortBy, query]);
+  }, [workplaceTypes, selectedCategory, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, sortBy, query]);
 
   // Mirror every filter/search/sort/page choice into sessionStorage as it
   // changes, so loadPersistedFilters picks it back up on the next mount (see
@@ -379,6 +400,7 @@ export function WorkplaceBrowser() {
       workplaceTypes,
       selectedCategory,
       minRating,
+      maxRiskScore,
       selectedCities,
       selectedDistrictKeys,
       query,
@@ -392,7 +414,7 @@ export function WorkplaceBrowser() {
       // Storage can throw under private-browsing/storage-restricted settings —
       // remembering filters is a nice-to-have, never required for the page to work.
     }
-  }, [workplaceTypes, selectedCategory, minRating, selectedCities, selectedDistrictKeys, query, sortBy, categoryGroup, page]);
+  }, [workplaceTypes, selectedCategory, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, query, sortBy, categoryGroup, page]);
 
   const totalPages = visibleCompanies ? Math.max(1, Math.ceil(visibleCompanies.length / RESULTS_PAGE_SIZE)) : 1;
   const pageCompanies = visibleCompanies?.slice((page - 1) * RESULTS_PAGE_SIZE, page * RESULTS_PAGE_SIZE) ?? null;
@@ -528,6 +550,8 @@ export function WorkplaceBrowser() {
               </div>
             </div>
 
+            <RiskScoreFilter value={maxRiskScore} onChange={setMaxRiskScore} />
+
             <CityDistrictPicker
               selectedCities={selectedCities}
               selectedDistrictKeys={selectedDistrictKeys}
@@ -545,24 +569,16 @@ export function WorkplaceBrowser() {
             <Suspense fallback={null}>
               <HighlightParamListener onHighlight={onHighlight} />
             </Suspense>
-            {/* Two rows: the search box with the sort buttons right beside
-                it, then the Quick Select pills on their own row - so the
-                sort buttons never get pushed off the right edge by a long
-                row of pills. */}
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <input
-                type="search"
-                placeholder="Search a workplace by name..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className={`w-full max-w-sm rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground ${
-                  highlightTarget === "search" ? "highlight-pulse" : ""
-                }`}
+            {/* Two rows: search + sort in one pill (SearchSortBox), then the
+                Quick Select pills on their own row. */}
+            <div className="mb-3">
+              <SearchSortBox
+                query={query}
+                onQueryChange={setQuery}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                highlighted={highlightTarget === "search"}
               />
-
-              {/* Separate sort buttons (see SortButtons.tsx): A-Z loops A→Z / Z→A /
-                  off, Rating cycles least/best-rated. */}
-              <SortButtons value={sortBy} onChange={setSortBy} />
             </div>
 
             {/* Curated category-group quick filter — a coarser, single-select
@@ -592,7 +608,11 @@ export function WorkplaceBrowser() {
               </p>
             )}
             {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
-              <p className="text-sm text-muted-foreground">No workplaces match these filters yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {hiddenUnratedCount > 0
+                  ? "No rated workplaces match these filters yet. Press A-Z or a Quick Select button to see workplaces that haven't been reviewed."
+                  : "No workplaces match these filters yet."}
+              </p>
             )}
             {/* Fixed at 4 columns from the xl breakpoint up (never 5, even in
                 compact density) — 20 per page lays out as a clean 4x5 grid,
@@ -600,7 +620,14 @@ export function WorkplaceBrowser() {
                 company name instead of truncating it. */}
             <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {pageCompanies?.map((c) => (
-                <CompanyWorkCard key={c.id} company={c} href={`/companies/${c.slug}`} />
+                <CompanyWorkCard
+                  key={c.id}
+                  company={c}
+                  href={`/companies/${c.slug}`}
+                  // Same rule as the Jobs cards and the company page: "-" until
+                  // the company has a real job posting to have a history against.
+                  riskScore={c.riskScore > 0 ? c.riskScore : c.isHiring ? 0 : null}
+                />
               ))}
             </div>
 

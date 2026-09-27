@@ -9,6 +9,7 @@ import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
+import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
 
 export interface CompanyWorkCardData {
   name: string;
@@ -40,7 +41,18 @@ export interface CompanyWorkCardData {
  * pre-extraction card) — sizing comes entirely from whatever renders it: a
  * browse-grid cell, or a fixed-width wrapper around the dashboard preview.
  */
-export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardData; href?: string }) {
+// riskScore: pass it (a number, or null for "-") to show the short "RS n/3"
+// badge on the right, level with the logo; leave it out (the owner
+// dashboard's live preview) to show no badge.
+export function CompanyWorkCard({
+  company,
+  href,
+  riskScore,
+}: {
+  company: CompanyWorkCardData;
+  href?: string;
+  riskScore?: number | null;
+}) {
   // Every card shows a banner: the owner's own image when their tier
   // includes custom banners and one is set, otherwise the system default
   // keyed on the primary work-type (company.defaultBannerUrl).
@@ -72,6 +84,11 @@ export function CompanyWorkCard({ company, href }: { company: CompanyWorkCardDat
         <div className="absolute left-4 top-full -translate-y-1/2">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
         </div>
+        {riskScore !== undefined && (
+          <div className="absolute right-4 top-full mt-1.5">
+            <RiskScoreBadge riskScore={riskScore} short />
+          </div>
+        )}
       </div>
 
       {/* The logo already sits above, overlapping the banner's bottom-left

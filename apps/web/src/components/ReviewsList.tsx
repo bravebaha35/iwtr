@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CompanyReply, PublicReview, VoteValue, WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
@@ -23,6 +23,7 @@ export function ReviewsList({
   companyName,
   canReply = false,
   initialVisibleCount,
+  highlightReviewId,
 }: {
   companySlug: string;
   // The company's own (up to 2) workplace-type tags, passed down from the
@@ -42,6 +43,10 @@ export function ReviewsList({
   // toggle - used by the rating page's cross-promotion collapse. Omitted
   // elsewhere = render all.
   initialVisibleCount?: number;
+  // From a notification link (?review=): once loaded, that review is shown
+  // (collar filter and collapse cleared), scrolled into view, and its
+  // outline pulses like the footer's highlight links.
+  highlightReviewId?: string;
 }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
@@ -61,6 +66,8 @@ export function ReviewsList({
   const [replyText, setReplyText] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [pulsingId, setPulsingId] = useState<string | null>(null);
+  const handledHighlight = useRef<string | null>(null);
 
   useEffect(() => {
     setLoadFailed(false);
@@ -71,6 +78,24 @@ export function ReviewsList({
         setLoadFailed(true);
       });
   }, [companySlug, isAuthenticated]);
+
+  useEffect(() => {
+    if (!reviews || !highlightReviewId || handledHighlight.current === highlightReviewId) return;
+    if (!reviews.some((r) => r.id === highlightReviewId)) return;
+    handledHighlight.current = highlightReviewId;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot reaction to the loaded list + link
+    setActiveCollar(null);
+    setExpanded(true);
+    setPulsingId(highlightReviewId);
+  }, [reviews, highlightReviewId]);
+
+  useEffect(() => {
+    if (!pulsingId) return;
+    document.getElementById(`review-${pulsingId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // .highlight-pulse runs 3 x 1s; clear it after so a later link can replay it.
+    const timer = window.setTimeout(() => setPulsingId(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [pulsingId]);
 
   const vote = useCallback(
     async (reviewId: string, value: VoteValue) => {
@@ -168,7 +193,10 @@ export function ReviewsList({
       {visibleReviews.map((review) => (
         <div
           key={review.id}
-          className={`rounded-xl border border-border border-l-2 bg-surface p-5 compact:p-3 ${collarBorderClass(review.workplaceType)}`}
+          id={`review-${review.id}`}
+          className={`scroll-mt-24 rounded-xl border border-border border-l-2 bg-surface p-5 compact:p-3 ${collarBorderClass(review.workplaceType)} ${
+            pulsingId === review.id ? "highlight-pulse" : ""
+          }`}
         >
           <div className="mb-3 compact:mb-1.5 flex items-center gap-2">
             <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />

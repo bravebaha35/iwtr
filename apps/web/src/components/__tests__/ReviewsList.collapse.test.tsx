@@ -31,3 +31,15 @@ it("renders all reviews when initialVisibleCount is omitted", async () => {
   render(<ReviewsList companySlug="acme" />);
   await waitFor(() => expect(screen.getByText(/thought r5/)).toBeInTheDocument());
 });
+
+it("reveals, scrolls to and pulses the review a notification linked to", async () => {
+  const scrollIntoView = jest.fn();
+  Element.prototype.scrollIntoView = scrollIntoView;
+  (apiClient.apiGet as jest.Mock).mockResolvedValue(Array.from({ length: 6 }, (_, i) => review(`r${i}`)));
+  render(<ReviewsList companySlug="acme" initialVisibleCount={3} highlightReviewId="r5" />);
+  // r5 sits past the collapse, so it has to be revealed first.
+  const target = await screen.findByText(/thought r5/);
+  const card = target.closest("[id='review-r5']");
+  expect(card).toHaveClass("highlight-pulse");
+  expect(scrollIntoView).toHaveBeenCalled();
+});
