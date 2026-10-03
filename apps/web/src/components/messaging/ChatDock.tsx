@@ -324,7 +324,7 @@ function ChatPanel({
       exit={reduceMotion ? { opacity: 0 } : { y: "100%", opacity: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.38, ease: PANEL_EASE }}
       aria-label={`Conversation with ${title}`}
-      className="pointer-events-auto flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-t-[2px] border border-b-0 border-border bg-surface"
+      className="pointer-events-auto flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden max-sm:w-[calc(100vw-2rem)] rounded-t-[2px] border border-b-0 border-border bg-surface"
     >
       <div className={TITLE_BAR}>
         <button

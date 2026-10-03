@@ -162,11 +162,14 @@ export function GlobalHeader() {
         </div>
 
         {showAccountControls && onboardingStatus && (
-          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+          <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-4 md:shrink">
             <Link
               href="/me"
               title="My profile"
-              className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted"
+              // Below md only the avatar shows, so it keeps its full size
+              // (shrinking let it slide under the Log out icon on phones);
+              // from md up the name beside it is what gives way.
+              className="flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted md:shrink"
             >
               <span className="sr-only md:hidden">My profile</span>
               <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
