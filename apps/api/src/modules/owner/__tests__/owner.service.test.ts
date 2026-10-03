@@ -1,6 +1,7 @@
-import { ForbiddenException } from "@nestjs/common";
+import { ConflictException, ForbiddenException } from "@nestjs/common";
 import { OwnerService } from "../owner.service";
 import type { ReviewsService } from "../../reviews/reviews.service";
+import type { EmployerProfileService } from "../../employer-profile/employer-profile.service";
 
 describe("OwnerService.updateMyCompany — workplaceTypes locking", () => {
   function buildService(opts: { currentTypes: string[]; allReviewed: boolean }) {
@@ -15,7 +16,7 @@ describe("OwnerService.updateMyCompany — workplaceTypes locking", () => {
       },
     };
     const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(opts.allReviewed) };
-    const service = new OwnerService(prisma as any, reviews as unknown as ReviewsService);
+    const service = new OwnerService(prisma as any, reviews as unknown as ReviewsService, {} as EmployerProfileService);
     return { service, prisma, reviews };
   }
 
@@ -57,7 +58,7 @@ describe("OwnerService — banner membership gate (server-side, do not trust the
       },
     };
     const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(false) };
-    return { service: new OwnerService(prisma as any, reviews as unknown as ReviewsService), prisma };
+    return { service: new OwnerService(prisma as any, reviews as unknown as ReviewsService, {} as EmployerProfileService), prisma };
   }
 
   it("rejects a bannerImageUrl change on a FREE tier with the membership message", async () => {
@@ -114,7 +115,7 @@ describe("OwnerService.updateMyCompany — at least one contact method required"
       },
     };
     const reviews = { areAllWorkplaceTypesReviewed: jest.fn().mockResolvedValue(false) };
-    return { service: new OwnerService(prisma as any, reviews as unknown as ReviewsService), prisma };
+    return { service: new OwnerService(prisma as any, reviews as unknown as ReviewsService, {} as EmployerProfileService), prisma };
   }
 
   it("rejects clearing both when the company currently has both set", async () => {
@@ -155,5 +156,51 @@ describe("OwnerService.updateMyCompany — at least one contact method required"
     expect(prisma.company.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ contactPhone: null }) }),
     );
+  });
+});
+
+describe("OwnerService.claimCompany — one owner per company, real name required", () => {
+  const input = { firstName: "Ayşe", lastName: "Demir", showNameInMessages: true as const };
+
+  function buildService(opts: { ownClaim?: object | null; otherOwner?: object | null }) {
+    const prisma = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "user-1", status: "ACTIVE" }) },
+      company: { findUnique: jest.fn().mockResolvedValue({ id: "company-1", slug: "acme", name: "Acme" }) },
+      companyOwner: {
+        findUnique: jest.fn().mockResolvedValue(opts.ownClaim ?? null),
+        findFirst: jest.fn().mockResolvedValue(opts.otherOwner ?? null),
+        upsert: jest.fn().mockImplementation(({ create }) =>
+          Promise.resolve({ id: "claim-1", tier: "FREE", planStatus: "NONE", createdAt: new Date(), resolvedAt: null, rivalAnalyticsTier: null, ...create }),
+        ),
+      },
+    };
+    const employerProfile = { saveClaimantName: jest.fn().mockResolvedValue(undefined) };
+    const service = new OwnerService(
+      prisma as any,
+      {} as ReviewsService,
+      employerProfile as unknown as EmployerProfileService,
+    );
+    return { service, prisma, employerProfile };
+  }
+
+  it("refuses a company someone else already owns, saving nothing", async () => {
+    const { service, prisma, employerProfile } = buildService({ otherOwner: { id: "owner-2" } });
+    await expect(service.claimCompany("user-1", "acme", input)).rejects.toThrow(ConflictException);
+    expect(prisma.companyOwner.upsert).not.toHaveBeenCalled();
+    expect(employerProfile.saveClaimantName).not.toHaveBeenCalled();
+  });
+
+  it("saves the claimant's name and turns on name-in-messages for a new claim", async () => {
+    const { service, prisma, employerProfile } = buildService({});
+    await service.claimCompany("user-1", "acme", input);
+    expect(employerProfile.saveClaimantName).toHaveBeenCalledWith("user-1", "Ayşe", "Demir");
+    expect(prisma.companyOwner.upsert.mock.calls[0][0].create).toMatchObject({ claimStatus: "PENDING", showNameInMessages: true });
+  });
+
+  it("leaves an already-approved owner untouched", async () => {
+    const approved = { id: "claim-1", companyId: "company-1", claimStatus: "APPROVED", tier: "FREE", planStatus: "NONE", createdAt: new Date(), resolvedAt: null, rivalAnalyticsTier: null };
+    const { service, prisma } = buildService({ ownClaim: approved });
+    await service.claimCompany("user-1", "acme", input);
+    expect(prisma.companyOwner.upsert).not.toHaveBeenCalled();
   });
 });

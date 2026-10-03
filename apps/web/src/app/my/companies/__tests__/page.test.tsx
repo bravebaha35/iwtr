@@ -77,11 +77,12 @@ const detail: CompanyDetail = {
 
 function mockApiGet() {
   (apiGet as jest.Mock).mockImplementation((path: string) => {
+    if (path === "/me/employer-profile") return Promise.resolve({ firstName: "Ahmet", lastName: "Yılmaz" });
     if (path === "/me/company-claims") return Promise.resolve([claim]);
     if (path === `/companies/${claim.companySlug}`) return Promise.resolve(detail);
     if (path === `/companies/${claim.companySlug}/reviews`) return Promise.resolve([]);
     if (path === `/owner/companies/${claim.companyId}/conversations`) return Promise.resolve([]);
-    if (path.endsWith("/messaging-name")) return Promise.resolve({ showNameInMessages: false, ownerName: null });
+    if (path === "/me/employer-profile") return Promise.resolve({ firstName: "Ahmet", lastName: "Yılmaz" });
     if (path.endsWith("/job-postings")) return Promise.resolve([]);
     return Promise.reject(new Error(`Unhandled apiGet path in test: ${path}`));
   });
@@ -270,7 +271,8 @@ test("the tier label opens a closeable note about the Verified Employer Badge", 
 
   await user.click(screen.getByRole("button", { name: "Free Tier" }));
   const dialog = screen.getByRole("dialog", { name: "Verified Employer Badge" });
-  expect(within(dialog).getByText(/The badge would appear next to your company name/)).toBeInTheDocument();
+  expect(within(dialog).getByText(/appears next to your company name/)).toBeInTheDocument();
+  expect(within(dialog).getByText("Grey check-mark")).toBeInTheDocument();
   await user.click(within(dialog).getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
@@ -278,6 +280,7 @@ test("the tier label opens a closeable note about the Verified Employer Badge", 
 test("Reviews & Ratings shows how many replies are left this month between Ratings and Reviews", async () => {
   const user = userEvent.setup();
   (apiGet as jest.Mock).mockImplementation((path: string) => {
+    if (path === "/me/employer-profile") return Promise.resolve({ firstName: "Ahmet", lastName: "Yılmaz" });
     if (path === "/me/company-claims") return Promise.resolve([claim]);
     if (path === `/companies/${claim.companySlug}`) return Promise.resolve(detail);
     if (path.endsWith("/reply-allowance")) {
@@ -305,6 +308,7 @@ test("an owner of several companies picks one from tabs under the heading", asyn
   const user = userEvent.setup();
   const second: MyCompanyClaim = { ...claim, id: "claim-2", companyId: "company-2", companyName: "Beta Ltd", companySlug: "beta-ltd" };
   (apiGet as jest.Mock).mockImplementation((path: string) => {
+    if (path === "/me/employer-profile") return Promise.resolve({ firstName: "Ahmet", lastName: "Yılmaz" });
     if (path === "/me/company-claims") return Promise.resolve([claim, second]);
     if (path === "/companies/acme-corp") return Promise.resolve(detail);
     if (path === "/companies/beta-ltd") {

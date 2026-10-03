@@ -1,5 +1,7 @@
 "use client";
 
+import type { OwnerTier } from "@iwtr/shared-types";
+import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { pricingFeature } from "@/lib/pricingTiers";
 
 // B2B corporate pricing comparison — Free/Starter/Pro/Enterprise. All copy
@@ -30,18 +32,11 @@ function PriceCell({ price, annualNote }: { price: string; annualNote?: string }
   );
 }
 
-const BADGE_STYLES: Record<string, string> = {
-  Blue: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  "Blue+": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  Enterprise: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-};
-
-function BadgeCell({ value }: { value: string }) {
-  if (value === "No") {
-    return <span className="text-muted-foreground">No</span>;
-  }
+// The same check-mark a company shows next to its name, in this tier's colour.
+function BadgeCell({ tier, value }: { tier: OwnerTier; value: string }) {
   return (
-    <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${BADGE_STYLES[value] ?? ""}`}>
+    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+      <CompanyVerificationTick badgeTier={tier} claimed size={18} />
       {value}
     </span>
   );
@@ -68,10 +63,10 @@ const ROWS: PricingRow[] = [
   {
     label: pricingFeature("verified-badge").label,
     values: {
-      free: <BadgeCell value={pricingFeature("verified-badge").values.free} />,
-      starter: <BadgeCell value={pricingFeature("verified-badge").values.starter} />,
-      pro: <BadgeCell value={pricingFeature("verified-badge").values.pro} />,
-      enterprise: <BadgeCell value={pricingFeature("verified-badge").values.enterprise} />,
+      free: <BadgeCell tier="FREE" value={pricingFeature("verified-badge").values.free} />,
+      starter: <BadgeCell tier="BLUE" value={pricingFeature("verified-badge").values.starter} />,
+      pro: <BadgeCell tier="BLUE_PLUS" value={pricingFeature("verified-badge").values.pro} />,
+      enterprise: <BadgeCell tier="ENTERPRISE" value={pricingFeature("verified-badge").values.enterprise} />,
     },
   },
   {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { MyCompanyClaim } from "@iwtr/shared-types";
+import { ownerNameSchema, type MyCompanyClaim } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 
@@ -10,6 +10,9 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
   const { isAuthenticated, onboardingStatus, isLoading: authLoading } = useAuth();
   const [claim, setClaim] = useState<MyCompanyClaim | null | undefined>(undefined);
   const [message, setMessage] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [showName, setShowName] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,11 +51,22 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
   }
 
   async function submitClaim() {
+    if (!ownerNameSchema.safeParse(firstName).success || !ownerNameSchema.safeParse(lastName).success) {
+      setError("Enter your real first and last name (letters only).");
+      return;
+    }
+    if (!showName) {
+      setError("Tick the box to show your name during messaging - every company owner is known by name.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       const result = await apiPost<MyCompanyClaim>(`/companies/${companySlug}/claim`, {
         message: message.trim() || undefined,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        showNameInMessages: true,
       });
       setClaim(result);
       setShowForm(false);
@@ -61,6 +75,71 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
     } finally {
       setSubmitting(false);
     }
+  }
+
+  const inputClass = "rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground";
+
+  function claimForm(messagePlaceholder: string) {
+    return (
+      <div className="mt-3 flex flex-col gap-2">
+        <p className="text-sm text-muted-foreground">
+          Company owners are always known by their real name. Reviewers you answer in private messages will see it
+          after your first reply.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <input
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="First name"
+            aria-label="First name"
+            autoComplete="given-name"
+            maxLength={60}
+            className={inputClass}
+          />
+          <input
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="Last name"
+            aria-label="Last name"
+            autoComplete="family-name"
+            maxLength={60}
+            className={inputClass}
+          />
+        </div>
+        <label className="flex items-start gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={showName}
+            onChange={(e) => setShowName(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-brand-600"
+          />
+          <span>Show company owner&apos;s name during messaging (required)</span>
+        </label>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder={messagePlaceholder}
+          rows={3}
+          className={inputClass}
+        />
+        {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
+        <div className="flex gap-2">
+          <button
+            onClick={submitClaim}
+            disabled={submitting}
+            className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            Submit claim
+          </button>
+          <button
+            onClick={() => setShowForm(false)}
+            className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -81,33 +160,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
         </>
       )}
 
-      {claim === null && showForm && (
-        <div className="mt-3 flex flex-col gap-2">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Optional: tell the admin who you are (e.g. your work email or role) so they can verify the claim."
-            rows={3}
-            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-          />
-          {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
-          <div className="flex gap-2">
-            <button
-              onClick={submitClaim}
-              disabled={submitting}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              Submit claim
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      {claim === null && showForm && claimForm("Optional: tell the admin who you are (e.g. your work email or role) so they can verify the claim.")}
 
       {claim?.claimStatus === "PENDING" && (
         <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
@@ -137,33 +190,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
         </div>
       )}
 
-      {claim?.claimStatus === "REJECTED" && showForm && (
-        <div className="mt-3 flex flex-col gap-2">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Add more context to help the admin approve this claim."
-            rows={3}
-            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
-          />
-          {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
-          <div className="flex gap-2">
-            <button
-              onClick={submitClaim}
-              disabled={submitting}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              Submit claim
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      {claim?.claimStatus === "REJECTED" && showForm && claimForm("Add more context to help the admin approve this claim.")}
     </div>
   );
 }

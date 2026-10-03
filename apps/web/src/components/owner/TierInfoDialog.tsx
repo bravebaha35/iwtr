@@ -2,13 +2,8 @@
 
 import { useEffect } from "react";
 import type { OwnerTier } from "@iwtr/shared-types";
-import { pricingFeature, tierKeyFromOwnerTier } from "@/lib/pricingTiers";
-
-const BADGE_STYLES: Record<string, string> = {
-  Blue: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  "Blue+": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  Enterprise: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-};
+import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
+import { planNameForOwnerTier, pricingFeature, tierKeyFromOwnerTier } from "@/lib/pricingTiers";
 
 /**
  * Opens from the "{Tier} Tier" label next to "See plans" on the owner
@@ -45,19 +40,14 @@ export function TierInfoDialog({ tier, onClose }: { tier: OwnerTier; onClose: ()
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
         </button>
-        <p className="mb-3 pr-6 text-sm text-muted-foreground">
-          Your current tier: {value === "No" ? "Free" : value}.
-        </p>
-        {value === "No" ? (
-          <p className="text-sm text-muted-foreground">No verified badge on this tier.</p>
-        ) : (
-          <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${BADGE_STYLES[value] ?? ""}`}>
-            {value}
-          </span>
-        )}
+        <p className="mb-3 pr-6 text-sm text-muted-foreground">Your current tier: {planNameForOwnerTier(tier)}.</p>
+        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <CompanyVerificationTick badgeTier={tier} claimed size={20} />
+          {value} check-mark
+        </span>
         <p className="mt-4 text-sm text-muted-foreground">
-          The badge would appear next to your company name across the site, distinct from the existing free
-          &quot;Verified&quot; badge shown above (which tracks your Plus subscription separately).
+          This check-mark appears next to your company name across the site. Its colour shows your plan: grey on
+          Free, blue on Starter, green on Pro and gold on Enterprise.
         </p>
       </div>
     </div>

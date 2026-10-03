@@ -250,55 +250,31 @@ describe("MessagingService conversation identity", () => {
     expect(JSON.stringify(row)).not.toContain("office_owl");
   });
 
-  it("names the answering owner for the reviewer only", async () => {
+  it("shows the reviewer no owner name until the company has replied", async () => {
     const { service } = setup();
     const started = await service.startConversation(REVIEWER, "review-1", hello);
-    expect(started.ownerName).toBe("Ahmet Yılmaz");
+    expect(started.ownerName).toBeNull();
+    await service.sendMessage(OWNER, started.id, { content: "Thanks for writing, happy to talk." });
+    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBe("Ahmet Yılmaz");
+  });
+
+  it("never names the owner to the company side", async () => {
+    const { service } = setup();
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await service.sendMessage(OWNER, started.id, { content: "Thanks for writing, happy to talk." });
     expect((await service.getThread(OWNER, started.id)).ownerName).toBeNull();
   });
 
-  it("names the owner who wrote last, falling back to the first owner once they no longer own the company", async () => {
+  it("names the owner who wrote the company's latest message", async () => {
     const SECOND = "user-owner-2";
     const owners: Owner[] = [
-      { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-01-01"), showNameInMessages: true },
-      { userId: SECOND, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-02-01"), showNameInMessages: true },
+      { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-01-01") },
+      { userId: SECOND, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-02-01") },
     ];
     const { service } = setup({ owners, ownerNames: { [OWNER]: "Ahmet Yılmaz", [SECOND]: "Elif Kaya" } });
     const started = await service.startConversation(REVIEWER, "review-1", hello);
     await service.sendMessage(SECOND, started.id, { content: "Thanks, happy to hear more about the shifts." });
     expect((await service.getThread(REVIEWER, started.id)).ownerName).toBe("Elif Kaya");
-    owners[1].claimStatus = "REVOKED";
-    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBe("Ahmet Yılmaz");
-  });
-
-  it("leaves the owner name empty when no owner has filled in their employer profile", async () => {
-    const { service } = setup({ ownerNames: {} });
-    const started = await service.startConversation(REVIEWER, "review-1", hello);
-    expect(started.ownerName).toBeNull();
-  });
-
-  it("hides the owner name until the owner ticks 'Show company owner's name during messaging'", async () => {
-    const owners: Owner[] = [{ userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", showNameInMessages: false }];
-    const { service } = setup({ owners });
-    const started = await service.startConversation(REVIEWER, "review-1", hello);
-    expect(started.ownerName).toBeNull();
-
-    expect(await service.getOwnerMessagingName(OWNER, COMPANY)).toEqual({ showNameInMessages: false, ownerName: "Ahmet Yılmaz" });
-    expect(await service.setOwnerMessagingName(OWNER, COMPANY, true)).toEqual({
-      showNameInMessages: true,
-      ownerName: "Ahmet Yılmaz",
-    });
-    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBe("Ahmet Yılmaz");
-
-    await service.setOwnerMessagingName(OWNER, COMPANY, false);
-    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBeNull();
-  });
-
-  it("only lets an approved owner of that company read or change the tick-box", async () => {
-    const { service } = setup();
-    await expect(service.getOwnerMessagingName(REVIEWER, COMPANY)).rejects.toThrow(ForbiddenException);
-    await expect(service.setOwnerMessagingName(REVIEWER, COMPANY, true)).rejects.toThrow(ForbiddenException);
-    await expect(service.setOwnerMessagingName(OWNER, "company-2", true)).rejects.toThrow(ForbiddenException);
   });
 });
 
