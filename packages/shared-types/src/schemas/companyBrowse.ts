@@ -40,6 +40,7 @@ export const companySortSchema = z.enum(["default", "alphabetical", "alphabetica
 export type CompanySort = z.infer<typeof companySortSchema>;
 
 export const COMPANY_BROWSE_PAGE_SIZE = 20;
+export const JOBS_BROWSE_PAGE_SIZE = 16;
 
 export const companyBrowseQuerySchema = companySearchQuerySchema
   .omit({ includeJobTitles: true })
@@ -50,6 +51,11 @@ export const companyBrowseQuerySchema = companySearchQuerySchema
     // browser - only a province name ever reaches the server, never a position.
     nearCity: z.string().trim().max(100).optional(),
     page: z.coerce.number().int().min(1).max(100000).optional(),
+    // The Jobs page: hiring companies only, every one shown (no "reviewed
+    // first" rule), 16 per page, each carrying its open postings.
+    jobs: z.enum(["1"]).optional(),
+    // The Jobs page's "Following" list narrows to one company.
+    companyId: z.string().uuid().optional(),
   });
 export type CompanyBrowseQuery = z.infer<typeof companyBrowseQuerySchema>;
 

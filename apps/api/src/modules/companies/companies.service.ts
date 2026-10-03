@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import {
   COMPANY_BROWSE_PAGE_SIZE,
+  JOBS_BROWSE_PAGE_SIZE,
   findProvinceByCityName,
   workplaceTypeSchema,
   type AdminCreateCompanyInput,
@@ -242,8 +243,16 @@ export class CompaniesService {
    */
   async browse(query: CompanyBrowseQuery): Promise<CompanyBrowseResult> {
     const sort = query.sort ?? "default";
+    const jobs = query.jobs === "1";
     const matches = await this.prisma.company.findMany({
-      where: { AND: [this.buildSearchWhere(query), categoryGroupWhere(query.categoryGroup)] },
+      where: {
+        AND: [
+          // includeJobTitles is what scopes search to hiring companies.
+          this.buildSearchWhere({ ...query, includeJobTitles: jobs }),
+          categoryGroupWhere(query.categoryGroup),
+          query.companyId ? { id: query.companyId } : {},
+        ],
+      },
       select: { id: true, name: true, city: true, aggregate: { select: { overallAvg: true, reviewCount: true } } },
       orderBy: { name: "asc" },
     });
@@ -258,20 +267,25 @@ export class CompaniesService {
       sort,
       query.nearCity,
     );
-    const { visible, hiddenUnratedCount } = visibleBrowseRows(rows, { sort, categoryGroup: query.categoryGroup, q: query.q });
+    // The Jobs page shows every hiring company, reviewed or not.
+    const { visible, hiddenUnratedCount } = jobs
+      ? { visible: rows, hiddenUnratedCount: 0 }
+      : visibleBrowseRows(rows, { sort, categoryGroup: query.categoryGroup, q: query.q });
 
-    const pageSize = COMPANY_BROWSE_PAGE_SIZE;
+    const pageSize = jobs ? JOBS_BROWSE_PAGE_SIZE : COMPANY_BROWSE_PAGE_SIZE;
     // A page past the end (the list shrank since the visitor last looked)
     // lands on the last page rather than an empty one.
     const page = Math.min(query.page ?? 1, Math.max(1, Math.ceil(visible.length / pageSize)));
     const pageIds = visible.slice((page - 1) * pageSize, page * pageSize).map((r) => r.id);
 
-    const [cards, ownedCompanyIds] = await Promise.all([
+    const [cards, ownedCompanyIds, jobTitlesByCompanyId, jobPostingsByCompanyId] = await Promise.all([
       this.prisma.company.findMany({
         where: { id: { in: pageIds } },
         include: { aggregate: { select: { overallAvg: true, reviewCount: true } } },
       }),
       this.approvedOwnerCompanyIds(pageIds),
+      jobs ? this.jobTitlesByCompanyId(pageIds) : new Map<string, ClassifiedJobTitle[]>(),
+      jobs ? this.jobPostingsByCompanyId(pageIds) : new Map<string, PublicJobPosting[]>(),
     ]);
     const cardById = new Map(cards.map((c) => [c.id, c]));
     const items = pageIds.flatMap((id) => {
@@ -282,8 +296,8 @@ export class CompaniesService {
           ...toPublicCompany(c, ownedCompanyIds.has(c.id)),
           overallAvg: c.aggregate?.overallAvg ?? null,
           reviewCount: c.aggregate?.reviewCount ?? 0,
-          jobTitles: [],
-          jobPostings: [],
+          jobTitles: jobTitlesByCompanyId.get(c.id) ?? [],
+          jobPostings: jobPostingsByCompanyId.get(c.id) ?? [],
         },
       ];
     });

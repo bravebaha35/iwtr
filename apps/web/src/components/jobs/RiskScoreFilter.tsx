@@ -80,13 +80,6 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
             style={{ background: "linear-gradient(to right, #22c55e, #f97316, #ef4444)" }}
             title="Click and drag along the slider, or scroll, to choose a maximum Risk Score"
           >
-            {[0, 1, 2, 3].map((tickValue) => (
-              <span
-                key={tickValue}
-                className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-white/70"
-                style={{ left: `${(tickValue / 3) * 100}%` }}
-              />
-            ))}
             <span
               className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
               style={{ left: `${(value / 3) * 100}%` }}
