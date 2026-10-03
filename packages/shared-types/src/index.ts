@@ -7,6 +7,7 @@ export * from "./schemas/companyBrowse";
 export * from "./schemas/review";
 export * from "./schemas/messaging";
 export * from "./schemas/benchmark";
+export * from "./schemas/hrAnalyticsReport";
 export * from "./schemas/moderation";
 export * from "./schemas/owner";
 export * from "./schemas/payment";

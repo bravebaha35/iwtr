@@ -33,7 +33,7 @@ export function BenchmarkReportsCategory({
           <SectorBenchmarkTile companyId={companyId} isEnterprise={isEnterprise} city={city} />
         </ReportBox>
         <ReportBox title="HR Analytics Report">
-          <HrAnalyticsReportTile />
+          <HrAnalyticsReportTile companyId={companyId} />
         </ReportBox>
       </div>
     </div>

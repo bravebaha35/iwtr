@@ -27,6 +27,8 @@ export const notificationTypeSchema = z.enum([
   // NotificationsService.list — derived from READY, unexpired
   // BenchmarkReportJob rows). Carries `href`: the PDF download route.
   "BENCHMARK_REPORT_READY",
+  // Same, for an HR Analytics Report (HrAnalyticsReportJob rows).
+  "HR_REPORT_READY",
   // A private review conversation has a message the recipient hasn't read
   // yet (see NotificationsService.list). Carries `href`: the right inbox.
   "CONVERSATION_MESSAGE_FROM_COMPANY",

@@ -2,13 +2,14 @@ import path from "node:path";
 import PDFDocument from "pdfkit";
 import type { SectorBenchmarkReportData } from "./sector-benchmark.service";
 
-// apps/api/assets/fonts — three levels up from both src/modules/rival-analytics
+// apps/api/assets — three levels up from both src/modules/rival-analytics
 // (tests, ts-node) and dist/modules/rival-analytics (the built server).
-const FONT_DIR = path.resolve(__dirname, "../../../assets/fonts");
-const FONT_REGULAR = "Jakarta";
-const FONT_BOLD = "Jakarta-Bold";
+export const ASSET_DIR = path.resolve(__dirname, "../../../assets");
+const FONT_DIR = path.join(ASSET_DIR, "fonts");
+export const FONT_REGULAR = "Jakarta";
+export const FONT_BOLD = "Jakarta-Bold";
 
-type PdfDoc = InstanceType<typeof PDFDocument>;
+export type PdfDoc = InstanceType<typeof PDFDocument>;
 
 /**
  * Embeds Plus Jakarta Sans (OFL, see assets/fonts/OFL.txt) and makes it the
@@ -16,7 +17,7 @@ type PdfDoc = InstanceType<typeof PDFDocument>;
  * Turkish letters like ş, ğ and İ in company or sector names would
  * otherwise print as garbage.
  */
-function registerBrandFonts(doc: PdfDoc): void {
+export function registerBrandFonts(doc: PdfDoc): void {
   doc.registerFont(FONT_REGULAR, path.join(FONT_DIR, "PlusJakartaSans-Regular.ttf"));
   doc.registerFont(FONT_BOLD, path.join(FONT_DIR, "PlusJakartaSans-Bold.ttf"));
   doc.font(FONT_REGULAR);
