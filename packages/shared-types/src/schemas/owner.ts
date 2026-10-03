@@ -6,10 +6,26 @@ import { checkoutBillingInputSchema } from "./payment";
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export type OwnerClaimStatus = z.infer<typeof ownerClaimStatusSchema>;
 
+// A real person's first or last name: letters (any alphabet), spaces,
+// apostrophes, dots and hyphens; must start with a letter.
+export const ownerNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Required")
+  .max(60)
+  .regex(/^\p{L}[\p{L}' .-]*$/u, "Use letters only");
+
 export const claimCompanyInputSchema = z.object({
   // Free-text context to help an admin sanity-check the claim manually (no
   // automated verification exists yet) — e.g. a work email domain, a role.
   message: z.string().max(1000).optional(),
+  // Every company owner is known by their real name: reviewers they answer
+  // in private messages see it (after the company's first reply). Saved to
+  // the claimant's employer profile, and the claim can't be sent without
+  // ticking "Show my name during messaging".
+  firstName: ownerNameSchema,
+  lastName: ownerNameSchema,
+  showNameInMessages: z.literal(true, { message: "Tick the box to show your name during messaging" }),
 });
 export type ClaimCompanyInput = z.infer<typeof claimCompanyInputSchema>;
 

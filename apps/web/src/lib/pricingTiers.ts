@@ -33,13 +33,11 @@ export function tierKeyFromOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTE
   return "free";
 }
 
-// The one label shown as a company's verification badge (browse card,
-// company page header, dashboard) — null on Free. Derived straight from the
-// "verified-badge" pricing-matrix row so this can never drift from the copy
-// shown in PricingComparisonTable and the owner dashboard.
-export function badgeLabelForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): string | null {
-  const value = pricingFeature("verified-badge").values[tierKeyFromOwnerTier(tier)];
-  return value === "No" ? null : value;
+// The plan name shown on the owner dashboard ("Starter Tier") — the same
+// names as the pricing table's column headers.
+export function planNameForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): string {
+  const key = tierKeyFromOwnerTier(tier);
+  return PRICING_TIERS.find((t) => t.key === key)?.label ?? "Free";
 }
 
 
@@ -76,8 +74,9 @@ export const PRICING_FEATURE_ROWS: PricingFeatureRow[] = [
   {
     id: "verified-badge",
     label: "Verified Employer Badge",
-    values: { free: "No", starter: "Blue", pro: "Blue+", enterprise: "Enterprise" },
-    lockedBelowRank: 1,
+    // Every tier has a badge: the same check-mark, coloured by tier (see
+    // CompanyVerificationTick).
+    values: { free: "Grey", starter: "Blue", pro: "Green", enterprise: "Gold" },
   },
   {
     id: "comment-response",

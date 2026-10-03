@@ -129,7 +129,19 @@ export class EmployerProfileService {
 
   async updateMyProfile(userId: string, input: EmployerProfileInput): Promise<EmployerProfileView> {
     await this.requireVerifiedEmployer(userId);
+    return this.writeProfile(userId, input);
+  }
 
+  /**
+   * The real name a member gives while claiming a company (OwnerService.
+   * claimCompany) - saved before the claim is approved, so it skips the
+   * approved-owner check the self-service profile endpoints have.
+   */
+  async saveClaimantName(userId: string, firstName: string, lastName: string): Promise<void> {
+    await this.writeProfile(userId, { firstName, lastName });
+  }
+
+  private async writeProfile(userId: string, input: EmployerProfileInput): Promise<EmployerProfileView> {
     const existing = await this.prisma.employerProfile.findUnique({ where: { userId } });
 
     // Re-use the existing DEK on an update (same pattern as

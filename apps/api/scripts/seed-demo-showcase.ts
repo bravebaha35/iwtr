@@ -23,6 +23,10 @@
 // (uploads/company-logos, uploads/company-banners, uploads/social).
 // Safe to re-run: anything a company already has is left alone.
 //
+// A paid badge with nobody owning the company is a state real data can never
+// reach (the badge mirrors the owner's plan) - run seed-demo-owners.ts
+// afterwards so every badged company gets a named demo owner.
+//
 // Run from apps/api: pnpm exec ts-node --transpile-only scripts/seed-demo-showcase.ts
 
 import "dotenv/config";

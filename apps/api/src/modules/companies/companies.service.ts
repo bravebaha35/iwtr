@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import {
+  COMPANY_BROWSE_PAGE_SIZE,
   findProvinceByCityName,
   workplaceTypeSchema,
   type AdminCreateCompanyInput,
@@ -9,15 +10,19 @@ import {
   type CompanyFilters,
   type CompanyJobPostings,
   type CompanyListItem,
+  type CompanyBrowseQuery,
+  type CompanyBrowseResult,
   type CompanySearchQuery,
   type PublicJobPosting,
   type WorkplaceType,
 } from "@iwtr/shared-types";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { shouldLazyReshare, daysRemaining } from "../job-postings/job-postings.util";
 import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "./company-visibility";
 import { toPublicCompany } from "./company-public.util";
+import { categoryGroupWhere, sortBrowseRows, visibleBrowseRows } from "./company-browse.util";
 import { slugify } from "./slugify.util";
 import { resolveLocation } from "./resolve-location.util";
 import { classifyJobRole } from "./workplace-classifier/classifyJobRole";
@@ -117,7 +122,9 @@ export class CompaniesService {
    * write-time validation existed can still be found by name/category/type
    * filters even if its location string itself doesn't match anything.
    */
-  async search(query: CompanySearchQuery): Promise<CompanyListItem[]> {
+  // The WHERE clause shared by GET /companies (search) and the homepage's
+  // GET /companies/browse.
+  private buildSearchWhere(query: CompanySearchQuery): Prisma.CompanyWhereInput {
     const cities = query.cities ? query.cities.split(",").map((c) => c.trim()).filter(Boolean) : [];
     const districtKeys = query.districtKeys
       ? query.districtKeys.split(",").map((k) => k.trim()).filter(Boolean)
@@ -165,30 +172,35 @@ export class CompaniesService {
           }
         : {};
 
+    return {
+      // A hidden company (Company.hiddenAt) is gone from every public
+      // surface — the homepage/jobs browser included.
+      ...PUBLIC_COMPANY_WHERE,
+      ...(query.q ? { name: { contains: query.q, mode: "insensitive" } } : {}),
+      ...(query.category ? { category: query.category } : {}),
+      // hasSome, not has: the sidebar filter is OR semantics across
+      // however many types are checked ("Office" or "Service" companies),
+      // matching MultiFilterPillGroup's multi-select in WorkplaceBrowser.
+      ...(workplaceTypes.length > 0 ? { workplaceTypes: { hasSome: workplaceTypes } } : {}),
+      // Companies with no aggregate row yet (zero reviews) naturally
+      // fail any minRating filter here, same as the old client-side
+      // `c.overallAvg === null` check did — an inner-join-style relation
+      // filter excludes them rather than needing an explicit null check.
+      ...(query.minRating !== undefined ? { aggregate: { is: { overallAvg: { lte: query.minRating } } } } : {}),
+      ...(query.maxRiskScore !== undefined ? { riskScore: { lte: query.maxRiskScore } } : {}),
+      // Only the /jobs page sends includeJobTitles, and only it should be
+      // scoped to isHiring companies — the rating homepage's plain
+      // GET /companies (no flag) keeps returning every company regardless
+      // of this toggle, exactly as before this field existed.
+      ...(query.includeJobTitles ? { isHiring: true } : {}),
+      ...locationFilter,
+    };
+  }
+
+  async search(query: CompanySearchQuery): Promise<CompanyListItem[]> {
+    const where = this.buildSearchWhere(query);
     const companies = await this.prisma.company.findMany({
-      where: {
-        // A hidden company (Company.hiddenAt) is gone from every public
-        // surface — the homepage/jobs browser included.
-        ...PUBLIC_COMPANY_WHERE,
-        ...(query.q ? { name: { contains: query.q, mode: "insensitive" } } : {}),
-        ...(query.category ? { category: query.category } : {}),
-        // hasSome, not has: the sidebar filter is OR semantics across
-        // however many types are checked ("Office" or "Service" companies),
-        // matching MultiFilterPillGroup's multi-select in WorkplaceBrowser.
-        ...(workplaceTypes.length > 0 ? { workplaceTypes: { hasSome: workplaceTypes } } : {}),
-        // Companies with no aggregate row yet (zero reviews) naturally
-        // fail any minRating filter here, same as the old client-side
-        // `c.overallAvg === null` check did — an inner-join-style relation
-        // filter excludes them rather than needing an explicit null check.
-        ...(query.minRating !== undefined ? { aggregate: { is: { overallAvg: { lte: query.minRating } } } } : {}),
-        ...(query.maxRiskScore !== undefined ? { riskScore: { lte: query.maxRiskScore } } : {}),
-        // Only the /jobs page sends includeJobTitles, and only it should be
-        // scoped to isHiring companies — the rating homepage's plain
-        // GET /companies (no flag) keeps returning every company regardless
-        // of this toggle, exactly as before this field existed.
-        ...(query.includeJobTitles ? { isHiring: true } : {}),
-        ...locationFilter,
-      },
+      where,
       // Only overallAvg/reviewCount are ever read off `aggregate` below —
       // narrowed from a full `include: { aggregate: true }` to cut the
       // per-row payload on a query that can return up to `take` rows.
@@ -219,6 +231,63 @@ export class CompaniesService {
       jobTitles: jobTitlesByCompanyId.get(c.id) ?? [],
       jobPostings: jobPostingsByCompanyId.get(c.id) ?? [],
     }));
+  }
+
+  /**
+   * The homepage grid (GET /companies/browse), one page at a time. Same
+   * filters as search plus Quick Select, sort and Near Me. A light list of
+   * every match (id, name, city, rating) is sorted here; only the requested
+   * page's 20 cards are then loaded in full and sent - instead of the whole
+   * directory going to the browser.
+   */
+  async browse(query: CompanyBrowseQuery): Promise<CompanyBrowseResult> {
+    const sort = query.sort ?? "default";
+    const matches = await this.prisma.company.findMany({
+      where: { AND: [this.buildSearchWhere(query), categoryGroupWhere(query.categoryGroup)] },
+      select: { id: true, name: true, city: true, aggregate: { select: { overallAvg: true, reviewCount: true } } },
+      orderBy: { name: "asc" },
+    });
+    const rows = sortBrowseRows(
+      matches.map((m) => ({
+        id: m.id,
+        name: m.name,
+        city: m.city,
+        overallAvg: m.aggregate?.overallAvg ?? null,
+        reviewCount: m.aggregate?.reviewCount ?? 0,
+      })),
+      sort,
+      query.nearCity,
+    );
+    const { visible, hiddenUnratedCount } = visibleBrowseRows(rows, { sort, categoryGroup: query.categoryGroup, q: query.q });
+
+    const pageSize = COMPANY_BROWSE_PAGE_SIZE;
+    // A page past the end (the list shrank since the visitor last looked)
+    // lands on the last page rather than an empty one.
+    const page = Math.min(query.page ?? 1, Math.max(1, Math.ceil(visible.length / pageSize)));
+    const pageIds = visible.slice((page - 1) * pageSize, page * pageSize).map((r) => r.id);
+
+    const [cards, ownedCompanyIds] = await Promise.all([
+      this.prisma.company.findMany({
+        where: { id: { in: pageIds } },
+        include: { aggregate: { select: { overallAvg: true, reviewCount: true } } },
+      }),
+      this.approvedOwnerCompanyIds(pageIds),
+    ]);
+    const cardById = new Map(cards.map((c) => [c.id, c]));
+    const items = pageIds.flatMap((id) => {
+      const c = cardById.get(id);
+      if (!c) return [];
+      return [
+        {
+          ...toPublicCompany(c, ownedCompanyIds.has(c.id)),
+          overallAvg: c.aggregate?.overallAvg ?? null,
+          reviewCount: c.aggregate?.reviewCount ?? 0,
+          jobTitles: [],
+          jobPostings: [],
+        },
+      ];
+    });
+    return { items, total: visible.length, page, pageSize, hiddenUnratedCount };
   }
 
   // Individually-authored postings (job-postings module), as opposed to the

@@ -12,7 +12,6 @@ import {
   type ContentViolationType,
   type ConversationSummary,
   type ConversationThread,
-  type OwnerMessagingName,
   type SendMessageInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -152,32 +151,6 @@ export class MessagingService {
     return this.toSortedSummaries(rows, "COMPANY");
   }
 
-  /** The owner dashboard tick-box: whether reviewers see this owner's name, and the name they would see. */
-  async getOwnerMessagingName(userId: string, companyId: string): Promise<OwnerMessagingName> {
-    const ownership = await this.prisma.companyOwner.findUnique({
-      where: { userId_companyId: { userId, companyId } },
-      select: { claimStatus: true, showNameInMessages: true },
-    });
-    if (ownership?.claimStatus !== "APPROVED") {
-      throw new ForbiddenException("You are not an approved owner of this company");
-    }
-    return {
-      showNameInMessages: ownership.showNameInMessages,
-      ownerName: await this.employerProfile.getRepresentativeName(userId),
-    };
-  }
-
-  async setOwnerMessagingName(userId: string, companyId: string, show: boolean): Promise<OwnerMessagingName> {
-    if (!(await this.isApprovedOwner(userId, companyId))) {
-      throw new ForbiddenException("You are not an approved owner of this company");
-    }
-    await this.prisma.companyOwner.update({
-      where: { userId_companyId: { userId, companyId } },
-      data: { showNameInMessages: show },
-    });
-    return this.getOwnerMessagingName(userId, companyId);
-  }
-
   /** The top-bar Messages inbox for an owner: every company they have an approved claim on, in one list. */
   async listForOwner(userId: string): Promise<ConversationSummary[]> {
     const claims = await this.prisma.companyOwner.findMany({
@@ -300,34 +273,20 @@ export class MessagingService {
 
   /**
    * The real name the reviewer sees for "who is answering": the owner who
-   * wrote the company's latest message if they still own it, else the
-   * company's first approved owner - and only if that owner ticked "Show
-   * company owner's name during messaging" (CompanyOwner.showNameInMessages);
-   * otherwise null, shown as "Company representative". Only ever computed
-   * for the reviewer side, and only from the owner's employer profile, never
-   * the PII vault.
+   * wrote the company's latest message. Null until the company has sent its
+   * first message here - before that the reviewer sees no name at all.
+   * Every owner gives their real name when claiming the company (it can't be
+   * claimed without it); only ever read from the owner's employer profile,
+   * never the PII vault, and only for the reviewer side.
    */
-  private async ownerNameFor(conversation: { id: string; companyId: string }): Promise<string | null> {
+  private async ownerNameFor(conversation: { id: string }): Promise<string | null> {
     const lastCompanyMessage = await this.prisma.reviewConversationMessage.findFirst({
       where: { conversationId: conversation.id, side: "COMPANY", authorUserId: { not: null } },
       orderBy: { seq: "desc" },
       select: { authorUserId: true },
     });
-    let ownerUserId = lastCompanyMessage?.authorUserId ?? null;
-    if (!ownerUserId || !(await this.isApprovedOwner(ownerUserId, conversation.companyId))) {
-      const firstOwner = await this.prisma.companyOwner.findFirst({
-        where: { companyId: conversation.companyId, claimStatus: "APPROVED" },
-        orderBy: { createdAt: "asc" },
-        select: { userId: true },
-      });
-      ownerUserId = firstOwner?.userId ?? null;
-    }
-    if (!ownerUserId) return null;
-    const ownership = await this.prisma.companyOwner.findUnique({
-      where: { userId_companyId: { userId: ownerUserId, companyId: conversation.companyId } },
-      select: { showNameInMessages: true },
-    });
-    return ownership?.showNameInMessages ? this.employerProfile.getRepresentativeName(ownerUserId) : null;
+    if (!lastCompanyMessage?.authorUserId) return null;
+    return this.employerProfile.getRepresentativeName(lastCompanyMessage.authorUserId);
   }
 
   private async toSummary(conversation: ConversationRow, side: Side): Promise<ConversationSummary> {

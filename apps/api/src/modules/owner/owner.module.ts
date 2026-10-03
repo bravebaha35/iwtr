@@ -1,11 +1,12 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { ReviewsModule } from "../reviews/reviews.module";
+import { EmployerProfileModule } from "../employer-profile/employer-profile.module";
 import { OwnerController } from "./owner.controller";
 import { OwnerService } from "./owner.service";
 
 @Module({
-  imports: [AuthModule, ReviewsModule],
+  imports: [AuthModule, ReviewsModule, EmployerProfileModule],
   controllers: [OwnerController],
   providers: [OwnerService],
   exports: [OwnerService],

@@ -7,9 +7,6 @@ import { CompanyLogo } from "@/components/CompanyLogo";
 type Mode = "reviewer" | "company";
 type Side = "REVIEWER" | "COMPANY";
 
-// Shown to the reviewer until the answering owner has filled in their name.
-const OWNER_NAME_FALLBACK = "Company representative";
-
 /**
  * The picture for one side of a conversation: the company's logo, or the
  * review's public avatar (a randomized review's generic one, never the
@@ -30,10 +27,11 @@ export function CounterpartPicture({ conversation, mode }: { conversation: Conve
 /**
  * "● Active · Name" / "● Ended · Name" under the company name. The name is
  * whoever the viewer is talking to: the answering owner's real name for a
- * reviewer, the review's public name for the company.
+ * reviewer (only once the company has replied - before that, no name), the
+ * review's public name for the company.
  */
 export function ConversationStatus({ conversation, mode }: { conversation: ConversationSummary; mode: Mode }) {
-  const name = mode === "reviewer" ? (conversation.ownerName ?? OWNER_NAME_FALLBACK) : conversation.reviewerName;
+  const name = mode === "reviewer" ? conversation.ownerName : conversation.reviewerName;
   return (
     <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
       <span
@@ -41,8 +39,12 @@ export function ConversationStatus({ conversation, mode }: { conversation: Conve
         className={`h-2 w-2 shrink-0 rounded-full ${conversation.ended ? "bg-red-500" : "bg-green-500"}`}
       />
       <span className="shrink-0 font-medium">{conversation.ended ? "Ended" : "Active"}</span>
-      <span aria-hidden="true">·</span>
-      <span className="truncate">{name}</span>
+      {name && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span className="truncate">{name}</span>
+        </>
+      )}
     </span>
   );
 }

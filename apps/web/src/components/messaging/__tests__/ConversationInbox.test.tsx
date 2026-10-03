@@ -111,7 +111,7 @@ describe("ConversationInbox", () => {
     expect(row).toHaveTextContent("Quiet Beaver");
   });
 
-  it("shows the reviewer the answering owner's name, or a stand-in until they add one", async () => {
+  it("shows the reviewer the answering owner's name, and no name before the company replies", async () => {
     get.mockImplementation((path: string) =>
       Promise.resolve(
         path.endsWith("/conversations")
@@ -122,7 +122,8 @@ describe("ConversationInbox", () => {
     render(<ConversationInbox mode="reviewer" />);
     const rows = await screen.findAllByRole("button", { name: /Demo Finans Holding/ });
     expect(rows[0]).toHaveTextContent("Active");
-    expect(rows[0]).toHaveTextContent("Company representative");
+    expect(rows[0]).not.toHaveTextContent("Company representative");
+    expect(rows[0]).not.toHaveTextContent("·");
     expect(rows[1]).toHaveTextContent("Ended");
     expect(rows[1]).toHaveTextContent("Ahmet Yılmaz");
     expect(rows[0]).not.toHaveTextContent("Quiet Beaver");

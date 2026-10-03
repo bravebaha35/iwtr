@@ -21,6 +21,7 @@ import type {
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
+import { EmployerProfileService } from "../employer-profile/employer-profile.service";
 import { resolveLocation } from "../companies/resolve-location.util";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads", "company-logos");
@@ -41,6 +42,7 @@ export class OwnerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reviews: ReviewsService,
+    private readonly employerProfile: EmployerProfileService,
   ) {}
 
   async claimCompany(userId: string, companySlug: string, input: ClaimCompanyInput): Promise<MyCompanyClaim> {
@@ -58,14 +60,27 @@ export class OwnerService {
 
     // Already approved — re-submitting a claim must never demote an existing
     // owner back to PENDING, so this is a no-op rather than an upsert.
-    const row =
-      existing?.claimStatus === "APPROVED"
-        ? existing
-        : await this.prisma.companyOwner.upsert({
-            where: { userId_companyId: { userId, companyId: company.id } },
-            create: { userId, companyId: company.id, claimMessage: input.message, claimStatus: "PENDING" },
-            update: { claimMessage: input.message, claimStatus: "PENDING", resolvedAt: null },
-          });
+    if (existing?.claimStatus === "APPROVED") return this.toMyClaim(existing, company);
+
+    // A company someone else already owns can't be claimed again.
+    const otherOwner = await this.prisma.companyOwner.findFirst({
+      where: { companyId: company.id, claimStatus: "APPROVED", userId: { not: userId } },
+      select: { id: true },
+    });
+    if (otherOwner) throw new ConflictException("This company already has an owner.");
+
+    await this.employerProfile.saveClaimantName(userId, input.firstName, input.lastName);
+    const row = await this.prisma.companyOwner.upsert({
+      where: { userId_companyId: { userId, companyId: company.id } },
+      create: {
+        userId,
+        companyId: company.id,
+        claimMessage: input.message,
+        claimStatus: "PENDING",
+        showNameInMessages: true,
+      },
+      update: { claimMessage: input.message, claimStatus: "PENDING", resolvedAt: null, showNameInMessages: true },
+    });
 
     return this.toMyClaim(row, company);
   }
@@ -313,6 +328,13 @@ export class OwnerService {
 
   async approveClaim(id: string): Promise<void> {
     const claim = await this.getPendingClaimOrThrow(id);
+    // One owner per company: a second pending claim can't be approved once
+    // another one already was.
+    const otherOwner = await this.prisma.companyOwner.findFirst({
+      where: { companyId: claim.companyId, claimStatus: "APPROVED", id: { not: id } },
+      select: { id: true },
+    });
+    if (otherOwner) throw new ConflictException("This company already has an approved owner. Reject this claim instead.");
 
     await this.prisma.$transaction([
       this.prisma.companyOwner.update({

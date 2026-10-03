@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ownerNameSchema } from "./owner";
 
 // Same 11-digit, first-digit-1-9 shape used everywhere else T.C. Kimlik No is
 // ever validated in this codebase (see PiiVault's future collection flow) —
@@ -17,8 +18,8 @@ const e164PhoneSchema = z.string().regex(/^\+[1-9]\d{7,14}$/, "Must be a phone n
 // comment for why those stay separate).
 export const employerProfileInputSchema = z
   .object({
-    firstName: z.string().min(1).max(100).optional(),
-    lastName: z.string().min(1).max(100).optional(),
+    firstName: ownerNameSchema.optional(),
+    lastName: ownerNameSchema.optional(),
     phoneNumber: e164PhoneSchema.optional(),
     address: z.string().min(1).max(500).optional(),
     workAddress: z.string().min(1).max(500).optional(),

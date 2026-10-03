@@ -14,8 +14,9 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
+import { OwnerNameGate } from "@/components/owner/OwnerNameGate";
 import { AdSlot } from "@/components/AdSlot";
-import { badgeLabelForOwnerTier, canUseBanner } from "@/lib/pricingTiers";
+import { canUseBanner, planNameForOwnerTier } from "@/lib/pricingTiers";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
@@ -483,7 +484,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const province = findProvinceByCityName(city);
   const cityOptions = TURKEY_PROVINCES.map((p) => ({ value: p.name, label: p.name }));
   const districtOptions = (province?.districts ?? []).map((d) => ({ value: d, label: d }));
-  const badgeLabel = badgeLabelForOwnerTier(claim.tier);
 
   return (
     // No outline around the whole company block: the sidebar and the content
@@ -505,7 +505,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             aria-haspopup="dialog"
             className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 hover:underline dark:bg-brand-900 dark:text-brand-300"
           >
-            {claim.tier === "FREE" ? "Free Tier" : `${badgeLabel ?? claim.tier} Tier`}
+            {planNameForOwnerTier(claim.tier)} Tier
           </button>
           <button
             type="button"
@@ -794,11 +794,14 @@ export default function MyCompaniesPage() {
           <p className="text-sm text-muted-foreground">You haven&apos;t claimed any companies yet.</p>
         )}
 
-        {ownedCompanies.length > 1 && openCompany && (
-          <CompanyTabs companies={ownedCompanies} selectedId={openCompany.companyId} onSelect={selectCompany} />
+        {openCompany && (
+          <OwnerNameGate>
+            {ownedCompanies.length > 1 && (
+              <CompanyTabs companies={ownedCompanies} selectedId={openCompany.companyId} onSelect={selectCompany} />
+            )}
+            <OwnedCompanyCard key={openCompany.id} claim={openCompany} />
+          </OwnerNameGate>
         )}
-
-        {openCompany && <OwnedCompanyCard key={openCompany.id} claim={openCompany} />}
 
         {otherClaims.length > 0 && (
           <div className={openCompany ? "mt-8" : ""}>

@@ -1,11 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import {
-  sendMessageInputSchema,
-  updateOwnerMessagingNameInputSchema,
-  type SendMessageInput,
-  type UpdateOwnerMessagingNameInput,
-} from "@iwtr/shared-types";
+import { sendMessageInputSchema, type SendMessageInput } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -40,24 +35,6 @@ export class MessagingController {
   @Get("owner/conversations")
   listForOwner(@CurrentUser() user: AuthenticatedUser) {
     return this.messaging.listForOwner(user.id);
-  }
-
-  // The owner dashboard tick-box "Show company owner's name during messaging".
-  @Get("my-companies/:companyId/messaging-name")
-  getMessagingName(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("companyId", new ParseUUIDPipe()) companyId: string,
-  ) {
-    return this.messaging.getOwnerMessagingName(user.id, companyId);
-  }
-
-  @Patch("my-companies/:companyId/messaging-name")
-  setMessagingName(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("companyId", new ParseUUIDPipe()) companyId: string,
-    @Body(new ZodValidationPipe(updateOwnerMessagingNameInputSchema, { strict: true })) body: UpdateOwnerMessagingNameInput,
-  ) {
-    return this.messaging.setOwnerMessagingName(user.id, companyId, body.showNameInMessages);
   }
 
   @Get("owner/companies/:companyId/conversations")

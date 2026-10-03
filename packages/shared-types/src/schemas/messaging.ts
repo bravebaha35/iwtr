@@ -29,9 +29,9 @@ export const conversationSummarySchema = z.object({
   reviewerAvatarKey: z.string().nullable(),
   reviewerAvatarGradient: z.string().nullable(),
   // Reviewer view only: the real name of the company owner answering (the
-  // latest owner to write, else the company's first approved owner), from
-  // their employer profile. Null for the company, or when no owner has
-  // filled in their employer profile name yet.
+  // latest owner to write), from their employer profile. Null until the
+  // company has sent its first message in this conversation, and always null
+  // for the company side.
   ownerName: z.string().nullable(),
   lastMessagePreview: z.string(),
   lastMessageDay: z.string(),
@@ -51,18 +51,6 @@ export const conversationMessageSchema = z.object({
   sharesPhoneNumber: z.boolean(),
 });
 export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
-
-// The owner dashboard's "Show company owner's name during messaging"
-// tick-box (one per owner per company). ownerName is the name reviewers would
-// see - from the owner's employer profile, null until they fill it in.
-export const ownerMessagingNameSchema = z.object({
-  showNameInMessages: z.boolean(),
-  ownerName: z.string().nullable(),
-});
-export type OwnerMessagingName = z.infer<typeof ownerMessagingNameSchema>;
-
-export const updateOwnerMessagingNameInputSchema = z.object({ showNameInMessages: z.boolean() });
-export type UpdateOwnerMessagingNameInput = z.infer<typeof updateOwnerMessagingNameInputSchema>;
 
 export const conversationThreadSchema = conversationSummarySchema.extend({
   // Short excerpt of the review's general thoughts, for context.

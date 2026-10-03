@@ -1,6 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { WorkplaceBrowser } from "../WorkplaceBrowser";
+import { apiGet } from "@/lib/api-client";
+import { clearBrowseCache } from "@/lib/companyBrowse";
 
 function company(name: string, reviewCount: number, extra: Record<string, unknown> = {}) {
   return {
@@ -26,17 +28,27 @@ function company(name: string, reviewCount: number, extra: Record<string, unknow
   };
 }
 
+// Stands in for GET /companies/browse: the server decides what shows and in
+// which order (unreviewed workplaces only for A-Z, after the reviewed ones).
+const rated = company("Rated Co", 3, { isHiring: true, riskScore: 2 });
+const empty = company("Empty Co", 0);
 jest.mock("@/lib/api-client", () => ({
-  apiGet: jest.fn(() =>
-    Promise.resolve([company("Empty Co", 0), company("Rated Co", 3, { isHiring: true, riskScore: 2 })]),
-  ),
+  apiGet: jest.fn((path: string) => {
+    const az = path.includes("sort=alphabetical");
+    const items = az ? [rated, empty] : [rated];
+    return Promise.resolve({ items, total: items.length, page: 1, pageSize: 20, hiddenUnratedCount: az ? 0 : 1 });
+  }),
 }));
 
 jest.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-beforeEach(() => window.sessionStorage.clear());
+beforeEach(() => {
+  window.sessionStorage.clear();
+  clearBrowseCache();
+  (apiGet as jest.Mock).mockClear();
+});
 
 function cardNames() {
   return screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
@@ -51,6 +63,14 @@ it("opens on rated workplaces only, and A-Z brings unreviewed ones in after them
   expect(await screen.findByText("Empty Co")).toBeInTheDocument();
   // Rated first even though "Empty Co" comes first alphabetically.
   expect(cardNames()).toEqual(["Rated Co", "Empty Co"]);
+});
+
+it("asks the server for one page, never the whole directory", async () => {
+  render(<WorkplaceBrowser />);
+  await screen.findByText("Rated Co");
+  const paths = (apiGet as jest.Mock).mock.calls.map(([path]) => path as string);
+  expect(paths.length).toBeGreaterThan(0);
+  expect(paths.every((path) => path.startsWith("/companies/browse?") && path.includes("page=1"))).toBe(true);
 });
 
 it("shows each card's Risk Score", async () => {

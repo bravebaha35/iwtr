@@ -1,7 +1,7 @@
 "use client";
 
 import { TurkishPhoneInput } from "@/components/TurkishPhoneInput";
-import { OwnerNameInMessagesToggle } from "./OwnerNameInMessagesToggle";
+import { OwnerNameInMessagesNote } from "./OwnerNameInMessagesNote";
 
 export interface ContactSocialCategoryProps {
   companyId: string;
@@ -127,7 +127,7 @@ export function ContactSocialCategory(props: ContactSocialCategoryProps) {
       </section>
 
       <section className="mt-6 max-w-3xl border-t border-border pt-5">
-        <OwnerNameInMessagesToggle companyId={props.companyId} />
+        <OwnerNameInMessagesNote />
       </section>
 
       <section className="mt-6 max-w-3xl border-t border-border pt-5">
