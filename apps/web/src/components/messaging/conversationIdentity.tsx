@@ -5,6 +5,9 @@ import { Avatar } from "@/components/Avatar";
 import { CompanyLogo } from "@/components/CompanyLogo";
 
 type Mode = "reviewer" | "company";
+
+// What the reviewer sees for an owner who answers without showing their name.
+const OWNER_NAME_FALLBACK = "Company representative";
 type Side = "REVIEWER" | "COMPANY";
 
 /**
@@ -26,12 +29,15 @@ export function CounterpartPicture({ conversation, mode }: { conversation: Conve
 
 /**
  * "● Active · Name" / "● Ended · Name" under the company name. The name is
- * whoever the viewer is talking to: the answering owner's real name for a
- * reviewer (only once the company has replied - before that, no name), the
- * review's public name for the company.
+ * whoever the viewer is talking to: for a reviewer, nothing until the company
+ * has replied, then the answering owner's name or "Company representative"
+ * (the owner's choice); for the company, the review's public name.
  */
 export function ConversationStatus({ conversation, mode }: { conversation: ConversationSummary; mode: Mode }) {
-  const name = mode === "reviewer" ? conversation.ownerName : conversation.reviewerName;
+  const name =
+    mode === "reviewer"
+      ? (conversation.ownerName ?? (conversation.companyReplied ? OWNER_NAME_FALLBACK : null))
+      : conversation.reviewerName;
   return (
     <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
       <span

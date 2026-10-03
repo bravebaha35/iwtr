@@ -20,6 +20,7 @@ const summary: ConversationSummary = {
   reviewerAvatarKey: null,
   reviewerAvatarGradient: null,
   ownerName: null,
+  companyReplied: false,
   lastMessagePreview: "Can I explain the shift issue?",
   lastMessageDay: "2026-09-25",
   unread: true,
@@ -111,11 +112,11 @@ describe("ConversationInbox", () => {
     expect(row).toHaveTextContent("Quiet Beaver");
   });
 
-  it("shows the reviewer the answering owner's name, and no name before the company replies", async () => {
+  it("shows the reviewer no name before the company replies, then the owner's name or 'Company representative'", async () => {
     get.mockImplementation((path: string) =>
       Promise.resolve(
         path.endsWith("/conversations")
-          ? [summary, { ...summary, id: "44444444-4444-4444-8444-444444444444", ended: true, ownerName: "Ahmet Yılmaz" }]
+          ? [summary, { ...summary, id: "44444444-4444-4444-8444-444444444444", ended: true, ownerName: "Ahmet Yılmaz", companyReplied: true }, { ...summary, id: "55555555-5555-4555-8555-555555555555", companyReplied: true }]
           : thread(),
       ),
     );
@@ -127,6 +128,7 @@ describe("ConversationInbox", () => {
     expect(rows[1]).toHaveTextContent("Ended");
     expect(rows[1]).toHaveTextContent("Ahmet Yılmaz");
     expect(rows[0]).not.toHaveTextContent("Quiet Beaver");
+    expect(rows[2]).toHaveTextContent("Company representative");
   });
 
   it("warns under a message that shares a phone number, and while one is being typed", async () => {
