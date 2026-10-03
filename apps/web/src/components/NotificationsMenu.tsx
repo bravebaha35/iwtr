@@ -57,6 +57,7 @@ type NotificationKind =
   // Real, derived from READY BenchmarkReportJob rows; carries its own href
   // (the PDF download route).
   | "BENCHMARK_REPORT_READY"
+  | "HR_REPORT_READY"
   // Real, derived from unread private review-conversation messages; carry
   // their own href (the right inbox).
   | "CONVERSATION_MESSAGE_FROM_COMPANY"
@@ -83,6 +84,7 @@ const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   COMPANY_REVIEWED: "EMPLOYER",
   JOB_POSTING_NEEDS_INFO: "EMPLOYER",
   BENCHMARK_REPORT_READY: "EMPLOYER",
+  HR_REPORT_READY: "EMPLOYER",
   CONVERSATION_MESSAGE_FROM_COMPANY: "SOCIAL",
   CONVERSATION_MESSAGE_FROM_REVIEWER: "EMPLOYER",
   CLAIM_APPROVED: "SYSTEM",
@@ -145,6 +147,8 @@ function describeNotification(n: AppNotification): string {
       return "Your job posting has missing/incorrect information.";
     case "BENCHMARK_REPORT_READY":
       return `Your report is ready! Download the Sector Benchmark Report for ${company}.`;
+    case "HR_REPORT_READY":
+      return `Your report is ready! Download the HR Analytics Report for ${company}.`;
     case "CONVERSATION_MESSAGE_FROM_COMPANY":
       return `${company} sent you a message.`;
     case "CONVERSATION_MESSAGE_FROM_REVIEWER":
@@ -208,6 +212,7 @@ function hrefForNotification(n: AppNotification): string {
     case "JOB_APPLICATION_RECEIVED":
       return "/my/companies";
     case "BENCHMARK_REPORT_READY":
+    case "HR_REPORT_READY":
       return n.href ?? "/my/companies";
     case "CONVERSATION_MESSAGE_FROM_COMPANY":
       return n.href ?? "/social";

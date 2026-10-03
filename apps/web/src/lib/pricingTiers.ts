@@ -9,6 +9,8 @@
 // unchanged from before that axis existed; only the source feeding
 // tierKeyFromOwnerTier is new.
 
+import { HR_REPORT_PRICE_LABEL } from "@iwtr/shared-types";
+
 export type PricingTierKey = "free" | "starter" | "pro" | "enterprise";
 
 export const PRICING_TIERS: { key: PricingTierKey; label: string; rank: number }[] = [
@@ -89,17 +91,25 @@ export const PRICING_FEATURE_ROWS: PricingFeatureRow[] = [
     },
   },
   {
-    // Premium Features › Benchmark Reports on the owner dashboard. The HR
-    // Analytics Report is a placeholder until its feature is specified.
-    id: "benchmark-reports",
-    label: "Benchmark Reports",
-    values: {
-      free: "No",
-      starter: "No",
-      pro: "No",
-      enterprise: "Sector Benchmark Report and HR Analytics Report",
-    },
+    // Premium Features › Benchmark Reports on the owner dashboard. The
+    // Sector Benchmark Report is Enterprise-only (enforced in
+    // BenchmarkReportService).
+    id: "sector-benchmark",
+    label: "Sector Benchmark Report",
+    values: { free: "No", starter: "No", pro: "No", enterprise: "Included" },
     lockedBelowRank: 3,
+  },
+  {
+    // Same rules as decideHrReportAccess in apps/api: Enterprise included,
+    // Pro one per calendar month, anyone can buy one.
+    id: "hr-analytics-report",
+    label: "HR Analytics Report",
+    values: {
+      free: `${HR_REPORT_PRICE_LABEL} per report`,
+      starter: `${HR_REPORT_PRICE_LABEL} per report`,
+      pro: `1 report monthly (extra reports ${HR_REPORT_PRICE_LABEL})`,
+      enterprise: "Included",
+    },
   },
   {
     id: "job-ads",

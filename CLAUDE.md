@@ -132,7 +132,14 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").
 - `rival-analytics/` — now only the Sector Benchmark Report (always the owner's own sector in the owner's own
   city). The competitor "Rival Analytics" report was removed 2026-09-27 (legal decision) — don't bring it back;
-  its DB tables are left untouched.
+  its DB tables are left untouched. The same module builds the HR Analytics Report (`hr-analytics-report.*`): one
+  company's own Vibe Flags (each with a one-sentence reason), Risk Score with each past posting's effect, and every
+  survey question as percentages, as a slate-monochrome Plus Jakarta Sans PDF. Who pays is `decideHrReportAccess`:
+  Enterprise included, Pro 1 per calendar month (unique `[companyId, quotaMonth]`, released if the build fails),
+  everyone else 199,99 TL via iyzico one-time checkout (402 without billing). Max 3 per company per day, built by
+  `HrAnalyticsReportWorker` with a 30 s timeout. Only work types with 3+ published reviews appear; the data service
+  converts tallies to percentages before the PDF builder sees them, and only the API's own uploaded logo file is drawn
+  (never a fetched URL). Layout check without a DB: `pnpm exec ts-node --transpile-only scripts/dev-sample-hr-report.ts`.
 - Company replies to reviews are capped per company per calendar month by the replying owner's plan
   (`MONTHLY_REPLY_LIMITS` in reviews.service.ts: Free 2, Blue 6, Blue+ 10, Enterprise unlimited); edits are free.
 - `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per

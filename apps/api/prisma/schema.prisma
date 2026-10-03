@@ -567,6 +567,7 @@ model Company {
   socialPosts          SocialPost[]
   followers            CompanyFollow[]
   benchmarkReportJobs  BenchmarkReportJob[]
+  hrAnalyticsReportJobs HrAnalyticsReportJob[]
   reviewConversations  ReviewConversation[]
 
   // name: helps the case-insensitive exact-match duplicate check
@@ -1574,6 +1575,59 @@ model SalarySubmission {
   createdAt        DateTime     @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
 
   @@index([companyId, salaryYear])
+  @@schema("public")
+}
+
+enum HrAnalyticsReportStatus {
+  // Created right before the iyzico checkout opens; becomes QUEUED only
+  // once the payment callback confirms the charge.
+  AWAITING_PAYMENT
+  QUEUED
+  RUNNING
+  READY
+  FAILED
+
+  @@schema("public")
+}
+
+// How a report was paid for — decided once, at request time
+// (decideHrReportAccess in hr-analytics-report.access.ts).
+enum HrAnalyticsReportAccess {
+  PLAN          // Enterprise: included
+  MONTHLY_QUOTA // Pro: the one included report this calendar month
+  PAID          // a 199,99 TL one-off purchase
+
+  @@schema("public")
+}
+
+// The HR Analytics Report queue (one company's own anonymous review data as
+// a PDF) — drained by HrAnalyticsReportWorker, same DB-backed pattern as
+// BenchmarkReportJob. The PDF is kept until expiresAt (7 days).
+model HrAnalyticsReportJob {
+  id                String                  @id @default(uuid())
+  requestedByUserId String
+  companyId         String
+  company           Company                 @relation(fields: [companyId], references: [id])
+  status            HrAnalyticsReportStatus @default(QUEUED)
+  access            HrAnalyticsReportAccess
+  // "YYYY-MM" on a Pro report that used the monthly allowance. The unique
+  // index below makes "one per company per month" hold even under two
+  // simultaneous clicks; a failed report clears it, which hands the
+  // allowance back.
+  quotaMonth        String?
+  // A paid report that failed can be rebuilt once without paying again:
+  // the rebuild points back at it here.
+  retryOfJobId      String?                 @unique
+  pdf               Bytes?
+  errorMessage      String?
+  createdAt         DateTime                @default(now())
+  paidAt            DateTime?
+  completedAt       DateTime?
+  expiresAt         DateTime?
+
+  @@unique([companyId, quotaMonth])
+  @@index([status, createdAt])
+  @@index([companyId, createdAt])
   @@schema("public")
 }
 

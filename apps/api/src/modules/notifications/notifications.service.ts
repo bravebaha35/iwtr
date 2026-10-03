@@ -64,6 +64,7 @@ export class NotificationsService {
       followedPosts,
       followedHiring,
       readyReports,
+      readyHrReports,
       myConversations,
       companyConversations,
     ] = await Promise.all([
@@ -137,6 +138,13 @@ export class NotificationsService {
       // Sector Benchmark Reports this user ordered that finished building
       // and can still be downloaded (see BenchmarkReportWorker).
       this.prisma.benchmarkReportJob.findMany({
+        where: { requestedByUserId: userId, status: "READY", expiresAt: { gt: new Date() } },
+        select: { id: true, companyId: true, completedAt: true, company: { select: { name: true, slug: true } } },
+        orderBy: { completedAt: "desc" },
+        take: MAX_NOTIFICATIONS,
+      }),
+      // ...and HR Analytics Reports (see HrAnalyticsReportWorker).
+      this.prisma.hrAnalyticsReportJob.findMany({
         where: { requestedByUserId: userId, status: "READY", expiresAt: { gt: new Date() } },
         select: { id: true, companyId: true, completedAt: true, company: { select: { name: true, slug: true } } },
         orderBy: { completedAt: "desc" },
@@ -240,6 +248,14 @@ export class NotificationsService {
         // Through the web app's same-origin auth proxy, which attaches the
         // session; the API re-checks ownership and expiry on download.
         href: `/api/proxy/my-companies/${job.companyId}/sector-benchmark/${job.id}/download`,
+      })),
+      ...readyHrReports.map((job) => ({
+        id: `hr-report-${job.id}`,
+        type: "HR_REPORT_READY" as NotificationType,
+        companyName: job.company.name,
+        companySlug: job.company.slug,
+        createdAt: (job.completedAt ?? new Date()).toISOString(),
+        href: `/api/proxy/my-companies/${job.companyId}/hr-analytics-report/${job.id}/download`,
       })),
       ...myConversations
         .filter((c) => c.messages[0] && c.messages[0].seq > c.reviewerLastReadSeq)

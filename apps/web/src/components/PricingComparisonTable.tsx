@@ -74,8 +74,12 @@ const ROWS: PricingRow[] = [
     values: pricingFeature("comment-response").values,
   },
   {
-    label: pricingFeature("benchmark-reports").label,
-    values: pricingFeature("benchmark-reports").values,
+    label: pricingFeature("sector-benchmark").label,
+    values: pricingFeature("sector-benchmark").values,
+  },
+  {
+    label: pricingFeature("hr-analytics-report").label,
+    values: pricingFeature("hr-analytics-report").values,
   },
   {
     label: pricingFeature("job-ads").label,

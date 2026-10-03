@@ -15,6 +15,7 @@ function basePrisma(overrides: Record<string, unknown> = {}) {
     companyAggregateScore: { findMany: jest.fn().mockResolvedValue([]) },
     socialPost: { findMany: jest.fn().mockResolvedValue([]) },
     benchmarkReportJob: { findMany: jest.fn().mockResolvedValue([]) },
+    hrAnalyticsReportJob: { findMany: jest.fn().mockResolvedValue([]) },
     companyOwner: { findMany: jest.fn().mockResolvedValue([]) },
     reviewConversation: { findMany: jest.fn().mockResolvedValue([]) },
     jobApplication: { findMany: jest.fn().mockResolvedValue([]) },
