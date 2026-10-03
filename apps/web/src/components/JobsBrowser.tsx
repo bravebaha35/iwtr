@@ -1,23 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { sortCompaniesBy, type SortOption } from "@/components/SortButtons";
+import { type SortOption } from "@/components/SortButtons";
 import { SearchSortBox } from "@/components/SearchSortBox";
 import Image from "next/image";
-import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
+import { JOBS_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type MyProfile, type WorkplaceType } from "@iwtr/shared-types";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { apiGet } from "@/lib/api-client";
+import { fetchBrowsePage, hasBrowsePage, prefetchBrowsePage } from "@/lib/companyBrowse";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarOutlinedButtonClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
-import { type CategoryGroup, matchesCategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
+import { type CategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { JobCard, postingsForCard } from "@/components/jobs/JobCard";
 import { JobCreationFlow } from "@/components/jobs/JobCreationFlow";
-import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
+import { distanceKm, TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
@@ -34,7 +35,14 @@ import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShel
 // classifyJobRole.ts's matchesAsWord/foldTr comment) rather than an
 // extraction that isn't worth it yet.
 
-type Geo = { lat: number; lng: number } | "denied" | null;
+// "Near Me" keeps only the nearest province's name - the visitor's actual
+// position never leaves requestNearMe, let alone the browser.
+type Geo = { nearCity: string } | "denied" | null;
+
+// The filter the page put on by itself from the member's profile (see the
+// personalising effect in JobsBrowser), so the note above the cards can say
+// what was applied and offer to clear it.
+type AutoFilter = { kind: "sector"; value: string; label: string } | { kind: "workType"; value: WorkplaceType; label: string };
 
 const RATING_TICKS: { value: number; src: string; alt: string }[] = [
   { value: 0, src: "/1LowMood.png", alt: "Low rating" },
@@ -57,7 +65,7 @@ function activeMoodIndex(value: number): number {
 
 // 4 columns × 4 rows at the desktop breakpoint, matching the homepage's own
 // "columns × rows" page-size convention (see WorkplaceBrowser.tsx).
-const RESULTS_PAGE_SIZE = 16;
+const RESULTS_PAGE_SIZE = JOBS_BROWSE_PAGE_SIZE;
 
 function pageNumbers(current: number, total: number): (number | "...")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -125,11 +133,57 @@ function PaginationBar({
 }
 
 
-function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number }): number {
-  const province = findProvinceByCityName(company.city);
-  if (!province) return Infinity;
-  return distanceKm(geo.lat, geo.lng, province.lat, province.lng);
+function nearestProvince(lat: number, lng: number): string {
+  let best = TURKEY_PROVINCES[0];
+  for (const p of TURKEY_PROVINCES) {
+    if (distanceKm(lat, lng, p.lat, p.lng) < distanceKm(lat, lng, best.lat, best.lng)) best = p;
+  }
+  return best.name;
 }
+
+/** The query string GET /companies/browse gets for the Jobs page, without a page number. */
+function jobsParams(f: {
+  query: string;
+  workplaceTypes: WorkplaceType[];
+  selectedCities: string[];
+  selectedDistrictKeys: string[];
+  minRating: number;
+  maxRiskScore: number;
+  selectedCategory: string | null;
+  categoryGroup: CategoryGroup | null;
+  sortBy: SortOption;
+  geo: Geo;
+  selectedCompanyId: string | null;
+}): string {
+  const params = new URLSearchParams();
+  params.set("jobs", "1");
+  if (f.query.trim()) params.set("q", f.query.trim());
+  if (f.workplaceTypes.length > 0) params.set("workplaceTypes", f.workplaceTypes.join(","));
+  if (f.selectedCities.length > 0) params.set("cities", f.selectedCities.join(","));
+  if (f.selectedDistrictKeys.length > 0) params.set("districtKeys", f.selectedDistrictKeys.join(","));
+  if (f.minRating > 0) params.set("minRating", String(f.minRating));
+  if (f.maxRiskScore < 3) params.set("maxRiskScore", String(f.maxRiskScore));
+  if (f.selectedCategory) params.set("category", f.selectedCategory);
+  if (f.categoryGroup) params.set("categoryGroup", f.categoryGroup);
+  if (f.sortBy !== "default") params.set("sort", f.sortBy);
+  if (f.geo && f.geo !== "denied") params.set("nearCity", f.geo.nearCity);
+  if (f.selectedCompanyId) params.set("companyId", f.selectedCompanyId);
+  return params.toString();
+}
+
+const NO_FILTERS = {
+  query: "",
+  workplaceTypes: [] as WorkplaceType[],
+  selectedCities: [] as string[],
+  selectedDistrictKeys: [] as string[],
+  minRating: 0,
+  maxRiskScore: 3,
+  selectedCategory: null,
+  categoryGroup: null,
+  sortBy: "default" as SortOption,
+  geo: null,
+  selectedCompanyId: null,
+};
 
 // Same data source as SocialSidebar's FollowingList (useFollowedCompanies),
 // but a single-select CLIENT-SIDE FILTER instead of navigation — clicking a
@@ -189,7 +243,14 @@ export function JobsBrowser() {
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
-  const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
+  // The page of cards on screen plus totals (GET /companies/browse?jobs=1).
+  const [result, setResult] = useState<CompanyBrowseResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  // Until the member's profile has been read (and their sector or work type
+  // possibly applied), nothing is fetched - so the page doesn't flash every
+  // job first and then jump to theirs.
+  const [personalised, setPersonalised] = useState(false);
+  const [autoFilter, setAutoFilter] = useState<AutoFilter | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [geo, setGeo] = useState<Geo>(null);
   const [geoRequesting, setGeoRequesting] = useState(false);
@@ -242,7 +303,7 @@ export function JobsBrowser() {
     setGeoRequesting(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeo({ nearCity: nearestProvince(pos.coords.latitude, pos.coords.longitude) });
         setGeoRequesting(false);
       },
       () => {
@@ -253,59 +314,118 @@ export function JobsBrowser() {
     );
   }
 
-  // Same GET /companies endpoint the rating homepage uses (WorkplaceBrowser),
-  // plus includeJobTitles=1 — the one addition that scopes results to
-  // isHiring companies and attaches each one's classified job titles. No
-  // separate/isolated jobs endpoint.
+  // Opens on the member's own field: their profile Sector if they set one,
+  // otherwise their "What kind of work?" choice. Each is only applied if it
+  // actually has open jobs right now (checked with the same page request the
+  // grid then reuses from cache) - otherwise the next one is tried, and
+  // failing both the page shows every job. Never leaves an empty page.
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (workplaceTypes.length > 0) params.set("workplaceTypes", workplaceTypes.join(","));
-    if (selectedCities.length > 0) params.set("cities", selectedCities.join(","));
-    if (selectedDistrictKeys.length > 0) params.set("districtKeys", selectedDistrictKeys.join(","));
-    if (minRating > 0) params.set("minRating", String(minRating));
-    if (maxRiskScore < 3) params.set("maxRiskScore", String(maxRiskScore));
-    params.set("includeJobTitles", "1");
+    let cancelled = false;
+    (async () => {
+      try {
+        const profile = await apiGet<MyProfile>("/me/profile");
+        const tries: AutoFilter[] = [];
+        if (profile.sector) tries.push({ kind: "sector", value: profile.sector.value, label: profile.sector.label });
+        if (profile.workType) {
+          const label = WORKPLACE_TYPES.find((w) => w.value === profile.workType)?.label ?? profile.workType;
+          tries.push({ kind: "workType", value: profile.workType, label });
+        }
+        for (const t of tries) {
+          const params = jobsParams(
+            t.kind === "sector" ? { ...NO_FILTERS, selectedCategory: t.value } : { ...NO_FILTERS, workplaceTypes: [t.value] },
+          );
+          const firstPage = await fetchBrowsePage(params, 1);
+          if (cancelled) return;
+          if (firstPage.total > 0) {
+            if (t.kind === "sector") setSelectedCategory(t.value);
+            else setWorkplaceTypes([t.value]);
+            setAutoFilter(t);
+            break;
+          }
+        }
+      } catch {
+        // No profile (or it failed to load): just show every job.
+      } finally {
+        if (!cancelled) setPersonalised(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
+  // Every filter, the sort, Quick Select, Near Me, the Following pick and
+  // the page go to the server, which sends back only the 16 cards on screen
+  // with their open postings. Filter changes wait 250ms (one request per
+  // slider drag, not one per step); page clicks go at once; a page already
+  // fetched or fetched ahead shows with no request at all.
+  const filterParams = useMemo(
+    () =>
+      jobsParams({
+        query,
+        workplaceTypes,
+        selectedCities,
+        selectedDistrictKeys,
+        minRating,
+        maxRiskScore,
+        selectedCategory,
+        categoryGroup,
+        sortBy,
+        geo,
+        selectedCompanyId,
+      }),
+    [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore, selectedCategory, categoryGroup, sortBy, geo, selectedCompanyId],
+  );
+  const lastFilterParams = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!personalised) return;
+    const filtersChanged = lastFilterParams.current !== null && lastFilterParams.current !== filterParams;
+    lastFilterParams.current = filterParams;
     let cancelled = false;
     setLoadError(false);
+    setLoading(true);
+    const wait = filtersChanged && !hasBrowsePage(filterParams, page) ? 250 : 0;
     const handle = setTimeout(() => {
-      apiGet<CompanyListItem[]>(`/companies?${params.toString()}`)
+      fetchBrowsePage(filterParams, page)
         .then((data) => {
-          if (!cancelled) setCompanies(data);
+          if (cancelled) return;
+          setResult(data);
+          setLoading(false);
+          if (data.page !== page) setPage(data.page);
+          if (data.page * data.pageSize < data.total) prefetchBrowsePage(filterParams, data.page + 1);
         })
         .catch(() => {
-          if (!cancelled) {
-            setCompanies([]);
-            setLoadError(true);
-          }
+          if (cancelled) return;
+          setResult({ items: [], total: 0, page: 1, pageSize: RESULTS_PAGE_SIZE, hiddenUnratedCount: 0 });
+          setLoading(false);
+          setLoadError(true);
         });
-    }, 250);
+    }, wait);
     return () => {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore]);
+  }, [personalised, filterParams, page]);
+
+  // The auto-filter note only stays while that filter is still on.
+  const autoFilterActive =
+    autoFilter !== null &&
+    (autoFilter.kind === "sector"
+      ? selectedCategory === autoFilter.value
+      : workplaceTypes.length === 1 && workplaceTypes[0] === autoFilter.value);
+
+  function clearAutoFilter() {
+    if (autoFilter?.kind === "sector") setSelectedCategory(null);
+    else setWorkplaceTypes([]);
+    setAutoFilter(null);
+  }
 
   useEffect(() => {
     setSelectedCategory(null);
   }, [workplaceTypes]);
 
   const sectorOptions = useMemo(() => sectorsForWorkplaceTypes(workplaceTypes), [workplaceTypes]);
-
-  const visibleCompanies = useMemo(() => {
-    if (!companies) return null;
-    let list = selectedCompanyId ? companies.filter((c) => c.id === selectedCompanyId) : companies;
-    list = selectedCategory ? list.filter((c) => c.category === selectedCategory) : list;
-    list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
-
-    if (sortBy !== "default") {
-      list = sortCompaniesBy(list, sortBy);
-    } else if (geo && geo !== "denied") {
-      list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
-    }
-    return list;
-  }, [companies, selectedCompanyId, selectedCategory, categoryGroup, geo, sortBy]);
 
   useEffect(() => {
     setPage(1);
@@ -320,10 +440,12 @@ export function JobsBrowser() {
     sortBy,
     query,
     selectedCompanyId,
+    geo,
   ]);
 
-  const totalPages = visibleCompanies ? Math.max(1, Math.ceil(visibleCompanies.length / RESULTS_PAGE_SIZE)) : 1;
-  const pageCompanies = visibleCompanies?.slice((page - 1) * RESULTS_PAGE_SIZE, page * RESULTS_PAGE_SIZE) ?? null;
+  const total = result?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / RESULTS_PAGE_SIZE));
+  const pageCompanies = result?.items ?? null;
 
   function goToPage(next: number) {
     setPage(next);
@@ -500,6 +622,15 @@ export function JobsBrowser() {
               <CategoryGroupFilter value={categoryGroup} onChange={setCategoryGroup} />
             </div>
 
+            {autoFilterActive && !savedView && (
+              <p className="mb-3 text-sm text-muted-foreground">
+                Showing jobs for your {autoFilter.kind === "sector" ? "sector" : "kind of work"},{" "}
+                <span className="font-medium text-foreground">{autoFilter.label}</span>, from your profile.{" "}
+                <button type="button" onClick={clearAutoFilter} className="font-medium text-brand-700 underline dark:text-brand-300">
+                  Show all jobs
+                </button>
+              </p>
+            )}
             {geo && geo !== "denied" && (
               <p className="mb-3 text-xs text-muted-foreground">Showing workplaces nearest to you first.</p>
             )}
@@ -536,7 +667,12 @@ export function JobsBrowser() {
                 )}
                 {/* One card per job (see postingsForCard) — a company with N
                     open postings renders N cards here, not one crowded card. */}
-                <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div
+                  aria-busy={loading}
+                  className={`grid grid-cols-1 gap-4 transition-opacity compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+                    loading && pageCompanies !== null ? "opacity-60" : ""
+                  }`}
+                >
                   {pageCompanies?.flatMap((c) =>
                     postingsForCard(c).map((posting, i) => (
                       <JobCard key={`${c.id}-${posting?.jobTitle ?? "none"}-${i}`} company={c} posting={posting} />
@@ -544,11 +680,11 @@ export function JobsBrowser() {
                   )}
                 </div>
 
-                {visibleCompanies !== null && visibleCompanies.length > 0 && (
+                {total > 0 && (
                   <>
                     <p className="mt-4 text-center text-xs text-muted-foreground">
-                      Page {page} of {totalPages} — {visibleCompanies.length} compan
-                      {visibleCompanies.length === 1 ? "y" : "ies"} hiring
+                      Page {page} of {totalPages} — {total} compan
+                      {total === 1 ? "y" : "ies"} hiring
                     </p>
                     <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
                   </>

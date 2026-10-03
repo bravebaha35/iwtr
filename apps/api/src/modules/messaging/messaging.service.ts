@@ -12,6 +12,7 @@ import {
   type ContentViolationType,
   type ConversationSummary,
   type ConversationThread,
+  type OwnerMessagingName,
   type SendMessageInput,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -151,6 +152,32 @@ export class MessagingService {
     return this.toSortedSummaries(rows, "COMPANY");
   }
 
+  /** The owner dashboard tick-box: whether reviewers see this owner's name, and the name they would see. */
+  async getOwnerMessagingName(userId: string, companyId: string): Promise<OwnerMessagingName> {
+    const ownership = await this.prisma.companyOwner.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+      select: { claimStatus: true, showNameInMessages: true },
+    });
+    if (ownership?.claimStatus !== "APPROVED") {
+      throw new ForbiddenException("You are not an approved owner of this company");
+    }
+    return {
+      showNameInMessages: ownership.showNameInMessages,
+      ownerName: await this.employerProfile.getRepresentativeName(userId),
+    };
+  }
+
+  async setOwnerMessagingName(userId: string, companyId: string, show: boolean): Promise<OwnerMessagingName> {
+    if (!(await this.isApprovedOwner(userId, companyId))) {
+      throw new ForbiddenException("You are not an approved owner of this company");
+    }
+    await this.prisma.companyOwner.update({
+      where: { userId_companyId: { userId, companyId } },
+      data: { showNameInMessages: show },
+    });
+    return this.getOwnerMessagingName(userId, companyId);
+  }
+
   /** The top-bar Messages inbox for an owner: every company they have an approved claim on, in one list. */
   async listForOwner(userId: string): Promise<ConversationSummary[]> {
     const claims = await this.prisma.companyOwner.findMany({
@@ -272,21 +299,29 @@ export class MessagingService {
   }
 
   /**
-   * The real name the reviewer sees for "who is answering": the owner who
-   * wrote the company's latest message. Null until the company has sent its
-   * first message here - before that the reviewer sees no name at all.
-   * Every owner gives their real name when claiming the company (it can't be
-   * claimed without it); only ever read from the owner's employer profile,
-   * never the PII vault, and only for the reviewer side.
+   * Who the reviewer sees answering, from the company's latest message: the
+   * writing owner's legal name if they ticked "Show company owner's name
+   * during messaging" for this company, otherwise null ("Company
+   * representative"). replied=false until the company has written at all -
+   * before that the reviewer sees no name. Only ever from the owner's
+   * employer profile, never the PII vault, and only for the reviewer side.
    */
-  private async ownerNameFor(conversation: { id: string }): Promise<string | null> {
+  private async ownerIdentityFor(conversation: { id: string; companyId: string }): Promise<{ replied: boolean; name: string | null }> {
     const lastCompanyMessage = await this.prisma.reviewConversationMessage.findFirst({
-      where: { conversationId: conversation.id, side: "COMPANY", authorUserId: { not: null } },
+      where: { conversationId: conversation.id, side: "COMPANY" },
       orderBy: { seq: "desc" },
       select: { authorUserId: true },
     });
-    if (!lastCompanyMessage?.authorUserId) return null;
-    return this.employerProfile.getRepresentativeName(lastCompanyMessage.authorUserId);
+    if (!lastCompanyMessage) return { replied: false, name: null };
+    if (!lastCompanyMessage.authorUserId) return { replied: true, name: null };
+    const ownership = await this.prisma.companyOwner.findUnique({
+      where: { userId_companyId: { userId: lastCompanyMessage.authorUserId, companyId: conversation.companyId } },
+      select: { showNameInMessages: true },
+    });
+    const name = ownership?.showNameInMessages
+      ? await this.employerProfile.getRepresentativeName(lastCompanyMessage.authorUserId)
+      : null;
+    return { replied: true, name };
   }
 
   private async toSummary(conversation: ConversationRow, side: Side): Promise<ConversationSummary> {
@@ -296,6 +331,7 @@ export class MessagingService {
     const myLastRead = side === "REVIEWER" ? conversation.reviewerLastReadSeq : conversation.companyLastReadSeq;
     const reviewerName = publicReviewerName(conversation.review, conversation.review.user) ?? FALLBACK_REVIEWER_NAME;
     const reviewerAvatar = publicReviewerAvatar(conversation.review, conversation.review.user);
+    const owner = await this.ownerIdentityFor(conversation);
     return {
       id: conversation.id,
       reviewId: conversation.reviewId,
@@ -306,7 +342,8 @@ export class MessagingService {
       reviewerName,
       reviewerAvatarKey: reviewerAvatar.avatarKey,
       reviewerAvatarGradient: reviewerAvatar.avatarGradient,
-      ownerName: side === "REVIEWER" ? await this.ownerNameFor(conversation) : null,
+      ownerName: side === "REVIEWER" ? owner.name : null,
+      companyReplied: owner.replied,
       lastMessagePreview: last ? last.content.slice(0, PREVIEW_LENGTH) : "",
       lastMessageDay: toDay(last ? last.createdAt : conversation.createdAt),
       unread: last ? last.seq > myLastRead : false,

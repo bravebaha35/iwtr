@@ -77,9 +77,9 @@ export class OwnerService {
         companyId: company.id,
         claimMessage: input.message,
         claimStatus: "PENDING",
-        showNameInMessages: true,
+        showNameInMessages: input.showNameInMessages,
       },
-      update: { claimMessage: input.message, claimStatus: "PENDING", resolvedAt: null, showNameInMessages: true },
+      update: { claimMessage: input.message, claimStatus: "PENDING", resolvedAt: null, showNameInMessages: input.showNameInMessages },
     });
 
     return this.toMyClaim(row, company);

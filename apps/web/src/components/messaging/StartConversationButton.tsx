@@ -29,7 +29,7 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
   if (existingId) {
     return (
       <Link
-        href={`/messages?c=${existingId}`}
+        href={`/social?openChat=${existingId}`}
         className="mt-2 inline-block rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-muted"
       >
         Open conversation

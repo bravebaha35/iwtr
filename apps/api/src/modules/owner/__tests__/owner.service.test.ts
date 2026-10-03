@@ -160,7 +160,7 @@ describe("OwnerService.updateMyCompany — at least one contact method required"
 });
 
 describe("OwnerService.claimCompany — one owner per company, real name required", () => {
-  const input = { firstName: "Ayşe", lastName: "Demir", showNameInMessages: true as const };
+  const input = { firstName: "Ayşe", lastName: "Demir", showNameInMessages: true };
 
   function buildService(opts: { ownClaim?: object | null; otherOwner?: object | null }) {
     const prisma = {
@@ -190,11 +190,17 @@ describe("OwnerService.claimCompany — one owner per company, real name require
     expect(employerProfile.saveClaimantName).not.toHaveBeenCalled();
   });
 
-  it("saves the claimant's name and turns on name-in-messages for a new claim", async () => {
+  it("saves the claimant's name and their name-in-messages choice for a new claim", async () => {
     const { service, prisma, employerProfile } = buildService({});
     await service.claimCompany("user-1", "acme", input);
     expect(employerProfile.saveClaimantName).toHaveBeenCalledWith("user-1", "Ayşe", "Demir");
     expect(prisma.companyOwner.upsert.mock.calls[0][0].create).toMatchObject({ claimStatus: "PENDING", showNameInMessages: true });
+  });
+
+  it("keeps the tick-box off when the claimant leaves it unticked", async () => {
+    const { service, prisma } = buildService({});
+    await service.claimCompany("user-1", "acme", { ...input, showNameInMessages: false });
+    expect(prisma.companyOwner.upsert.mock.calls[0][0].create).toMatchObject({ showNameInMessages: false });
   });
 
   it("leaves an already-approved owner untouched", async () => {

@@ -254,8 +254,30 @@ describe("MessagingService conversation identity", () => {
     const { service } = setup();
     const started = await service.startConversation(REVIEWER, "review-1", hello);
     expect(started.ownerName).toBeNull();
+    expect(started.companyReplied).toBe(false);
     await service.sendMessage(OWNER, started.id, { content: "Thanks for writing, happy to talk." });
-    expect((await service.getThread(REVIEWER, started.id)).ownerName).toBe("Ahmet Yılmaz");
+    const thread = await service.getThread(REVIEWER, started.id);
+    expect(thread.ownerName).toBe("Ahmet Yılmaz");
+    expect(thread.companyReplied).toBe(true);
+  });
+
+  it("answers as 'Company representative' (no name) when the owner left the tick-box off", async () => {
+    const owners: Owner[] = [{ userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", showNameInMessages: false }];
+    const { service } = setup({ owners });
+    const started = await service.startConversation(REVIEWER, "review-1", hello);
+    await service.sendMessage(OWNER, started.id, { content: "Thanks for writing, happy to talk." });
+    const thread = await service.getThread(REVIEWER, started.id);
+    expect(thread.ownerName).toBeNull();
+    expect(thread.companyReplied).toBe(true);
+  });
+
+  it("lets an approved owner read and change the tick-box, and no one else", async () => {
+    const owners: Owner[] = [{ userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", showNameInMessages: false }];
+    const { service } = setup({ owners });
+    expect(await service.getOwnerMessagingName(OWNER, COMPANY)).toEqual({ showNameInMessages: false, ownerName: "Ahmet Yılmaz" });
+    expect(await service.setOwnerMessagingName(OWNER, COMPANY, true)).toEqual({ showNameInMessages: true, ownerName: "Ahmet Yılmaz" });
+    await expect(service.getOwnerMessagingName(REVIEWER, COMPANY)).rejects.toThrow(ForbiddenException);
+    await expect(service.setOwnerMessagingName(OWNER, "company-2", true)).rejects.toThrow(ForbiddenException);
   });
 
   it("never names the owner to the company side", async () => {
@@ -268,8 +290,8 @@ describe("MessagingService conversation identity", () => {
   it("names the owner who wrote the company's latest message", async () => {
     const SECOND = "user-owner-2";
     const owners: Owner[] = [
-      { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-01-01") },
-      { userId: SECOND, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-02-01") },
+      { userId: OWNER, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-01-01"), showNameInMessages: true },
+      { userId: SECOND, companyId: COMPANY, claimStatus: "APPROVED", createdAt: new Date("2026-02-01"), showNameInMessages: true },
     ];
     const { service } = setup({ owners, ownerNames: { [OWNER]: "Ahmet Yılmaz", [SECOND]: "Elif Kaya" } });
     const started = await service.startConversation(REVIEWER, "review-1", hello);

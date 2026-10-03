@@ -6,9 +6,10 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, ApiError } from "@/lib/api-client";
 
 /**
- * Every company owner is known by their real name. New owners give it while
+ * Every company owner gives their legal name. New owners give it while
  * claiming; an owner from before that rule who never filled it in sees only
- * this form on their dashboard until they do.
+ * this form on their dashboard until they do. (Whether reviewers see it is
+ * a separate choice - the tick-box under Contact & Social Media.)
  */
 export function OwnerNameGate({ children }: { children: ReactNode }) {
   const { refreshOnboardingStatus } = useAuth();
@@ -62,8 +63,8 @@ export function OwnerNameGate({ children }: { children: ReactNode }) {
     <div className="max-w-xl rounded-xl border border-border bg-surface p-5">
       <h2 className="text-base font-semibold text-foreground">Add your name to continue</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Every company owner on I Worked There is known by their real name. Reviewers you answer in private messages
-        see it after your first reply.
+        Every company owner on I Worked There gives their legal name. Reviewers only see it if you choose to show it
+        (under Contact &amp; Social Media); otherwise you answer as &ldquo;Company representative&rdquo;.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <input
@@ -85,10 +86,6 @@ export function OwnerNameGate({ children }: { children: ReactNode }) {
           className={inputClass}
         />
       </div>
-      <label className="mt-3 flex items-start gap-2 text-sm text-foreground">
-        <input type="checkbox" checked disabled readOnly className="mt-0.5 h-4 w-4 accent-brand-600" />
-        <span>Show company owner&apos;s name during messaging (required for every owner)</span>
-      </label>
       {error && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
       <button
         onClick={save}

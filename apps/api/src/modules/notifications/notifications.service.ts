@@ -249,7 +249,7 @@ export class NotificationsService {
           companyName: c.company.name,
           companySlug: c.company.slug,
           createdAt: c.messages[0].createdAt.toISOString(),
-          href: `/messages?c=${c.id}`,
+          href: `/social?openChat=${c.id}`,
         })),
       ...companyConversations
         .filter((c) => c.messages[0] && c.messages[0].seq > c.companyLastReadSeq)
@@ -259,7 +259,7 @@ export class NotificationsService {
           companyName: c.company.name,
           companySlug: c.company.slug,
           createdAt: c.messages[0].createdAt.toISOString(),
-          href: `/messages?c=${c.id}`,
+          href: `/social?openChat=${c.id}`,
         })),
     ];
 

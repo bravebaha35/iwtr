@@ -19,13 +19,13 @@ export const claimCompanyInputSchema = z.object({
   // Free-text context to help an admin sanity-check the claim manually (no
   // automated verification exists yet) — e.g. a work email domain, a role.
   message: z.string().max(1000).optional(),
-  // Every company owner is known by their real name: reviewers they answer
-  // in private messages see it (after the company's first reply). Saved to
-  // the claimant's employer profile, and the claim can't be sent without
-  // ticking "Show my name during messaging".
+  // Every company owner gives their legal name (saved to their employer
+  // profile). Whether reviewers they answer in private messages see that
+  // name or "Company representative" is the owner's choice - this tick-box,
+  // changeable later on the dashboard.
   firstName: ownerNameSchema,
   lastName: ownerNameSchema,
-  showNameInMessages: z.literal(true, { message: "Tick the box to show your name during messaging" }),
+  showNameInMessages: z.boolean().default(false),
 });
 export type ClaimCompanyInput = z.infer<typeof claimCompanyInputSchema>;
 

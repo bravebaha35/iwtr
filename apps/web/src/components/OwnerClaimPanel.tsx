@@ -55,10 +55,6 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
       setError("Enter your real first and last name (letters only).");
       return;
     }
-    if (!showName) {
-      setError("Tick the box to show your name during messaging - every company owner is known by name.");
-      return;
-    }
     setSubmitting(true);
     setError(null);
     try {
@@ -66,7 +62,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
         message: message.trim() || undefined,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        showNameInMessages: true,
+        showNameInMessages: showName,
       });
       setClaim(result);
       setShowForm(false);
@@ -83,8 +79,7 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
     return (
       <div className="mt-3 flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">
-          Company owners are always known by their real name. Reviewers you answer in private messages will see it
-          after your first reply.
+          Every company owner gives their legal name. It stays private unless you tick the box below.
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           <input
@@ -113,7 +108,13 @@ export function OwnerClaimPanel({ companySlug, hasApprovedOwner }: { companySlug
             onChange={(e) => setShowName(e.target.checked)}
             className="mt-0.5 h-4 w-4 accent-brand-600"
           />
-          <span>Show company owner&apos;s name during messaging (required)</span>
+          <span>
+            Show company owner&apos;s name during messaging
+            <span className="block text-xs text-muted-foreground">
+              Ticked: reviewers you answer see your name. Unticked: they see &ldquo;Company representative&rdquo;. You
+              can change this later on your dashboard.
+            </span>
+          </span>
         </label>
         <textarea
           value={message}

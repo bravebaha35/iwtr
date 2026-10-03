@@ -174,7 +174,7 @@ describe("NotificationsService.list - review conversations", () => {
       expect.objectContaining({
         type: "CONVERSATION_MESSAGE_FROM_COMPANY",
         companyName: "Acme",
-        href: "/messages?c=conv-1",
+        href: "/social?openChat=conv-1",
       }),
     ]);
   });
@@ -205,7 +205,7 @@ describe("NotificationsService.list - review conversations", () => {
       expect.objectContaining({
         type: "CONVERSATION_MESSAGE_FROM_REVIEWER",
         companyName: "Acme",
-        href: "/messages?c=conv-9",
+        href: "/social?openChat=conv-9",
       }),
     ]);
   });

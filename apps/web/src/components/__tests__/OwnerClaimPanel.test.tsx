@@ -24,24 +24,34 @@ test("shows nothing on a company that already has an owner", () => {
   expect(container).toBeEmptyDOMElement();
 });
 
-test("won't send a claim without a name and the ticked box", async () => {
+test("won't send a claim without a legal name, and sends the owner's tick-box choice", async () => {
   post.mockResolvedValue({ claimStatus: "PENDING", companySlug: "acme" });
   render(<OwnerClaimPanel companySlug="acme" hasApprovedOwner={false} />);
 
   await userEvent.click(await screen.findByRole("button", { name: "Claim this company" }));
-  await userEvent.type(screen.getByLabelText("First name"), "Ayşe");
-  await userEvent.type(screen.getByLabelText("Last name"), "Demir");
   await userEvent.click(screen.getByRole("button", { name: "Submit claim" }));
-  expect(await screen.findByText(/Tick the box/)).toBeInTheDocument();
+  expect(await screen.findByText(/real first and last name/)).toBeInTheDocument();
   expect(post).not.toHaveBeenCalled();
 
-  await userEvent.click(screen.getByRole("checkbox", { name: /Show company owner's name during messaging/ }));
+  await userEvent.type(screen.getByLabelText("First name"), "Ayşe");
+  await userEvent.type(screen.getByLabelText("Last name"), "Demir");
   await userEvent.click(screen.getByRole("button", { name: "Submit claim" }));
   expect(post).toHaveBeenCalledWith("/companies/acme/claim", {
     message: undefined,
     firstName: "Ayşe",
     lastName: "Demir",
-    showNameInMessages: true,
+    showNameInMessages: false,
   });
   expect(await screen.findByText(/waiting for admin review/)).toBeInTheDocument();
+});
+
+test("sends showNameInMessages: true when the box is ticked", async () => {
+  post.mockResolvedValue({ claimStatus: "PENDING", companySlug: "acme" });
+  render(<OwnerClaimPanel companySlug="acme" hasApprovedOwner={false} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Claim this company" }));
+  await userEvent.type(screen.getByLabelText("First name"), "Ayşe");
+  await userEvent.type(screen.getByLabelText("Last name"), "Demir");
+  await userEvent.click(screen.getByRole("checkbox", { name: /Show company owner's name during messaging/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Submit claim" }));
+  expect(post).toHaveBeenCalledWith("/companies/acme/claim", expect.objectContaining({ showNameInMessages: true }));
 });

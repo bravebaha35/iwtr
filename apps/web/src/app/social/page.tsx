@@ -4,6 +4,7 @@ import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/server-auth";
 import { AdSlot } from "@/components/AdSlot";
 import { SocialShell } from "@/components/social/SocialShell";
 import { AnonGate } from "@/components/auth/AnonGate";
+import { ChatDock } from "@/components/messaging/ChatDock";
 
 export const metadata: Metadata = {
   title: "IWT Social",
@@ -37,6 +38,8 @@ export default async function SocialPage() {
         </div>
         <AdSlot />
       </div>
+      {/* Private messages, docked bottom right - on this page only. */}
+      <ChatDock />
     </AnonGate>
   );
 }

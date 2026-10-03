@@ -147,18 +147,22 @@ export function CompanyProfileTabs({
 
   return (
     <div className="mt-6">
-      {/* Big, obvious, equal-width targets — three across at every width so a
-          thumb on a phone always lands on a tab. min-h keeps each one well
-          past the 44px tap-target floor. Colors are all semantic tokens, so
-          the active/inactive treatment is identical in light and dark. */}
+      {/* Index tabs on a company file: a baseline rule runs the full width,
+          and the open tab is a folder tab sitting on it - Wood top edge,
+          side edges, page-coloured fill that covers the rule so the tab and
+          the section below read as one piece. Closed tabs are just their
+          serif label on the line. Left-aligned and sized to their labels;
+          min-h keeps each past the 44px tap-target floor; padding and
+          size step down on phones so all three fit at 320px. */}
       <div
         role="tablist"
         aria-label="Company profile sections"
         onKeyDown={onKeyDown}
-        className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface-muted p-1"
+        className="flex items-end gap-0.5 border-b border-border sm:gap-1"
       >
         {TABS.map((tab, i) => {
           const selected = active === tab.key;
+          const count = tab.key === "ratings" ? (aggregate?.reviewCount ?? 0) : null;
           return (
             <button
               key={tab.key}
@@ -172,13 +176,21 @@ export function CompanyProfileTabs({
               aria-controls={panelId[tab.key]}
               tabIndex={selected ? 0 : -1}
               onClick={() => selectTab(tab.key)}
-              className={`flex min-h-12 items-center justify-center rounded-lg px-3 py-3 text-center text-sm font-semibold transition sm:text-base ${
+              className={`-mb-px flex min-h-12 shrink-0 items-baseline gap-2 rounded-t-[0.5rem] border-x border-t px-3 pb-2.5 pt-3 font-display text-base leading-none sm:px-5 sm:text-lg transition-colors focus-visible:outline-offset-[-4px] ${
                 selected
-                  ? "bg-brand-600 text-white shadow-sm"
-                  : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                  ? "border-x-border border-t-brand-600 bg-background text-foreground [border-top-width:3px]"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab.label}
+              {count !== null && count > 0 && (
+                <span
+                  aria-hidden="true"
+                  className={`font-sans text-xs tabular-nums ${selected ? "text-brand-700 dark:text-brand-300" : "text-muted-foreground"}`}
+                >
+                  {count}
+                </span>
+              )}
             </button>
           );
         })}
