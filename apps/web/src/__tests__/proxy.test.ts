@@ -94,7 +94,7 @@ describe("proxy (review-traffic header stripping)", () => {
 });
 
 describe("proxy (private-conversation traffic)", () => {
-  it.each(["/api/proxy/conversations/abc/messages", "/api/proxy/me/conversations", "/api/proxy/owner/companies/c1/conversations"])(
+  it.each(["/api/proxy/conversations/abc/messages", "/api/proxy/me/conversations", "/api/proxy/owner/conversations", "/api/proxy/owner/companies/c1/conversations"])(
     "drops identifying headers on %s too",
     (path) => {
       const res = proxy(

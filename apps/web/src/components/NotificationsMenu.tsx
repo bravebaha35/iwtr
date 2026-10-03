@@ -210,9 +210,9 @@ function hrefForNotification(n: AppNotification): string {
     case "BENCHMARK_REPORT_READY":
       return n.href ?? "/my/companies";
     case "CONVERSATION_MESSAGE_FROM_COMPANY":
-      return n.href ?? "/messages";
+      return n.href ?? "/social";
     case "CONVERSATION_MESSAGE_FROM_REVIEWER":
-      return n.href ?? "/messages";
+      return n.href ?? "/social";
   }
 }
 

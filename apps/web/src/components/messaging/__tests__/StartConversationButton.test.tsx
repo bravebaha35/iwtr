@@ -17,7 +17,7 @@ beforeEach(() => post.mockReset());
 describe("StartConversationButton", () => {
   it("links to the existing conversation instead of starting a new one", () => {
     render(<StartConversationButton reviewId={REVIEW} companyName="Acme" conversationId={CONV} />);
-    expect(screen.getByRole("link", { name: "Open conversation" })).toHaveAttribute("href", `/messages?c=${CONV}`);
+    expect(screen.getByRole("link", { name: "Open conversation" })).toHaveAttribute("href", `/social?openChat=${CONV}`);
   });
 
   it("sends the first message and then links to the new conversation", async () => {
@@ -28,7 +28,7 @@ describe("StartConversationButton", () => {
     await userEvent.type(screen.getByRole("textbox"), "Can I add some detail?");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(post).toHaveBeenCalledWith(`/reviews/${REVIEW}/conversation`, { content: "Can I add some detail?" });
-    expect(await screen.findByRole("link", { name: "Open conversation" })).toHaveAttribute("href", `/messages?c=${CONV}`);
+    expect(await screen.findByRole("link", { name: "Open conversation" })).toHaveAttribute("href", `/social?openChat=${CONV}`);
   });
 
   it("keeps the draft and shows why a message was blocked", async () => {

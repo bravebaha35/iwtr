@@ -78,6 +78,7 @@ function isAnonymousTraffic(pathname: string): boolean {
     pathname.startsWith("/api/proxy/reviews") ||
     pathname.startsWith("/api/proxy/conversations") ||
     pathname === "/api/proxy/me/conversations" ||
+    pathname === "/api/proxy/owner/conversations" ||
     /^\/api\/proxy\/owner\/companies\/[^/]+\/conversations$/.test(pathname)
   );
 }

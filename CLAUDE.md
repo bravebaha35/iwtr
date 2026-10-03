@@ -115,11 +115,14 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `publicReviewerName` (the review's public display name), never a user id. Timestamps are day-precision;
   ordering/unread use the message `seq`. Anything that moves or deletes reviews/companies must carry
   `ReviewConversation.companyId` along (company merge does).
-  Both sides read their inbox on the top-bar `/messages` page (owners get one list across all their
-  companies via `GET owner/conversations`). Each side sees the review's public name/avatar (randomized
-  stand-ins included) and the company logo; the reviewer also sees the answering owner's real name, taken
-  from `EmployerProfile` only — never the PII vault — and only once that owner ticked "Show company owner's name
-  during messaging" (`CompanyOwner.showNameInMessages`, default off); otherwise "Company representative".
+  Both sides read their inbox in the bottom-right dock on IWT Social only (`components/messaging/ChatDock.tsx`,
+  mounted by `app/social/page.tsx`; owners get one list across all their companies via `GET owner/conversations`).
+  Notification links are `/social?openChat=<conversationId>`; the old `/messages?c=` route just redirects there.
+  Each side sees the review's public name/avatar (randomized stand-ins included) and the company logo. The
+  reviewer sees no owner name until the company's first message (`companyReplied`), then the answering owner's
+  legal name — from `EmployerProfile` only, never the PII vault — if that owner ticked "Show company owner's name
+  during messaging" (`CompanyOwner.showNameInMessages`, chosen at claim, default off), otherwise "Company
+  representative". Every owner must give a legal name when claiming (one approved owner per company).
   Phone numbers are allowed in messages (skipped via `skipViolationTypes`) and flagged `sharesPhoneNumber` so
   both sides see a warning note; reviews and IWT Social still block them.
 - IWT Social post/comment times go out to members and companies rounded to the hour (`toUtcHour`); the DB keeps

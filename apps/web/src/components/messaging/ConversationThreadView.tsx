@@ -11,6 +11,10 @@ interface Props {
   thread: ConversationThread;
   mode: "reviewer" | "company";
   onChange: (thread: ConversationThread) => void;
+  // "dock": inside a narrow chat panel (IWT Social's message dock), whose
+  // own title bar already shows who the conversation is with - so only the
+  // review excerpt and End stay up here, and everything is a size smaller.
+  variant?: "page" | "dock";
 }
 
 function formatDay(day: string): string {
@@ -45,7 +49,8 @@ function PhoneSharingNote({ className = "" }: { className?: string }) {
  * One private reviewer <-> company conversation. Days only, never times: an
  * exact send time could help a company work out who the reviewer is.
  */
-export function ConversationThreadView({ thread, mode, onChange }: Props) {
+export function ConversationThreadView({ thread, mode, onChange, variant = "page" }: Props) {
+  const dock = variant === "dock";
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,15 +112,17 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
   }
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
+    <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${dock ? "gap-2" : "gap-4"}`}>
+      <header
+        className={`flex shrink-0 flex-wrap items-start justify-between border-b border-border ${dock ? "gap-2 pb-2" : "gap-3 pb-3"}`}
+      >
         <div className="flex min-w-0 items-start gap-3">
-          <CounterpartPicture conversation={thread} mode={mode} />
+          {!dock && <CounterpartPicture conversation={thread} mode={mode} />}
           <div className="min-w-0">
-            <h3 className="text-base font-semibold text-foreground">{thread.companyName}</h3>
-            <ConversationStatus conversation={thread} mode={mode} />
+            {!dock && <h3 className="text-base font-semibold text-foreground">{thread.companyName}</h3>}
+            {!dock && <ConversationStatus conversation={thread} mode={mode} />}
             {thread.reviewExcerpt && (
-              <p className="mt-1 line-clamp-2 text-xs italic text-muted-foreground">
+              <p className={`line-clamp-2 text-xs italic text-muted-foreground ${dock ? "" : "mt-1"}`}>
                 {mode === "company" ? "About their review: " : "About your review: "}
                 &ldquo;{thread.reviewExcerpt}&rdquo;
               </p>
@@ -126,9 +133,10 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
           <button
             type="button"
             onClick={end}
-            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-muted"
+            aria-label="End conversation"
+            className={`rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-surface-muted ${dock ? "px-2 py-1" : "px-3 py-1.5"}`}
           >
-            End conversation
+            {dock ? "End" : "End conversation"}
           </button>
         )}
       </header>
@@ -169,7 +177,7 @@ export function ConversationThreadView({ thread, mode, onChange }: Props) {
           onChange={(e) => setDraft(e.target.value)}
           disabled={!thread.canSend || sending}
           maxLength={2000}
-          rows={3}
+          rows={dock ? 2 : 3}
           placeholder={thread.canSend ? "Write a message. Don't include anyone's name." : ""}
           className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground disabled:opacity-50"
         />
