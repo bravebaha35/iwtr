@@ -1,8 +1,10 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import {
   adminCreateCompanyInputSchema,
+  companyBrowseQuerySchema,
   companySearchQuerySchema,
   type AdminCreateCompanyInput,
+  type CompanyBrowseQuery,
   type CompanySearchQuery,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
@@ -42,8 +44,15 @@ export class CompaniesController {
     return this.companies.search(query);
   }
 
-  // Both must be registered before "companies/:slug" — otherwise Nest's route
-  // matching would treat "sitemap"/"filters" as a slug value for that route.
+  // browse, sitemap and filters must be registered before "companies/:slug" —
+  // otherwise Nest's route matching would treat them as a slug value.
+
+  // The homepage grid: filtered, sorted and paged on the server, 20 cards at a time.
+  @Get("companies/browse")
+  browse(@Query(new ZodValidationPipe(companyBrowseQuerySchema)) query: CompanyBrowseQuery) {
+    return this.companies.browse(query);
+  }
+
   @Get("companies/sitemap")
   sitemap() {
     return this.companies.listForSitemap();

@@ -3,6 +3,7 @@ export * from "./schemas/user";
 export * from "./schemas/skill";
 export * from "./schemas/workplaceType";
 export * from "./schemas/company";
+export * from "./schemas/companyBrowse";
 export * from "./schemas/review";
 export * from "./schemas/messaging";
 export * from "./schemas/benchmark";

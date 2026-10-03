@@ -14,15 +14,10 @@
 // apps/api/scripts/seed-nationwide-brands.ts) — every pre-existing company
 // (finance, construction, tech, etc.) falls under Firms by exclusion, same
 // as a company whose category happens to be spelled differently.
-export type CategoryGroup = "FIRMS" | "SUPERMARKET" | "FRANCHISE" | "LOGISTICS" | "CLOTHING" | "SERVICE_PROVIDERS" | "OIL_ENERGY";
-const NARROW_CATEGORY_GROUP_VALUES = [
-  "Supermarket",
-  "Franchise",
-  "Logistics",
-  "Clothing Retail",
-  "Telecom",
-  "Fuel & Energy",
-];
+// The groups and their matching rule live in shared-types, so the homepage's
+// server-side paging (GET /companies/browse) and these pages agree exactly.
+import { matchesCategoryGroup, type CategoryGroup } from "@iwtr/shared-types";
+export { matchesCategoryGroup, type CategoryGroup };
 
 // Each pill shows its icon next to its name (see CategoryGroupFilter below).
 type IconProps = { className?: string };
@@ -126,16 +121,6 @@ export const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon
   { value: "SERVICE_PROVIDERS", label: "Service Providers", icon: TelecomIcon },
   { value: "OIL_ENERGY", label: "Oil & Energy", icon: OilDropIcon },
 ];
-export function matchesCategoryGroup(company: { category: string }, group: CategoryGroup | null): boolean {
-  if (!group) return true;
-  if (group === "FIRMS") return !NARROW_CATEGORY_GROUP_VALUES.includes(company.category);
-  if (group === "SUPERMARKET") return company.category === "Supermarket";
-  if (group === "FRANCHISE") return company.category === "Franchise";
-  if (group === "LOGISTICS") return company.category === "Logistics";
-  if (group === "CLOTHING") return company.category === "Clothing Retail";
-  if (group === "SERVICE_PROVIDERS") return company.category === "Telecom";
-  return company.category === "Fuel & Energy";
-}
 
 // The Quick Select control — shared by the rating homepage, the Jobs page
 // and IWT Social's sidebar. All 7 groups are always on screen with their

@@ -1,17 +1,17 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { normalizeSortOption, sortCompaniesBy, type SortOption } from "@/components/SortButtons";
+import { normalizeSortOption, type SortOption } from "@/components/SortButtons";
 import { SearchSortBox } from "@/components/SearchSortBox";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { type CompanyListItem, type WorkplaceType } from "@iwtr/shared-types";
-import { apiGet } from "@/lib/api-client";
+import { COMPANY_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type WorkplaceType } from "@iwtr/shared-types";
+import { fetchBrowsePage, hasBrowsePage, prefetchBrowsePage } from "@/lib/companyBrowse";
 import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarOutlinedButtonClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
-import { type CategoryGroup, matchesCategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
+import { type CategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
 import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
 import { RewindButton } from "@/components/RewindButton";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -20,13 +20,15 @@ import { AdSlot } from "@/components/AdSlot";
 import { CompanyWorkCard } from "@/components/company/CompanyWorkCard";
 import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
 import { HOME_FILTERS_STORAGE_KEY } from "@/lib/homeFilters";
-import { distanceKm, findProvinceByCityName } from "@/lib/turkeyGeo";
+import { distanceKm, TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { RATING_TICKS, activeMoodIndex } from "@/lib/beaverRating";
 
-type Geo = { lat: number; lng: number } | "denied" | null;
+// "Near Me" keeps only the nearest province's name - the visitor's actual
+// position never leaves requestNearMe, let alone the browser.
+type Geo = { nearCity: string } | "denied" | null;
 
 // 4 columns × 5 rows at the desktop breakpoint — see CompanyCard/grid below.
-const RESULTS_PAGE_SIZE = 20;
+const RESULTS_PAGE_SIZE = COMPANY_BROWSE_PAGE_SIZE;
 
 // Google-style page list: always show the first and last page, a small
 // window around the current page, and "…" for whatever's skipped in between.
@@ -95,10 +97,12 @@ function PaginationBar({
   );
 }
 
-function distanceOf(company: CompanyListItem, geo: { lat: number; lng: number }): number {
-  const province = findProvinceByCityName(company.city);
-  if (!province) return Infinity;
-  return distanceKm(geo.lat, geo.lng, province.lat, province.lng);
+function nearestProvince(lat: number, lng: number): string {
+  let best = TURKEY_PROVINCES[0];
+  for (const p of TURKEY_PROVINCES) {
+    if (distanceKm(lat, lng, p.lat, p.lng) < distanceKm(lat, lng, best.lat, best.lng)) best = p;
+  }
+  return best.name;
 }
 
 type HighlightTarget = "search" | "categories";
@@ -198,9 +202,13 @@ export function WorkplaceBrowser() {
     Array.isArray(initialFilters.selectedDistrictKeys) ? initialFilters.selectedDistrictKeys : [],
   );
   const [query, setQuery] = useState(() => initialFilters.query ?? "");
-  const [companies, setCompanies] = useState<CompanyListItem[] | null>(null);
+  // The page of cards on screen, plus the totals (see GET /companies/browse).
+  const [result, setResult] = useState<CompanyBrowseResult | null>(null);
+  // A newer page is on its way: the current cards stay up (dimmed) instead
+  // of the grid blanking out.
+  const [loading, setLoading] = useState(false);
   // Distinguishes "the request failed" from "genuinely zero matches" — both
-  // used to collapse into the same empty `companies` state and render the
+  // used to collapse into the same empty results state and render the
   // same "No workplaces match these filters yet" message, which made a
   // backend/network outage indistinguishable from a real empty result.
   const [loadError, setLoadError] = useState(false);
@@ -287,7 +295,7 @@ export function WorkplaceBrowser() {
     setGeoRequesting(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeo({ nearCity: nearestProvince(pos.coords.latitude, pos.coords.longitude) });
         setGeoRequesting(false);
       },
       () => {
@@ -298,18 +306,13 @@ export function WorkplaceBrowser() {
     );
   }
 
-  // Sends everything except `category` to the server — q, workplaceTypes,
-  // cities/districtKeys, and minRating are real Prisma WHERE clauses now
-  // (see CompaniesService.search), rather than fetching the whole directory
-  // and filtering it in the browser. `category` stays client-side (applied
-  // in visibleCompanies below) for one reason: the category dropdown's own
-  // option list needs to reflect what's available for the current
-  // workplaceTypes selection regardless of which category happens to be
-  // picked — filtering it server-side too would make picking a category
-  // collapse the dropdown down to just that one option. Debounced 250ms so
-  // dragging the rating slider or toggling several pills in a row doesn't
-  // fire a request per intermediate value.
-  useEffect(() => {
+  // Every filter, the sort, Quick Select, Near Me and the page go to the
+  // server (CompaniesService.browse), which sends back just the 20 cards on
+  // screen - never the whole directory. Filter changes wait 250ms so
+  // dragging the rating slider or clicking several pills in a row sends one
+  // request, not one per step; page clicks go at once, and a page already
+  // fetched (or fetched ahead) shows with no request at all.
+  const filterParams = useMemo(() => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (workplaceTypes.length > 0) params.set("workplaceTypes", workplaceTypes.join(","));
@@ -317,26 +320,44 @@ export function WorkplaceBrowser() {
     if (selectedDistrictKeys.length > 0) params.set("districtKeys", selectedDistrictKeys.join(","));
     if (minRating > 0) params.set("minRating", String(minRating));
     if (maxRiskScore < 3) params.set("maxRiskScore", String(maxRiskScore));
+    if (selectedCategory) params.set("category", selectedCategory);
+    if (categoryGroup) params.set("categoryGroup", categoryGroup);
+    if (sortBy !== "default") params.set("sort", sortBy);
+    if (geo && geo !== "denied") params.set("nearCity", geo.nearCity);
+    return params.toString();
+  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore, selectedCategory, categoryGroup, sortBy, geo]);
+  const lastFilterParams = useRef<string | null>(null);
 
+  useEffect(() => {
+    const filtersChanged = lastFilterParams.current !== null && lastFilterParams.current !== filterParams;
+    lastFilterParams.current = filterParams;
     let cancelled = false;
     setLoadError(false);
+    setLoading(true);
+    const wait = filtersChanged && !hasBrowsePage(filterParams, page) ? 250 : 0;
     const handle = setTimeout(() => {
-      apiGet<CompanyListItem[]>(`/companies?${params.toString()}`)
+      fetchBrowsePage(filterParams, page)
         .then((data) => {
-          if (!cancelled) setCompanies(data);
+          if (cancelled) return;
+          setResult(data);
+          setLoading(false);
+          // The list shrank since this page number was saved: follow the
+          // server to the last page that exists.
+          if (data.page !== page) setPage(data.page);
+          if (data.page * data.pageSize < data.total) prefetchBrowsePage(filterParams, data.page + 1);
         })
         .catch(() => {
-          if (!cancelled) {
-            setCompanies([]);
-            setLoadError(true);
-          }
+          if (cancelled) return;
+          setResult({ items: [], total: 0, page: 1, pageSize: RESULTS_PAGE_SIZE, hiddenUnratedCount: 0 });
+          setLoading(false);
+          setLoadError(true);
         });
-    }, 250);
+    }, wait);
     return () => {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore]);
+  }, [filterParams, page]);
 
   // Changing which workplace type(s) are active can make the current
   // category selection unavailable (or just irrelevant) — reset it rather
@@ -357,30 +378,6 @@ export function WorkplaceBrowser() {
   // workplace type selected ("All"), every sector is shown.
   const sectorOptions = useMemo(() => sectorsForWorkplaceTypes(workplaceTypes), [workplaceTypes]);
 
-  // Workplaces with no reviews yet stay out of the default view - the
-  // homepage opens on real ratings only. Pressing A-Z, a Quick Select
-  // button, or searching for a name brings them in, and even then rated
-  // workplaces always come first.
-  const showUnrated =
-    sortBy === "alphabetical" || sortBy === "alphabeticalDesc" || categoryGroup !== null || query.trim() !== "";
-
-  const { visibleCompanies, hiddenUnratedCount } = useMemo(() => {
-    if (!companies) return { visibleCompanies: null, hiddenUnratedCount: 0 };
-    let list = selectedCategory ? companies.filter((c) => c.category === selectedCategory) : companies;
-    list = list.filter((c) => matchesCategoryGroup(c, categoryGroup));
-
-    if (sortBy !== "default") {
-      list = sortCompaniesBy(list, sortBy);
-    } else if (geo && geo !== "denied") {
-      list = [...list].sort((a, b) => distanceOf(a, geo) - distanceOf(b, geo));
-    }
-    const rated = list.filter((c) => c.reviewCount > 0);
-    const unrated = list.filter((c) => c.reviewCount === 0);
-    return showUnrated
-      ? { visibleCompanies: [...rated, ...unrated], hiddenUnratedCount: 0 }
-      : { visibleCompanies: rated, hiddenUnratedCount: unrated.length };
-  }, [companies, selectedCategory, categoryGroup, geo, sortBy, showUnrated]);
-
   // Any change to what's being shown should land back on page 1 — otherwise
   // narrowing a filter can strand you on a now-nonexistent page 12 of 2.
   useEffect(() => {
@@ -389,7 +386,7 @@ export function WorkplaceBrowser() {
       return;
     }
     setPage(1);
-  }, [workplaceTypes, selectedCategory, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, sortBy, query]);
+  }, [workplaceTypes, selectedCategory, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, sortBy, query, categoryGroup, geo]);
 
   // Mirror every filter/search/sort/page choice into sessionStorage as it
   // changes, so loadPersistedFilters picks it back up on the next mount (see
@@ -416,8 +413,10 @@ export function WorkplaceBrowser() {
     }
   }, [workplaceTypes, selectedCategory, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, query, sortBy, categoryGroup, page]);
 
-  const totalPages = visibleCompanies ? Math.max(1, Math.ceil(visibleCompanies.length / RESULTS_PAGE_SIZE)) : 1;
-  const pageCompanies = visibleCompanies?.slice((page - 1) * RESULTS_PAGE_SIZE, page * RESULTS_PAGE_SIZE) ?? null;
+  const total = result?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / RESULTS_PAGE_SIZE));
+  const pageCompanies = result?.items ?? null;
+  const hiddenUnratedCount = result?.hiddenUnratedCount ?? 0;
 
   function goToPage(next: number) {
     setPage(next);
@@ -618,7 +617,12 @@ export function WorkplaceBrowser() {
                 compact density) — 20 per page lays out as a clean 4x5 grid,
                 trading the extra column for taller cards that show the full
                 company name instead of truncating it. */}
-            <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div
+              aria-busy={loading}
+              className={`grid grid-cols-1 gap-4 transition-opacity compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+                loading && pageCompanies !== null ? "opacity-60" : ""
+              }`}
+            >
               {pageCompanies?.map((c) => (
                 <CompanyWorkCard
                   key={c.id}
@@ -631,11 +635,11 @@ export function WorkplaceBrowser() {
               ))}
             </div>
 
-            {visibleCompanies !== null && visibleCompanies.length > 0 && (
+            {total > 0 && (
               <>
                 <p className="mt-4 text-center text-xs text-muted-foreground">
-                  Page {page} of {totalPages} — {visibleCompanies.length} workplace
-                  {visibleCompanies.length === 1 ? "" : "s"}
+                  Page {page} of {totalPages} — {total} workplace
+                  {total === 1 ? "" : "s"}
                 </p>
                 <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
               </>
