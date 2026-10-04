@@ -2,7 +2,6 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Notification } from "@iwtr/shared-types";
 import { NotificationsMenu } from "../NotificationsMenu";
-import { clearNotificationReadState } from "@/lib/notificationReadState";
 import { announceNewNotifications } from "@/lib/notification-events";
 import * as apiClient from "@/lib/api-client";
 
@@ -10,9 +9,10 @@ let mockRole = "MEMBER";
 jest.mock("@/lib/auth-context", () => ({ useAuth: () => ({ role: mockRole }) }));
 jest.mock("@/lib/api-client", () => {
   const actual = jest.requireActual("@/lib/api-client");
-  return { ...actual, apiGet: jest.fn() };
+  return { ...actual, apiGet: jest.fn(), apiPost: jest.fn() };
 });
 const get = apiClient.apiGet as jest.Mock;
+const post = apiClient.apiPost as jest.Mock;
 
 const reply: Notification = {
   id: "reply-1",
@@ -20,14 +20,15 @@ const reply: Notification = {
   companyName: "Acme",
   companySlug: "acme",
   createdAt: new Date().toISOString(),
+  read: false,
 };
 
 const badge = () => screen.getByRole("button", { name: "Notifications" }).querySelector("[data-unread-badge]");
 
 beforeEach(() => {
   mockRole = "MEMBER";
-  localStorage.clear();
   get.mockReset();
+  post.mockReset().mockResolvedValue({ ok: true });
 });
 
 describe("NotificationsMenu", () => {
@@ -83,31 +84,31 @@ describe("NotificationsMenu", () => {
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
 
-  it("remembers what was read after a reload", async () => {
-    get.mockResolvedValue([reply]);
-    const first = render(<NotificationsMenu />);
+  it("saves Mark all as read on the account", async () => {
+    get.mockResolvedValue([reply, { ...reply, id: "reply-2", read: true }]);
+    render(<NotificationsMenu />);
     await waitFor(() => expect(badge()).not.toBeNull());
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
     await userEvent.click(await screen.findByRole("button", { name: "Mark all as read" }));
-    first.unmount();
-
-    const callsBefore = get.mock.calls.length;
-    render(<NotificationsMenu />);
-    await waitFor(() => expect(get.mock.calls.length).toBe(callsBefore + 1));
-    await act(async () => {});
+    expect(post).toHaveBeenCalledWith("/me/notifications/read", { ids: ["reply-1"] });
     expect(badge()).toBeNull();
   });
 
-  it("forgets read state on sign-out, so the next account starts clean", async () => {
+  it("saves an opened notification as read on the account", async () => {
     get.mockResolvedValue([reply]);
-    const first = render(<NotificationsMenu />);
-    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Mark all as read" }));
-    first.unmount();
-    clearNotificationReadState();
-
     render(<NotificationsMenu />);
-    await waitFor(() => expect(badge()).not.toBeNull());
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    await userEvent.click(await screen.findByText("Acme replied to your review."));
+    expect(post).toHaveBeenCalledWith("/me/notifications/read", { ids: ["reply-1"] });
+  });
+
+  it("stays read after signing in again: read state comes from the account", async () => {
+    localStorage.clear();
+    get.mockResolvedValue([{ ...reply, read: true }]);
+    render(<NotificationsMenu />);
+    await waitFor(() => expect(get).toHaveBeenCalled());
+    await act(async () => {});
+    expect(badge()).toBeNull();
   });
 
   it("refetches when something announces a new notification", async () => {
@@ -133,10 +134,10 @@ describe("NotificationsMenu - newer notification types", () => {
 
   it("describes review outcomes and claim decisions, linking where the API says", async () => {
     get.mockResolvedValue([
-      { id: "a", type: "REVIEW_PUBLISHED", companyName: "Acme", companySlug: "acme", createdAt: at, href: "/companies/acme" },
-      { id: "b", type: "REVIEW_NOT_PUBLISHED", companyName: "Beta", companySlug: "beta", createdAt: at, href: "/me/reviews" },
-      { id: "c", type: "CLAIM_APPROVED", companyName: "Acme", companySlug: "acme", createdAt: at, href: "/my/companies" },
-      { id: "d", type: "CLAIM_REJECTED", companyName: "Beta", companySlug: "beta", createdAt: at, href: "/companies/beta" },
+      { id: "a", type: "REVIEW_PUBLISHED", companyName: "Acme", companySlug: "acme", createdAt: at, read: false, href: "/companies/acme" },
+      { id: "b", type: "REVIEW_NOT_PUBLISHED", companyName: "Beta", companySlug: "beta", createdAt: at, read: false, href: "/me/reviews" },
+      { id: "c", type: "CLAIM_APPROVED", companyName: "Acme", companySlug: "acme", createdAt: at, read: false, href: "/my/companies" },
+      { id: "d", type: "CLAIM_REJECTED", companyName: "Beta", companySlug: "beta", createdAt: at, read: false, href: "/companies/beta" },
     ] satisfies Notification[]);
     render(<NotificationsMenu />);
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
@@ -154,11 +155,11 @@ describe("NotificationsMenu - newer notification types", () => {
         type: "JOB_APPLICATION_RECEIVED",
         companyName: "Acme",
         companySlug: "acme",
-        createdAt: at,
+        createdAt: at, read: false,
         jobTitle: "Forklift Operatörü",
         href: "/my/companies?category=applications&company=c1",
       },
-      { id: "f", type: "COMPANY_REVIEWED", companyName: "Acme", companySlug: "acme", createdAt: at, href: "/companies/acme" },
+      { id: "f", type: "COMPANY_REVIEWED", companyName: "Acme", companySlug: "acme", createdAt: at, read: false, href: "/companies/acme" },
     ] satisfies Notification[]);
     render(<NotificationsMenu />);
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
@@ -171,7 +172,7 @@ describe("NotificationsMenu - newer notification types", () => {
 
   it("opens a vote or reply on the review itself", async () => {
     get.mockResolvedValue([
-      { id: "v", type: "VOTE_NOT_HELPFUL", companyName: "Acme", companySlug: "acme", createdAt: at, href: "/companies/acme?review=r1" },
+      { id: "v", type: "VOTE_NOT_HELPFUL", companyName: "Acme", companySlug: "acme", createdAt: at, read: false, href: "/companies/acme?review=r1" },
       { ...reply, href: "/companies/acme?review=r2" },
     ] satisfies Notification[]);
     render(<NotificationsMenu />);

@@ -253,7 +253,13 @@ export class CompaniesService {
           query.companyId ? { id: query.companyId } : {},
         ],
       },
-      select: { id: true, name: true, city: true, aggregate: { select: { overallAvg: true, reviewCount: true } } },
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        riskScore: true,
+        aggregate: { select: { overallAvg: true, reviewCount: true } },
+      },
       orderBy: { name: "asc" },
     });
     const rows = sortBrowseRows(
@@ -263,6 +269,7 @@ export class CompaniesService {
         city: m.city,
         overallAvg: m.aggregate?.overallAvg ?? null,
         reviewCount: m.aggregate?.reviewCount ?? 0,
+        riskScore: m.riskScore,
       })),
       sort,
       query.nearCity,

@@ -299,6 +299,7 @@ model User {
   companyReports             CompanyReport[]
   socialCommentIdentityLocks SocialCommentIdentityLock[]
   savedJobPostings           SavedJobPosting[]
+  notificationReads          NotificationRead[]
   jobApplications            JobApplication[]
   skills                     UserSkill[]
   reviewConversations        ReviewConversation[]
@@ -1391,6 +1392,21 @@ model SavedPost {
 
 // A private bookmark on a job posting — same shape/semantics as SavedPost
 // (no public save-count, only the saver can ever list their own saves).
+// Which header-bell notifications a member has opened or marked read.
+// Notifications themselves are derived on the fly (NotificationsService),
+// so only their stable id string is stored here - never their content.
+// Kept per account (not per browser) so a notification never comes back
+// as unread after signing in again or on another device.
+model NotificationRead {
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationId String
+  readAt         DateTime @default(now())
+
+  @@id([userId, notificationId])
+  @@schema("public")
+}
+
 model SavedJobPosting {
   id           String     @id @default(uuid())
   userId       String

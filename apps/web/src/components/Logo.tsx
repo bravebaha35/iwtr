@@ -14,7 +14,9 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" }) {
       height={64}
       sizes="32px"
       priority
-      className={`${box} shrink-0 rounded-[0.5rem] object-contain`}
+      // No rounded corners: the mark runs to the image's edges, so rounding
+      // would clip the beaver's shoulders.
+      className={`${box} shrink-0 object-contain`}
     />
   );
 }

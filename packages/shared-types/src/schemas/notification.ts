@@ -58,5 +58,15 @@ export const notificationSchema = z.object({
   href: z.string().optional(),
   // JOB_APPLICATION_RECEIVED only: the posting that was applied to.
   jobTitle: z.string().optional(),
+  // The member already opened it or pressed "Mark all as read" (stored per
+  // account in NotificationRead, so it stays read after signing in again).
+  read: z.boolean(),
 });
 export type Notification = z.infer<typeof notificationSchema>;
+
+// POST /me/notifications/read - the ids the member just read (one click,
+// or every id in the list for "Mark all as read").
+export const markNotificationsReadSchema = z.object({
+  ids: z.array(z.string().min(1).max(200)).min(1).max(100),
+});
+export type MarkNotificationsReadInput = z.infer<typeof markNotificationsReadSchema>;

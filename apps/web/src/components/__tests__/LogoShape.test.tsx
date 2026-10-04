@@ -15,8 +15,10 @@ describe("logo shape", () => {
     expect(screen.getByText("M")).toHaveClass("rounded-[0.75rem]");
   });
 
-  it("the site logo in the header keeps small fixed corners too", () => {
+  // The beaver mark runs to the image's edges, so any rounding clips it
+  // (user request 2026-10-04: show it uncropped).
+  it("the site logo in the header is never rounded", () => {
     render(<Logo size="sm" />);
-    expect(screen.getByAltText("I Worked There")).toHaveClass("rounded-[0.5rem]");
+    expect(screen.getByAltText("I Worked There").className).not.toMatch(/rounded/);
   });
 });

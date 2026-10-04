@@ -19,6 +19,7 @@ function basePrisma(overrides: Record<string, unknown> = {}) {
     companyOwner: { findMany: jest.fn().mockResolvedValue([]) },
     reviewConversation: { findMany: jest.fn().mockResolvedValue([]) },
     jobApplication: { findMany: jest.fn().mockResolvedValue([]) },
+    notificationRead: { findMany: jest.fn().mockResolvedValue([]), createMany: jest.fn().mockResolvedValue({ count: 0 }) },
     ...overrides,
   } as never;
 }
@@ -355,5 +356,48 @@ describe("NotificationsService.list - reviews, claims and applications", () => {
     const prisma = basePrisma();
     await new NotificationsService(prisma).list("u1");
     expect((prisma as any).jobApplication.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("NotificationsService - read state", () => {
+  const reply = { id: "r1", reviewId: "rev1", createdAt: new Date("2026-01-02T00:00:00Z") };
+  const withReplies = (readIds: string[]) =>
+    basePrisma({
+      review: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: "rev1", status: "PUBLISHED", publishedAt: null, createdAt: new Date(), company: { name: "Acme", slug: "acme" } },
+        ]),
+      },
+      companyReply: { findMany: jest.fn().mockResolvedValue([reply]) },
+      notificationRead: {
+        findMany: jest.fn().mockResolvedValue(readIds.map((notificationId) => ({ notificationId }))),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    });
+
+  it("marks events this account already read, scoped to the caller", async () => {
+    const prisma = withReplies(["reply-r1"]);
+    const events = await new NotificationsService(prisma).list("u1");
+    expect(events.find((e) => e.id === "reply-r1")?.read).toBe(true);
+    expect((prisma as any).notificationRead.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ userId: "u1" }) }),
+    );
+  });
+
+  it("leaves unread events unread", async () => {
+    const events = await new NotificationsService(withReplies([])).list("u1");
+    expect(events.find((e) => e.id === "reply-r1")?.read).toBe(false);
+  });
+
+  it("stores read ids once per account, ignoring repeats", async () => {
+    const prisma = withReplies([]);
+    await new NotificationsService(prisma).markRead("u1", ["reply-r1", "reply-r1", "vote-v1"]);
+    expect((prisma as any).notificationRead.createMany).toHaveBeenCalledWith({
+      data: [
+        { userId: "u1", notificationId: "reply-r1" },
+        { userId: "u1", notificationId: "vote-v1" },
+      ],
+      skipDuplicates: true,
+    });
   });
 });

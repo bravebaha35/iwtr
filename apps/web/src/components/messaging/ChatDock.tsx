@@ -315,6 +315,9 @@ function ChatPanel({
 
   const shown = thread ?? summary;
   const title = shown?.companyName ?? "Conversation";
+  // A minimised panel is a plain name tab: the company for a reviewer, the
+  // review's public name for the company. No picture, no status line.
+  const minimisedTitle = (mode === "company" ? shown?.reviewerName : shown?.companyName) ?? title;
 
   return (
     <motion.section
@@ -326,18 +329,25 @@ function ChatPanel({
       aria-label={`Conversation with ${title}`}
       className="pointer-events-auto flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden max-sm:w-[calc(100vw-2rem)] rounded-t-[2px] border border-b-0 border-border bg-surface"
     >
-      <div className={TITLE_BAR}>
+      {/* Minimised, the bar is exactly as tall as the Messages tab beside it. */}
+      <div className={minimised ? TITLE_BAR.replace("py-2", "py-1") : TITLE_BAR}>
         <button
           type="button"
           onClick={() => setMinimised((v) => !v)}
           aria-expanded={!minimised}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          {shown && <CounterpartPicture conversation={shown} mode={mode} />}
-          <span className="min-w-0">
-            <span className="block truncate font-medium">{title}</span>
-            {shown && <ConversationStatus conversation={shown} mode={mode} />}
-          </span>
+          {minimised ? (
+            <span className="block min-w-0 truncate font-medium">{minimisedTitle}</span>
+          ) : (
+            <>
+              {shown && <CounterpartPicture conversation={shown} mode={mode} />}
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{title}</span>
+                {shown && <ConversationStatus conversation={shown} mode={mode} />}
+              </span>
+            </>
+          )}
         </button>
         <button
           type="button"

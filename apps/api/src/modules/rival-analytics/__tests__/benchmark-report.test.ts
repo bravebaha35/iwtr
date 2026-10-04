@@ -199,6 +199,7 @@ describe("BenchmarkReportWorker.processNext (async generation end-to-end)", () =
       companyOwner: { findMany: jest.fn().mockResolvedValue([]) },
       reviewConversation: { findMany: jest.fn().mockResolvedValue([]) },
       hrAnalyticsReportJob: { findMany: jest.fn().mockResolvedValue([]) },
+      notificationRead: { findMany: jest.fn().mockResolvedValue([]) },
       benchmarkReportJob: {
         findMany: jest.fn().mockResolvedValue([
           { id: JOB, companyId: COMPANY, completedAt: data.completedAt, company: { name: "Şirket A.Ş.", slug: "sirket" } },

@@ -16,6 +16,7 @@ export interface BrowseRow {
   city: string | null;
   overallAvg: number | null;
   reviewCount: number;
+  riskScore: number;
 }
 
 // Turkish-aware so Ç/Ş/İ/Ö/Ü/Ğ sort where Turkish readers expect them.
@@ -45,6 +46,12 @@ export function sortBrowseRows(rows: BrowseRow[], sort: CompanySort, nearCity?: 
       return [...rows].sort((a, b) => (b.overallAvg ?? -1) - (a.overallAvg ?? -1));
     case "ratingAsc":
       return [...rows].sort((a, b) => (a.overallAvg ?? Infinity) - (b.overallAvg ?? Infinity));
+    // Risk Score (0-3): highest risk first, or cleanest first. Ties keep
+    // the incoming name order.
+    case "riskDesc":
+      return [...rows].sort((a, b) => b.riskScore - a.riskScore);
+    case "riskAsc":
+      return [...rows].sort((a, b) => a.riskScore - b.riskScore);
     default: {
       const origin = nearCity ? findProvinceByCityName(nearCity) : undefined;
       if (!origin) return rows;

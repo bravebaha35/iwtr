@@ -258,8 +258,13 @@ class HrReportLayout {
     const text = TONE_TAG[tone];
     doc.font(FONT_BOLD).fontSize(5.8);
     const w = doc.widthOfString(text, { characterSpacing: 1 }) + 10;
+    const h = 11;
+    // Centre the capitals (all tags are upper case) on the box's middle line,
+    // from the font's own cap height, rather than a fixed nudge from the top.
+    const font = (doc as unknown as { _font: { ascender: number; capHeight: number } })._font;
+    const textTop = y + h / 2 - ((font.ascender - font.capHeight / 2) / 1000) * 5.8;
     if (tone === "STRENGTH") {
-      doc.rect(x, y, w, 11).fill(INK);
+      doc.rect(x, y, w, h).fill(INK);
     } else if (tone === "CONCERN") {
       doc.lineWidth(0.9).strokeColor(INK).rect(x + 0.45, y + 0.45, w - 0.9, 10.1).stroke();
     } else {
@@ -267,7 +272,7 @@ class HrReportLayout {
     }
     doc
       .fillColor(tone === "STRENGTH" ? "#ffffff" : tone === "CONCERN" ? INK : STEEL)
-      .text(text, x + 5, y + 3, { characterSpacing: 1, lineBreak: false });
+      .text(text, x + 5, textTop, { characterSpacing: 1, lineBreak: false });
   }
 
   private riskBlock(): void {
@@ -476,8 +481,7 @@ function drawFooters(doc: PdfDoc): void {
     const y = PAGE_H - M - 16;
     doc.lineWidth(0.5).strokeColor(HAIR).moveTo(M, y - 6).lineTo(M + W, y - 6).stroke();
     doc.image(BRAND_MARK, M, y, { width: 16, height: 16 });
-    doc.font(FONT_BOLD).fontSize(7).fillColor(INK).text("I Worked There", M + 22, y + 4.5, { lineBreak: false, continued: false });
-    doc.font(FONT_REGULAR).fillColor(GRAY).text("iworkedthere.com", M + 82, y + 4.5, { lineBreak: false });
+    doc.font(FONT_REGULAR).fontSize(7).fillColor(GRAY).text("iworkedthere.com", M + 22, y + 4.5, { lineBreak: false });
     doc.text(`Page ${i - range.start + 1} of ${range.count}`, M, y + 4.5, { width: W, align: "right", lineBreak: false });
   }
 }

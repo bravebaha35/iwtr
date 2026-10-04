@@ -5,6 +5,9 @@ import { daysRemaining } from "../job-postings/job-postings.util";
 import { toUtcHour } from "../../common/time/day-precision.util";
 
 const MAX_NOTIFICATIONS = 30;
+
+// One derived event, before the caller's read state is attached.
+type NotificationEvent = Omit<Notification, "read">;
 const RECENT_WINDOW_MS = 30 * 86_400_000;
 
 const startOfUtcDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -27,8 +30,8 @@ export class NotificationsService {
    * caller's own reviews) their own published JobPosting rows, plus
    * (independently again) the 3 COMPANY_* kinds derived from companies the
    * caller follows (CompanyFollow) — merged and re-sorted every time the
-   * dropdown opens. No read/unread state yet, just the most recent events
-   * across all sources.
+   * dropdown opens. Each event's read flag comes from NotificationRead
+   * (the ids this account already opened or marked read).
    */
   async list(userId: string): Promise<Notification[]> {
     const myReviews = await this.prisma.review.findMany({
@@ -193,7 +196,7 @@ export class NotificationsService {
         : Promise.resolve([]),
     ]);
 
-    const events: Notification[] = [
+    const events: NotificationEvent[] = [
       ...votes.map((v) => ({
         id: `vote-${v.id}`,
         type: (v.value === 1 ? "VOTE_HELPFUL" : "VOTE_NOT_HELPFUL") as NotificationType,
@@ -282,7 +285,30 @@ export class NotificationsService {
     events.push(...(await this.reviewClaimAndOwnerEvents(userId, myReviews, ownedCompanyIds)));
 
     events.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    return events.slice(0, MAX_NOTIFICATIONS);
+    const latest = events.slice(0, MAX_NOTIFICATIONS);
+    const reads =
+      latest.length > 0
+        ? await this.prisma.notificationRead.findMany({
+            where: { userId, notificationId: { in: latest.map((e) => e.id) } },
+            select: { notificationId: true },
+          })
+        : [];
+    const readIds = new Set(reads.map((r) => r.notificationId));
+    return latest.map((e) => ({ ...e, read: readIds.has(e.id) }));
+  }
+
+  /**
+   * Remembers that this account read these notifications (one opened, or
+   * every one shown for "Mark all as read"). Ids are opaque strings scoped
+   * to the caller's own rows, so an id that isn't one of theirs just never
+   * matches anything. Repeats are ignored.
+   */
+  async markRead(userId: string, ids: string[]): Promise<{ ok: true }> {
+    await this.prisma.notificationRead.createMany({
+      data: [...new Set(ids)].map((notificationId) => ({ userId, notificationId })),
+      skipDuplicates: true,
+    });
+    return { ok: true };
   }
 
   /**
@@ -300,7 +326,7 @@ export class NotificationsService {
       company: { name: string; slug: string };
     }[],
     ownedCompanyIds: string[],
-  ): Promise<Notification[]> {
+  ): Promise<NotificationEvent[]> {
     const since = new Date(Date.now() - RECENT_WINDOW_MS);
     const owner = ownedCompanyIds.length > 0;
     const [claims, applications, companyReviews] = await Promise.all([

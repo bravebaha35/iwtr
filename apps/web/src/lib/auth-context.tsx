@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { OnboardingStatus, UserRole } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "./api-client";
-import { clearNotificationReadState } from "@/lib/notificationReadState";
 
 interface SessionResponse {
   isAuthenticated: boolean;
@@ -211,9 +210,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    // Nothing from this account's notifications survives into the next
-    // session on a shared browser.
-    clearNotificationReadState();
     setIsAuthenticated(false);
     setRole(null);
     setOnboardingStatus(null);

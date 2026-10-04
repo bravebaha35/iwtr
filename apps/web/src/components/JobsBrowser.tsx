@@ -600,25 +600,37 @@ export function JobsBrowser() {
 
           {/* Results */}
           <div ref={resultsTopRef} className="min-w-0 flex-1">
-            {/* Two rows: search + sort in one pill (SearchSortBox, + the
-                owner's Create button) on top, then Quick Select on its own
-                row - same layout as the homepage (WorkplaceBrowser.tsx). */}
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <SearchSortBox query={query} onQueryChange={setQuery} sortBy={sortBy} onSortChange={setSortBy} />
-              {isCompanyOwner && (
-                <button
-                  type="button"
-                  onClick={() => setJobFlowOpen(true)}
-                  className="ml-auto rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
-                >
-                  Create job posting !
-                </button>
+            {/* Two rows: search + sort in one pill (SearchSortBox) on top,
+                then Quick Select on its own row - same layout as the homepage
+                (WorkplaceBrowser.tsx). For an owner the Create button sits
+                right after the search pill; the block is as wide as the
+                Quick Select row, so the button's right edge lines up with
+                the last Quick Select pill. */}
+            <div className={`mb-4 grid max-w-full gap-3 ${isCompanyOwner ? "w-fit" : ""}`}>
+              {isCompanyOwner ? (
+                <div className="flex flex-wrap items-stretch gap-2">
+                  <SearchSortBox
+                    query={query}
+                    onQueryChange={setQuery}
+                    sortBy={sortBy}
+                    onSortChange={setSortBy}
+                    showRiskSort
+                    widthClassName="min-w-[16rem] flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setJobFlowOpen(true)}
+                    className="flex shrink-0 items-center justify-center rounded-full bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700 max-sm:w-full max-sm:py-2"
+                  >
+                    Create job posting !
+                  </button>
+                </div>
+              ) : (
+                <SearchSortBox query={query} onQueryChange={setQuery} sortBy={sortBy} onSortChange={setSortBy} showRiskSort />
               )}
-            </div>
-            {/* Same curated category-group quick filter as the rating
-                homepage (WorkplaceBrowser.tsx) — shared markup/config via
-                lib/categoryGroups.tsx, this page's own selection state. */}
-            <div className="mb-4">
+              {/* Same curated category-group quick filter as the rating
+                  homepage (WorkplaceBrowser.tsx) — shared markup/config via
+                  lib/categoryGroups.tsx, this page's own selection state. */}
               <CategoryGroupFilter value={categoryGroup} onChange={setCategoryGroup} />
             </div>
 

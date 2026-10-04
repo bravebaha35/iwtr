@@ -6,6 +6,7 @@ const row = (name: string, city: string | null, overallAvg: number | null): Brow
   city,
   overallAvg,
   reviewCount: overallAvg === null ? 0 : 3,
+  riskScore: 0,
 });
 
 const rows = [row("Çelik", "İzmir", 3), row("Acar", "Ankara", null), row("Zeki", "İstanbul", 4.5), row("Bora", "Manisa", 2)];
@@ -20,6 +21,17 @@ describe("sortBrowseRows", () => {
   it("sinks unrated workplaces to the bottom in both rating orders", () => {
     expect(names(sortBrowseRows(rows, "ratingDesc"))).toEqual(["Zeki", "Çelik", "Bora", "Acar"]);
     expect(names(sortBrowseRows(rows, "ratingAsc"))).toEqual(["Bora", "Çelik", "Zeki", "Acar"]);
+  });
+
+  it("sorts by Risk Score both ways, keeping name order on ties", () => {
+    const risky = [
+      { ...row("Acar", null, 3), riskScore: 1 },
+      { ...row("Bora", null, 3), riskScore: 3 },
+      { ...row("Çelik", null, 3), riskScore: 0 },
+      { ...row("Zeki", null, 3), riskScore: 3 },
+    ];
+    expect(names(sortBrowseRows(risky, "riskDesc"))).toEqual(["Bora", "Zeki", "Acar", "Çelik"]);
+    expect(names(sortBrowseRows(risky, "riskAsc"))).toEqual(["Çelik", "Acar", "Bora", "Zeki"]);
   });
 
   it("keeps the incoming order by default, or goes nearest province first for Near Me", () => {

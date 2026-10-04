@@ -5,9 +5,8 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import type { Notification as ApiNotification } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
-import { apiGet } from "@/lib/api-client";
+import { apiGet, apiPost } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
-import { markNotificationIdsRead, readNotificationIds } from "@/lib/notificationReadState";
 import { HeartIcon } from "@/components/icons/HeartIcon";
 
 // ---------------------------------------------------------------------------
@@ -240,12 +239,12 @@ function timeAgo(iso: string, hourPrecision = false): string {
 }
 
 
-function toAppNotification(n: ApiNotification, readIds: Set<string>): AppNotification {
+function toAppNotification(n: ApiNotification): AppNotification {
   return {
     id: n.id,
     kind: n.type,
     createdAt: n.createdAt,
-    unread: !readIds.has(n.id),
+    unread: !n.read,
     companyName: n.companyName,
     companySlug: n.companySlug,
     href: n.href,
@@ -404,8 +403,9 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
  * Header bell. Loads GET /me/notifications as soon as it mounts (so the
  * unread dot shows without opening it), again every time it's opened, and
  * whenever something on the page announces a new one (lib/notification-
- * events.ts). Read state is remembered per browser (lib/notificationReadState)
- * and wiped on sign-out. The bell only renders for a signed-in, active
+ * events.ts). Read state is saved on the account (POST /me/notifications/read),
+ * so a notification stays read after signing in again or on another device.
+ * The bell only renders for a signed-in, active
  * account (GlobalHeader), so nothing is ever loaded or kept for a visitor.
  */
 export function NotificationsMenu() {
@@ -433,9 +433,8 @@ export function NotificationsMenu() {
   const load = useCallback(() => {
     apiGet<ApiNotification[]>("/me/notifications")
       .then((real) => {
-        const readIds = readNotificationIds();
         setLoadFailed(false);
-        setNotifications(real.map((n) => toAppNotification(n, readIds)).sort(byNewestFirst));
+        setNotifications(real.map(toAppNotification).sort(byNewestFirst));
       })
       .catch(() => {
         setLoadFailed(true);
@@ -486,13 +485,20 @@ export function NotificationsMenu() {
   );
   const unreadCount = visible?.filter((n) => n.unread).length ?? 0;
 
+  // Saved on the account. The dot goes away straight away; if saving fails
+  // the next load simply shows them unread again.
+  function saveRead(ids: string[]) {
+    if (ids.length === 0) return;
+    void apiPost("/me/notifications/read", { ids }).catch(() => undefined);
+  }
+
   function markAllRead() {
-    markNotificationIdsRead((notifications ?? []).map((n) => n.id));
+    saveRead((notifications ?? []).filter((n) => n.unread).map((n) => n.id));
     setNotifications((prev) => prev?.map((n) => ({ ...n, unread: false })) ?? prev);
   }
 
   function markOneRead(id: string) {
-    markNotificationIdsRead([id]);
+    if (notifications?.find((n) => n.id === id)?.unread) saveRead([id]);
     setNotifications((prev) => prev?.map((n) => (n.id === id ? { ...n, unread: false } : n)) ?? prev);
     setOpen(false);
   }

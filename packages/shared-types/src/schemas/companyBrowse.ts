@@ -34,9 +34,17 @@ export function matchesCategoryGroup(company: { category: string }, group: Categ
   return company.category === CATEGORY_GROUP_CATEGORY[group];
 }
 
-// "ratingAsc"/"ratingDesc" and "alphabetical"/"alphabeticalDesc" are each two
-// states of one button.
-export const companySortSchema = z.enum(["default", "alphabetical", "alphabeticalDesc", "ratingAsc", "ratingDesc"]);
+// "ratingAsc"/"ratingDesc", "alphabetical"/"alphabeticalDesc" and
+// "riskDesc"/"riskAsc" (the Jobs page RS button) are each two states of one button.
+export const companySortSchema = z.enum([
+  "default",
+  "alphabetical",
+  "alphabeticalDesc",
+  "ratingAsc",
+  "ratingDesc",
+  "riskDesc",
+  "riskAsc",
+]);
 export type CompanySort = z.infer<typeof companySortSchema>;
 
 export const COMPANY_BROWSE_PAGE_SIZE = 20;
