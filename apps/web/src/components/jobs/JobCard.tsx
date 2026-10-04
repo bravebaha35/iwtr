@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
+import { motion, useReducedMotion } from "framer-motion";
 import { isOwnStaticAsset } from "@/lib/imageSource";
 import {
   type CompanyListItem,
@@ -212,13 +214,27 @@ export function postingsForCard(company: CompanyListItem): CardPosting[] {
   return [null];
 }
 
-// One job card: 4:1 banner strip, then a square content box (logo+name
-// header, address/sector, one job title + contact, rating + vibe-flags "i"
-// menu), then a work-type footer strip below the box.
+// How big the card is drawn:
+// - "full": square content box with the whole description (a company's own
+//   Jobs tab, where people read each role in full).
+// - "compact": the /jobs grid. A short card (one-line name, three lines of
+//   description) with a "..." button on the banner that opens "expanded".
+// - "expanded": the wider floating copy of a compact card, full description,
+//   with a close button instead of "...".
+export type JobCardVariant = "full" | "compact" | "expanded";
+
+// The floating panel is at least this wide (or the screen, minus a margin).
+const EXPANDED_MIN_WIDTH = 520;
+
+// One job card: 4:1 banner strip, then the content box (logo+name header,
+// address/sector, one job title + contact, rating + vibe-flags "i" menu),
+// then a work-type footer strip below the box.
 export function JobCard({
   company,
   posting,
   expired = false,
+  variant = "full",
+  onClose,
 }: {
   company: CompanyListItem;
   posting: CardPosting;
@@ -226,8 +242,31 @@ export function JobCard({
   // been marked filled. Defaults false everywhere else this card renders
   // (the public browse grid and the company profile tab are unaffected).
   expired?: boolean;
+  variant?: JobCardVariant;
+  // "expanded" only: closes the floating panel.
+  onClose?: () => void;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
+  const [expandedAt, setExpandedAt] = useState<{ top: number; left: number; width: number } | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const compact = variant === "compact";
+  const expandedView = variant === "expanded";
+
+  // Lays the floating panel over this card: same top-left corner, wider,
+  // kept inside the window. Page coordinates, so it scrolls with the page.
+  const placeExpanded = useCallback(() => {
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.min(Math.max(rect.width, EXPANDED_MIN_WIDTH), window.innerWidth - 32);
+    const left = Math.min(Math.max(rect.left, 16), window.innerWidth - width - 16) + window.scrollX;
+    setExpandedAt({ top: rect.top + window.scrollY, left, width });
+  }, []);
+
+  const closeExpanded = useCallback(() => {
+    setExpandedAt(null);
+    moreRef.current?.focus();
+  }, []);
   const { savedIds, canSave, toggleSave, loading: savedLoading } = useSavedJobPostings();
   const location = [company.district, company.city].filter(Boolean).join(", ");
   // Every job card shows a banner: the owner's own image when their tier
@@ -257,7 +296,8 @@ export function JobCard({
     // div, since `inert` can't be selectively un-set on a descendant once an
     // ancestor has it.
     <div
-      className={`flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700 ${expired ? "opacity-50" : ""}`}
+      ref={cardRef}
+      className={`flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700 ${expired ? "opacity-50" : ""} ${expandedView ? "shadow-2xl" : ""}`}
     >
       {/* Banner sits above the square content box (not inside it, so it
           doesn't eat that box's fixed proportions). Facebook-style overlap —
@@ -279,8 +319,39 @@ export function JobCard({
         <div className="absolute left-3 top-full -translate-y-1/2">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
         </div>
+        {compact && (
+          <button
+            ref={moreRef}
+            type="button"
+            onClick={() => (expandedAt ? closeExpanded() : placeExpanded())}
+            aria-label="Show the full job posting"
+            aria-expanded={expandedAt !== null}
+            title="Show the full job posting"
+            className="absolute right-2 top-2 flex h-6 min-w-8 items-center justify-center rounded-full bg-surface/90 px-2 text-sm font-bold leading-none text-foreground shadow-sm transition hover:bg-surface"
+          >
+            {"…"}
+          </button>
+        )}
+        {expandedView && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            autoFocus
+            aria-label="Close the full job posting"
+            title="Close"
+            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-surface/90 text-foreground shadow-sm transition hover:bg-surface"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        )}
       </div>
-      <div className="relative flex aspect-square flex-col rounded-b-xl p-4 pt-5 compact:p-3">
+      <div
+        className={`relative flex flex-col rounded-b-xl p-4 pt-5 ${
+          compact ? "flex-1 pb-11" : expandedView ? "pb-11" : "aspect-square compact:p-3"
+        }`}
+      >
         <div
           inert={expired}
           aria-disabled={expired}
@@ -291,7 +362,10 @@ export function JobCard({
               name-only. */}
           <div className="flex items-start justify-between gap-2">
             <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="line-clamp-2 min-w-0 font-display text-lg leading-snug text-foreground">
+              <span
+                title={compact ? company.name : undefined}
+                className={`${compact ? "line-clamp-1" : "line-clamp-2"} min-w-0 font-display text-lg leading-snug text-foreground`}
+              >
                 {company.name}
                 <CompanyVerificationTick
                   badgeTier={company.badgeTier}
@@ -364,10 +438,22 @@ export function JobCard({
               default, filling the rest of the box, not tucked behind a click.
               Only individually-authored postings carry one; the auto-classified
               jobTitles fallback has none to show. */}
-          {posting?.description && (
-            <p className="mt-3 flex-1 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground">
-              {posting.description}
+          {compact ? (
+            // Always three lines tall, so every card in the grid is the same
+            // size; the "..." button shows the rest.
+            <p className="mt-3 line-clamp-3 h-12 whitespace-pre-wrap text-xs text-muted-foreground">
+              {posting?.description ?? ""}
             </p>
+          ) : (
+            posting?.description && (
+              <p
+                className={`mt-3 whitespace-pre-wrap text-muted-foreground ${
+                  expandedView ? "max-h-[55vh] overflow-y-auto text-sm" : "flex-1 overflow-y-auto text-xs"
+                }`}
+              >
+                {posting.description}
+              </p>
+            )
           )}
         </div>
 
@@ -410,6 +496,80 @@ export function JobCard({
           className="shrink-0"
         />
       </div>
+
+      {compact && expandedAt && (
+        <ExpandedJobCard
+          at={expandedAt}
+          onReposition={placeExpanded}
+          onClose={closeExpanded}
+          triggerRef={moreRef}
+          company={company}
+          posting={posting}
+          expired={expired}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * The "..." view: a wider copy of the card floating over the original, with
+ * the whole description. Not a full-page dialog - the rest of the page stays
+ * visible and usable; a click outside it or Esc closes it.
+ */
+function ExpandedJobCard({
+  at,
+  onReposition,
+  onClose,
+  triggerRef,
+  company,
+  posting,
+  expired,
+}: {
+  at: { top: number; left: number; width: number };
+  onReposition: () => void;
+  onClose: () => void;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  company: CompanyListItem;
+  posting: CardPosting;
+  expired: boolean;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as Node;
+      if (panelRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
+      onClose();
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onReposition);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onReposition);
+    };
+  }, [onClose, onReposition, triggerRef]);
+
+  return createPortal(
+    <motion.div
+      ref={panelRef}
+      role="dialog"
+      aria-label={posting ? `${posting.jobTitle} at ${company.name}` : company.name}
+      initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] }}
+      style={{ position: "absolute", top: at.top, left: at.left, width: at.width, transformOrigin: "top left" }}
+      // Under the sticky header (z-40) and the message dock, over the grid.
+      className="z-30"
+    >
+      <JobCard company={company} posting={posting} expired={expired} variant="expanded" onClose={onClose} />
+    </motion.div>,
+    document.body,
   );
 }

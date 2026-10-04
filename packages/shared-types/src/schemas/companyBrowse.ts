@@ -48,7 +48,8 @@ export const companySortSchema = z.enum([
 export type CompanySort = z.infer<typeof companySortSchema>;
 
 export const COMPANY_BROWSE_PAGE_SIZE = 20;
-export const JOBS_BROWSE_PAGE_SIZE = 16;
+// Same as the homepage: 4 across, 5 rows of companies per page.
+export const JOBS_BROWSE_PAGE_SIZE = 20;
 
 export const companyBrowseQuerySchema = companySearchQuerySchema
   .omit({ includeJobTitles: true })

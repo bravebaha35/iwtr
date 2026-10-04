@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type SortOption } from "@/components/SortButtons";
 import { SearchSortBox } from "@/components/SearchSortBox";
+import { AdSlot } from "@/components/AdSlot";
 import Image from "next/image";
 import { JOBS_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type MyProfile, type WorkplaceType } from "@iwtr/shared-types";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
@@ -478,7 +479,11 @@ export function JobsBrowser() {
   }
 
   return (
+    // Same frame as the rating homepage (WorkplaceBrowser): an ad rail on
+    // each side, so the filters and the 4-across grid line up on both pages.
     <div className="flex w-full items-start justify-center gap-6 px-4 py-8">
+      <AdSlot />
+
       <div className="w-full max-w-[1600px]">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Jobs</h1>
@@ -658,9 +663,9 @@ export function JobsBrowser() {
                 {!savedLoading && savedPostings.length === 0 && (
                   <p className="text-sm text-muted-foreground">You haven&apos;t saved any job postings yet.</p>
                 )}
-                <div className="grid grid-cols-1 gap-4 compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {savedPostings.map((p) => (
-                    <JobCard key={p.posting.id} company={p.company} posting={p.posting} expired={p.expired} />
+                    <JobCard key={p.posting.id} company={p.company} posting={p.posting} expired={p.expired} variant="compact" />
                   ))}
                 </div>
               </>
@@ -681,13 +686,18 @@ export function JobsBrowser() {
                     open postings renders N cards here, not one crowded card. */}
                 <div
                   aria-busy={loading}
-                  className={`grid grid-cols-1 gap-4 transition-opacity compact:gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+                  className={`grid grid-cols-1 gap-4 transition-opacity compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
                     loading && pageCompanies !== null ? "opacity-60" : ""
                   }`}
                 >
                   {pageCompanies?.flatMap((c) =>
                     postingsForCard(c).map((posting, i) => (
-                      <JobCard key={`${c.id}-${posting?.jobTitle ?? "none"}-${i}`} company={c} posting={posting} />
+                      <JobCard
+                        key={`${c.id}-${posting?.jobTitle ?? "none"}-${i}`}
+                        company={c}
+                        posting={posting}
+                        variant="compact"
+                      />
                     )),
                   )}
                 </div>
@@ -706,6 +716,8 @@ export function JobsBrowser() {
           </div>
         </SidebarContentRow>
       </div>
+
+      <AdSlot />
 
       {isCompanyOwner && <JobCreationFlow open={jobFlowOpen} onClose={() => setJobFlowOpen(false)} />}
     </div>
