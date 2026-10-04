@@ -3,8 +3,8 @@
 import { SortButtons, type SortOption } from "@/components/SortButtons";
 
 /**
- * One wide pill holding the workplace search and the A-Z / Rating (and, on
- * the Jobs page, RS) sort buttons, so sorting sits with searching and stays apart from the Quick
+ * One wide pill holding the workplace search and the RS / A-Z / Rating sort
+ * buttons, so sorting sits with searching and stays apart from the Quick
  * Select pills below. Shared by the rating homepage and the Jobs page.
  */
 export function SearchSortBox({
@@ -21,7 +21,7 @@ export function SearchSortBox({
   sortBy: SortOption;
   onSortChange: (next: SortOption) => void;
   highlighted?: boolean;
-  /** Jobs page only: the RS (Risk Score) sort button. */
+  /** The RS (Risk Score) sort button (rating homepage and Jobs page). */
   showRiskSort?: boolean;
   /** Width classes for the pill; the Jobs page stretches it to fill its row. */
   widthClassName?: string;

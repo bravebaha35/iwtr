@@ -44,7 +44,7 @@ function nextRatingSort(current: SortOption): SortOption {
   return "ratingAsc";
 }
 
-/** RS's 3-click loop (Jobs page): riskiest (3) first, cleanest (0) first, then off. */
+/** RS's 3-click loop: riskiest (3) first, cleanest (0) first, then off. */
 export function nextRiskSort(current: SortOption): SortOption {
   if (current === "riskDesc") return "riskAsc";
   if (current === "riskAsc") return "default";
@@ -93,8 +93,8 @@ const TOGGLE_GREEN =
 /**
  * Separate sort buttons (not one segmented control), used by both
  * WorkplaceBrowser and JobsBrowser. A-Z loops A→Z / Z→A / off; Rating keeps
- * its own red/green colours for least/best-rated first. The Jobs page also
- * shows RS (Risk Score): red for riskiest first, green for cleanest first.
+ * its own red/green colours for least/best-rated first. With showRiskSort,
+ * RS (Risk Score) comes first: red for riskiest first, green for cleanest first.
  */
 export function SortButtons({
   value,

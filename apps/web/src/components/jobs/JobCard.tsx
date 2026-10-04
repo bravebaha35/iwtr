@@ -217,10 +217,10 @@ export function postingsForCard(company: CompanyListItem): CardPosting[] {
 // How big the card is drawn:
 // - "full": square content box with the whole description (a company's own
 //   Jobs tab, where people read each role in full).
-// - "compact": the /jobs grid. A short card (one-line name, three lines of
-//   description) with a "..." button on the banner that opens "expanded".
+// - "compact": the /jobs grid. A short card (one-line name, four lines of
+//   description); clicking the description opens "expanded".
 // - "expanded": the wider floating copy of a compact card, full description,
-//   with a close button instead of "...".
+//   with a close button on the banner.
 export type JobCardVariant = "full" | "compact" | "expanded";
 
 // The floating panel is at least this wide (or the screen, minus a margin).
@@ -319,19 +319,6 @@ export function JobCard({
         <div className="absolute left-3 top-full -translate-y-1/2">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
         </div>
-        {compact && (
-          <button
-            ref={moreRef}
-            type="button"
-            onClick={() => (expandedAt ? closeExpanded() : placeExpanded())}
-            aria-label="Show the full job posting"
-            aria-expanded={expandedAt !== null}
-            title="Show the full job posting"
-            className="absolute right-2 top-2 flex h-6 min-w-8 items-center justify-center rounded-full bg-surface/90 px-2 text-sm font-bold leading-none text-foreground shadow-sm transition hover:bg-surface"
-          >
-            {"…"}
-          </button>
-        )}
         {expandedView && onClose && (
           <button
             type="button"
@@ -349,7 +336,7 @@ export function JobCard({
       </div>
       <div
         className={`relative flex flex-col rounded-b-xl p-4 pt-5 ${
-          compact ? "flex-1 pb-11" : expandedView ? "pb-11" : "aspect-square compact:p-3"
+          compact ? "flex-1" : expandedView ? "" : "aspect-square compact:p-3"
         }`}
       >
         <div
@@ -439,11 +426,23 @@ export function JobCard({
               Only individually-authored postings carry one; the auto-classified
               jobTitles fallback has none to show. */}
           {compact ? (
-            // Always three lines tall, so every card in the grid is the same
-            // size; the "..." button shows the rest.
-            <p className="mt-3 line-clamp-3 h-12 whitespace-pre-wrap text-xs text-muted-foreground">
-              {posting?.description ?? ""}
-            </p>
+            // Always four lines tall, so every card in the grid is the same
+            // size. Clicking the text opens the whole posting over the card.
+            posting?.description ? (
+              <button
+                ref={moreRef}
+                type="button"
+                onClick={() => (expandedAt ? closeExpanded() : placeExpanded())}
+                aria-expanded={expandedAt !== null}
+                title="Click to read the full job posting"
+                className="mt-3 h-20 cursor-pointer rounded text-left text-sm text-muted-foreground transition hover:text-foreground"
+              >
+                <span className="line-clamp-4 whitespace-pre-wrap">{posting.description}</span>
+                <span className="sr-only"> (open the full job posting)</span>
+              </button>
+            ) : (
+              <div className="mt-3 h-20" />
+            )
           ) : (
             posting?.description && (
               <p
@@ -456,33 +455,14 @@ export function JobCard({
             )
           )}
         </div>
-
-        {/* Only a real, individually-authored posting can be saved — the
-            auto-classified jobTitles fallback has no posting.id. Always
-            rendered, disabled + tooltip for a logged-out/non-worker viewer,
-            same convention as the vote buttons in ReviewsList.tsx (never
-            hides the affordance outright). Sits outside the inert wrapper
-            above so it stays clickable on an expired Saved Posts card. */}
-        {posting?.id && (
-          <button
-            type="button"
-            onClick={() => canSave && toggleSave(posting.id!)}
-            disabled={!canSave || savedLoading}
-            title={!canSave ? "Log in to save" : undefined}
-            aria-label={isSaved ? "Remove from saved posts" : "Save this posting"}
-            aria-pressed={isSaved}
-            className="absolute bottom-3 right-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-surface/90 text-muted-foreground shadow-sm transition hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40"
-          >
-            <BookmarkIcon className="h-4 w-4" filled={isSaved} />
-          </button>
-        )}
       </div>
 
       {/* Card footer, below the main content box. Work-type text on the
-          left, Risk Score right-aligned in the same row (not stacked) —
-          "-" whenever this card has no real, appliable posting behind it
-          (the auto-classified fallback and the "no open roles" empty
-          state both count as no real posting; see RiskScoreBadge). */}
+          left; the save button and the Risk Score right-aligned in the same
+          row (not stacked) — "-" whenever this card has no real, appliable
+          posting behind it (the auto-classified fallback and the "no open
+          roles" empty state both count as no real posting; see
+          RiskScoreBadge). */}
       <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 compact:px-2 compact:py-1.5">
         <p className="min-w-0 truncate text-xs text-muted-foreground">
           <span className="font-bold">{workplaceTypeLabel(cardWorkType)}</span>
@@ -490,11 +470,32 @@ export function JobCard({
           {" · "}
           {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
         </p>
-        <RiskScoreBadge
-          riskScore={company.riskScore > 0 ? company.riskScore : posting?.id ? 0 : null}
-          short
-          className="shrink-0"
-        />
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Only a real, individually-authored posting can be saved — the
+              auto-classified jobTitles fallback has no posting.id. Always
+              rendered, disabled + tooltip for a logged-out/non-worker viewer,
+              same convention as the vote buttons in ReviewsList.tsx (never
+              hides the affordance outright). The footer sits outside the
+              inert wrapper, so it stays clickable on an expired Saved Posts
+              card. -my-1 keeps the footer's height. */}
+          {posting?.id && (
+            <button
+              type="button"
+              onClick={() => canSave && toggleSave(posting.id!)}
+              disabled={!canSave || savedLoading}
+              title={!canSave ? "Log in to save" : undefined}
+              aria-label={isSaved ? "Remove from saved posts" : "Save this posting"}
+              aria-pressed={isSaved}
+              className="-my-1 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40"
+            >
+              <BookmarkIcon className="h-4 w-4" filled={isSaved} />
+            </button>
+          )}
+          <RiskScoreBadge
+            riskScore={company.riskScore > 0 ? company.riskScore : posting?.id ? 0 : null}
+            short
+          />
+        </div>
       </div>
 
       {compact && expandedAt && (
@@ -513,7 +514,7 @@ export function JobCard({
 }
 
 /**
- * The "..." view: a wider copy of the card floating over the original, with
+ * The full-posting view: a wider copy of the card floating over the original, with
  * the whole description. Not a full-page dialog - the rest of the page stays
  * visible and usable; a click outside it or Esc closes it.
  */

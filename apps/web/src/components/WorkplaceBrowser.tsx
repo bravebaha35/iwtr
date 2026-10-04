@@ -577,6 +577,7 @@ export function WorkplaceBrowser() {
                 sortBy={sortBy}
                 onSortChange={setSortBy}
                 highlighted={highlightTarget === "search"}
+                showRiskSort
               />
             </div>
 
