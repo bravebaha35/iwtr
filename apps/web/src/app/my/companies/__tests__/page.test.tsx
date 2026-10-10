@@ -129,7 +129,6 @@ test("side panel lists the standard sections, then Premium Features as its own p
     "Featured Review Spotlight",
     "Benchmark Reports",
     "Posting Featured Job Ads",
-    "HR Manager Licenses",
   ]);
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();

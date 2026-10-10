@@ -118,11 +118,6 @@ export const PRICING_FEATURE_ROWS: PricingFeatureRow[] = [
     lockedBelowRank: 1,
   },
   {
-    id: "hr-seats",
-    label: "HR Manager License (User Account)",
-    values: { free: "Single user", starter: "2 users", pro: "5 users", enterprise: "10 users and sub-users" },
-  },
-  {
     id: "support",
     label: "Customer Support & Service Level (SLA)",
     values: {

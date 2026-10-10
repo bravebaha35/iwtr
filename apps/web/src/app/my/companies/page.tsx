@@ -34,7 +34,7 @@ import { JobPostingsCategory } from "@/components/owner/sections/JobPostingsCate
 import { SupportCategory } from "@/components/owner/sections/SupportCategory";
 import { FeaturedReviewCategory } from "@/components/owner/sections/FeaturedReviewCategory";
 import { BenchmarkReportsCategory } from "@/components/owner/sections/BenchmarkReportsCategory";
-import { FeaturedJobAdsCategory, HrSeatsCategory } from "@/components/owner/sections/PlanPreviewCategories";
+import { FeaturedJobAdsCategory } from "@/components/owner/sections/PlanPreviewCategories";
 import { PremiumLocked } from "@/components/owner/sections/PremiumLocked";
 import { TierInfoDialog } from "@/components/owner/TierInfoDialog";
 
@@ -667,8 +667,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                   onOpenPricing={() => setShowPricing(true)}
                 />
               ))}
-
-            {activeCategory === "hr-seats" && <HrSeatsCategory tier={hasActivePaidTier ? claim.tier : "FREE"} />}
 
             {/* Rendered here (sibling to every activeCategory block, not nested
                 inside general-info's) because GeneralInfoCategory and the locked

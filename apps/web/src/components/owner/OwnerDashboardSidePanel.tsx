@@ -17,7 +17,6 @@ const PREMIUM_SECTIONS = [
   { key: "featured-review", label: "Featured Review Spotlight" },
   { key: "benchmark-reports", label: "Benchmark Reports" },
   { key: "featured-job-ads", label: "Posting Featured Job Ads" },
-  { key: "hr-seats", label: "HR Manager Licenses" },
 ] as const;
 
 type StandardSection = (typeof STANDARD_SECTIONS)[number]["key"];

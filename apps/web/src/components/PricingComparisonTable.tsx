@@ -95,10 +95,6 @@ const ROWS: PricingRow[] = [
     },
   },
   {
-    label: pricingFeature("hr-seats").label,
-    values: pricingFeature("hr-seats").values,
-  },
-  {
     label: pricingFeature("support").label,
     values: pricingFeature("support").values,
   },

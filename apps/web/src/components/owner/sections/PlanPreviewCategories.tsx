@@ -51,14 +51,3 @@ export function FeaturedJobAdsCategory({ tier }: { tier: OwnerTier }) {
     </Shell>
   );
 }
-
-export function HrSeatsCategory({ tier }: { tier: OwnerTier }) {
-  return (
-    <Shell title="HR Manager Licenses" planLine={pricingFeature("hr-seats").values[tierKeyFromOwnerTier(tier)]}>
-      <p className="text-sm text-foreground">1 seat used (you).</p>
-      <div className="mt-3">
-        <DisabledButton>+ Invite a teammate</DisabledButton>
-      </div>
-    </Shell>
-  );
-}
