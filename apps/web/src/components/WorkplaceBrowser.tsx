@@ -348,7 +348,7 @@ export function WorkplaceBrowser() {
         })
         .catch(() => {
           if (cancelled) return;
-          setResult({ items: [], total: 0, page: 1, pageSize: RESULTS_PAGE_SIZE, hiddenUnratedCount: 0 });
+          setResult({ items: [], total: 0, page: 1, pageSize: RESULTS_PAGE_SIZE, hiddenUnratedCount: 0, featured: [] });
           setLoading(false);
           setLoadError(true);
         });

@@ -333,3 +333,87 @@ describe("JobPostingsService.create — paid boost failure paths", () => {
     });
   });
 });
+
+describe("JobPostingsService.update (dashboard Edit)", () => {
+  const live = {
+    id: "p1",
+    companyId: "c1",
+    jobTitle: "Forklift Operatörü",
+    description: "old text",
+    workType: "MANUAL_LABOUR",
+    status: "PUBLISHED",
+    createdAt: new Date(),
+    lastResharedAt: null,
+    filledAt: null,
+    autoReshareEnabled: false,
+    boostDurationDays: null,
+    boostExpiresAt: null,
+  };
+
+  function editPrisma(posting: Record<string, unknown>, tier = "STARTER", freeUsed = 0) {
+    const update = jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...posting, ...data }));
+    const prisma = makePrisma({
+      companyOwner: {
+        findUnique: jest.fn().mockResolvedValue({ userId: "u1", companyId: "c1", claimStatus: "APPROVED", tier }),
+      },
+      jobPosting: {
+        findUnique: jest.fn().mockResolvedValue(posting),
+        update,
+        count: jest.fn().mockResolvedValue(freeUsed),
+      },
+    });
+    return { prisma, update };
+  }
+
+  it("changes only the description - never the job title or work type", async () => {
+    const { prisma, update } = editPrisma(live);
+    const result = await service(prisma).update("u1", "c1", "p1", { description: "new text" });
+    expect(update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { description: "new text", status: "PUBLISHED" } });
+    expect(result.status).toBe("PUBLISHED");
+    expect(result.jobPosting.jobTitle).toBe("Forklift Operatörü");
+  });
+
+  it("sends a flagged new description back to admin review", async () => {
+    const { prisma, update } = editPrisma(live);
+    const flagging = { checkContent: jest.fn().mockReturnValue({ violates: true, violationTypes: ["PROFANITY"] }) } as never;
+    const result = await new JobPostingsService(prisma as any, flagging, {} as any).update("u1", "c1", "p1", {
+      description: "bad words",
+    });
+    expect(update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { description: "bad words", status: "PENDING_ADMIN" } });
+    expect(result.status).toBe("PENDING_ADMIN");
+  });
+
+  it("boosts an active posting for free while the plan's monthly allowance lasts", async () => {
+    const { prisma, update } = editPrisma(live, "STARTER", 1);
+    const result = await service(prisma).update("u1", "c1", "p1", { boost: { durationDays: 7 } });
+    const data = update.mock.calls[0][0].data;
+    expect(data.boostIsFree).toBe(true);
+    expect(data.boostStartedAt).toBeInstanceOf(Date);
+    expect(data.boostExpiresAt.getTime()).toBeGreaterThan(Date.now());
+    expect(result.jobPosting.boostDurationDays).toBe(7);
+  });
+
+  it("asks for billing once the free allowance is used up", async () => {
+    const { prisma } = editPrisma(live, "STARTER", 2);
+    await expect(service(prisma).update("u1", "c1", "p1", { boost: { durationDays: 7 } })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it("refuses a second boost while one is still running", async () => {
+    const { prisma } = editPrisma({ ...live, boostExpiresAt: new Date(Date.now() + 86_400_000) });
+    await expect(service(prisma).update("u1", "c1", "p1", { boost: { durationDays: 7 } })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it("refuses to edit a filled posting", async () => {
+    const { prisma } = editPrisma({ ...live, status: "FILLED" });
+    await expect(service(prisma).update("u1", "c1", "p1", { description: "x" })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("404s a posting from another company", async () => {
+    const { prisma } = editPrisma({ ...live, companyId: "other" });
+    await expect(service(prisma).update("u1", "c1", "p1", { description: "x" })).rejects.toBeInstanceOf(NotFoundException);
+  });
+});

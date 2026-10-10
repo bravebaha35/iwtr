@@ -658,7 +658,11 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
             {activeCategory === "featured-job-ads" &&
               (hasActivePaidTier ? (
-                <FeaturedJobAdsCategory tier={claim.tier} />
+                <FeaturedJobAdsCategory
+                  companyId={claim.companyId}
+                  tier={claim.tier}
+                  onOpenJobPostings={() => setActiveCategory("job-postings")}
+                />
               ) : (
                 <PremiumLocked
                   title="Posting Featured Job Ads"

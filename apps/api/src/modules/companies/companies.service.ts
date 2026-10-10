@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import {
   COMPANY_BROWSE_PAGE_SIZE,
+  FEATURED_JOBS_LIMIT,
   JOBS_BROWSE_PAGE_SIZE,
   findProvinceByCityName,
   workplaceTypeSchema,
@@ -285,17 +286,27 @@ export class CompaniesService {
     const page = Math.min(query.page ?? 1, Math.max(1, Math.ceil(visible.length / pageSize)));
     const pageIds = visible.slice((page - 1) * pageSize, page * pageSize).map((r) => r.id);
 
+    const [items, featured] = await Promise.all([
+      this.browseCards(pageIds, jobs),
+      jobs && page === 1 ? this.featuredJobs(visible.map((r) => r.id)) : Promise.resolve([]),
+    ]);
+    return { items, total: visible.length, page, pageSize, hiddenUnratedCount, featured };
+  }
+
+  // The full cards for the given company ids, in that order.
+  private async browseCards(ids: string[], jobs: boolean): Promise<CompanyListItem[]> {
+    if (ids.length === 0) return [];
     const [cards, ownedCompanyIds, jobTitlesByCompanyId, jobPostingsByCompanyId] = await Promise.all([
       this.prisma.company.findMany({
-        where: { id: { in: pageIds } },
+        where: { id: { in: ids } },
         include: { aggregate: { select: { overallAvg: true, reviewCount: true } } },
       }),
-      this.approvedOwnerCompanyIds(pageIds),
-      jobs ? this.jobTitlesByCompanyId(pageIds) : new Map<string, ClassifiedJobTitle[]>(),
-      jobs ? this.jobPostingsByCompanyId(pageIds) : new Map<string, PublicJobPosting[]>(),
+      this.approvedOwnerCompanyIds(ids),
+      jobs ? this.jobTitlesByCompanyId(ids) : new Map<string, ClassifiedJobTitle[]>(),
+      jobs ? this.jobPostingsByCompanyId(ids) : new Map<string, PublicJobPosting[]>(),
     ]);
     const cardById = new Map(cards.map((c) => [c.id, c]));
-    const items = pageIds.flatMap((id) => {
+    return ids.flatMap((id) => {
       const c = cardById.get(id);
       if (!c) return [];
       return [
@@ -308,7 +319,39 @@ export class CompaniesService {
         },
       ];
     });
-    return { items, total: visible.length, page, pageSize, hiddenUnratedCount };
+  }
+
+  /**
+   * The Jobs page's featured row (page 1 only): live postings with an
+   * active boost, from the companies matching the visitor's filters, at
+   * most FEATURED_JOBS_LIMIT. When more are boosted than fit, a random pick
+   * each time, so every paid boost gets its turn on the page.
+   */
+  private async featuredJobs(companyIds: string[]): Promise<CompanyBrowseResult["featured"]> {
+    if (companyIds.length === 0) return [];
+    const boosted = await this.prisma.jobPosting.findMany({
+      where: {
+        company: { ...PUBLIC_COMPANY_WHERE },
+        companyId: { in: companyIds },
+        status: "PUBLISHED",
+        boostExpiresAt: { gt: new Date() },
+      },
+      select: { id: true, companyId: true, createdAt: true, lastResharedAt: true, filledAt: true, autoReshareEnabled: true, status: true },
+      take: 500,
+    });
+    const live = boosted.filter((p) => shouldLazyReshare(p) || daysRemaining(p) > 0);
+    for (let i = live.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [live[i], live[j]] = [live[j], live[i]];
+    }
+    const picked = live.slice(0, FEATURED_JOBS_LIMIT);
+    const cards = await this.browseCards([...new Set(picked.map((p) => p.companyId))], true);
+    const cardById = new Map(cards.map((c) => [c.id, c]));
+    return picked.flatMap((p) => {
+      const company = cardById.get(p.companyId);
+      const posting = company?.jobPostings.find((jp) => jp.id === p.id);
+      return company && posting ? [{ company, posting }] : [];
+    });
   }
 
   // Individually-authored postings (job-postings module), as opposed to the

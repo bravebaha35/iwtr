@@ -12,15 +12,14 @@ export function tierKeyFromOwnerTier(tier: OwnerTier): MembershipTierKey {
   return "free";
 }
 
-// "Starter = 1 '7-days' boost, Pro = 2, Enterprise = 3" — the free
-// allowance is specifically 7-day boosts, not a credit good for any
-// duration (mirrors how the Rival Analytics free credit is tied to a
-// specific report, not an amount of money).
+// The free monthly allowance of featured (boosted) job ads - the same
+// numbers the Pricing table promises ("2 / 5 / 10 Ads Monthly"). Only a
+// 7-day boost can be free; 14/21-day boosts are always paid.
 const FREE_7_DAY_BOOSTS_PER_MONTH: Record<MembershipTierKey, number> = {
   free: 0,
-  starter: 1,
-  pro: 2,
-  enterprise: 3,
+  starter: 2,
+  pro: 5,
+  enterprise: 10,
 };
 
 export function freeBoostsRemaining(tierKey: MembershipTierKey, freeBoostsUsedThisMonth: number): number {

@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { OwnerJobPosting } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "@/lib/api-client";
-import { OwnerJobPostingRow } from "@/components/jobs/OwnerJobPostingRow";
+import { OwnerJobPostingRow, isActivePosting } from "@/components/jobs/OwnerJobPostingRow";
 
 /**
  * The owner dashboard's Job Postings section: every job ad this company has
- * posted, newest first. Ads that ended or were removed stay listed for 30
+ * posted - active ones (green dot) first, then inactive (red dot), each
+ * group newest first. Ads that ended or were removed stay listed for 30
  * days (the API decides that), then drop off.
  */
 export function JobPostingsCategory({ companyId }: { companyId: string }) {
@@ -27,6 +28,9 @@ export function JobPostingsCategory({ companyId }: { companyId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The API sends newest first; a stable sort keeps that order inside each group.
+  const sorted = postings ? [...postings].sort((a, b) => Number(isActivePosting(b)) - Number(isActivePosting(a))) : null;
 
   return (
     <div className="rounded-xl border border-border p-6">
@@ -53,7 +57,7 @@ export function JobPostingsCategory({ companyId }: { companyId: string }) {
       )}
 
       <div className="flex flex-col gap-3">
-        {postings?.map((p) => (
+        {sorted?.map((p) => (
           <OwnerJobPostingRow key={p.id} companyId={companyId} posting={p} onChanged={load} />
         ))}
       </div>

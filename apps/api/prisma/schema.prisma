@@ -667,6 +667,10 @@ model JobPosting {
   boostIsFree        Boolean                       @default(false)
   boostPaymentStatus JobPostingBoostPaymentStatus?
   boostExpiresAt     DateTime?
+  // When the boost went live (free boost granted, or paid boost confirmed).
+  // A boost can now be added later from the dashboard's Edit, so the monthly
+  // free-boost count and the featured row's order key off this, not createdAt.
+  boostStartedAt     DateTime?
   createdAt          DateTime                      @default(now())
   savedBy            SavedJobPosting[]
   jobApplications    JobApplication[]

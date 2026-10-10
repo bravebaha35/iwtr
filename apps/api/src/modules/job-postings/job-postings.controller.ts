@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import {
   createJobPostingInputSchema,
   jobPostingStatusSchema,
+  updateJobPostingInputSchema,
   type CreateJobPostingInput,
+  type UpdateJobPostingInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -31,6 +33,18 @@ export class JobPostingsController {
     @Body(new ZodValidationPipe(createJobPostingInputSchema)) body: CreateJobPostingInput,
   ) {
     return this.jobPostings.create(user.id, companyId, body);
+  }
+
+  // The dashboard's Edit: new description and/or a boost on an active posting.
+  @Patch("my-companies/:companyId/job-postings/:jobPostingId")
+  @UseGuards(JwtAuthGuard)
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("companyId", new ParseUUIDPipe()) companyId: string,
+    @Param("jobPostingId", new ParseUUIDPipe()) jobPostingId: string,
+    @Body(new ZodValidationPipe(updateJobPostingInputSchema)) body: UpdateJobPostingInput,
+  ) {
+    return this.jobPostings.update(user.id, companyId, jobPostingId, body);
   }
 
   @Post("my-companies/:companyId/job-postings/:jobPostingId/mark-filled")

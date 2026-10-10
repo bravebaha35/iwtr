@@ -332,7 +332,7 @@ export function JobsBrowser() {
         })
         .catch(() => {
           if (cancelled) return;
-          setResult({ items: [], total: 0, page: 1, pageSize: RESULTS_PAGE_SIZE, hiddenUnratedCount: 0 });
+          setResult({ items: [], total: 0, page: 1, pageSize: RESULTS_PAGE_SIZE, hiddenUnratedCount: 0, featured: [] });
           setLoading(false);
           setLoadError(true);
         });
@@ -368,6 +368,17 @@ export function JobsBrowser() {
   const total = result?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / RESULTS_PAGE_SIZE));
   const pageCompanies = result?.items ?? null;
+  // Page 1 only: boosted postings get their own row above the rest (see
+  // CompaniesService.featuredJobs). On that page they're left out of the
+  // standard cards below so no job shows twice; a company whose open
+  // postings are all featured has no standard card on page 1.
+  const featured = page === 1 ? (result?.featured ?? []) : [];
+  const featuredIds = new Set(featured.map((f) => f.posting.id));
+  const standardCards = (pageCompanies ?? []).flatMap((c) => {
+    const postings = postingsForCard(c);
+    const remaining = postings.filter((p) => !p?.id || !featuredIds.has(p.id));
+    return remaining.length === 0 ? [] : remaining.map((posting) => ({ company: c, posting }));
+  });
 
   function goToPage(next: number) {
     setPage(next);
@@ -594,6 +605,28 @@ export function JobsBrowser() {
                     No companies are looking for people under these filters yet.
                   </p>
                 )}
+                {featured.length > 0 && (
+                  <section aria-label="Featured jobs" className={`transition-opacity ${loading ? "opacity-60" : ""}`}>
+                    <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+                        <path d="M12 0c.6 5.6 2.4 7.4 12 12-9.6 4.6-11.4 6.4-12 12-.6-5.6-2.4-7.4-12-12 9.6-4.6 11.4-6.4 12-12Z" />
+                      </svg>
+                      Featured jobs
+                    </h2>
+                    <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {featured.map((f) => (
+                        <JobCard key={f.posting.id} company={f.company} posting={f.posting} variant="compact" boosted />
+                      ))}
+                    </div>
+                    {/* The line between the featured row and the standard jobs. */}
+                    <div role="separator" className="my-6 flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/70 to-amber-400/70" />
+                      All jobs
+                      <span className="h-px flex-1 bg-gradient-to-l from-transparent via-amber-400/70 to-amber-400/70" />
+                    </div>
+                  </section>
+                )}
+
                 {/* One card per job (see postingsForCard) — a company with N
                     open postings renders N cards here, not one crowded card. */}
                 <div
@@ -602,16 +635,14 @@ export function JobsBrowser() {
                     loading && pageCompanies !== null ? "opacity-60" : ""
                   }`}
                 >
-                  {pageCompanies?.flatMap((c) =>
-                    postingsForCard(c).map((posting, i) => (
-                      <JobCard
-                        key={`${c.id}-${posting?.jobTitle ?? "none"}-${i}`}
-                        company={c}
-                        posting={posting}
-                        variant="compact"
-                      />
-                    )),
-                  )}
+                  {standardCards.map(({ company: c, posting }, i) => (
+                    <JobCard
+                      key={`${c.id}-${posting?.id ?? posting?.jobTitle ?? "none"}-${i}`}
+                      company={c}
+                      posting={posting}
+                      variant="compact"
+                    />
+                  ))}
                 </div>
 
                 {total > 0 && (
