@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { companyListItemSchema, companySearchQuerySchema } from "./company";
 import { publicJobPostingSchema } from "./jobPosting";
+import { workplaceTypeSchema } from "./workplaceType";
 
 // The homepage's workplace grid, one page at a time (GET /companies/browse).
 // The server filters, sorts and pages, and sends back only the 20 cards on
@@ -66,6 +67,10 @@ export const companyBrowseQuerySchema = companySearchQuerySchema
     jobs: z.enum(["1"]).optional(),
     // The Jobs page's "Following" list narrows to one company.
     companyId: z.string().uuid().optional(),
+    // Featured row only: the member's own Sector / kind of work, sent while
+    // they haven't picked one in the sidebar (see pickFeatured).
+    forSector: z.string().trim().max(100).optional(),
+    forWorkType: workplaceTypeSchema.optional(),
   });
 export type CompanyBrowseQuery = z.infer<typeof companyBrowseQuerySchema>;
 
@@ -87,3 +92,11 @@ export const companyBrowseResultSchema = z.object({
     .default([]),
 });
 export type CompanyBrowseResult = z.infer<typeof companyBrowseResultSchema>;
+
+// GET /companies/employer-ad: the employer ad space beside the search bar on
+// the Rating and Jobs pages. One company that bought the ad-space package
+// (AD_SPACE_14), with the posting it's for - or null when none is running.
+export const employerAdSchema = z
+  .object({ company: companyListItemSchema, posting: publicJobPostingSchema })
+  .nullable();
+export type EmployerAd = z.infer<typeof employerAdSchema>;

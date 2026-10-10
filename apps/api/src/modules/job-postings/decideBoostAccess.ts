@@ -1,4 +1,4 @@
-import type { MembershipTierKey, OwnerTier } from "@iwtr/shared-types";
+import type { BoostOption, MembershipTierKey, OwnerTier } from "@iwtr/shared-types";
 
 // The real, DB-backed OwnerTier axis (see its schema.prisma comment) mapped
 // onto the same free/starter/pro/enterprise MembershipTierKey buckets the
@@ -26,13 +26,14 @@ export function freeBoostsRemaining(tierKey: MembershipTierKey, freeBoostsUsedTh
   return Math.max(0, FREE_7_DAY_BOOSTS_PER_MONTH[tierKey] - freeBoostsUsedThisMonth);
 }
 
-// Only a 7-day boost can ever be free — 14/21-day boosts always require
-// payment regardless of tier or remaining allowance.
+// Only the 7-day featured ad can ever be free — the 14-day featured ad and
+// the ad-space package always require payment regardless of tier or
+// remaining allowance.
 export function decideBoostAccess(params: {
-  durationDays: 7 | 14 | 21;
+  option: BoostOption;
   tierKey: MembershipTierKey;
   freeBoostsUsedThisMonth: number;
 }): { isFree: boolean } {
-  if (params.durationDays !== 7) return { isFree: false };
+  if (params.option !== "FEATURED_7") return { isFree: false };
   return { isFree: freeBoostsRemaining(params.tierKey, params.freeBoostsUsedThisMonth) > 0 };
 }

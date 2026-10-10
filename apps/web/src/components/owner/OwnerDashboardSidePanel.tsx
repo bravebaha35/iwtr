@@ -13,7 +13,7 @@ const STANDARD_SECTIONS = [
   { key: "company-login", label: "Company Login" },
 ] as const;
 
-// Paid-plan features, in their own panel under a "Premium Features" header.
+// Paid-plan features, listed after the everyday sections.
 const PREMIUM_SECTIONS = [
   { key: "featured-review", label: "Featured Review Spotlight" },
   { key: "benchmark-reports", label: "Benchmark Reports" },
@@ -28,14 +28,10 @@ export function isOwnerDashboardCategory(value: string): value is OwnerDashboard
   return [...STANDARD_SECTIONS, ...PREMIUM_SECTIONS].some((c) => c.key === value);
 }
 
-function isPremium(key: OwnerDashboardCategory): key is PremiumSection {
-  return PREMIUM_SECTIONS.some((c) => c.key === key);
-}
-
 /**
- * The owner dashboard's sidebar: the standard sections, then a "Premium
- * Features" header with the paid features as a second panel. Vertical on
- * desktop, two horizontal tab strips on mobile. Purely a controlled
+ * The owner dashboard's sidebar: one list - the everyday sections, then the
+ * paid-plan features at the end (no separate "Premium Features" panel).
+ * Vertical on desktop, a horizontal tab strip on mobile. Purely a controlled
  * switcher; every field and save action lives in the section components.
  */
 export function OwnerDashboardSidePanel({
@@ -52,17 +48,8 @@ export function OwnerDashboardSidePanel({
     <aside className="flex shrink-0 flex-col gap-3 sm:w-56">
       <SettingsNavList
         label="Company dashboard sections"
-        items={STANDARD_SECTIONS.filter((s) => !isCompanyLogin || s.key !== "company-login")}
-        active={isPremium(active) ? null : active}
-        onChange={onChange}
-      />
-      <h2 className="px-3 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Premium Features
-      </h2>
-      <SettingsNavList
-        label="Premium features"
-        items={[...PREMIUM_SECTIONS]}
-        active={isPremium(active) ? active : null}
+        items={[...STANDARD_SECTIONS, ...PREMIUM_SECTIONS].filter((s) => !isCompanyLogin || s.key !== "company-login")}
+        active={active}
         onChange={onChange}
       />
     </aside>

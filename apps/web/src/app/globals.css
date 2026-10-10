@@ -265,39 +265,12 @@ progress {
 }
 
 /* Boosted ("featured") job cards on the Jobs page: the same gold as the
-   featured review's outline, a little thicker, with a soft glow and small
-   gold sparkles twinkling along the edges (GoldGlitter.tsx places them).
-   Same look in both themes; the sparkles hold still for anyone who has
-   asked their system for reduced motion. */
+   featured review's outline, a little thicker, with a soft gold glow. Same
+   look in both themes. */
 .boosted-card {
   border-width: 2px;
   border-color: #fbbf24;
   box-shadow:
     0 0 0 1px rgba(251, 191, 36, 0.25),
     0 0 18px rgba(251, 191, 36, 0.35);
-}
-@keyframes gold-twinkle {
-  0%,
-  100% {
-    opacity: 0.15;
-    transform: translate(-50%, -50%) scale(0.5) rotate(0deg);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(45deg);
-  }
-}
-.gold-sparkle {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  color: #fcd34d;
-  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.9));
-  animation: gold-twinkle 2.4s ease-in-out infinite;
-  pointer-events: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .gold-sparkle {
-    animation: none;
-    opacity: 0.8;
-  }
 }

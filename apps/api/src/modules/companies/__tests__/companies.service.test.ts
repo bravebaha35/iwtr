@@ -578,6 +578,7 @@ describe("CompaniesService.browse — featured (boosted) jobs", () => {
     lastResharedAt: null,
     filledAt: null,
     autoReshareEnabled: false,
+    company: { city: "İzmir", district: null, category: "Software" },
   });
 
   function setup(boostedIds: string[]) {

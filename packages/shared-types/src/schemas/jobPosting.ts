@@ -5,8 +5,16 @@ import { workplaceTypeSchema } from "./workplaceType";
 export const jobPostingStatusSchema = z.enum(["PUBLISHED", "PENDING_ADMIN", "REJECTED", "FILLED"]);
 export type JobPostingStatus = z.infer<typeof jobPostingStatusSchema>;
 
-export const boostDurationDaysSchema = z.union([z.literal(7), z.literal(14), z.literal(21)]);
-export type BoostDurationDays = z.infer<typeof boostDurationDaysSchema>;
+// The three things an owner can buy for a posting:
+// - FEATURED_7 / FEATURED_14: the gold "Featured jobs" row on the Jobs page
+//   for 7 or 14 days (only FEATURED_7 can come out of the free monthly
+//   allowance);
+// - AD_SPACE_14: the company's own ad in the employer ad space beside the
+//   search bar on the Rating and Jobs pages, plus the Featured row, for 14
+//   days.
+export const boostOptionSchema = z.enum(["FEATURED_7", "FEATURED_14", "AD_SPACE_14"]);
+export type BoostOption = z.infer<typeof boostOptionSchema>;
+export const BOOST_OPTION_DAYS: Record<BoostOption, number> = { FEATURED_7: 7, FEATURED_14: 14, AD_SPACE_14: 14 };
 
 // Mirrors PricingTierKey in apps/web/src/lib/pricingTiers.ts — kept as a
 // separate shared-types enum since apps/api needs it too (to compute
@@ -21,8 +29,11 @@ export const jobPostingSchema = z.object({
   description: z.string(),
   workType: workplaceTypeSchema.nullable(),
   status: jobPostingStatusSchema,
-  boostDurationDays: boostDurationDaysSchema.nullable(),
+  // Days of the current/last boost (legacy rows may hold 21).
+  boostDurationDays: z.number().int().nullable(),
   boostExpiresAt: z.string().datetime().nullable(),
+  // The boost includes the employer ad space (AD_SPACE_14).
+  boostAdSpace: z.boolean().default(false),
   createdAt: z.string().datetime(),
 });
 export type JobPosting = z.infer<typeof jobPostingSchema>;
@@ -74,7 +85,7 @@ export const createJobPostingInputSchema = z.object({
   autoReshareEnabled: z.boolean().optional().default(false),
   boost: z
     .object({
-      durationDays: boostDurationDaysSchema,
+      option: boostOptionSchema,
       billing: checkoutBillingInputSchema.optional(),
     })
     .nullable(),
@@ -101,7 +112,8 @@ export const createJobPostingResultSchema = z.discriminatedUnion("status", [
 export type CreateJobPostingResult = z.infer<typeof createJobPostingResultSchema>;
 
 export const boostPricingOptionSchema = z.object({
-  durationDays: boostDurationDaysSchema,
+  option: boostOptionSchema,
+  durationDays: z.number().int(),
   priceTry: z.string(),
 });
 export type BoostPricingOption = z.infer<typeof boostPricingOptionSchema>;

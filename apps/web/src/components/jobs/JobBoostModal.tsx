@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { BoostDurationDays, CreateJobPostingInput, CreateJobPostingResult, OwnedCompany } from "@iwtr/shared-types";
+import type { BoostOption, CreateJobPostingInput, CreateJobPostingResult, OwnedCompany } from "@iwtr/shared-types";
 import { apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
@@ -40,7 +40,7 @@ export function JobBoostModal({
   onDone: (result: CreateJobPostingResult) => void;
 }) {
   const status = useBoostStatus(company.companyId);
-  const [selected, setSelected] = useState<BoostDurationDays | null>(null);
+  const [selected, setSelected] = useState<BoostOption | null>(null);
   const [billing, setBilling] = useState(emptyBilling);
   const [showPricing, setShowPricing] = useState(false);
   const [result, setResult] = useState<CreateJobPostingResult | null>(null);

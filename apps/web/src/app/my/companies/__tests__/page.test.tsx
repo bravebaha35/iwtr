@@ -109,7 +109,7 @@ function generalInfoBox(): HTMLElement {
   return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
 }
 
-test("side panel lists the standard sections, then Premium Features as its own panel", async () => {
+test("side panel is one list: the standard sections, then the paid features at the end", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
@@ -123,14 +123,11 @@ test("side panel lists the standard sections, then Premium Features as its own p
     "Job Postings",
     "Customer Support & Service Level (SLA)",
     "Company Login",
-  ]);
-  expect(screen.getByRole("heading", { name: "Premium Features", level: 2 })).toBeInTheDocument();
-  const premium = screen.getByRole("navigation", { name: "Premium features" });
-  expect(within(premium).getAllByRole("button").map((t) => t.textContent)).toEqual([
     "Featured Review Spotlight",
     "Benchmark Reports",
     "Posting Featured Job Ads",
   ]);
+  expect(screen.queryByRole("heading", { name: "Premium Features" })).not.toBeInTheDocument();
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Contact & Social Media" })).not.toBeInTheDocument();
