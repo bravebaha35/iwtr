@@ -673,6 +673,11 @@ model JobPosting {
   // A boost can now be added later from the dashboard's Edit, so the monthly
   // free-boost count and the featured row's order key off this, not createdAt.
   boostStartedAt     DateTime?
+  // The boost is the AD_SPACE_14 package: while it runs, the company's ad
+  // can be shown in the employer ad space beside the search bar on the
+  // Rating and Jobs pages (CompaniesService.employerAd), on top of the
+  // Featured row.
+  boostAdSpace       Boolean                       @default(false)
   createdAt          DateTime                      @default(now())
   savedBy            SavedJobPosting[]
   jobApplications    JobApplication[]

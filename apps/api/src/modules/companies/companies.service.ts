@@ -14,6 +14,7 @@ import {
   type CompanyListItem,
   type CompanyBrowseQuery,
   type CompanyBrowseResult,
+  type EmployerAd,
   type CompanySearchQuery,
   type PublicJobPosting,
   type WorkplaceType,
@@ -25,6 +26,7 @@ import { shouldLazyReshare, daysRemaining } from "../job-postings/job-postings.u
 import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "./company-visibility";
 import { toPublicCompany } from "./company-public.util";
 import { categoryGroupWhere, sortBrowseRows, visibleBrowseRows } from "./company-browse.util";
+import { pickFeatured } from "./featured-jobs.util";
 import { slugify } from "./slugify.util";
 import { resolveLocation } from "./resolve-location.util";
 import { classifyJobRole } from "./workplace-classifier/classifyJobRole";
@@ -288,9 +290,52 @@ export class CompaniesService {
 
     const [items, featured] = await Promise.all([
       this.browseCards(pageIds, jobs),
-      jobs && page === 1 ? this.featuredJobs(visible.map((r) => r.id)) : Promise.resolve([]),
+      jobs && page === 1 ? this.featuredJobs(query) : Promise.resolve([]),
     ]);
     return { items, total: visible.length, page, pageSize, hiddenUnratedCount, featured };
+  }
+
+  /**
+   * The employer ad space beside the search bar (Rating and Jobs pages): one
+   * company running the AD_SPACE_14 package, picked at random each time so
+   * every buyer gets shown. Null when none is running (the page then shows
+   * a placeholder ad).
+   */
+  async employerAd(): Promise<EmployerAd> {
+    const running = await this.prisma.jobPosting.findMany({
+      where: {
+        company: { ...PUBLIC_COMPANY_WHERE },
+        status: "PUBLISHED",
+        boostAdSpace: true,
+        boostExpiresAt: { gt: new Date() },
+      },
+      select: { id: true, companyId: true, createdAt: true, lastResharedAt: true, filledAt: true, autoReshareEnabled: true, status: true },
+      take: 200,
+    });
+    const live = running.filter((p) => shouldLazyReshare(p) || daysRemaining(p) > 0);
+    if (live.length === 0) return null;
+    const pick = live[Math.floor(Math.random() * live.length)];
+    const [company] = await this.browseCards([pick.companyId], true);
+    const posting = company?.jobPostings.find((p) => p.id === pick.id);
+    return company && posting ? { company, posting } : null;
+  }
+
+  // The sidebar location filter as canonical province names and
+  // province+district pairs (same resolution as buildSearchWhere).
+  private locationFilterParts(query: CompanySearchQuery): { cities: string[]; districts: { city: string; district: string }[] } {
+    const cities = (query.cities ?? "")
+      .split(",")
+      .map((c) => findProvinceByCityName(c.trim())?.name)
+      .filter((c): c is string => !!c);
+    const districts = (query.districtKeys ?? "")
+      .split(",")
+      .map((key) => {
+        const [provincePart, districtPart] = key.trim().split("::");
+        const province = findProvinceByCityName(provincePart);
+        return province && districtPart ? { city: province.name, district: districtPart } : null;
+      })
+      .filter((d): d is { city: string; district: string } => d !== null);
+    return { cities, districts };
   }
 
   // The full cards for the given company ids, in that order.
@@ -323,28 +368,50 @@ export class CompaniesService {
 
   /**
    * The Jobs page's featured row (page 1 only): live postings with an
-   * active boost, from the companies matching the visitor's filters, at
-   * most FEATURED_JOBS_LIMIT. When more are boosted than fit, a random pick
-   * each time, so every paid boost gets its turn on the page.
+   * active boost, at most FEATURED_JOBS_LIMIT. Every sidebar filter applies
+   * except the location, which pickFeatured handles itself (chosen place
+   * first, topped up from the same region when there are fewer than 4).
+   * The member's own Sector / kind of work (forSector / forWorkType) decide
+   * which ads come first. Shuffled, so every paid boost gets its turn.
    */
-  private async featuredJobs(companyIds: string[]): Promise<CompanyBrowseResult["featured"]> {
-    if (companyIds.length === 0) return [];
+  private async featuredJobs(query: CompanyBrowseQuery): Promise<CompanyBrowseResult["featured"]> {
     const boosted = await this.prisma.jobPosting.findMany({
       where: {
-        company: { ...PUBLIC_COMPANY_WHERE },
-        companyId: { in: companyIds },
+        company: {
+          AND: [
+            this.buildSearchWhere({ ...query, cities: undefined, districtKeys: undefined, includeJobTitles: true }),
+            categoryGroupWhere(query.categoryGroup),
+            query.companyId ? { id: query.companyId } : {},
+          ],
+        },
         status: "PUBLISHED",
         boostExpiresAt: { gt: new Date() },
       },
-      select: { id: true, companyId: true, createdAt: true, lastResharedAt: true, filledAt: true, autoReshareEnabled: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        workType: true,
+        createdAt: true,
+        lastResharedAt: true,
+        filledAt: true,
+        autoReshareEnabled: true,
+        status: true,
+        company: { select: { city: true, district: true, category: true } },
+      },
       take: 500,
     });
-    const live = boosted.filter((p) => shouldLazyReshare(p) || daysRemaining(p) > 0);
-    for (let i = live.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [live[i], live[j]] = [live[j], live[i]];
-    }
-    const picked = live.slice(0, FEATURED_JOBS_LIMIT);
+    const live = boosted
+      .filter((p) => shouldLazyReshare(p) || daysRemaining(p) > 0)
+      .map((p) => ({ ...p, city: p.company.city, district: p.company.district, category: p.company.category }));
+    const { cities, districts } = this.locationFilterParts(query);
+    const picked = pickFeatured(live, {
+      cities,
+      districts,
+      forSector: query.forSector,
+      forWorkType: query.forWorkType,
+      limit: FEATURED_JOBS_LIMIT,
+      minLocal: 4,
+    });
     const cards = await this.browseCards([...new Set(picked.map((p) => p.companyId))], true);
     const cardById = new Map(cards.map((c) => [c.id, c]));
     return picked.flatMap((p) => {

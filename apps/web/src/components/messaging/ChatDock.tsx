@@ -188,6 +188,13 @@ function ChevronIcon({ up }: { up: boolean }) {
 
 const TITLE_BAR =
   "flex w-full items-center gap-2 border-b border-border bg-surface-muted px-3 py-2 text-left text-sm text-foreground";
+// The Messages tab is the one Wood-filled bar, so it never reads as one of
+// the conversation tabs beside it (those keep the plain muted bar).
+const MESSAGES_BAR =
+  "flex w-full items-center gap-2 border-b border-brand-700 bg-brand-600 px-3 py-2 text-left text-sm text-white";
+// Every panel - the Messages tab and each conversation - is this one fixed
+// width; a name that doesn't fit ends in "...".
+const PANEL_WIDTH = "w-72";
 const ICON_BUTTON =
   "flex h-7 w-7 shrink-0 items-center justify-center rounded-[2px] text-muted-foreground hover:bg-surface hover:text-foreground";
 
@@ -211,14 +218,14 @@ function MessagesTab({
   const { openChat, activeChats } = useChatDock();
   return (
     <section
-      className={`pointer-events-auto flex w-72 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-t-[2px] border border-b-0 border-border bg-surface ${
+      className={`pointer-events-auto flex ${PANEL_WIDTH} max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-t-[2px] border border-b-0 border-border bg-surface ${
         hideOnPhone ? "max-sm:hidden" : ""
       }`}
     >
-      <button type="button" onClick={onToggle} aria-expanded={open} className={TITLE_BAR}>
+      <button type="button" onClick={onToggle} aria-expanded={open} className={MESSAGES_BAR}>
         <span className="flex-1 font-medium">Messages</span>
         {unreadCount > 0 && (
-          <span className="rounded-[2px] bg-brand-600 px-1.5 py-0.5 text-xs font-medium tabular-nums text-white">
+          <span className="rounded-[2px] bg-white px-1.5 py-0.5 text-xs font-semibold tabular-nums text-brand-700">
             {unreadCount}
             <span className="sr-only"> unread</span>
           </span>
@@ -327,7 +334,7 @@ function ChatPanel({
       exit={reduceMotion ? { opacity: 0 } : { y: "100%", opacity: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.38, ease: PANEL_EASE }}
       aria-label={`Conversation with ${title}`}
-      className="pointer-events-auto flex w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden max-sm:w-[calc(100vw-2rem)] rounded-t-[2px] border border-b-0 border-border bg-surface"
+      className={`pointer-events-auto flex ${PANEL_WIDTH} max-w-[calc(100vw-2rem)] flex-col overflow-hidden max-sm:w-[calc(100vw-2rem)] rounded-t-[2px] border border-b-0 border-border bg-surface`}
     >
       {/* Minimised, the bar is exactly as tall as the Messages tab beside it. */}
       <div className={minimised ? TITLE_BAR.replace("py-2", "py-1") : TITLE_BAR}>

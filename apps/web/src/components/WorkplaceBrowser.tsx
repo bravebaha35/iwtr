@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { normalizeSortOption, type SortOption } from "@/components/SortButtons";
 import { SearchSortBox } from "@/components/SearchSortBox";
+import { EmployerAdSlot } from "@/components/EmployerAdSlot";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { COMPANY_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type WorkplaceType } from "@iwtr/shared-types";
@@ -569,7 +570,10 @@ export function WorkplaceBrowser() {
               <HighlightParamListener onHighlight={onHighlight} />
             </Suspense>
             {/* Two rows: search + sort in one pill (SearchSortBox), then the
-                Quick Select pills on their own row. */}
+                Quick Select pills on their own row - with the employer ad
+                space beside both on wide screens. */}
+            <div className="mb-4 flex items-stretch gap-4">
+            <div className="min-w-0">
             <div className="mb-3">
               <SearchSortBox
                 query={query}
@@ -584,12 +588,15 @@ export function WorkplaceBrowser() {
             {/* Curated category-group quick filter — a coarser, single-select
                 alternative to the free-text Sector dropdown above, for the
                 groupings that matter most on the browse page. */}
-            <div className="mb-4">
+            <div>
               <CategoryGroupFilter
                 value={categoryGroup}
                 onChange={setCategoryGroup}
                 highlighted={highlightTarget === "categories"}
               />
+            </div>
+            </div>
+            <EmployerAdSlot />
             </div>
 
             {geo && geo !== "denied" && (

@@ -301,7 +301,7 @@ describe("JobPostingsService.create — paid boost failure paths", () => {
         description: "d",
         workType: "SERVICE",
         autoReshareEnabled: false,
-        boost: { durationDays: 14 },
+        boost: { option: "FEATURED_14" },
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     // Nothing was created, so the owner can fix the form and resubmit
@@ -318,7 +318,7 @@ describe("JobPostingsService.create — paid boost failure paths", () => {
       description: "d",
       workType: "SERVICE",
       autoReshareEnabled: false,
-      boost: { durationDays: 14, billing },
+      boost: { option: "FEATURED_14", billing },
     });
     errorSpy.mockRestore();
 
@@ -329,7 +329,7 @@ describe("JobPostingsService.create — paid boost failure paths", () => {
     // so the posting isn't left stuck as "payment pending" forever.
     expect(prisma.jobPosting.update).toHaveBeenLastCalledWith({
       where: { id: "p1" },
-      data: { boostDurationDays: null, boostPaymentStatus: null },
+      data: { boostDurationDays: null, boostAdSpace: false, boostPaymentStatus: null },
     });
   });
 });
@@ -388,7 +388,7 @@ describe("JobPostingsService.update (dashboard Edit)", () => {
     const flagging = { checkContent: jest.fn().mockReturnValue({ violates: true, violationTypes: ["PROFANITY"] }) } as never;
     const result = await new JobPostingsService(prisma as any, flagging, {} as any).update("u1", "c1", "p1", {
       description: "bad words",
-      boost: { durationDays: 7 },
+      boost: { option: "FEATURED_7" },
     });
     expect(update).toHaveBeenCalledTimes(1);
     expect(result.status).toBe("PENDING_ADMIN");
@@ -406,7 +406,7 @@ describe("JobPostingsService.update (dashboard Edit)", () => {
 
   it("boosts an active posting for free while the plan's monthly allowance lasts", async () => {
     const { prisma, update } = editPrisma(live, "STARTER", 1);
-    const result = await service(prisma).update("u1", "c1", "p1", { boost: { durationDays: 7 } });
+    const result = await service(prisma).update("u1", "c1", "p1", { boost: { option: "FEATURED_7" } });
     const data = update.mock.calls[0][0].data;
     expect(data.boostIsFree).toBe(true);
     expect(data.boostStartedAt).toBeInstanceOf(Date);
@@ -416,14 +416,14 @@ describe("JobPostingsService.update (dashboard Edit)", () => {
 
   it("asks for billing once the free allowance is used up", async () => {
     const { prisma } = editPrisma(live, "STARTER", 2);
-    await expect(service(prisma).update("u1", "c1", "p1", { boost: { durationDays: 7 } })).rejects.toBeInstanceOf(
+    await expect(service(prisma).update("u1", "c1", "p1", { boost: { option: "FEATURED_7" } })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
 
   it("refuses a second boost while one is still running", async () => {
     const { prisma } = editPrisma({ ...live, boostExpiresAt: new Date(Date.now() + 86_400_000) });
-    await expect(service(prisma).update("u1", "c1", "p1", { boost: { durationDays: 7 } })).rejects.toBeInstanceOf(
+    await expect(service(prisma).update("u1", "c1", "p1", { boost: { option: "FEATURED_7" } })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -436,5 +436,37 @@ describe("JobPostingsService.update (dashboard Edit)", () => {
   it("404s a posting from another company", async () => {
     const { prisma } = editPrisma({ ...live, companyId: "other" });
     await expect(service(prisma).update("u1", "c1", "p1", { description: "x" })).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe("JobPostingsService - ad space package", () => {
+  it("AD_SPACE_14 is never free and needs billing, even with free boosts left", async () => {
+    const prisma = makePrisma({
+      companyOwner: {
+        findUnique: jest.fn().mockResolvedValue({ userId: "u1", companyId: "c1", claimStatus: "APPROVED", tier: "ENTERPRISE" }),
+      },
+      jobPosting: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "p1", companyId: "c1", jobTitle: "Job", description: "d", workType: "OFFICE", status: "PUBLISHED",
+          createdAt: new Date(), lastResharedAt: null, filledAt: null, autoReshareEnabled: false,
+          boostDurationDays: null, boostExpiresAt: null,
+        }),
+        count: jest.fn().mockResolvedValue(0),
+        update: jest.fn(),
+      },
+    });
+    await expect(service(prisma).update("u1", "c1", "p1", { boost: { option: "AD_SPACE_14" } })).rejects.toThrow(
+      "Billing details are required",
+    );
+  });
+
+  it("lists the three options with the ad space at the old 21-day price", async () => {
+    const prisma = makePrisma({ jobPosting: { count: jest.fn().mockResolvedValue(0) } });
+    const status = await service(prisma).getBoostStatus("u1", "c1");
+    expect(status.pricing).toEqual([
+      { option: "FEATURED_7", durationDays: 7, priceTry: "299.99" },
+      { option: "FEATURED_14", durationDays: 14, priceTry: "599.99" },
+      { option: "AD_SPACE_14", durationDays: 14, priceTry: "999.99" },
+    ]);
   });
 });

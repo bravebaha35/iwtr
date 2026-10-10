@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { BoostDurationDays, OwnerJobPosting, UpdateJobPostingInput, UpdateJobPostingResult } from "@iwtr/shared-types";
+import type { BoostOption, OwnerJobPosting, UpdateJobPostingInput, UpdateJobPostingResult } from "@iwtr/shared-types";
 import { apiPatch, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
@@ -35,7 +35,7 @@ export function EditJobPostingModal({
   const boosted = isBoostActive(posting);
   const status = useBoostStatus(companyId);
   const [description, setDescription] = useState(posting.description);
-  const [selected, setSelected] = useState<BoostDurationDays | null>(null);
+  const [selected, setSelected] = useState<BoostOption | null>(null);
   const [billing, setBilling] = useState(emptyBilling);
   const [showPricing, setShowPricing] = useState(false);
   const [submitting, setSubmitting] = useState(false);

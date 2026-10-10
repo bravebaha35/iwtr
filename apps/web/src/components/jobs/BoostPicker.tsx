@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BoostDurationDays, CreateJobPostingInput, JobPostingBoostStatus } from "@iwtr/shared-types";
+import type { BoostOption, CreateJobPostingInput, JobPostingBoostStatus } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 
 export const emptyBilling = {
@@ -24,10 +24,28 @@ function formatTry(priceTry: string): string {
   return Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : priceTry;
 }
 
-const DURATION_COPY: Record<BoostDurationDays, string> = {
-  7: "Get hired faster. Boost your job posting for 7 days.",
-  14: "Dominate the market. Boost your job posting for 14 days.",
-  21: "Maximum visibility. Boost your job posting for 21 days.",
+const OPTION_COPY: Record<BoostOption, string> = {
+  FEATURED_7: "Get hired faster. Boost your job posting for 7 days.",
+  FEATURED_14: "Dominate the market. Boost your job posting for 14 days.",
+  AD_SPACE_14:
+    "Maximum visibility. Your company's own ad space next to the search bar on both the Rating and Jobs pages - plus a featured post - for 14 days!",
+};
+
+// Each box's outline: plain for 7 days, blue for 14 days, gold for the ad
+// space. Picked = the same colour, thicker, with a soft fill.
+const OPTION_STYLE: Record<BoostOption, { idle: string; picked: string }> = {
+  FEATURED_7: {
+    idle: "border border-border hover:border-brand-300 dark:hover:border-brand-700",
+    picked: "border-2 border-brand-600 bg-brand-600/5 dark:border-brand-400",
+  },
+  FEATURED_14: {
+    idle: "border border-blue-500 hover:border-blue-400",
+    picked: "border-2 border-blue-500 bg-blue-500/10",
+  },
+  AD_SPACE_14: {
+    idle: "border border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.25)] hover:border-amber-300",
+    picked: "border-2 border-amber-400 bg-amber-400/10 shadow-[0_0_14px_rgba(251,191,36,0.4)]",
+  },
 };
 
 /** The company's boost prices and free boosts left this month. */
@@ -42,20 +60,20 @@ export function useBoostStatus(companyId: string): JobPostingBoostStatus | null 
 }
 
 /** Whether the picked boost costs money (so billing details are needed). */
-export function boostNeedsBilling(selected: BoostDurationDays | null, status: JobPostingBoostStatus | null): boolean {
-  const isFree = selected === 7 && (status?.freeBoostsRemaining ?? 0) > 0;
+export function boostNeedsBilling(selected: BoostOption | null, status: JobPostingBoostStatus | null): boolean {
+  const isFree = selected === "FEATURED_7" && (status?.freeBoostsRemaining ?? 0) > 0;
   return selected !== null && !isFree;
 }
 
-/** The request's boost field for the picked duration (null = no boost). */
+/** The request's boost field for the picked option (null = no boost). */
 export function boostInput(
-  selected: BoostDurationDays | null,
+  selected: BoostOption | null,
   needsBilling: boolean,
   billing: BillingDraft,
 ): CreateJobPostingInput["boost"] {
   if (!selected) return null;
   return {
-    durationDays: selected,
+    option: selected,
     billing: needsBilling
       ? {
           buyerName: billing.buyerName,
@@ -90,8 +108,8 @@ export function BoostPicker({
   onOpenPricing,
 }: {
   status: JobPostingBoostStatus | null;
-  selected: BoostDurationDays | null;
-  onSelect: (value: BoostDurationDays | null) => void;
+  selected: BoostOption | null;
+  onSelect: (value: BoostOption | null) => void;
   billing: BillingDraft;
   onBillingChange: (billing: BillingDraft) => void;
   onOpenPricing: () => void;
@@ -106,21 +124,18 @@ export function BoostPicker({
     <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {status.pricing.map((option) => {
-          const isChecked = selected === option.durationDays;
-          const freeForThisOne = option.durationDays === 7 && status.freeBoostsRemaining > 0;
+          const isChecked = selected === option.option;
+          const freeForThisOne = option.option === "FEATURED_7" && status.freeBoostsRemaining > 0;
+          const style = OPTION_STYLE[option.option];
           return (
             <button
-              key={option.durationDays}
+              key={option.option}
               type="button"
               aria-pressed={isChecked}
-              onClick={() => onSelect(isChecked ? null : option.durationDays)}
-              className={`flex flex-col gap-2 rounded-xl border p-4 text-left transition ${
-                isChecked
-                  ? "border-brand-600 dark:border-brand-400"
-                  : "border-border hover:border-brand-300 dark:hover:border-brand-700"
-              }`}
+              onClick={() => onSelect(isChecked ? null : option.option)}
+              className={`flex flex-col gap-2 rounded-xl p-4 text-left transition ${isChecked ? style.picked : style.idle}`}
             >
-              <p className="text-sm text-foreground">{DURATION_COPY[option.durationDays]}</p>
+              <p className="text-sm text-foreground">{OPTION_COPY[option.option]}</p>
               <p className="mt-auto text-lg font-bold text-foreground">
                 {freeForThisOne ? "Free" : `${formatTry(option.priceTry)} ₺`}
               </p>

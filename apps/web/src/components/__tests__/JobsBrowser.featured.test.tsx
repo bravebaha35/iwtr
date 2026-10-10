@@ -11,6 +11,10 @@ jest.mock("@/lib/auth-context", () => ({
 jest.mock("@/components/jobs/ApplyButton", () => ({ ApplyButton: () => null }));
 
 const get = apiGet as jest.Mock;
+const serve = (browse: object) =>
+  get.mockImplementation((path: string) =>
+    path.startsWith("/companies/browse?") ? Promise.resolve(browse) : path === "/me/profile" ? Promise.reject(new Error("401")) : Promise.resolve(null),
+  );
 
 const company = (id: string, postings: { id: string; jobTitle: string }[]) =>
   ({
@@ -46,7 +50,7 @@ beforeEach(() => {
 });
 
 it("shows boosted jobs first on page 1, a line under them, and doesn't repeat them below", async () => {
-  get.mockResolvedValue({
+  serve({
     items: [a, b],
     total: 2,
     page: 1,
@@ -69,7 +73,7 @@ it("shows boosted jobs first on page 1, a line under them, and doesn't repeat th
 });
 
 it("has no featured row when nothing is boosted", async () => {
-  get.mockResolvedValue({ items: [a], total: 1, page: 1, pageSize: 20, hiddenUnratedCount: 0, featured: [] });
+  serve({ items: [a], total: 1, page: 1, pageSize: 20, hiddenUnratedCount: 0, featured: [] });
   render(<JobsBrowser />);
   await screen.findByText("Depo Sorumlusu");
   expect(screen.queryByRole("region", { name: "Featured jobs" })).not.toBeInTheDocument();

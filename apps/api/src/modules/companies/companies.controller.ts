@@ -53,6 +53,12 @@ export class CompaniesController {
     return this.companies.browse(query);
   }
 
+  // The employer ad space beside the search bar (Rating and Jobs pages).
+  @Get("companies/employer-ad")
+  employerAd() {
+    return this.companies.employerAd();
+  }
+
   @Get("companies/sitemap")
   sitemap() {
     return this.companies.listForSitemap();

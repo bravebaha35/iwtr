@@ -34,6 +34,7 @@ const rated = company("Rated Co", 3, { isHiring: true, riskScore: 2 });
 const empty = company("Empty Co", 0);
 jest.mock("@/lib/api-client", () => ({
   apiGet: jest.fn((path: string) => {
+    if (path === "/companies/employer-ad") return Promise.resolve(null);
     const az = path.includes("sort=alphabetical");
     const items = az ? [rated, empty] : [rated];
     return Promise.resolve({ items, total: items.length, page: 1, pageSize: 20, hiddenUnratedCount: az ? 0 : 1 });
@@ -68,7 +69,9 @@ it("opens on rated workplaces only, and A-Z brings unreviewed ones in after them
 it("asks the server for one page, never the whole directory", async () => {
   render(<WorkplaceBrowser />);
   await screen.findByText("Rated Co");
-  const paths = (apiGet as jest.Mock).mock.calls.map(([path]) => path as string);
+  const paths = (apiGet as jest.Mock).mock.calls
+    .map(([path]) => path as string)
+    .filter((path) => path !== "/companies/employer-ad");
   expect(paths.length).toBeGreaterThan(0);
   expect(paths.every((path) => path.startsWith("/companies/browse?") && path.includes("page=1"))).toBe(true);
 });

@@ -23,6 +23,7 @@ const posting = (over: Partial<OwnerJobPosting>): OwnerJobPosting => ({
   status: "PUBLISHED",
   boostDurationDays: null,
   boostExpiresAt: null,
+  boostAdSpace: false,
   createdAt: new Date().toISOString(),
   daysRemaining: 20,
   ...over,
@@ -41,7 +42,7 @@ beforeEach(() => {
   get.mockImplementation((path: string) =>
     Promise.resolve(
       path.endsWith("/boost-status")
-        ? { tierKey: "starter", freeBoostsRemaining: 2, pricing: [{ durationDays: 7, priceTry: "299.99" }] }
+        ? { tierKey: "starter", freeBoostsRemaining: 2, pricing: [{ option: "FEATURED_7", durationDays: 7, priceTry: "299.99" }] }
         : list,
     ),
   );
@@ -80,7 +81,7 @@ it("Edit keeps the job title fixed and saves a new description and a free boost"
   await user.click(within(dialog).getByRole("button", { name: "Save and boost" }));
   expect(patch).toHaveBeenCalledWith("/my-companies/c1/job-postings/2", {
     description: "new description",
-    boost: { durationDays: 7, billing: undefined },
+    boost: { option: "FEATURED_7", billing: undefined },
   });
   expect(await within(dialog).findByText(/now featured at the top of the Jobs page/)).toBeInTheDocument();
 });

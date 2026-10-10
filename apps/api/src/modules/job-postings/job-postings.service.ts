@@ -6,10 +6,13 @@ import type {
   JobPosting as JobPostingView,
   JobPostingBoostStatus,
   JobPostingStatus,
+  BoostOption,
+  BoostPricingOption,
   UpdateJobPostingInput,
   UpdateJobPostingResult,
   WorkplaceType,
 } from "@iwtr/shared-types";
+import { BOOST_OPTION_DAYS } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PaymentsService } from "../payments/payments.service";
@@ -24,15 +27,21 @@ import { shouldLazyReshare, isWithinSavedGraceWindow, daysRemaining } from "./jo
 // and phone numbers still apply.
 const JOB_AD_SKIPPED_CHECKS = { skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"] as ("NAME_OR_SURNAME" | "JOB_TITLE")[] };
 
-const BOOST_PRICING: { durationDays: 7 | 14 | 21; priceTry: string }[] = [
-  { durationDays: 7, priceTry: "299.99" },
-  { durationDays: 14, priceTry: "599.99" },
-  { durationDays: 21, priceTry: "999.99" },
+const BOOST_PRICING: BoostPricingOption[] = [
+  { option: "FEATURED_7", durationDays: BOOST_OPTION_DAYS.FEATURED_7, priceTry: "299.99" },
+  { option: "FEATURED_14", durationDays: BOOST_OPTION_DAYS.FEATURED_14, priceTry: "599.99" },
+  { option: "AD_SPACE_14", durationDays: BOOST_OPTION_DAYS.AD_SPACE_14, priceTry: "999.99" },
 ];
 
-function boostPrice(durationDays: 7 | 14 | 21): string {
-  return BOOST_PRICING.find((p) => p.durationDays === durationDays)!.priceTry;
+function boostPrice(option: BoostOption): string {
+  return BOOST_PRICING.find((p) => p.option === option)!.priceTry;
 }
+
+const BOOST_ITEM_NAME: Record<BoostOption, string> = {
+  FEATURED_7: "Featured job ad: 7 days",
+  FEATURED_14: "Featured job ad: 14 days",
+  AD_SPACE_14: "Employer ad space + featured job ad: 14 days",
+};
 
 function addDays(base: Date, days: number): Date {
   const next = new Date(base);
@@ -49,6 +58,7 @@ function toPublic(posting: {
   status: JobPostingStatus;
   boostDurationDays: number | null;
   boostExpiresAt: Date | null;
+  boostAdSpace?: boolean;
   createdAt: Date;
 }): JobPostingView {
   return {
@@ -58,8 +68,9 @@ function toPublic(posting: {
     description: posting.description,
     workType: posting.workType,
     status: posting.status,
-    boostDurationDays: (posting.boostDurationDays as 7 | 14 | 21 | null) ?? null,
+    boostDurationDays: posting.boostDurationDays ?? null,
     boostExpiresAt: posting.boostExpiresAt ? posting.boostExpiresAt.toISOString() : null,
+    boostAdSpace: posting.boostAdSpace ?? false,
     createdAt: posting.createdAt.toISOString(),
   };
 }
@@ -232,10 +243,10 @@ export class JobPostingsService {
   private async checkBoostAffordable(
     companyId: string,
     tier: Parameters<typeof tierKeyFromOwnerTier>[0],
-    boost: { durationDays: 7 | 14 | 21; billing?: unknown },
+    boost: { option: BoostOption; billing?: unknown },
   ): Promise<boolean> {
     const { isFree } = decideBoostAccess({
-      durationDays: boost.durationDays,
+      option: boost.option,
       tierKey: tierKeyFromOwnerTier(tier),
       freeBoostsUsedThisMonth: await this.freeBoostsUsedThisMonth(companyId),
     });
@@ -261,16 +272,19 @@ export class JobPostingsService {
     savedStatus: "PUBLISHED" | "PENDING_ADMIN",
     savedWhat: string,
   ): Promise<CreateJobPostingResult> {
+    const days = BOOST_OPTION_DAYS[boost.option];
+    const adSpace = boost.option === "AD_SPACE_14";
     if (isFree) {
       const now = new Date();
       const updated = await this.prisma.jobPosting.update({
         where: { id: posting.id },
         data: {
-          boostDurationDays: boost.durationDays,
+          boostDurationDays: days,
+          boostAdSpace: adSpace,
           boostIsFree: true,
           boostPaymentStatus: null,
           boostStartedAt: now,
-          boostExpiresAt: addDays(now, boost.durationDays),
+          boostExpiresAt: addDays(now, days),
         },
       });
       return { status: savedStatus, jobPosting: toPublic(updated) };
@@ -284,7 +298,8 @@ export class JobPostingsService {
     await this.prisma.jobPosting.update({
       where: { id: posting.id },
       data: {
-        boostDurationDays: boost.durationDays,
+        boostDurationDays: days,
+        boostAdSpace: adSpace,
         boostIsFree: false,
         boostPaymentStatus: "PENDING",
         boostStartedAt: null,
@@ -301,9 +316,9 @@ export class JobPostingsService {
       const checkout = await this.payments.createOneTimeCheckout({
         conversationId: posting.id,
         callbackUrl: `${apiPublicUrl.replace(/\/$/, "")}/job-postings/boost-checkout-callback`,
-        priceTry: boostPrice(boost.durationDays),
+        priceTry: boostPrice(boost.option),
         basketId: posting.id,
-        itemName: `Job posting boost: ${boost.durationDays} days`,
+        itemName: BOOST_ITEM_NAME[boost.option],
         buyerName: boost.billing.buyerName,
         buyerSurname: boost.billing.buyerSurname,
         buyerIdentityNumber: boost.billing.buyerIdentityNumber,
@@ -313,7 +328,7 @@ export class JobPostingsService {
       });
       return {
         status: "CHECKOUT_REQUIRED",
-        jobPosting: toPublic({ ...posting, boostDurationDays: boost.durationDays, boostExpiresAt: null }),
+        jobPosting: toPublic({ ...posting, boostDurationDays: days, boostAdSpace: adSpace, boostExpiresAt: null }),
         checkoutFormContent: checkout.checkoutFormContent,
         token: checkout.token,
       };
@@ -322,11 +337,11 @@ export class JobPostingsService {
       console.error(`[job-postings] boost checkout could not start for posting=${posting.id}:`, err);
       await this.prisma.jobPosting.update({
         where: { id: posting.id },
-        data: { boostDurationDays: null, boostPaymentStatus: null },
+        data: { boostDurationDays: null, boostAdSpace: false, boostPaymentStatus: null },
       });
       return {
         status: savedStatus,
-        jobPosting: toPublic({ ...posting, boostDurationDays: null, boostExpiresAt: null }),
+        jobPosting: toPublic({ ...posting, boostDurationDays: null, boostAdSpace: false, boostExpiresAt: null }),
         boostError: `${savedWhat}, but the boost payment couldn't be started, so it isn't boosted. You weren't charged.`,
       };
     }

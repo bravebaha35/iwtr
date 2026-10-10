@@ -154,9 +154,14 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   Plan tiers are `OwnerTier` FREE/STARTER/PRO/ENTERPRISE (renamed from BLUE/BLUE_PLUS on 2026-10-11 - "Blue"
   now only names the Starter tick colour).
 - Featured (boosted) job ads: a posting with `boostExpiresAt` in the future. Page 1 of /jobs shows up to 8 in a
-  gold "Featured jobs" row (`CompaniesService.featuredJobs`, random pick when more), above the standard cards.
-  Free 7-day boosts per company per month match Pricing (Starter 2, Pro 5, Enterprise 10, `decideBoostAccess.ts`,
-  counted from `boostStartedAt`). Owners boost at creation or later via dashboard Job Postings > Edit
+  gold "Featured jobs" row above the standard cards. `pickFeatured` (companies/featured-jobs.util.ts) orders
+  them: the member's profile Sector, else work type (`forSector`/`forWorkType`, sent only while the sidebar has
+  no work type/sector picked); then the chosen city/district, topped up from the same region (turkeyRegions)
+  while fewer than 4; shuffled per tier. Boost options (`BoostOption`): FEATURED_7 (299,99), FEATURED_14
+  (599,99), AD_SPACE_14 (999,99 - also puts the company in the employer ad space beside the search bar on the
+  Rating and Jobs pages, `GET companies/employer-ad`, `JobPosting.boostAdSpace`; a sample test ad shows while
+  none is running). Free 7-day boosts per company per month match Pricing (Starter 2, Pro 5, Enterprise 10,
+  `decideBoostAccess.ts`, counted from `boostStartedAt`). Owners boost at creation or later via dashboard Job Postings > Edit
   (`PATCH my-companies/:companyId/job-postings/:id`: description and/or boost; title/work type fixed). Job ads
   skip the review-only NAME_OR_SURNAME/JOB_TITLE checks (a title like "Kredi Analisti" looks like a name).
 - `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per

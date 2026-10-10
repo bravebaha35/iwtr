@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type SortOption } from "@/components/SortButtons";
 import { SearchSortBox } from "@/components/SearchSortBox";
 import { AdSlot } from "@/components/AdSlot";
+import { EmployerAdSlot } from "@/components/EmployerAdSlot";
 import Image from "next/image";
-import { JOBS_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type WorkplaceType } from "@iwtr/shared-types";
+import { JOBS_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type MyProfile, type WorkplaceType } from "@iwtr/shared-types";
+import { apiGet } from "@/lib/api-client";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { fetchBrowsePage, hasBrowsePage, prefetchBrowsePage } from "@/lib/companyBrowse";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
@@ -128,6 +130,11 @@ function PaginationBar({
 }
 
 
+// The member's profile Sector and kind of work - only used to choose which
+// featured ads come first; the job grid itself always starts unfiltered.
+type MemberField = { sector: { value: string; label: string } | null; workType: WorkplaceType | null };
+const NO_FIELD: MemberField = { sector: null, workType: null };
+
 function nearestProvince(lat: number, lng: number): string {
   let best = TURKEY_PROVINCES[0];
   for (const p of TURKEY_PROVINCES) {
@@ -149,6 +156,9 @@ function jobsParams(f: {
   sortBy: SortOption;
   geo: Geo;
   selectedCompanyId: string | null;
+  // The member's own field, for the featured row only (see pickFeatured on
+  // the API): sent only while the sidebar has no work type or sector picked.
+  field: MemberField;
 }): string {
   const params = new URLSearchParams();
   params.set("jobs", "1");
@@ -163,6 +173,10 @@ function jobsParams(f: {
   if (f.sortBy !== "default") params.set("sort", f.sortBy);
   if (f.geo && f.geo !== "denied") params.set("nearCity", f.geo.nearCity);
   if (f.selectedCompanyId) params.set("companyId", f.selectedCompanyId);
+  if (f.workplaceTypes.length === 0 && !f.selectedCategory) {
+    if (f.field.sector) params.set("forSector", f.field.sector.value);
+    if (f.field.workType) params.set("forWorkType", f.field.workType);
+  }
   return params.toString();
 }
 
@@ -233,6 +247,8 @@ export function JobsBrowser() {
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [page, setPage] = useState(1);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  // null until the profile has been read, so the page doesn't fetch twice.
+  const [field, setField] = useState<MemberField | null>(null);
   const [savedView, setSavedView] = useState(false);
   const { postings: savedPostings, loading: savedLoading, canSave } = useSavedJobPostings();
   const sliderTrackRef = useRef<HTMLDivElement>(null);
@@ -290,6 +306,22 @@ export function JobsBrowser() {
     );
   }
 
+  // Reads the member's Sector / kind of work once, for the featured row. A
+  // visitor, owner or company login simply has none.
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<MyProfile>("/me/profile")
+      .then((p) => {
+        if (!cancelled) setField({ sector: p.sector ?? null, workType: p.workType ?? null });
+      })
+      .catch(() => {
+        if (!cancelled) setField(NO_FIELD);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Every filter, the sort, Quick Select, Near Me, the Following pick and
   // the page go to the server, which sends back only the 16 cards on screen
   // with their open postings. Filter changes wait 250ms (one request per
@@ -309,12 +341,14 @@ export function JobsBrowser() {
         sortBy,
         geo,
         selectedCompanyId,
+        field: field ?? NO_FIELD,
       }),
-    [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore, selectedCategory, categoryGroup, sortBy, geo, selectedCompanyId],
+    [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore, selectedCategory, categoryGroup, sortBy, geo, selectedCompanyId, field],
   );
   const lastFilterParams = useRef<string | null>(null);
 
   useEffect(() => {
+    if (field === null) return;
     const filtersChanged = lastFilterParams.current !== null && lastFilterParams.current !== filterParams;
     lastFilterParams.current = filterParams;
     let cancelled = false;
@@ -341,7 +375,7 @@ export function JobsBrowser() {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [filterParams, page]);
+  }, [filterParams, page, field]);
 
   useEffect(() => {
     setSelectedCategory(null);
@@ -373,6 +407,15 @@ export function JobsBrowser() {
   // standard cards below so no job shows twice; a company whose open
   // postings are all featured has no standard card on page 1.
   const featured = page === 1 ? (result?.featured ?? []) : [];
+  // Says whose field the featured row was picked for, while it was.
+  const usesField = workplaceTypes.length === 0 && !selectedCategory;
+  const fieldNote = !usesField
+    ? null
+    : field?.sector && featured.some((f) => f.company.category === field.sector!.value)
+      ? field.sector.label
+      : field?.workType && featured.some((f) => f.posting.workType === field.workType)
+        ? (WORKPLACE_TYPES.find((w) => w.value === field.workType)?.label ?? null)
+        : null;
   const featuredIds = new Set(featured.map((f) => f.posting.id));
   const standardCards = (pageCompanies ?? []).flatMap((c) => {
     const postings = postingsForCard(c);
@@ -543,7 +586,10 @@ export function JobsBrowser() {
                 right after the search pill; the block is as wide as the
                 Quick Select row, so the button's right edge lines up with
                 the last Quick Select pill. */}
-            <div className={`mb-4 grid max-w-full gap-3 ${isCompanyOwner ? "w-fit" : ""}`}>
+            {/* The employer ad space sits beside the search + Quick Select
+                block on wide screens. */}
+            <div className="mb-4 flex items-stretch gap-4">
+            <div className={`grid min-w-0 max-w-full gap-3 ${isCompanyOwner ? "w-fit" : ""}`}>
               {isCompanyOwner ? (
                 <div className="flex flex-wrap items-stretch gap-2">
                   <SearchSortBox
@@ -569,6 +615,8 @@ export function JobsBrowser() {
                   homepage (WorkplaceBrowser.tsx) — shared markup/config via
                   lib/categoryGroups.tsx, this page's own selection state. */}
               <CategoryGroupFilter value={categoryGroup} onChange={setCategoryGroup} />
+            </div>
+            <EmployerAdSlot />
             </div>
 
             {geo && geo !== "denied" && (
@@ -612,6 +660,12 @@ export function JobsBrowser() {
                         <path d="M12 0c.6 5.6 2.4 7.4 12 12-9.6 4.6-11.4 6.4-12 12-.6-5.6-2.4-7.4-12-12 9.6-4.6 11.4-6.4 12-12Z" />
                       </svg>
                       Featured jobs
+                      {fieldNote && (
+                        <span className="font-normal normal-case tracking-normal text-muted-foreground">
+                          {" "}
+                          - picked for {fieldNote}
+                        </span>
+                      )}
                     </h2>
                     <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {featured.map((f) => (
@@ -620,9 +674,9 @@ export function JobsBrowser() {
                     </div>
                     {/* The line between the featured row and the standard jobs. */}
                     <div role="separator" className="my-6 flex items-center gap-3 text-xs font-medium text-muted-foreground">
-                      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-400/70 to-amber-400/70" />
+                      <span className="h-px flex-1 bg-foreground/40" />
                       All jobs
-                      <span className="h-px flex-1 bg-gradient-to-l from-transparent via-amber-400/70 to-amber-400/70" />
+                      <span className="h-px flex-1 bg-foreground/40" />
                     </div>
                   </section>
                 )}

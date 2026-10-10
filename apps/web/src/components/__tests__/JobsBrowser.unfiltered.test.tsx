@@ -9,21 +9,41 @@ jest.mock("@/lib/auth-context", () => ({
 }));
 
 const get = apiGet as jest.Mock;
-const empty = { items: [], total: 0, page: 1, pageSize: 20, hiddenUnratedCount: 0 };
+const empty = { items: [], total: 0, page: 1, pageSize: 20, hiddenUnratedCount: 0, featured: [] };
+
+function serve(profile: object | null) {
+  get.mockImplementation((path: string) => {
+    if (path === "/me/profile") return profile ? Promise.resolve(profile) : Promise.reject(new Error("401"));
+    if (path.startsWith("/companies/browse?")) return Promise.resolve(empty);
+    return Promise.resolve(null);
+  });
+}
+
+const browsePaths = () => get.mock.calls.map(([p]) => String(p)).filter((p) => p.startsWith("/companies/browse?"));
 
 beforeEach(() => {
   get.mockReset();
   clearBrowseCache();
-  get.mockImplementation((path: string) =>
-    Promise.resolve(path.startsWith("/companies/browse?") ? empty : []),
-  );
 });
 
-it("opens on every job, without reading the member's profile", async () => {
+it("opens on every job - the profile never filters the job grid", async () => {
+  serve({ sector: { value: "IT", label: "Information Technology (IT)" }, workType: "OFFICE" });
   render(<JobsBrowser />);
-  await waitFor(() => expect(get.mock.calls.some(([p]) => String(p).startsWith("/companies/browse?"))).toBe(true));
-  const paths = get.mock.calls.map(([p]) => String(p));
-  expect(paths).not.toContain("/me/profile");
-  const browse = paths.filter((p) => p.startsWith("/companies/browse?"));
-  expect(browse.every((p) => !p.includes("workplaceTypes=") && !p.includes("category="))).toBe(true);
+  await waitFor(() => expect(browsePaths().length).toBeGreaterThan(0));
+  expect(browsePaths().every((p) => !p.includes("workplaceTypes=") && !p.includes("category="))).toBe(true);
+});
+
+it("tells the featured row the member's sector and kind of work", async () => {
+  serve({ sector: { value: "IT", label: "Information Technology (IT)" }, workType: "OFFICE" });
+  render(<JobsBrowser />);
+  await waitFor(() => expect(browsePaths().length).toBeGreaterThan(0));
+  expect(browsePaths()[0]).toContain("forSector=IT");
+  expect(browsePaths()[0]).toContain("forWorkType=OFFICE");
+});
+
+it("sends no field for a visitor without a profile", async () => {
+  serve(null);
+  render(<JobsBrowser />);
+  await waitFor(() => expect(browsePaths().length).toBeGreaterThan(0));
+  expect(browsePaths()[0]).not.toContain("forSector");
 });
