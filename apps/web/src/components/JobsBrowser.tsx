@@ -5,9 +5,8 @@ import { type SortOption } from "@/components/SortButtons";
 import { SearchSortBox } from "@/components/SearchSortBox";
 import { AdSlot } from "@/components/AdSlot";
 import Image from "next/image";
-import { JOBS_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type MyProfile, type WorkplaceType } from "@iwtr/shared-types";
+import { JOBS_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type WorkplaceType } from "@iwtr/shared-types";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
-import { apiGet } from "@/lib/api-client";
 import { fetchBrowsePage, hasBrowsePage, prefetchBrowsePage } from "@/lib/companyBrowse";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarOutlinedButtonClassName } from "@/lib/collarColors";
@@ -39,11 +38,6 @@ import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShel
 // "Near Me" keeps only the nearest province's name - the visitor's actual
 // position never leaves requestNearMe, let alone the browser.
 type Geo = { nearCity: string } | "denied" | null;
-
-// The filter the page put on by itself from the member's profile (see the
-// personalising effect in JobsBrowser), so the note above the cards can say
-// what was applied and offer to clear it.
-type AutoFilter = { kind: "sector"; value: string; label: string } | { kind: "workType"; value: WorkplaceType; label: string };
 
 const RATING_TICKS: { value: number; src: string; alt: string }[] = [
   { value: 0, src: "/1LowMood.png", alt: "Low rating" },
@@ -172,20 +166,6 @@ function jobsParams(f: {
   return params.toString();
 }
 
-const NO_FILTERS = {
-  query: "",
-  workplaceTypes: [] as WorkplaceType[],
-  selectedCities: [] as string[],
-  selectedDistrictKeys: [] as string[],
-  minRating: 0,
-  maxRiskScore: 3,
-  selectedCategory: null,
-  categoryGroup: null,
-  sortBy: "default" as SortOption,
-  geo: null,
-  selectedCompanyId: null,
-};
-
 // Same data source as SocialSidebar's FollowingList (useFollowedCompanies),
 // but a single-select CLIENT-SIDE FILTER instead of navigation — clicking a
 // name narrows the results grid to that one company; clicking the same name
@@ -247,11 +227,6 @@ export function JobsBrowser() {
   // The page of cards on screen plus totals (GET /companies/browse?jobs=1).
   const [result, setResult] = useState<CompanyBrowseResult | null>(null);
   const [loading, setLoading] = useState(false);
-  // Until the member's profile has been read (and their sector or work type
-  // possibly applied), nothing is fetched - so the page doesn't flash every
-  // job first and then jump to theirs.
-  const [personalised, setPersonalised] = useState(false);
-  const [autoFilter, setAutoFilter] = useState<AutoFilter | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [geo, setGeo] = useState<Geo>(null);
   const [geoRequesting, setGeoRequesting] = useState(false);
@@ -315,46 +290,6 @@ export function JobsBrowser() {
     );
   }
 
-  // Opens on the member's own field: their profile Sector if they set one,
-  // otherwise their "What kind of work?" choice. Each is only applied if it
-  // actually has open jobs right now (checked with the same page request the
-  // grid then reuses from cache) - otherwise the next one is tried, and
-  // failing both the page shows every job. Never leaves an empty page.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const profile = await apiGet<MyProfile>("/me/profile");
-        const tries: AutoFilter[] = [];
-        if (profile.sector) tries.push({ kind: "sector", value: profile.sector.value, label: profile.sector.label });
-        if (profile.workType) {
-          const label = WORKPLACE_TYPES.find((w) => w.value === profile.workType)?.label ?? profile.workType;
-          tries.push({ kind: "workType", value: profile.workType, label });
-        }
-        for (const t of tries) {
-          const params = jobsParams(
-            t.kind === "sector" ? { ...NO_FILTERS, selectedCategory: t.value } : { ...NO_FILTERS, workplaceTypes: [t.value] },
-          );
-          const firstPage = await fetchBrowsePage(params, 1);
-          if (cancelled) return;
-          if (firstPage.total > 0) {
-            if (t.kind === "sector") setSelectedCategory(t.value);
-            else setWorkplaceTypes([t.value]);
-            setAutoFilter(t);
-            break;
-          }
-        }
-      } catch {
-        // No profile (or it failed to load): just show every job.
-      } finally {
-        if (!cancelled) setPersonalised(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // Every filter, the sort, Quick Select, Near Me, the Following pick and
   // the page go to the server, which sends back only the 16 cards on screen
   // with their open postings. Filter changes wait 250ms (one request per
@@ -380,7 +315,6 @@ export function JobsBrowser() {
   const lastFilterParams = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!personalised) return;
     const filtersChanged = lastFilterParams.current !== null && lastFilterParams.current !== filterParams;
     lastFilterParams.current = filterParams;
     let cancelled = false;
@@ -407,20 +341,7 @@ export function JobsBrowser() {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [personalised, filterParams, page]);
-
-  // The auto-filter note only stays while that filter is still on.
-  const autoFilterActive =
-    autoFilter !== null &&
-    (autoFilter.kind === "sector"
-      ? selectedCategory === autoFilter.value
-      : workplaceTypes.length === 1 && workplaceTypes[0] === autoFilter.value);
-
-  function clearAutoFilter() {
-    if (autoFilter?.kind === "sector") setSelectedCategory(null);
-    else setWorkplaceTypes([]);
-    setAutoFilter(null);
-  }
+  }, [filterParams, page]);
 
   useEffect(() => {
     setSelectedCategory(null);
@@ -639,15 +560,6 @@ export function JobsBrowser() {
               <CategoryGroupFilter value={categoryGroup} onChange={setCategoryGroup} />
             </div>
 
-            {autoFilterActive && !savedView && (
-              <p className="mb-3 text-sm text-muted-foreground">
-                Showing jobs for your {autoFilter.kind === "sector" ? "sector" : "kind of work"},{" "}
-                <span className="font-medium text-foreground">{autoFilter.label}</span>, from your profile.{" "}
-                <button type="button" onClick={clearAutoFilter} className="font-medium text-brand-700 underline dark:text-brand-300">
-                  Show all jobs
-                </button>
-              </p>
-            )}
             {geo && geo !== "denied" && (
               <p className="mb-3 text-xs text-muted-foreground">Showing workplaces nearest to you first.</p>
             )}
