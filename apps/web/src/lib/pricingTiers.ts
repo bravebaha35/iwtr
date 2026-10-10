@@ -3,8 +3,8 @@
 // premium-features side menu read from here, so the copy can never drift
 // between the two places it's shown.
 //
-// The real, DB-backed axis is OwnerTier (schema.prisma) — FREE/BLUE/
-// BLUE_PLUS/ENTERPRISE — mapped onto this file's keys via
+// The real, DB-backed axis is OwnerTier (schema.prisma) — FREE/STARTER/
+// PRO/ENTERPRISE — mapped onto this file's keys via
 // tierKeyFromOwnerTier below. The matrix's own keys/copy/prices are
 // unchanged from before that axis existed; only the source feeding
 // tierKeyFromOwnerTier is new.
@@ -24,30 +24,30 @@ export function tierRank(key: PricingTierKey): number {
   return PRICING_TIERS.find((t) => t.key === key)?.rank ?? 0;
 }
 
-// The real, DB-backed OwnerTier axis (FREE/BLUE/BLUE_PLUS/ENTERPRISE — see
+// The real, DB-backed OwnerTier axis (FREE/STARTER/PRO/ENTERPRISE — see
 // its schema.prisma comment) mapped onto this file's free/starter/pro/
 // enterprise keys — ENTERPRISE alone maps onto the matrix's top "enterprise"
 // bucket (see the "verified-badge" row below for the badge it grants).
-export function tierKeyFromOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): PricingTierKey {
-  if (tier === "BLUE") return "starter";
-  if (tier === "BLUE_PLUS") return "pro";
+export function tierKeyFromOwnerTier(tier: "FREE" | "STARTER" | "PRO" | "ENTERPRISE"): PricingTierKey {
+  if (tier === "STARTER") return "starter";
+  if (tier === "PRO") return "pro";
   if (tier === "ENTERPRISE") return "enterprise";
   return "free";
 }
 
 // The plan name shown on the owner dashboard ("Starter Tier") — the same
 // names as the pricing table's column headers.
-export function planNameForOwnerTier(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): string {
+export function planNameForOwnerTier(tier: "FREE" | "STARTER" | "PRO" | "ENTERPRISE"): string {
   const key = tierKeyFromOwnerTier(tier);
   return PRICING_TIERS.find((t) => t.key === key)?.label ?? "Free";
 }
 
 
-// Uploading / replacing a banner needs any paid membership — Starter
-// (Blue), Pro (Blue+) or Enterprise. Only Free is locked out; a Free
+// Uploading / replacing a banner needs any paid membership — Starter,
+// Pro or Enterprise. Only Free is locked out; a Free
 // company keeps the system default banner it was assigned. Mirrors the
 // same rule enforced server-side in owner.service.ts.
-export function canUseBanner(tier: "FREE" | "BLUE" | "BLUE_PLUS" | "ENTERPRISE"): boolean {
+export function canUseBanner(tier: "FREE" | "STARTER" | "PRO" | "ENTERPRISE"): boolean {
   return tier !== "FREE";
 }
 

@@ -26,7 +26,7 @@ export {
 export const structureTypeSchema = z.enum(["SETTLED", "CITY_BASED", "REGION_BASED"]);
 export type StructureType = z.infer<typeof structureTypeSchema>;
 
-export const ownerTierSchema = z.enum(["FREE", "BLUE", "BLUE_PLUS", "ENTERPRISE"]);
+export const ownerTierSchema = z.enum(["FREE", "STARTER", "PRO", "ENTERPRISE"]);
 export type OwnerTier = z.infer<typeof ownerTierSchema>;
 
 export const planStatusSchema = z.enum(["NONE", "ACTIVE", "PAST_DUE", "CANCELED"]);

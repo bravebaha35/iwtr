@@ -76,8 +76,8 @@ const TOP_CONTRIBUTOR_COMPANY_COUNT = 5;
 // unlimited.
 export const MONTHLY_REPLY_LIMITS: Record<OwnerTier, number | null> = {
   FREE: 2,
-  BLUE: 6,
-  BLUE_PLUS: 10,
+  STARTER: 6,
+  PRO: 10,
   ENTERPRISE: null,
 };
 

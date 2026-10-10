@@ -126,7 +126,7 @@ export class OwnerService {
     }
 
     // Uploading / replacing a banner needs a paid membership — any tier
-    // above Free (Starter, Blue+ or Enterprise) with an ACTIVE plan. Same
+    // above Free (Starter, Pro or Enterprise) with an ACTIVE plan. Same
     // rule as uploadBanner below.
     const hasBannerTier = ownership.tier !== "FREE";
     if (input.bannerImageUrl !== undefined && !(hasBannerTier && ownership.planStatus === "ACTIVE")) {

@@ -6,8 +6,8 @@ import type { MembershipTierKey, OwnerTier } from "@iwtr/shared-types";
 // matrix's top "enterprise" bucket (it's the only tier whose badge and tier
 // name are the same word).
 export function tierKeyFromOwnerTier(tier: OwnerTier): MembershipTierKey {
-  if (tier === "BLUE") return "starter";
-  if (tier === "BLUE_PLUS") return "pro";
+  if (tier === "STARTER") return "starter";
+  if (tier === "PRO") return "pro";
   if (tier === "ENTERPRISE") return "enterprise";
   return "free";
 }

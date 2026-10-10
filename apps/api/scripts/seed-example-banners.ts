@@ -65,16 +65,16 @@ async function main() {
     await writeFile(join(BANNER_UPLOADS_DIR, filename), buffer);
     const bannerImageUrl = `${origin}/uploads/company-banners/${filename}`;
 
-    // BLUE_PLUS, not ENTERPRISE — canUseBanner() (apps/web/src/lib/pricingTiers.ts)
-    // grants banner display to both, so BLUE_PLUS is enough to prove the
+    // PRO, not ENTERPRISE — canUseBanner() (apps/web/src/lib/pricingTiers.ts)
+    // grants banner display to both, so PRO is enough to prove the
     // gate isn't accidentally Enterprise-only, while leaving at least one of
     // these three free to separately promote to ENTERPRISE by hand if a
     // reviewer wants an Enterprise-badge example too.
     await prisma.company.update({
       where: { id: company.id },
-      data: { bannerImageUrl, badgeTier: "BLUE_PLUS" },
+      data: { bannerImageUrl, badgeTier: "PRO" },
     });
-    console.log(`Set example banner + BLUE_PLUS badge on "${company.name}" (${bannerImageUrl})`);
+    console.log(`Set example banner + PRO badge on "${company.name}" (${bannerImageUrl})`);
   }
 }
 

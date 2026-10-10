@@ -100,10 +100,10 @@ export class PaymentsService {
     const ownership = await this.prisma.companyOwner.findUniqueOrThrow({ where: { id: companyOwnerId } });
 
     // The tier being activated is whichever one checkout was initiated for
-    // (pendingTier) — falls back to the owner's current tier (or BLUE, the
+    // (pendingTier) — falls back to the owner's current tier (or STARTER, the
     // lowest paid rank) if this is ever called without a pending checkout in
     // flight, e.g. directly from a support script.
-    const activatingTier: OwnerTier = ownership.pendingTier ?? (ownership.tier === "FREE" ? "BLUE" : ownership.tier);
+    const activatingTier: OwnerTier = ownership.pendingTier ?? (ownership.tier === "FREE" ? "STARTER" : ownership.tier);
 
     // All three writes belong to a single subscription-status transition —
     // a crash between them would otherwise leave the owner's tier flipped

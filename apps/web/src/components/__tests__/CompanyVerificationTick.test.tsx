@@ -15,8 +15,8 @@ describe("CompanyVerificationTick", () => {
   });
 
   it.each([
-    ["BLUE", "Starter member", "text-blue-600"],
-    ["BLUE_PLUS", "Pro member", "text-green-600"],
+    ["STARTER", "Starter member", "text-blue-600"],
+    ["PRO", "Pro member", "text-green-600"],
     ["ENTERPRISE", "Enterprise member", "text-amber-500"],
   ] as const)("shows a %s-coloured check-mark for the paid tier", (tier, label, colorClass) => {
     render(<CompanyVerificationTick badgeTier={tier} claimed={false} />);

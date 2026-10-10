@@ -3,8 +3,8 @@
 import type { PaidOwnerTier } from "@iwtr/shared-types";
 
 const PAID_TIER_PRICES: { tier: PaidOwnerTier; label: string; price: string }[] = [
-  { tier: "BLUE", label: "Blue", price: "299,99₺" },
-  { tier: "BLUE_PLUS", label: "Blue+", price: "499,99₺" },
+  { tier: "STARTER", label: "Starter", price: "299,99₺" },
+  { tier: "PRO", label: "Pro", price: "499,99₺" },
   { tier: "ENTERPRISE", label: "Enterprise", price: "999,99₺" },
 ];
 

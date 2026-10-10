@@ -32,7 +32,7 @@ export type CheckoutBillingInput = z.infer<typeof checkoutBillingInputSchema>;
 
 // The 3 self-serve paid ranks (see OwnerTier's schema.prisma comment) —
 // FREE is never a checkout target.
-export const paidOwnerTierSchema = z.enum(["BLUE", "BLUE_PLUS", "ENTERPRISE"]);
+export const paidOwnerTierSchema = z.enum(["STARTER", "PRO", "ENTERPRISE"]);
 export type PaidOwnerTier = z.infer<typeof paidOwnerTierSchema>;
 
 export const plusCheckoutInputSchema = checkoutBillingInputSchema.extend({

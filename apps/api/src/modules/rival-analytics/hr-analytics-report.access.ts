@@ -21,7 +21,7 @@ export function decideHrReportAccess(input: {
   const tier = input.planStatus === "ACTIVE" ? input.tier : "FREE";
   if (tier === "ENTERPRISE") return "INCLUDED";
   if (input.hasPaidCredit) return "PAID_CREDIT";
-  if (tier === "BLUE_PLUS" && !input.quotaUsedThisMonth) return "MONTHLY_QUOTA";
+  if (tier === "PRO" && !input.quotaUsedThisMonth) return "MONTHLY_QUOTA";
   return "PAYMENT_REQUIRED";
 }
 

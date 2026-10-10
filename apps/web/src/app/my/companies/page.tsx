@@ -109,8 +109,8 @@ function UpgradeCheckout({
   }
 
   const TIERS: { value: PaidOwnerTier; label: string; price: string }[] = [
-    { value: "BLUE", label: "Blue", price: "299,99₺" },
-    { value: "BLUE_PLUS", label: "Blue+", price: "499,99₺" },
+    { value: "STARTER", label: "Starter", price: "299,99₺" },
+    { value: "PRO", label: "Pro", price: "499,99₺" },
     { value: "ENTERPRISE", label: "Enterprise", price: "999,99₺" },
   ];
 

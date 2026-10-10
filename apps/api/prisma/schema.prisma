@@ -53,7 +53,7 @@ enum EduLevel {
 // used to flag as open (see project memory, 2026-09-06 decision): FREE plus
 // exactly the 3 paid ranks from the CEO-finalized Free/Starter/Pro/Enterprise
 // matrix (apps/web/src/lib/pricingTiers.ts), renamed here to match the badge
-// each rank grants (Blue/Blue+/Enterprise — the top rank's badge is named
+// each rank grants (Starter/Pro/Enterprise — the top rank's badge is named
 // "Enterprise Badge", same as the tier itself).
 // tierKeyFromOwnerTier (apps/web/src/lib/pricingTiers.ts,
 // apps/api/src/modules/job-postings/decideBoostAccess.ts) maps this 1:1 onto
@@ -62,8 +62,8 @@ enum EduLevel {
 // new.
 enum OwnerTier {
   FREE
-  BLUE
-  BLUE_PLUS
+  STARTER
+  PRO
   ENTERPRISE
 
   @@schema("public")
@@ -482,7 +482,7 @@ model Company {
   // Denormalized copy of the approved owner's OwnerTier, kept in sync in the
   // same place isVerifiedBadge already is (PaymentsService.
   // applySubscriptionStatus) — needed alongside the boolean because the
-  // public badge now has 4 distinct looks (none/Blue/Blue+/Enterprise), not
+  // public badge now has 4 distinct looks (none/Starter/Pro/Enterprise), not
   // just yes/no. Never read CompanyOwner.tier directly for public display; this
   // is the public-safe copy of it.
   badgeTier        OwnerTier       @default(FREE)

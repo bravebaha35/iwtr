@@ -8,8 +8,8 @@ import { formProblem } from "@/lib/validateForm";
 // What each plan gets (pricing table: "Customer Support & Service Level").
 const SUPPORT_BY_TIER: Record<OwnerTier, string> = {
   FREE: "Standard mail",
-  BLUE: "Standard mail",
-  BLUE_PLUS: "Prioritized mail support (answer within 4 hours)",
+  STARTER: "Standard mail",
+  PRO: "Prioritized mail support (answer within 4 hours)",
   ENTERPRISE: "Prioritized mail support (answer within 4 hours) and chat",
 };
 
@@ -22,7 +22,7 @@ export function SupportCategory({ companyId, tier }: { companyId: string; tier: 
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const priority = tier === "BLUE_PLUS" || tier === "ENTERPRISE";
+  const priority = tier === "PRO" || tier === "ENTERPRISE";
 
   async function send() {
     const text = message.trim();
@@ -55,7 +55,7 @@ export function SupportCategory({ companyId, tier }: { companyId: string; tier: 
       <ul className="mb-6 max-w-2xl space-y-1.5 text-sm">
         <li className="text-foreground">Email support - every plan.</li>
         <li className={priority ? "text-foreground" : "text-muted-foreground"}>
-          Priority email, answered within 4 hours - Blue+ and Enterprise.
+          Priority email, answered within 4 hours - Pro and Enterprise.
         </li>
         <li className={tier === "ENTERPRISE" ? "text-foreground" : "text-muted-foreground"}>
           Live chat - Enterprise only.
