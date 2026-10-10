@@ -172,7 +172,12 @@ export function GlobalHeader() {
               className="flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted md:shrink"
             >
               <span className="sr-only md:hidden">My profile</span>
-              <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
+              <Avatar
+                avatarKey={onboardingStatus.avatarKey}
+                avatarGradient={onboardingStatus.avatarGradient}
+                photoUrl={onboardingStatus.ownerPhotoUrl}
+                size="sm"
+              />
               {/* truncate (not shrink-0 like the icon/button siblings) - a
                   long name is the one piece of this row with no fixed size
                   of its own, so it should give up width first rather than

@@ -27,8 +27,16 @@ function readImageDimensions(file: File): Promise<{ width: number; height: numbe
  * JPEG client-side (AvatarPhotoCropper) -> POST the blob to get a URL back
  * -> PATCH /me/employer-profile with that URL (the PATCH endpoint already
  * accepts profilePictureUrl today, see employerProfile.ts).
+ * The X in the top-right corner removes it (PATCH profilePictureUrl: null),
+ * which puts the owner's chosen avatar back.
  */
-export function AvatarPhotoUploader({ value, onChange }: { value: string | null; onChange: (url: string) => void }) {
+export function AvatarPhotoUploader({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (url: string | null) => void;
+}) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
@@ -67,6 +75,19 @@ export function AvatarPhotoUploader({ value, onChange }: { value: string | null;
     }
   }
 
+  async function handleRemove() {
+    setError(null);
+    setUploading(true);
+    try {
+      await apiPatch("/me/employer-profile", { profilePictureUrl: null });
+      onChange(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't remove that photo.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="flex flex-col items-center gap-2">
       <input
@@ -80,6 +101,7 @@ export function AvatarPhotoUploader({ value, onChange }: { value: string | null;
           void handleFilePicked(file);
         }}
       />
+      <div className="relative">
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
@@ -109,6 +131,21 @@ export function AvatarPhotoUploader({ value, onChange }: { value: string | null;
           )}
         </span>
       </button>
+      {value && (
+        <button
+          type="button"
+          onClick={() => void handleRemove()}
+          disabled={uploading}
+          aria-label="Remove photo"
+          title="Remove photo and use your avatar again"
+          className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-surface text-foreground shadow-sm transition hover:bg-red-600 hover:text-white disabled:opacity-60"
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      )}
+      </div>
 
       {error && <p className="max-w-[200px] text-center text-xs text-red-600 dark:text-red-300">{error}</p>}
       <p className="text-[11px] text-muted-foreground">Recommended 800x800</p>

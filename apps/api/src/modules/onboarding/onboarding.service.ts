@@ -24,6 +24,7 @@ export class OnboardingService {
 
   async getStatus(userId: string): Promise<OnboardingStatus> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const owner = await this.ownerIdentity(userId);
     return {
       status: user.status,
       country: user.country,
@@ -33,20 +34,25 @@ export class OnboardingService {
       avatarGradient: user.avatarGradient,
       reviewUsername: user.reviewUsername,
       displayName: user.displayName,
-      ownerName: await this.ownerName(userId),
+      ownerName: owner.name,
+      ownerPhotoUrl: owner.photoUrl,
     };
   }
 
-  // Real name for a verified company owner (see OnboardingStatus.ownerName).
-  // Only an approved owner's PII is ever read here, and only for themselves.
-  private async ownerName(userId: string): Promise<string | null> {
+  // Real name and employer photo for a verified company owner (see
+  // OnboardingStatus.ownerName / ownerPhotoUrl). Only an approved owner's
+  // PII is ever read here, and only for themselves.
+  private async ownerIdentity(userId: string): Promise<{ name: string | null; photoUrl: string | null }> {
     const approvedClaim = await this.prisma.companyOwner.findFirst({
       where: { userId, claimStatus: "APPROVED" },
       select: { id: true },
     });
-    if (!approvedClaim) return null;
+    if (!approvedClaim) return { name: null, photoUrl: null };
     const name = (await this.employerProfile.getOwnName(userId)) ?? (await this.piiVault.getMyIdentity(userId));
-    return name ? `${name.firstName} ${name.lastName}` : null;
+    return {
+      name: name ? `${name.firstName} ${name.lastName}` : null,
+      photoUrl: await this.employerProfile.getOwnPhotoUrl(userId),
+    };
   }
 
   async requestPhoneOtp(userId: string, input: RequestPhoneOtpInput): Promise<{ devCode?: string }> {

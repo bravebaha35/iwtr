@@ -641,7 +641,12 @@ function ProfilePageContent() {
           {/* Avatar, real name + chosen username preview, background, username picker */}
           <div className="rounded-xl border border-border bg-surface p-5">
             <div className="mb-4 flex items-center gap-3">
-              <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
+              <Avatar
+                avatarKey={profile.avatarKey}
+                avatarGradient={profile.avatarGradient}
+                photoUrl={role === "COMPANY_OWNER" ? employerProfile?.profilePictureUrl : null}
+                size="md"
+              />
               <div>
                 <p className="text-base font-bold text-foreground">
                   {profile.firstName} {profile.lastName}
@@ -701,12 +706,16 @@ function ProfilePageContent() {
             <div className="rounded-xl border border-border bg-surface p-5">
               <h2 className="mb-1 font-semibold text-foreground">Employer Photo</h2>
               <p className="mb-4 text-xs text-muted-foreground">
-                Shown alongside your real name wherever you appear as a verified company owner — separate from the
-                anonymous avatar/username above, which is still yours to use if you ever review a different company.
+                Shown instead of your avatar wherever you appear under your real name as a verified company owner, until
+                you remove it with the X. Your anonymous avatar/username above stays on any review you write.
               </p>
               <AvatarPhotoUploader
                 value={employerProfile.profilePictureUrl}
-                onChange={(url) => setEmployerProfile((prev) => (prev ? { ...prev, profilePictureUrl: url } : prev))}
+                onChange={(url) => {
+                  setEmployerProfile((prev) => (prev ? { ...prev, profilePictureUrl: url } : prev));
+                  // The header shows the photo in place of the avatar.
+                  void refreshOnboardingStatus();
+                }}
               />
             </div>
           )}

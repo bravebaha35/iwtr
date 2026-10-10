@@ -106,6 +106,12 @@ export class EmployerProfileService {
     return name ? `${name.firstName} ${name.lastName}` : null;
   }
 
+  /** The owner's uploaded employer photo, or null when they have none. */
+  async getOwnPhotoUrl(userId: string): Promise<string | null> {
+    const row = await this.prisma.employerProfile.findUnique({ where: { userId }, select: { profilePictureUrl: true } });
+    return row?.profilePictureUrl ?? null;
+  }
+
   async getMyProfile(userId: string): Promise<EmployerProfileView> {
     await this.requireVerifiedEmployer(userId);
 

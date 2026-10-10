@@ -182,6 +182,9 @@ export const onboardingStatusSchema = z.object({
   // owner never appears under a random anonymous handle. Null for everyone
   // who isn't an approved owner (and for an owner with no name on file).
   ownerName: z.string().nullable(),
+  // The same approved owner's uploaded employer photo, shown in the header in
+  // place of their avatar until they remove it. Null for everyone else.
+  ownerPhotoUrl: z.string().nullable(),
 });
 export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
 
