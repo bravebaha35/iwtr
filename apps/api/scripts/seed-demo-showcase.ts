@@ -10,7 +10,7 @@
 //   - a banner (bannerImageUrl): a random free photo from Lorem Picsum
 //     (picsum.photos, Unsplash License), seeded by the slug. Banners only
 //     render on paid tiers (canUseBanner), so a FREE company is moved to
-//     BLUE / BLUE_PLUS / ENTERPRISE in rotation;
+//     STARTER / PRO / ENTERPRISE in rotation;
 //   - job postings (only if it has none): 1-3 PUBLISHED postings from the
 //     role list for its category, spread over the last 2 weeks (inside the
 //     30-day live window), plus isHiring and a clearly fake .example contact
@@ -89,7 +89,7 @@ const CAPTIONS = [
   "Team volunteering day at the local park.",
 ];
 
-const PAID_TIERS: OwnerTier[] = ["BLUE", "BLUE_PLUS", "ENTERPRISE"];
+const PAID_TIERS: OwnerTier[] = ["STARTER", "PRO", "ENTERPRISE"];
 
 // Small deterministic PRNG so a given company always gets the same picks.
 function rng(seed: string) {

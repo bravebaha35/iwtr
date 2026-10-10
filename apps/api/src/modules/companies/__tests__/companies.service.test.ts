@@ -564,3 +564,54 @@ describe("CompaniesService.listForSitemap", () => {
     ]);
   });
 });
+
+describe("CompaniesService.browse — featured (boosted) jobs", () => {
+  const company = { id: "c1", slug: "c1", name: "Co", category: "Software", city: "İzmir", riskScore: 0, workplaceTypes: ["OFFICE"], aggregate: null };
+  const livePosting = (id: string) => ({
+    id,
+    companyId: "c1",
+    jobTitle: `Job ${id}`,
+    description: "d",
+    workType: "OFFICE",
+    status: "PUBLISHED",
+    createdAt: new Date(),
+    lastResharedAt: null,
+    filledAt: null,
+    autoReshareEnabled: false,
+  });
+
+  function setup(boostedIds: string[]) {
+    const postings = Array.from({ length: 10 }, (_, i) => livePosting(`jp${i}`));
+    const jobPostingFindMany = jest.fn().mockImplementation(({ where }) =>
+      Promise.resolve(where.boostExpiresAt ? postings.filter((p) => boostedIds.includes(p.id)) : postings),
+    );
+    const prisma = makePrisma({
+      company: { findMany: jest.fn().mockResolvedValue([company]) },
+      jobPosting: { findMany: jobPostingFindMany, updateMany: jest.fn() },
+    });
+    return { service: new CompaniesService(prisma as any, {} as any), jobPostingFindMany };
+  }
+
+  it("puts boosted postings in the featured row on page 1, at most 8", async () => {
+    const boosted = Array.from({ length: 10 }, (_, i) => `jp${i}`);
+    const { service } = setup(boosted);
+    const result = await service.browse({ jobs: "1" } as any);
+    expect(result.featured).toHaveLength(8);
+    expect(new Set(result.featured.map((f) => f.posting.id)).size).toBe(8);
+    expect(result.featured.every((f) => f.company.id === "c1")).toBe(true);
+  });
+
+  it("only counts boosts that are still running", async () => {
+    const { service, jobPostingFindMany } = setup(["jp3"]);
+    const result = await service.browse({ jobs: "1" } as any);
+    expect(result.featured.map((f) => f.posting.id)).toEqual(["jp3"]);
+    const boostQuery = jobPostingFindMany.mock.calls.find(([a]) => a.where.boostExpiresAt)[0];
+    expect(boostQuery.where.boostExpiresAt.gt).toBeInstanceOf(Date);
+    expect(boostQuery.where.status).toBe("PUBLISHED");
+  });
+
+  it("is empty on the homepage", async () => {
+    const { service } = setup(["jp3"]);
+    expect((await service.browse({} as any)).featured).toEqual([]);
+  });
+});

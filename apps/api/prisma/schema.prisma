@@ -53,7 +53,7 @@ enum EduLevel {
 // used to flag as open (see project memory, 2026-09-06 decision): FREE plus
 // exactly the 3 paid ranks from the CEO-finalized Free/Starter/Pro/Enterprise
 // matrix (apps/web/src/lib/pricingTiers.ts), renamed here to match the badge
-// each rank grants (Blue/Blue+/Enterprise — the top rank's badge is named
+// each rank grants (Starter/Pro/Enterprise — the top rank's badge is named
 // "Enterprise Badge", same as the tier itself).
 // tierKeyFromOwnerTier (apps/web/src/lib/pricingTiers.ts,
 // apps/api/src/modules/job-postings/decideBoostAccess.ts) maps this 1:1 onto
@@ -62,8 +62,8 @@ enum EduLevel {
 // new.
 enum OwnerTier {
   FREE
-  BLUE
-  BLUE_PLUS
+  STARTER
+  PRO
   ENTERPRISE
 
   @@schema("public")
@@ -276,6 +276,7 @@ model User {
   reviewVotes                ReviewVote[]
   companyReplies             CompanyReply[]
   refreshTokens              RefreshToken[]
+  companyLoginsSetUp         CompanyLogin[]
   auditLogEntries            AuditLog[]
   companyOwnerships          CompanyOwner[]
   ownerContactMessages       OwnerContactMessage[]
@@ -463,6 +464,7 @@ model EmploymentHistory {
 
 model Company {
   reports          CompanyReport[]
+  companyLogin     CompanyLogin?
   id               String          @id @default(uuid())
   slug             String          @unique
   name             String
@@ -482,7 +484,7 @@ model Company {
   // Denormalized copy of the approved owner's OwnerTier, kept in sync in the
   // same place isVerifiedBadge already is (PaymentsService.
   // applySubscriptionStatus) — needed alongside the boolean because the
-  // public badge now has 4 distinct looks (none/Blue/Blue+/Enterprise), not
+  // public badge now has 4 distinct looks (none/Starter/Pro/Enterprise), not
   // just yes/no. Never read CompanyOwner.tier directly for public display; this
   // is the public-safe copy of it.
   badgeTier        OwnerTier       @default(FREE)
@@ -667,6 +669,10 @@ model JobPosting {
   boostIsFree        Boolean                       @default(false)
   boostPaymentStatus JobPostingBoostPaymentStatus?
   boostExpiresAt     DateTime?
+  // When the boost went live (free boost granted, or paid boost confirmed).
+  // A boost can now be added later from the dashboard's Edit, so the monthly
+  // free-boost count and the featured row's order key off this, not createdAt.
+  boostStartedAt     DateTime?
   createdAt          DateTime                      @default(now())
   savedBy            SavedJobPosting[]
   jobApplications    JobApplication[]
@@ -1118,8 +1124,43 @@ model RefreshToken {
   expiresAt   DateTime
   revokedAt   DateTime?
   createdAt   DateTime  @default(now())
+  // Set only for a session opened with a company's shared login (see
+  // CompanyLogin): the refresh keeps that session limited to the company.
+  // Deleting the login ends every such session.
+  companyLoginId String?
+  companyLogin   CompanyLogin? @relation(fields: [companyLoginId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([companyLoginId])
+  @@schema("public")
+}
+
+// A company's one shared login (email + password), set up by its approved
+// owner and handed to staff. Signing in with it opens ONLY that company's
+// dashboard - acting for the owner who set it up, but limited by
+// JwtAuthGuard to routes marked @CompanyAccountAllowed() and to this one
+// company, so the owner's personal profile, CV, reviews and ID details are
+// never reachable from it. Replaces the per-person HR Manager seats.
+model CompanyLogin {
+  id                String         @id @default(uuid())
+  companyId         String         @unique
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // The owner who set it up; the session acts as them. If they stop being
+  // the company's approved owner the login stops working (checked on every
+  // request and refresh).
+  ownerUserId       String
+  owner             User           @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  // Stored lower-cased; its own namespace (never matched against User.email).
+  email             String         @unique
+  passwordHash      String
+  // Sessions opened before this moment are refused - changing the password
+  // signs every staff member out.
+  passwordChangedAt DateTime       @default(now())
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  refreshTokens     RefreshToken[]
+
+  @@index([ownerUserId])
   @@schema("public")
 }
 

@@ -63,7 +63,7 @@ function NavIconLink({
 // homepage, which used to build this same markup locally and lose it the
 // moment you navigated anywhere else.
 export function GlobalHeader() {
-  const { isAuthenticated, role, onboardingStatus, logout, openAuthModal } = useAuth();
+  const { isAuthenticated, role, onboardingStatus, logout, openAuthModal, companyAccount } = useAuth();
   const pathname = usePathname();
   const showAccountControls = isAuthenticated && onboardingStatus?.status === "ACTIVE";
   const isCompanyOwner = useIsCompanyOwner();
@@ -142,7 +142,8 @@ export function GlobalHeader() {
               </NavIconLink>
             ))}
 
-          {showAccountControls && <NotificationsMenu />}
+          {/* A company login has no personal notifications or IWT Social. */}
+          {showAccountControls && !companyAccount && <NotificationsMenu />}
 
           {showAccountControls && (
             <NavIconLink href="/jobs" label={isCompanyOwner ? "Hire now !" : "Jobs"} title={isCompanyOwner ? "Post a job" : "Jobs"}>
@@ -152,9 +153,11 @@ export function GlobalHeader() {
             </NavIconLink>
           )}
 
-          <NavIconLink href="/social" label="IWT Social">
-            <IwtSocialIcon className="h-5 w-5" />
-          </NavIconLink>
+          {!companyAccount && (
+            <NavIconLink href="/social" label="IWT Social">
+              <IwtSocialIcon className="h-5 w-5" />
+            </NavIconLink>
+          )}
         </div>
 
         <div className="shrink-0">
@@ -163,6 +166,19 @@ export function GlobalHeader() {
 
         {showAccountControls && onboardingStatus && (
           <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-4 md:shrink">
+            {companyAccount ? (
+              // A company login: the company's name, never the owner's, and
+              // no link to a personal profile it can't open.
+              <span
+                title="Signed in with the company login"
+                className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-sm font-medium text-foreground"
+              >
+                <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                  Company
+                </span>
+                <span className="hidden max-w-[12rem] truncate md:inline">{companyAccount.companyName}</span>
+              </span>
+            ) : (
             <Link
               href="/me"
               title="My profile"
@@ -172,7 +188,12 @@ export function GlobalHeader() {
               className="flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted md:shrink"
             >
               <span className="sr-only md:hidden">My profile</span>
-              <Avatar avatarKey={onboardingStatus.avatarKey} avatarGradient={onboardingStatus.avatarGradient} size="sm" />
+              <Avatar
+                avatarKey={onboardingStatus.avatarKey}
+                avatarGradient={onboardingStatus.avatarGradient}
+                photoUrl={onboardingStatus.ownerPhotoUrl}
+                size="sm"
+              />
               {/* truncate (not shrink-0 like the icon/button siblings) - a
                   long name is the one piece of this row with no fixed size
                   of its own, so it should give up width first rather than
@@ -182,6 +203,7 @@ export function GlobalHeader() {
                 {headerDisplayName(onboardingStatus, isCompanyOwner)}
               </span>
             </Link>
+            )}
             <button
               onClick={logout}
               aria-label="Log out"

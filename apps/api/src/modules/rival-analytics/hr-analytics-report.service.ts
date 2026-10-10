@@ -224,7 +224,7 @@ export class HrAnalyticsReportService {
       quotaUsedThisMonth: quotaUsed,
       hasPaidCredit: credit !== null,
     });
-    const isPro = ownership.tier === "BLUE_PLUS" && ownership.planStatus === "ACTIVE";
+    const isPro = ownership.tier === "PRO" && ownership.planStatus === "ACTIVE";
     return {
       mode,
       quotaRemaining: isPro ? (quotaUsed ? 0 : 1) : null,

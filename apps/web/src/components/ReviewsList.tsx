@@ -206,9 +206,11 @@ export function ReviewsList({
         <div
           key={review.id}
           id={`review-${review.id}`}
-          className={`scroll-mt-24 rounded-xl border border-border border-l-2 bg-surface p-5 compact:p-3 ${collarBorderClass(review.workplaceType)} ${
-            pulsingId === review.id ? "highlight-pulse" : ""
-          } ${review === featured ? "ring-1 ring-amber-400/70" : ""}`}
+          // The featured review drops its work-type colour edge and gets a
+          // plain gold outline instead (same gold as the boosted job cards).
+          className={`scroll-mt-24 rounded-xl border bg-surface p-5 compact:p-3 ${
+            review === featured ? "border-amber-400" : `border-border border-l-2 ${collarBorderClass(review.workplaceType)}`
+          } ${pulsingId === review.id ? "highlight-pulse" : ""}`}
         >
           {review === featured && (
             <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">

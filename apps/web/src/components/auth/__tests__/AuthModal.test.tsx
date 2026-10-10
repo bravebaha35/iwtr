@@ -4,11 +4,13 @@ import { AuthModal } from "../AuthModal";
 
 const login = jest.fn();
 const verifyAdminOtp = jest.fn();
+const companyLogin = jest.fn();
 
 jest.mock("@/lib/auth-context", () => ({
   useAuth: () => ({
     login,
     verifyAdminOtp,
+    companyLogin,
     register: jest.fn(),
     authMode: "login",
     setAuthMode: jest.fn(),
@@ -76,5 +78,20 @@ describe("AuthModal — admin OTP step", () => {
     await waitFor(() => expect(login).toHaveBeenCalled());
     expect(screen.queryByText("Enter your login code")).not.toBeInTheDocument();
     expect(verifyAdminOtp).not.toHaveBeenCalled();
+  });
+});
+
+describe("AuthModal - company login", () => {
+  it("signs in with the company login when its box is ticked, never as a person", async () => {
+    const user = userEvent.setup();
+    login.mockReset();
+    companyLogin.mockReset().mockResolvedValue(undefined);
+    render(<AuthModal />);
+    await user.type(screen.getByPlaceholderText("Email"), "hr@acme.com.tr");
+    await user.type(screen.getByPlaceholderText("Password"), "Shared-Pass-123");
+    await user.click(screen.getByRole("checkbox", { name: /Company login/ }));
+    await user.click(screen.getByRole("button", { name: "Log in to company" }));
+    expect(companyLogin).toHaveBeenCalledWith("hr@acme.com.tr", "Shared-Pass-123");
+    expect(login).not.toHaveBeenCalled();
   });
 });

@@ -86,7 +86,7 @@ describe("HrAnalyticsReportService.request", () => {
   });
 
   it("uses a Pro company's monthly report, keyed to this month", async () => {
-    const prisma = makePrisma({ tier: "BLUE_PLUS", planStatus: "ACTIVE" });
+    const prisma = makePrisma({ tier: "PRO", planStatus: "ACTIVE" });
     const { service } = makeService(prisma);
     await service.request(USER, COMPANY, {}, NOW);
     expect(prisma.hrAnalyticsReportJob.create).toHaveBeenCalledWith(
@@ -95,7 +95,7 @@ describe("HrAnalyticsReportService.request", () => {
   });
 
   it("refuses a Starter request without payment (402) and never builds or charges", async () => {
-    const prisma = makePrisma({ tier: "BLUE", planStatus: "ACTIVE" });
+    const prisma = makePrisma({ tier: "STARTER", planStatus: "ACTIVE" });
     const { service, payments } = makeService(prisma);
     expect(await statusOf(service.request(USER, COMPANY, {}, NOW))).toBe(402);
     expect(prisma.hrAnalyticsReportJob.create).not.toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe("HrAnalyticsReportService.request", () => {
   });
 
   it("asks a Pro company to pay once this month's report is used", async () => {
-    const prisma = makePrisma({ tier: "BLUE_PLUS", planStatus: "ACTIVE" });
+    const prisma = makePrisma({ tier: "PRO", planStatus: "ACTIVE" });
     prisma.hrAnalyticsReportJob.findFirst.mockImplementation(({ where }: { where: Record<string, unknown> }) =>
       Promise.resolve(where.quotaMonth === "2026-10" ? { id: "used" } : null),
     );
@@ -125,14 +125,14 @@ describe("HrAnalyticsReportService.request", () => {
   });
 
   it("removes the placeholder and says nothing was charged when payment can't start", async () => {
-    const prisma = makePrisma({ tier: "BLUE", planStatus: "ACTIVE" });
+    const prisma = makePrisma({ tier: "STARTER", planStatus: "ACTIVE" });
     const { service } = makeService(prisma, { checkoutFails: true });
     await expect(service.request(USER, COMPANY, { billing }, NOW)).rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(prisma.hrAnalyticsReportJob.delete).toHaveBeenCalledWith({ where: { id: JOB } });
   });
 
   it("rebuilds a failed paid report without charging again", async () => {
-    const prisma = makePrisma({ tier: "BLUE", planStatus: "ACTIVE" });
+    const prisma = makePrisma({ tier: "STARTER", planStatus: "ACTIVE" });
     prisma.hrAnalyticsReportJob.findMany.mockImplementation(({ where }: { where: Record<string, unknown> }) =>
       Promise.resolve(where.status === "FAILED" ? [{ id: "failed-paid" }] : []),
     );
@@ -170,7 +170,7 @@ describe("HrAnalyticsReportService.request", () => {
   });
 
   it("lets only one of two simultaneous Pro clicks use the monthly report", async () => {
-    const prisma = makePrisma({ tier: "BLUE_PLUS", planStatus: "ACTIVE" });
+    const prisma = makePrisma({ tier: "PRO", planStatus: "ACTIVE" });
     prisma.hrAnalyticsReportJob.create.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "5" }),
     );
@@ -180,7 +180,7 @@ describe("HrAnalyticsReportService.request", () => {
 
 describe("HrAnalyticsReportService.overview", () => {
   it("tells a Pro owner how many reports are left and when it refills, with no review counts", async () => {
-    const prisma = makePrisma({ tier: "BLUE_PLUS", planStatus: "ACTIVE" });
+    const prisma = makePrisma({ tier: "PRO", planStatus: "ACTIVE" });
     const { allowance } = await makeService(prisma).service.overview(USER, COMPANY, NOW);
     expect(allowance).toEqual({
       mode: "MONTHLY_QUOTA",

@@ -10,9 +10,9 @@ import { BannerLockedDialog } from "@/components/owner/BannerLockedDialog";
 import { CompanyWorkCard, type CompanyWorkCardData } from "@/components/company/CompanyWorkCard";
 import { canUseBanner } from "@/lib/pricingTiers";
 
-const PAID_TIER_PRICES: { tier: "BLUE" | "BLUE_PLUS" | "ENTERPRISE"; label: string; price: string }[] = [
-  { tier: "BLUE", label: "Blue", price: "299,99₺" },
-  { tier: "BLUE_PLUS", label: "Blue+", price: "499,99₺" },
+const PAID_TIER_PRICES: { tier: "STARTER" | "PRO" | "ENTERPRISE"; label: string; price: string }[] = [
+  { tier: "STARTER", label: "Starter", price: "299,99₺" },
+  { tier: "PRO", label: "Pro", price: "499,99₺" },
   { tier: "ENTERPRISE", label: "Enterprise", price: "999,99₺" },
 ];
 
@@ -55,7 +55,7 @@ export interface GeneralInfoCategoryProps {
   generalInfoSaving: boolean;
   generalInfoStatus: string | null;
   generalInfoError: string | null;
-  onStartUpgrade: (tier: "BLUE" | "BLUE_PLUS" | "ENTERPRISE") => void;
+  onStartUpgrade: (tier: "STARTER" | "PRO" | "ENTERPRISE") => void;
   // Opens the full pricing comparison (the banner-locked dialog's "See Plans").
   onSeePlans: () => void;
 }
@@ -267,7 +267,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
 
           {/* Stays in General Information per the task's own instruction
               (everything else Premium moved to its own sidebar category) —
-              always visible, greyed out below Blue+/Enterprise rather than
+              always visible, greyed out below Pro/Enterprise rather than
               hidden outright, so a lower-tier owner sees what they're
               missing instead of nothing at all. */}
           <div className="mt-2">
@@ -283,7 +283,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
                 <div className="rounded-lg border border-dashed border-border bg-surface-muted/60 p-3">
                   <p className="text-xs text-muted-foreground">
                     Your profile shows a default banner chosen from your primary work-type. Uploading
-                    your own image is a Blue+ / Enterprise feature.
+                    your own image is a Pro / Enterprise feature.
                   </p>
                   <button
                     type="button"

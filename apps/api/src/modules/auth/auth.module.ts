@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthController } from "./auth.controller";
+import { CompanyLoginController } from "./company-login.controller";
+import { CompanyLoginService } from "./company-login.service";
 import { AuthService } from "./auth.service";
 import { TokenService } from "./token.service";
 import { AdminLoginOtpService } from "./admin-login-otp.service";
@@ -9,9 +11,10 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guard";
 
 @Module({
-  controllers: [AuthController],
+  controllers: [AuthController, CompanyLoginController],
   providers: [
     AuthService,
+    CompanyLoginService,
     TokenService,
     AdminLoginOtpService,
     { provide: ADMIN_OTP_NOTIFIER, useFactory: createAdminOtpNotifier },

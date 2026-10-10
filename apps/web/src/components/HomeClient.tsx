@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
@@ -7,7 +9,13 @@ import { ForbiddenBanner } from "@/components/ForbiddenBanner";
 import { AnonGate } from "@/components/auth/AnonGate";
 
 export function HomeClient({ hasSessionCookie }: { hasSessionCookie: boolean }) {
-  const { isLoading, isAuthenticated, onboardingStatus } = useAuth();
+  const { isLoading, isAuthenticated, onboardingStatus, companyAccount } = useAuth();
+  const router = useRouter();
+
+  // A company login has one place to be: its company's dashboard.
+  useEffect(() => {
+    if (companyAccount) router.replace("/my/companies");
+  }, [companyAccount, router]);
 
   // No session cookie at all = certainly logged out: skip the loading state
   // so the register prompt is in the server-rendered first paint.
@@ -27,7 +35,7 @@ export function HomeClient({ hasSessionCookie }: { hasSessionCookie: boolean }) 
   // call) — treat "not loaded yet" as still loading, not as ACTIVE, so a
   // brand-new PENDING_PII account can't flash into the authenticated shell.
   if (isAuthenticated) {
-    if (!onboardingStatus) {
+    if (!onboardingStatus || companyAccount) {
       return (
         <div className="flex min-h-screen items-center justify-center">
           <p className="text-sm text-muted-foreground">Loading...</p>

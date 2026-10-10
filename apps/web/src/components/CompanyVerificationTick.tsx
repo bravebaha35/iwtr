@@ -3,8 +3,8 @@ import type { OwnerTier } from "@iwtr/shared-types";
 // The badge next to a company's name. One minimal check-mark symbol at every
 // level — only its colour changes with the owner's membership:
 //   - Free tier, company is claimed  → muted (no colour)
-//   - Starter (Blue)                 → blue
-//   - Pro (Blue+)                    → green
+//   - Starter                 → blue
+//   - Pro                    → green
 //   - Enterprise                     → gold
 //   - Free tier, unclaimed           → nothing
 //
@@ -16,8 +16,8 @@ import type { OwnerTier } from "@iwtr/shared-types";
 // must be an approved owner to post) just pass `claimed`.
 const TIER_TICK: Record<OwnerTier, { colorClassName: string; label: string }> = {
   FREE: { colorClassName: "text-muted-foreground", label: "Claimed by the employer" },
-  BLUE: { colorClassName: "text-blue-600 dark:text-blue-400", label: "Starter member" },
-  BLUE_PLUS: { colorClassName: "text-green-600 dark:text-green-400", label: "Pro member" },
+  STARTER: { colorClassName: "text-blue-600 dark:text-blue-400", label: "Starter member" },
+  PRO: { colorClassName: "text-green-600 dark:text-green-400", label: "Pro member" },
   ENTERPRISE: { colorClassName: "text-amber-500 dark:text-amber-400", label: "Enterprise member" },
 };
 

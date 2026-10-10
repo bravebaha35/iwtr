@@ -99,7 +99,8 @@ export async function exchangeCredentialsForSession(
     | "auth/login/verify-otp"
     | "auth/dev-admin-login"
     | "auth/dev-owner-login"
-    | "auth/dev-member-login",
+    | "auth/dev-member-login"
+    | "auth/company-login",
   body: string,
 ): Promise<NextResponse> {
   const upstream = await fetch(`${API_BASE_URL}/${upstreamPath}`, {

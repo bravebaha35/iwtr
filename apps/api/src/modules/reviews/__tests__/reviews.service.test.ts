@@ -521,8 +521,8 @@ describe("ReviewsService monthly reply allowance", () => {
 
   it.each([
     ["FREE", 2],
-    ["BLUE", 6],
-    ["BLUE_PLUS", 10],
+    ["STARTER", 6],
+    ["PRO", 10],
   ])("gives a %s company %i replies a month and counts what is used", async (tier, limit) => {
     const { service } = setup({ tier, used: 1 });
     const allowance = await service.replyAllowance(OWNER, COMPANY);
@@ -538,7 +538,7 @@ describe("ReviewsService monthly reply allowance", () => {
   });
 
   it("treats a lapsed paid plan as Free", async () => {
-    const { service } = setup({ tier: "BLUE_PLUS", planStatus: "PAST_DUE", used: 0 });
+    const { service } = setup({ tier: "PRO", planStatus: "PAST_DUE", used: 0 });
     expect(await service.replyAllowance(OWNER, COMPANY)).toEqual(expect.objectContaining({ tier: "FREE", limit: 2 }));
   });
 

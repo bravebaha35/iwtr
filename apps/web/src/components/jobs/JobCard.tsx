@@ -23,6 +23,7 @@ import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 import { ApplyButton } from "@/components/jobs/ApplyButton";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
+import { GoldGlitter } from "@/components/jobs/GoldGlitter";
 
 // The standard job card, shared by the /jobs browse grid (JobsBrowser) and
 // a company's own "Job Postings" profile tab (CompanyJobPostings). One card
@@ -235,6 +236,7 @@ export function JobCard({
   expired = false,
   variant = "full",
   onClose,
+  boosted = false,
 }: {
   company: CompanyListItem;
   posting: CardPosting;
@@ -245,6 +247,9 @@ export function JobCard({
   variant?: JobCardVariant;
   // "expanded" only: closes the floating panel.
   onClose?: () => void;
+  // A boosted ("featured") posting in the Jobs page's featured row: thicker
+  // gold outline with sparkles and a "Featured" tag on the banner.
+  boosted?: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const [expandedAt, setExpandedAt] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -297,8 +302,11 @@ export function JobCard({
     // ancestor has it.
     <div
       ref={cardRef}
-      className={`flex flex-col rounded-xl border border-border bg-surface transition hover:border-brand-300 dark:hover:border-brand-700 ${expired ? "opacity-50" : ""} ${expandedView ? "shadow-2xl" : ""}`}
+      className={`relative flex flex-col rounded-xl border bg-surface transition ${
+        boosted ? "boosted-card" : "border-border hover:border-brand-300 dark:hover:border-brand-700"
+      } ${expired ? "opacity-50" : ""} ${expandedView ? "shadow-2xl" : ""}`}
     >
+      {boosted && <GoldGlitter />}
       {/* Banner sits above the square content box (not inside it, so it
           doesn't eat that box's fixed proportions). Facebook-style overlap —
           logo over the banner's bottom-left corner. The banner sits flush at
@@ -319,6 +327,11 @@ export function JobCard({
         <div className="absolute left-3 top-full -translate-y-1/2">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
         </div>
+        {boosted && (
+          <span className="absolute left-2 top-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-sm">
+            Featured
+          </span>
+        )}
         {expandedView && onClose && (
           <button
             type="button"
@@ -507,6 +520,7 @@ export function JobCard({
           company={company}
           posting={posting}
           expired={expired}
+          boosted={boosted}
         />
       )}
     </div>
@@ -526,6 +540,7 @@ function ExpandedJobCard({
   company,
   posting,
   expired,
+  boosted,
 }: {
   at: { top: number; left: number; width: number };
   onReposition: () => void;
@@ -534,6 +549,7 @@ function ExpandedJobCard({
   company: CompanyListItem;
   posting: CardPosting;
   expired: boolean;
+  boosted: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
@@ -569,7 +585,7 @@ function ExpandedJobCard({
       // Under the sticky header (z-40) and the message dock, over the grid.
       className="z-30"
     >
-      <JobCard company={company} posting={posting} expired={expired} variant="expanded" onClose={onClose} />
+      <JobCard company={company} posting={posting} expired={expired} variant="expanded" onClose={onClose} boosted={boosted} />
     </motion.div>,
     document.body,
   );

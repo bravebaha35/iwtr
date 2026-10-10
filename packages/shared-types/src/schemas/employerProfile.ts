@@ -28,7 +28,8 @@ export const employerProfileInputSchema = z
     // is what actually requires every field to be present before treating the
     // profile as "complete" for legal-compliance purposes.
     tcKimlikNo: tcKimlikNoSchema.optional(),
-    profilePictureUrl: z.string().url().optional(),
+    // null removes the photo (the owner goes back to their avatar).
+    profilePictureUrl: z.string().url().nullable().optional(),
   })
   .refine(
     (v) =>

@@ -130,3 +130,26 @@ export const ownerJobPostingSchema = jobPostingSchema.extend({
   daysRemaining: z.number().int().min(0),
 });
 export type OwnerJobPosting = z.infer<typeof ownerJobPostingSchema>;
+
+// The owner's "Edit" on a live posting (PATCH my-companies/:companyId/
+// job-postings/:jobPostingId). The job title and work type are fixed once
+// posted - only the description can change, and a boost can be added to a
+// posting that isn't boosted right now. Same boost/billing shape as create.
+export const updateJobPostingInputSchema = z
+  .object({
+    description: z.string().min(1).max(600).optional(),
+    boost: createJobPostingInputSchema.shape.boost.optional(),
+  })
+  .refine((v) => v.description !== undefined || (v.boost !== undefined && v.boost !== null), {
+    message: "Change the description or pick a boost",
+  });
+export type UpdateJobPostingInput = z.input<typeof updateJobPostingInputSchema>;
+
+// Same three outcomes as a create: saved (live, or back in review when the
+// new description was flagged), or a payment page to finish a paid boost.
+export const updateJobPostingResultSchema = createJobPostingResultSchema;
+export type UpdateJobPostingResult = CreateJobPostingResult;
+
+// The Jobs page's featured row: up to 8 boosted postings shown above the
+// standard cards on page 1, each with the company card it belongs to.
+export const FEATURED_JOBS_LIMIT = 8;

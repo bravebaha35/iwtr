@@ -68,8 +68,8 @@ describe("OwnerService — banner membership gate (server-side, do not trust the
     ).rejects.toThrow("Membership upgrade required to change banner");
   });
 
-  it("allows a bannerImageUrl change on an ACTIVE BLUE (Starter) tier", async () => {
-    const { service, prisma } = buildService("BLUE", "ACTIVE");
+  it("allows a bannerImageUrl change on an ACTIVE STARTER (Starter) tier", async () => {
+    const { service, prisma } = buildService("STARTER", "ACTIVE");
     await service.updateMyCompany("u1", "c1", { bannerImageUrl: "https://cdn.example.com/b.webp" });
     expect(prisma.company.update).toHaveBeenCalled();
   });
@@ -81,15 +81,15 @@ describe("OwnerService — banner membership gate (server-side, do not trust the
     ).rejects.toThrow(ForbiddenException);
   });
 
-  it("rejects a bannerImageUrl change on BLUE_PLUS whose plan has lapsed", async () => {
-    const { service } = buildService("BLUE_PLUS", "PAST_DUE");
+  it("rejects a bannerImageUrl change on PRO whose plan has lapsed", async () => {
+    const { service } = buildService("PRO", "PAST_DUE");
     await expect(
       service.updateMyCompany("u1", "c1", { bannerImageUrl: "https://cdn.example.com/b.webp" }),
     ).rejects.toThrow(ForbiddenException);
   });
 
-  it("allows a bannerImageUrl change on an ACTIVE BLUE_PLUS", async () => {
-    const { service, prisma } = buildService("BLUE_PLUS", "ACTIVE");
+  it("allows a bannerImageUrl change on an ACTIVE PRO", async () => {
+    const { service, prisma } = buildService("PRO", "ACTIVE");
     await service.updateMyCompany("u1", "c1", { bannerImageUrl: "https://cdn.example.com/b.webp" });
     expect(prisma.company.update).toHaveBeenCalled();
   });

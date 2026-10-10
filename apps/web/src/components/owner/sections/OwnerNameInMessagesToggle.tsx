@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { OwnerMessagingName } from "@iwtr/shared-types";
 import { ApiError, apiGet, apiPatch } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 
 /**
  * "Show company owner's name during messaging" - the tick-box under
@@ -11,7 +12,15 @@ import { ApiError, apiGet, apiPatch } from "@/lib/api-client";
  * Set first on the claim form, one setting per owner per company, saved the
  * moment it's clicked.
  */
+// The owner's own choice about their own name - a company login (which
+// can't open this setting) doesn't see it.
 export function OwnerNameInMessagesToggle({ companyId }: { companyId: string }) {
+  const { companyAccount } = useAuth();
+  if (companyAccount) return null;
+  return <OwnerNameInMessagesToggleInner companyId={companyId} />;
+}
+
+function OwnerNameInMessagesToggleInner({ companyId }: { companyId: string }) {
   const [setting, setSetting] = useState<OwnerMessagingName | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

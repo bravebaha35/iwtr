@@ -36,7 +36,7 @@ export default async function SocialPage() {
           <h1 className="sr-only">IWT Social</h1>
           <SocialShell />
         </div>
-        <AdSlot />
+        <AdSlot side="right" />
       </div>
       {/* Private messages, docked bottom right - on this page only. */}
       <ChatDock />

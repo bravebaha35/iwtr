@@ -64,8 +64,8 @@ const ROWS: PricingRow[] = [
     label: pricingFeature("verified-badge").label,
     values: {
       free: <BadgeCell tier="FREE" value={pricingFeature("verified-badge").values.free} />,
-      starter: <BadgeCell tier="BLUE" value={pricingFeature("verified-badge").values.starter} />,
-      pro: <BadgeCell tier="BLUE_PLUS" value={pricingFeature("verified-badge").values.pro} />,
+      starter: <BadgeCell tier="STARTER" value={pricingFeature("verified-badge").values.starter} />,
+      pro: <BadgeCell tier="PRO" value={pricingFeature("verified-badge").values.pro} />,
       enterprise: <BadgeCell tier="ENTERPRISE" value={pricingFeature("verified-badge").values.enterprise} />,
     },
   },
@@ -93,10 +93,6 @@ const ROWS: PricingRow[] = [
       pro: pricingFeature("job-ads").values.pro,
       enterprise: pricingFeature("job-ads").values.enterprise,
     },
-  },
-  {
-    label: pricingFeature("hr-seats").label,
-    values: pricingFeature("hr-seats").values,
   },
   {
     label: pricingFeature("support").label,

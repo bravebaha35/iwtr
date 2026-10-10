@@ -12,6 +12,7 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { JobApplicationsService, MAX_PDF_SIZE_BYTES } from "./job-applications.service";
@@ -32,11 +33,13 @@ export class JobApplicationsController {
   }
 
   @Get("my-companies/:companyId/job-applications")
+  @CompanyAccountAllowed()
   list(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
     return this.jobApplications.listForCompany(user.id, companyId);
   }
 
   @Post("my-companies/:companyId/job-applications/:id/mark-viewed")
+  @CompanyAccountAllowed()
   markViewed(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,
@@ -50,6 +53,7 @@ export class JobApplicationsController {
   // before anything is written to `res`, so those still flow through Nest's
   // normal exception filters same as every other route here.
   @Get("my-companies/:companyId/job-applications/:id/pdf")
+  @CompanyAccountAllowed()
   async downloadPdf(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { companyListItemSchema, companySearchQuerySchema } from "./company";
+import { publicJobPostingSchema } from "./jobPosting";
 
 // The homepage's workplace grid, one page at a time (GET /companies/browse).
 // The server filters, sorts and pages, and sends back only the 20 cards on
@@ -77,5 +78,12 @@ export const companyBrowseResultSchema = z.object({
   // Unreviewed workplaces left out of the default view (A-Z, Quick Select or
   // a search brings them in).
   hiddenUnratedCount: z.number().int().min(0),
+  // Jobs page, page 1 only: the boosted postings (at most FEATURED_JOBS_LIMIT)
+  // shown above the standard cards, each with its company card. Empty on
+  // every other page and on the homepage.
+  featured: z
+    .array(z.object({ company: companyListItemSchema, posting: publicJobPostingSchema }))
+    .optional()
+    .default([]),
 });
 export type CompanyBrowseResult = z.infer<typeof companyBrowseResultSchema>;

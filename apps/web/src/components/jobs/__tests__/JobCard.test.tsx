@@ -87,3 +87,19 @@ describe("JobCard sizes", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
+
+describe("JobCard boosted (featured row)", () => {
+  it("gets the gold outline, sparkles and a Featured tag", () => {
+    const { container } = render(<JobCard company={company} posting={posting} variant="compact" boosted />);
+    expect(container.firstChild).toHaveClass("boosted-card");
+    expect(container.querySelectorAll(".gold-sparkle").length).toBeGreaterThan(0);
+    expect(screen.getByText("Featured")).toBeInTheDocument();
+  });
+
+  it("a standard card has none of it", () => {
+    const { container } = render(<JobCard company={company} posting={posting} variant="compact" />);
+    expect(container.firstChild).not.toHaveClass("boosted-card");
+    expect(container.querySelector(".gold-sparkle")).toBeNull();
+    expect(screen.queryByText("Featured")).not.toBeInTheDocument();
+  });
+});

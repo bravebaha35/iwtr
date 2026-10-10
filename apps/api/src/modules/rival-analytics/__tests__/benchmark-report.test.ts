@@ -64,7 +64,7 @@ describe("BenchmarkReportService.request", () => {
 
   it("is Enterprise-only", async () => {
     const prisma = makePrisma({
-      companyOwner: { findUnique: jest.fn().mockResolvedValue({ claimStatus: "APPROVED", tier: "BLUE_PLUS" }) },
+      companyOwner: { findUnique: jest.fn().mockResolvedValue({ claimStatus: "APPROVED", tier: "PRO" }) },
     });
     await expect(
       new BenchmarkReportService(prisma as never, sectorStub() as never).request(USER, COMPANY, {}),

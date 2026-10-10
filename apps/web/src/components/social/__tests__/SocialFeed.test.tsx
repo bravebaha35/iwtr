@@ -24,7 +24,7 @@ describe("SocialFeed (all)", () => {
     render(<SocialFeed scope={{ kind: "all" }} />);
     await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(9));
     // exactly one ad after 9 posts (7th boundary crossed once)
-    expect(screen.getAllByText("Ad space")).toHaveLength(1);
+    expect(screen.getAllByTestId("ad-slot")).toHaveLength(1);
   });
 
   it("renders no search box or sort control itself - both now live in SocialSidebar", async () => {

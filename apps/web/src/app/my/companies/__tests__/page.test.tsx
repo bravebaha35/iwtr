@@ -122,6 +122,7 @@ test("side panel lists the standard sections, then Premium Features as its own p
     "Applications",
     "Job Postings",
     "Customer Support & Service Level (SLA)",
+    "Company Login",
   ]);
   expect(screen.getByRole("heading", { name: "Premium Features", level: 2 })).toBeInTheDocument();
   const premium = screen.getByRole("navigation", { name: "Premium features" });
@@ -129,7 +130,6 @@ test("side panel lists the standard sections, then Premium Features as its own p
     "Featured Review Spotlight",
     "Benchmark Reports",
     "Posting Featured Job Ads",
-    "HR Manager Licenses",
   ]);
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
@@ -174,7 +174,7 @@ test("Contact & Social Media box shows the exact KVKK contact-number notice", as
 test("page keeps exactly two ad slots (no four-corner ads)", async () => {
   await renderLoadedPage();
 
-  expect(screen.getAllByText("Ad space")).toHaveLength(2);
+  expect(screen.getAllByTestId("ad-slot")).toHaveLength(2);
 });
 
 test("saving Contact & Social Media does not discard an unsaved City pick in General Information", async () => {
@@ -260,8 +260,8 @@ test("on the Free tier a premium section shows what it does and the plans that u
   await user.click(screen.getByRole("button", { name: "Featured Review Spotlight" }));
   const locked = screen.getByRole("heading", { name: /Featured Review Spotlight/, level: 3 }).parentElement as HTMLElement;
   expect(within(locked).getByText(/Pin one of your published reviews/)).toBeInTheDocument();
-  expect(within(locked).getByRole("button", { name: /^Blue — /})).toBeInTheDocument();
-  expect(within(locked).getByRole("button", { name: /^Blue\+ — /})).toBeInTheDocument();
+  expect(within(locked).getByRole("button", { name: /^Starter — /})).toBeInTheDocument();
+  expect(within(locked).getByRole("button", { name: /^Pro — /})).toBeInTheDocument();
   expect(within(locked).getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
 });
 

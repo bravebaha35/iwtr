@@ -6,6 +6,7 @@ function makeService(opts: {
   approvedOwner: boolean;
   employerName?: { firstName: string; lastName: string } | null;
   identity?: { firstName: string; lastName: string; birthDate: string } | null;
+  photoUrl?: string | null;
 }) {
   const prisma = {
     user: {
@@ -26,7 +27,10 @@ function makeService(opts: {
   };
   const piiVault = { getMyIdentity: jest.fn().mockResolvedValue(opts.identity ?? null) };
   const phoneVerification = {};
-  const employerProfile = { getOwnName: jest.fn().mockResolvedValue(opts.employerName ?? null) };
+  const employerProfile = {
+    getOwnName: jest.fn().mockResolvedValue(opts.employerName ?? null),
+    getOwnPhotoUrl: jest.fn().mockResolvedValue(opts.photoUrl ?? null),
+  };
   const service = new OnboardingService(
     prisma as never,
     piiVault as never,
@@ -69,5 +73,18 @@ describe("OnboardingService.getStatus ownerName", () => {
   it("is null (never the random username) when an owner has no name on file at all", async () => {
     const { service } = makeService({ approvedOwner: true });
     expect((await service.getStatus("u1")).ownerName).toBeNull();
+  });
+});
+
+describe("OnboardingService.getStatus ownerPhotoUrl", () => {
+  it("carries an approved owner's employer photo", async () => {
+    const { service } = makeService({ approvedOwner: true, photoUrl: "https://example.test/p.jpg" });
+    expect((await service.getStatus("u1")).ownerPhotoUrl).toBe("https://example.test/p.jpg");
+  });
+
+  it("is null for someone who isn't an approved owner, without reading the employer profile", async () => {
+    const { service, employerProfile } = makeService({ approvedOwner: false, photoUrl: "https://example.test/p.jpg" });
+    expect((await service.getStatus("u1")).ownerPhotoUrl).toBeNull();
+    expect(employerProfile.getOwnPhotoUrl).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,8 @@ const base: OnboardingStatus = {
   reviewUsername: "Chief Happiness Officer",
   displayName: null,
   ownerName: null,
+  ownerPhotoUrl: null,
+  companyAccount: null,
 };
 
 describe("headerDisplayName", () => {

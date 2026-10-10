@@ -24,6 +24,7 @@ import {
   type UpdateCompanyInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -46,16 +47,22 @@ export class OwnerController {
   }
 
   @Get("me/company-claims")
-  myClaims(@CurrentUser() user: AuthenticatedUser) {
-    return this.owner.myClaims(user.id);
+  @CompanyAccountAllowed()
+  async myClaims(@CurrentUser() user: AuthenticatedUser) {
+    const claims = await this.owner.myClaims(user.id);
+    // A company login sees only its own company.
+    return user.companyScope ? claims.filter((c) => c.companyId === user.companyScope!.companyId) : claims;
   }
 
   @Get("me/owned-companies")
-  myOwnedCompanies(@CurrentUser() user: AuthenticatedUser) {
-    return this.owner.myOwnedCompanies(user.id);
+  @CompanyAccountAllowed()
+  async myOwnedCompanies(@CurrentUser() user: AuthenticatedUser) {
+    const owned = await this.owner.myOwnedCompanies(user.id);
+    return user.companyScope ? owned.filter((c) => c.companyId === user.companyScope!.companyId) : owned;
   }
 
   @Patch("my-companies/:companyId")
+  @CompanyAccountAllowed()
   updateMyCompany(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,
@@ -65,6 +72,7 @@ export class OwnerController {
   }
 
   @Post("my-companies/:companyId/logo")
+  @CompanyAccountAllowed()
   @UseInterceptors(FileInterceptor("file"))
   uploadLogo(
     @CurrentUser() user: AuthenticatedUser,
@@ -75,6 +83,7 @@ export class OwnerController {
   }
 
   @Post("my-companies/:companyId/banner")
+  @CompanyAccountAllowed()
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: BANNER_SOURCE_MAX_FILE_SIZE_BYTES } }))
   uploadBanner(
     @CurrentUser() user: AuthenticatedUser,
@@ -85,6 +94,7 @@ export class OwnerController {
   }
 
   @Post("my-companies/:companyId/contact-admin")
+  @CompanyAccountAllowed()
   contactAdmin(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,

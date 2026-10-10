@@ -76,8 +76,8 @@ const TOP_CONTRIBUTOR_COMPANY_COUNT = 5;
 // unlimited.
 export const MONTHLY_REPLY_LIMITS: Record<OwnerTier, number | null> = {
   FREE: 2,
-  BLUE: 6,
-  BLUE_PLUS: 10,
+  STARTER: 6,
+  PRO: 10,
   ENTERPRISE: null,
 };
 
@@ -1166,6 +1166,18 @@ export class ReviewsService {
       remaining: limit === null ? null : Math.max(0, limit - usedThisMonth),
       resetsOn: nextMonth.toISOString().slice(0, 10),
     };
+  }
+
+  /**
+   * For a company-login session (see CompanyLogin): the review must be about
+   * its own company - anything else 404s. No-op for a normal session.
+   */
+  async assertReviewInCompanyScope(reviewId: string, companyScope?: { companyId: string }): Promise<void> {
+    if (!companyScope) return;
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId }, select: { companyId: true } });
+    if (!review || review.companyId !== companyScope.companyId) {
+      throw new NotFoundException("Review not found");
+    }
   }
 
   /**

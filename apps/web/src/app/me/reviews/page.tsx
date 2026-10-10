@@ -177,7 +177,7 @@ export default function MyReviewsPage() {
         </div>
       </div>
 
-      <AdSlot />
+      <AdSlot side="right" />
     </div>
   );
 }

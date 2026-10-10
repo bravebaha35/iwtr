@@ -6,6 +6,8 @@ import type {
   JobPosting as JobPostingView,
   JobPostingBoostStatus,
   JobPostingStatus,
+  UpdateJobPostingInput,
+  UpdateJobPostingResult,
   WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -14,6 +16,13 @@ import { PaymentsService } from "../payments/payments.service";
 import { decideBoostAccess, freeBoostsRemaining, tierKeyFromOwnerTier } from "./decideBoostAccess";
 import type { OwnerJobPosting } from "@iwtr/shared-types";
 import { shouldLazyReshare, isWithinSavedGraceWindow, daysRemaining } from "./job-postings.util";
+
+// A job ad is the employer's own text, like its IWT Social caption: a job
+// title such as "Kredi Analisti" reads as a first name + surname to the
+// review rules, so the name and job-title checks are skipped here (same
+// opt-out SocialService.createPost uses). Profanity, sexual content, abuse
+// and phone numbers still apply.
+const JOB_AD_SKIPPED_CHECKS = { skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"] as ("NAME_OR_SURNAME" | "JOB_TITLE")[] };
 
 const BOOST_PRICING: { durationDays: 7 | 14 | 21; priceTry: string }[] = [
   { durationDays: 7, priceTry: "299.99" },
@@ -76,12 +85,14 @@ export class JobPostingsService {
     return ownership;
   }
 
-  private async freeBoostsUsedThisMonth(userId: string): Promise<number> {
+  // Counted per company (not per owner account): the allowance belongs to
+  // the company's plan, and a boost can be added to any of its postings.
+  private async freeBoostsUsedThisMonth(companyId: string): Promise<number> {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
     return this.prisma.jobPosting.count({
-      where: { createdByUserId: userId, boostIsFree: true, createdAt: { gte: startOfMonth } },
+      where: { companyId, boostIsFree: true, boostStartedAt: { gte: startOfMonth } },
     });
   }
 
@@ -103,7 +114,7 @@ export class JobPostingsService {
   async getBoostStatus(userId: string, companyId: string): Promise<JobPostingBoostStatus> {
     const ownership = await this.requireApprovedOwnership(userId, companyId);
     const tierKey = tierKeyFromOwnerTier(ownership.tier);
-    const usedThisMonth = await this.freeBoostsUsedThisMonth(userId);
+    const usedThisMonth = await this.freeBoostsUsedThisMonth(companyId);
     return {
       tierKey,
       freeBoostsRemaining: freeBoostsRemaining(tierKey, usedThisMonth),
@@ -135,7 +146,7 @@ export class JobPostingsService {
       throw new BadRequestException("workType must be one of this company's own work types.");
     }
 
-    const contentCheck = this.moderation.checkContent([input.jobTitle, input.description]);
+    const contentCheck = this.moderation.checkContent([input.jobTitle, input.description], JOB_AD_SKIPPED_CHECKS);
     const hasCompetitorName = await this.mentionsCompetitorName(companyId, `${input.jobTitle} ${input.description}`);
     const status: JobPostingStatus = contentCheck.violates || hasCompetitorName ? "PENDING_ADMIN" : "PUBLISHED";
 
@@ -143,18 +154,7 @@ export class JobPostingsService {
     // missing-billing rejection after the create would leave a posting
     // behind, and the owner's natural "fix the form and resubmit" would then
     // create a duplicate.
-    let boostIsFree = false;
-    if (input.boost) {
-      const usedThisMonth = await this.freeBoostsUsedThisMonth(userId);
-      boostIsFree = decideBoostAccess({
-        durationDays: input.boost.durationDays,
-        tierKey: tierKeyFromOwnerTier(ownership.tier),
-        freeBoostsUsedThisMonth: usedThisMonth,
-      }).isFree;
-      if (!boostIsFree && !input.boost.billing) {
-        throw new BadRequestException("Billing details are required to pay for this boost.");
-      }
-    }
+    const boostIsFree = input.boost ? await this.checkBoostAffordable(companyId, ownership.tier, input.boost) : false;
 
     // Risk Score: does this exact title+workType match an earlier posting of
     // this company's that was marked FILLED (i.e. they claimed a hire, then
@@ -221,27 +221,75 @@ export class JobPostingsService {
     if (!input.boost) {
       return { status: createdStatus, jobPosting: toPublic(posting) };
     }
+    return this.startBoost(posting, input.boost, boostIsFree, createdStatus, "Your job posting was created");
+  }
 
-    if (boostIsFree) {
+  /**
+   * Decides whether a requested boost is covered by the company's free
+   * monthly allowance, and refuses a paid one with no billing details -
+   * before anything is written, so the owner can fix the form and resubmit.
+   */
+  private async checkBoostAffordable(
+    companyId: string,
+    tier: Parameters<typeof tierKeyFromOwnerTier>[0],
+    boost: { durationDays: 7 | 14 | 21; billing?: unknown },
+  ): Promise<boolean> {
+    const { isFree } = decideBoostAccess({
+      durationDays: boost.durationDays,
+      tierKey: tierKeyFromOwnerTier(tier),
+      freeBoostsUsedThisMonth: await this.freeBoostsUsedThisMonth(companyId),
+    });
+    if (!isFree && !boost.billing) {
+      throw new BadRequestException("Billing details are required to pay for this boost.");
+    }
+    return isFree;
+  }
+
+  /**
+   * Puts a boost on a saved posting: a free one goes live at once; a paid
+   * one is marked PENDING and handed to iyzico's hosted checkout, and goes
+   * live in completeCheckout. If the payment page can't be started the
+   * PENDING marker is undone and the posting comes back unboosted with
+   * boostError - the posting (and any description change) is already
+   * saved, so throwing would make the owner redo work that already happened
+   * (or create a duplicate posting).
+   */
+  private async startBoost(
+    posting: Parameters<typeof toPublic>[0],
+    boost: NonNullable<CreateJobPostingInput["boost"]>,
+    isFree: boolean,
+    savedStatus: "PUBLISHED" | "PENDING_ADMIN",
+    savedWhat: string,
+  ): Promise<CreateJobPostingResult> {
+    if (isFree) {
+      const now = new Date();
       const updated = await this.prisma.jobPosting.update({
         where: { id: posting.id },
         data: {
-          boostDurationDays: input.boost.durationDays,
+          boostDurationDays: boost.durationDays,
           boostIsFree: true,
-          boostExpiresAt: addDays(new Date(), input.boost.durationDays),
+          boostPaymentStatus: null,
+          boostStartedAt: now,
+          boostExpiresAt: addDays(now, boost.durationDays),
         },
       });
-      return { status: createdStatus, jobPosting: toPublic(updated) };
+      return { status: savedStatus, jobPosting: toPublic(updated) };
     }
 
-    // Checked up front already; re-narrowed here for the type checker.
-    if (!input.boost.billing) {
+    // Checked up front already (checkBoostAffordable); re-narrowed here.
+    if (!boost.billing) {
       throw new BadRequestException("Billing details are required to pay for this boost.");
     }
 
     await this.prisma.jobPosting.update({
       where: { id: posting.id },
-      data: { boostDurationDays: input.boost.durationDays, boostPaymentStatus: "PENDING" },
+      data: {
+        boostDurationDays: boost.durationDays,
+        boostIsFree: false,
+        boostPaymentStatus: "PENDING",
+        boostStartedAt: null,
+        boostExpiresAt: null,
+      },
     });
 
     // Same "must be this API server's own public address, reachable by
@@ -253,29 +301,23 @@ export class JobPostingsService {
       const checkout = await this.payments.createOneTimeCheckout({
         conversationId: posting.id,
         callbackUrl: `${apiPublicUrl.replace(/\/$/, "")}/job-postings/boost-checkout-callback`,
-        priceTry: boostPrice(input.boost.durationDays),
+        priceTry: boostPrice(boost.durationDays),
         basketId: posting.id,
-        itemName: `Job posting boost: ${input.boost.durationDays} days`,
-        buyerName: input.boost.billing.buyerName,
-        buyerSurname: input.boost.billing.buyerSurname,
-        buyerIdentityNumber: input.boost.billing.buyerIdentityNumber,
-        buyerEmail: input.boost.billing.buyerEmail,
-        buyerGsmNumber: input.boost.billing.buyerGsmNumber,
-        billingAddress: input.boost.billing.billingAddress,
+        itemName: `Job posting boost: ${boost.durationDays} days`,
+        buyerName: boost.billing.buyerName,
+        buyerSurname: boost.billing.buyerSurname,
+        buyerIdentityNumber: boost.billing.buyerIdentityNumber,
+        buyerEmail: boost.billing.buyerEmail,
+        buyerGsmNumber: boost.billing.buyerGsmNumber,
+        billingAddress: boost.billing.billingAddress,
       });
       return {
         status: "CHECKOUT_REQUIRED",
-        jobPosting: toPublic({ ...posting, boostDurationDays: input.boost.durationDays }),
+        jobPosting: toPublic({ ...posting, boostDurationDays: boost.durationDays, boostExpiresAt: null }),
         checkoutFormContent: checkout.checkoutFormContent,
         token: checkout.token,
       };
     } catch (err) {
-      // iyzico not configured (no API keys yet) or a live-call failure. The
-      // posting itself already exists (published or pending review), so
-      // throwing here would make the owner think nothing was created and
-      // resubmit — a duplicate posting. Instead: undo the PENDING marker so
-      // the posting isn't stuck as "payment pending" forever, and return the
-      // normal success result with boostError explaining only the boost failed.
       // eslint-disable-next-line no-console
       console.error(`[job-postings] boost checkout could not start for posting=${posting.id}:`, err);
       await this.prisma.jobPosting.update({
@@ -283,11 +325,67 @@ export class JobPostingsService {
         data: { boostDurationDays: null, boostPaymentStatus: null },
       });
       return {
-        status: createdStatus,
-        jobPosting: toPublic(posting),
-        boostError: "Your job posting was created, but the boost payment couldn't be started, so it isn't boosted. You weren't charged.",
+        status: savedStatus,
+        jobPosting: toPublic({ ...posting, boostDurationDays: null, boostExpiresAt: null }),
+        boostError: `${savedWhat}, but the boost payment couldn't be started, so it isn't boosted. You weren't charged.`,
       };
     }
+  }
+
+  /**
+   * The dashboard's Edit on an active posting: a new description and/or a
+   * boost. The job title and work type never change here (they're what the
+   * Risk Score matches on). A new description goes through the same checks
+   * as a new posting - if flagged, the posting leaves the Jobs page until
+   * an admin approves it. A boost can only be added while the posting isn't
+   * already boosted.
+   */
+  async update(
+    userId: string,
+    companyId: string,
+    jobPostingId: string,
+    input: UpdateJobPostingInput,
+  ): Promise<UpdateJobPostingResult> {
+    const ownership = await this.requireApprovedOwnership(userId, companyId);
+    const existing = await this.prisma.jobPosting.findUnique({ where: { id: jobPostingId } });
+    if (!existing || existing.companyId !== companyId) {
+      throw new NotFoundException("Job posting not found");
+    }
+    if (existing.status !== "PUBLISHED" || (daysRemaining(existing) === 0 && !shouldLazyReshare(existing))) {
+      throw new BadRequestException("Only an active job posting can be edited.");
+    }
+    const boost = input.boost ?? null;
+    if (boost && existing.boostExpiresAt && existing.boostExpiresAt > new Date()) {
+      throw new BadRequestException("This job posting is already boosted.");
+    }
+    const boostIsFree = boost ? await this.checkBoostAffordable(companyId, ownership.tier, boost) : false;
+
+    let posting = existing;
+    let savedStatus: "PUBLISHED" | "PENDING_ADMIN" = "PUBLISHED";
+    if (input.description !== undefined && input.description !== existing.description) {
+      const contentCheck = this.moderation.checkContent([existing.jobTitle, input.description], JOB_AD_SKIPPED_CHECKS);
+      const hasCompetitorName = await this.mentionsCompetitorName(companyId, `${existing.jobTitle} ${input.description}`);
+      savedStatus = contentCheck.violates || hasCompetitorName ? "PENDING_ADMIN" : "PUBLISHED";
+      posting = await this.prisma.jobPosting.update({
+        where: { id: jobPostingId },
+        data: { description: input.description, status: savedStatus },
+      });
+    }
+
+    if (!boost) {
+      return { status: savedStatus, jobPosting: toPublic(posting) };
+    }
+    // A posting waiting for review isn't on the Jobs page, so a boost would
+    // burn days (or a free boost) unseen. Nothing is charged; boost it again
+    // once it's approved.
+    if (savedStatus === "PENDING_ADMIN") {
+      return {
+        status: savedStatus,
+        jobPosting: toPublic(posting),
+        boostError: "Your changes were saved, but they need a quick check first, so the boost wasn't started. You weren't charged - boost it again once it's approved.",
+      };
+    }
+    return this.startBoost(posting, boost, boostIsFree, savedStatus, "Your changes were saved");
   }
 
   /**
@@ -371,6 +469,7 @@ export class JobPostingsService {
       where: { id: posting.id },
       data: {
         boostPaymentStatus: "PAID",
+        boostStartedAt: new Date(),
         boostExpiresAt: addDays(new Date(), posting.boostDurationDays),
       },
     });

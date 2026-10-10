@@ -8,6 +8,8 @@ jest.mock("@/lib/api-client", () => {
   return { ...actual, apiGet: jest.fn(), apiPatch: jest.fn() };
 });
 
+jest.mock("@/lib/auth-context", () => ({ useAuth: () => ({ companyAccount: null }) }));
+
 const get = apiClient.apiGet as jest.Mock;
 const patch = apiClient.apiPatch as jest.Mock;
 const COMPANY = "11111111-1111-4111-8111-111111111111";
