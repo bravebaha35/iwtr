@@ -111,7 +111,7 @@ export function SocialFeed({
             post={post}
             onChanged={(p) => setPosts((prev) => prev.map((x) => (x.id === p.id ? p : x)))}
           />
-          {(i + 1) % AD_EVERY === 0 && <AdSlot orientation="horizontal" />}
+          {(i + 1) % AD_EVERY === 0 && <AdSlot orientation="horizontal" variant={(i + 1) / AD_EVERY} />}
         </div>
       ))}
 

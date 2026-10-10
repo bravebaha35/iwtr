@@ -390,7 +390,7 @@ export default async function CompanyPage({
         </div>
       </div>
 
-      <AdSlot />
+      <AdSlot side="right" />
     </div>
   );
 }

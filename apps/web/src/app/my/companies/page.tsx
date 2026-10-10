@@ -823,7 +823,7 @@ export default function MyCompaniesPage() {
         )}
       </div>
 
-      <AdSlot />
+      <AdSlot side="right" />
     </div>
   );
 }

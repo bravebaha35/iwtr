@@ -164,7 +164,7 @@ export function IntroHeroSection() {
           </div>
         </div>
 
-        <AdSlot orientation="horizontal" />
+        <AdSlot orientation="horizontal" variant={1} />
       </div>
 
       {rulesModalOpen && (

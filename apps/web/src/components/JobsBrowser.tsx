@@ -629,7 +629,7 @@ export function JobsBrowser() {
         </SidebarContentRow>
       </div>
 
-      <AdSlot />
+      <AdSlot side="right" />
 
       {isCompanyOwner && <JobCreationFlow open={jobFlowOpen} onClose={() => setJobFlowOpen(false)} />}
     </div>

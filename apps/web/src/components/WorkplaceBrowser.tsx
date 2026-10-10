@@ -649,7 +649,7 @@ export function WorkplaceBrowser() {
         </SidebarContentRow>
       </div>
 
-      <AdSlot />
+      <AdSlot side="right" />
     </div>
   );
 }

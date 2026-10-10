@@ -173,7 +173,7 @@ test("Contact & Social Media box shows the exact KVKK contact-number notice", as
 test("page keeps exactly two ad slots (no four-corner ads)", async () => {
   await renderLoadedPage();
 
-  expect(screen.getAllByText("Ad space")).toHaveLength(2);
+  expect(screen.getAllByTestId("ad-slot")).toHaveLength(2);
 });
 
 test("saving Contact & Social Media does not discard an unsaved City pick in General Information", async () => {
