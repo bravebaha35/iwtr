@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, StreamableFile, UseGuards } from "@nestjs/common";
 import { sectorBenchmarkRequestSchema, type SectorBenchmarkRequest } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
@@ -13,6 +14,7 @@ export class BenchmarkReportController {
 
   // 202: the report is only queued here; BenchmarkReportWorker builds it.
   @Post("my-companies/:companyId/sector-benchmark")
+  @CompanyAccountAllowed()
   @HttpCode(202)
   request(
     @CurrentUser() user: AuthenticatedUser,
@@ -23,11 +25,13 @@ export class BenchmarkReportController {
   }
 
   @Get("my-companies/:companyId/sector-benchmark")
+  @CompanyAccountAllowed()
   list(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
     return this.reports.list(user.id, companyId);
   }
 
   @Get("my-companies/:companyId/sector-benchmark/:jobId/download")
+  @CompanyAccountAllowed()
   async download(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,

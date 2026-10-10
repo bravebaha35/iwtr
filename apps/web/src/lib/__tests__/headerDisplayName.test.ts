@@ -12,6 +12,7 @@ const base: OnboardingStatus = {
   displayName: null,
   ownerName: null,
   ownerPhotoUrl: null,
+  companyAccount: null,
 };
 
 describe("headerDisplayName", () => {

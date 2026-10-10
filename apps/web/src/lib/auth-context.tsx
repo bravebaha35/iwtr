@@ -21,6 +21,11 @@ interface AuthContextValue {
   // and calls verifyAdminOtp to actually finish logging in from there.
   login: (email: string, password: string) => Promise<{ otpRequired: boolean }>;
   verifyAdminOtp: (email: string, code: string) => Promise<void>;
+  // A company's shared login (set up by its owner on the dashboard). The
+  // session it opens is limited to that company's dashboard and Jobs page.
+  companyLogin: (email: string, password: string) => Promise<void>;
+  // Set while signed in with a company login: which company. Null otherwise.
+  companyAccount: OnboardingStatus["companyAccount"];
   // Local-dev-only shortcut (see AuthService.devAdminLogin) — skips
   // password + OTP for a pre-existing ADMIN account. The API 404s this
   // once NODE_ENV=production, so it's inert in a real deployment.
@@ -182,6 +187,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadSession],
   );
 
+  const companyLogin = useCallback(
+    async (email: string, password: string) => {
+      await postCredentials("/api/auth/company-login", { email, password });
+      await loadSession();
+      setAuthModalOpen(false);
+    },
+    [loadSession],
+  );
+
   const devAdminLogin = useCallback(
     async (email: string) => {
       await postCredentials("/api/auth/dev-admin-login", { email });
@@ -237,6 +251,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         login,
         verifyAdminOtp,
+        companyLogin,
+        companyAccount: onboardingStatus?.companyAccount ?? null,
         devAdminLogin,
         devOwnerLogin,
         devMemberLogin,

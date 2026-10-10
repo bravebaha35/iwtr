@@ -118,3 +118,29 @@ export type DevOwnerLoginInput = z.infer<typeof devOwnerLoginInputSchema>;
 // into different account kinds.
 export const devMemberLoginInputSchema = loginEmailInputSchema.pick({ email: true });
 export type DevMemberLoginInput = z.infer<typeof devMemberLoginInputSchema>;
+
+// ---- Company login (one shared login per company, set up by its owner) ----
+
+// POST /auth/company-login. Any email address works here (a company's own
+// domain included) - unlike member registration's allowed-provider list.
+export const companyLoginInputSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  password: z.string().min(1).max(200),
+});
+export type CompanyLoginInput = z.infer<typeof companyLoginInputSchema>;
+
+// POST my-companies/:companyId/company-login - the owner sets or replaces the
+// company's shared login. Same strength rule as a member's new password.
+export const companyLoginSetupInputSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  password: strongPasswordSchema,
+});
+export type CompanyLoginSetupInput = z.infer<typeof companyLoginSetupInputSchema>;
+
+// What the owner sees back: the login's email (never the password), or null
+// when the company has none yet.
+export const companyLoginViewSchema = z.object({
+  email: z.string().nullable(),
+  updatedAt: z.string().datetime().nullable(),
+});
+export type CompanyLoginView = z.infer<typeof companyLoginViewSchema>;

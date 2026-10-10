@@ -27,6 +27,7 @@ import {
   type UpdateReviewInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
@@ -130,27 +131,32 @@ export class ReviewsController {
   // action same as reviewing — no need for vote's higher throttle tier.
   // Owner dashboard: replies left this month on the owner's plan.
   @Get("my-companies/:companyId/reply-allowance")
+  @CompanyAccountAllowed()
   replyAllowance(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
     return this.reviews.replyAllowance(user.id, companyId);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("reviews/:id/reply")
-  replyToReview(
+  @CompanyAccountAllowed()
+  async replyToReview(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(replyToReviewInputSchema, { strict: true })) body: ReplyToReviewInput,
   ) {
+    await this.reviews.assertReviewInCompanyScope(id, user.companyScope);
     return this.reviews.replyToReview(user.id, id, body);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Patch("reviews/:id/reply")
-  updateReply(
+  @CompanyAccountAllowed()
+  async updateReply(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(replyToReviewInputSchema, { strict: true })) body: ReplyToReviewInput,
   ) {
+    await this.reviews.assertReviewInCompanyScope(id, user.companyScope);
     return this.reviews.updateReply(user.id, id, body);
   }
 }

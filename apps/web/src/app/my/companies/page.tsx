@@ -31,6 +31,8 @@ import { ContactSocialCategory } from "@/components/owner/sections/ContactSocial
 import { ReviewsRatingsCategory } from "@/components/owner/sections/ReviewsRatingsCategory";
 import { ApplicationsCategory } from "@/components/owner/sections/ApplicationsCategory";
 import { JobPostingsCategory } from "@/components/owner/sections/JobPostingsCategory";
+import { CompanyLoginCategory } from "@/components/owner/sections/CompanyLoginCategory";
+import { ChatDock } from "@/components/messaging/ChatDock";
 import { SupportCategory } from "@/components/owner/sections/SupportCategory";
 import { FeaturedReviewCategory } from "@/components/owner/sections/FeaturedReviewCategory";
 import { BenchmarkReportsCategory } from "@/components/owner/sections/BenchmarkReportsCategory";
@@ -215,6 +217,7 @@ function sameWorkplaceTypes(a: WorkplaceType[], b: WorkplaceType[]): boolean {
 }
 
 function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
+  const { companyAccount } = useAuth();
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<OwnerDashboardCategory>("general-info");
@@ -534,6 +537,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       <fieldset disabled={claim.hidden} className="min-w-0">
         <SidebarContentRow>
           <OwnerDashboardSidePanel
+            isCompanyLogin={!!companyAccount}
             active={activeCategory}
             onChange={setActiveCategory}
           />
@@ -624,6 +628,10 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
 
             {activeCategory === "job-postings" && <JobPostingsCategory companyId={claim.companyId} />}
+
+            {activeCategory === "company-login" && !companyAccount && (
+              <CompanyLoginCategory companyId={claim.companyId} companyName={claim.companyName} />
+            )}
 
             {activeCategory === "customer-support" && <SupportCategory companyId={claim.companyId} tier={claim.tier} />}
 
@@ -731,7 +739,7 @@ function CompanyTabs({
 }
 
 export default function MyCompaniesPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, companyAccount } = useAuth();
   const [claims, setClaims] = useState<MyCompanyClaim[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Which company is open. Starts from ?company= (notification links, the
@@ -784,11 +792,22 @@ export default function MyCompaniesPage() {
       <AdSlot />
 
       <div className="w-full max-w-7xl">
-        <h1 className="mb-1 text-2xl font-bold text-foreground">My companies</h1>
-        <p className="mb-6 text-sm text-muted-foreground">
-          Companies you&apos;ve claimed, and their approval status. Search a workplace and use &ldquo;Claim this
-          company&rdquo; on its page to add one here.
-        </p>
+        {companyAccount ? (
+          <>
+            <h1 className="mb-1 text-2xl font-bold text-foreground">{companyAccount.companyName}</h1>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Signed in with the company login. Messages from reviewers are in the chat box at the bottom right.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="mb-1 text-2xl font-bold text-foreground">My companies</h1>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Companies you&apos;ve claimed, and their approval status. Search a workplace and use &ldquo;Claim this
+              company&rdquo; on its page to add one here.
+            </p>
+          </>
+        )}
 
         {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
         {claims === null && <p className="text-sm text-muted-foreground">Loading...</p>}
@@ -796,7 +815,10 @@ export default function MyCompaniesPage() {
           <p className="text-sm text-muted-foreground">You haven&apos;t claimed any companies yet.</p>
         )}
 
-        {openCompany && (
+        {/* The legal-name gate is about the owner's own account - a company
+            login never sees it. */}
+        {openCompany && companyAccount && <OwnedCompanyCard key={openCompany.id} claim={openCompany} />}
+        {openCompany && !companyAccount && (
           <OwnerNameGate>
             {ownedCompanies.length > 1 && (
               <CompanyTabs companies={ownedCompanies} selectedId={openCompany.companyId} onSelect={selectCompany} />
@@ -828,6 +850,10 @@ export default function MyCompaniesPage() {
       </div>
 
       <AdSlot side="right" />
+
+      {/* Owners read messages on IWT Social; a company login has no IWT
+          Social, so its message dock lives here. */}
+      {companyAccount && <ChatDock />}
     </div>
   );
 }

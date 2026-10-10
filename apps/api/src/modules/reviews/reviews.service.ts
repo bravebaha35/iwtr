@@ -1169,6 +1169,18 @@ export class ReviewsService {
   }
 
   /**
+   * For a company-login session (see CompanyLogin): the review must be about
+   * its own company - anything else 404s. No-op for a normal session.
+   */
+  async assertReviewInCompanyScope(reviewId: string, companyScope?: { companyId: string }): Promise<void> {
+    if (!companyScope) return;
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId }, select: { companyId: true } });
+    if (!review || review.companyId !== companyScope.companyId) {
+      throw new NotFoundException("Review not found");
+    }
+  }
+
+  /**
    * A company's one public reply to a review — see CompanyReply in
    * schema.prisma for why this is public rather than a DM to the reviewer,
    * and why it's run through the same content-moderation check reviews get:

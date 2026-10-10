@@ -179,6 +179,23 @@ export class MessagingService {
   }
 
   /** The top-bar Messages inbox for an owner: every company they have an approved claim on, in one list. */
+  /**
+   * For a company-login session (see CompanyLogin): the conversation must be
+   * one of its own company's. Anything else 404s, exactly like an outsider -
+   * so the shared login can never open the owner's own conversations as a
+   * reviewer. No-op for a normal session.
+   */
+  async assertInCompanyScope(conversationId: string, companyScope?: { companyId: string }): Promise<void> {
+    if (!companyScope) return;
+    const conversation = await this.prisma.reviewConversation.findUnique({
+      where: { id: conversationId },
+      select: { companyId: true },
+    });
+    if (!conversation || conversation.companyId !== companyScope.companyId) {
+      throw new NotFoundException("Conversation not found");
+    }
+  }
+
   async listForOwner(userId: string): Promise<ConversationSummary[]> {
     const claims = await this.prisma.companyOwner.findMany({
       where: { userId, claimStatus: "APPROVED" },

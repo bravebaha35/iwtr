@@ -85,6 +85,15 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - `auth/` — email+password registration/login, JWT access tokens (15 min, HS256) + rotating opaque refresh
   tokens (30 days, stored as a SHA-256 hash in `RefreshToken`, rotated on every use). Google/Apple sign-in
   endpoints exist but throw `NotImplementedException` until `GOOGLE_CLIENT_ID` / `APPLE_*` env vars are set.
+  **Company login** (`CompanyLogin`, replaces per-person HR seats): one shared email + password per company,
+  set up by its approved owner (dashboard > Company Login). `POST auth/company-login` issues a token acting as
+  that owner but carrying `cl`/`cid` claims. `JwtAuthGuard` is **default-deny** for such a token: only routes
+  marked `@CompanyAccountAllowed()` are reachable, a `:companyId` param must be its own company, and the login
+  is re-checked against the DB on every request (deleted / password changed / owner lost the company = signed
+  out). Routes without `:companyId` must scope themselves via `user.companyScope` (conversations, review
+  replies, owned-companies lists). `OptionalJwtAuthGuard` treats it as logged out. The full list of opened
+  routes is pinned in `auth/__tests__/company-login.test.ts` - opening a new one means updating that list
+  on purpose. Never open a personal route (profile, CV, reviews, PII, notifications, IWT Social) to it.
 - `pii-vault/` — the **only** module allowed to read/write the `PiiVault` Prisma model. Encrypts PII
   fields with per-record envelope encryption (AES-256-GCM field values, DEK wrapped by a master key derived
   from `PII_MASTER_KEY`). See Data Model below for the retention policy this module enforces.
@@ -141,7 +150,15 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   converts tallies to percentages before the PDF builder sees them, and only the API's own uploaded logo file is drawn
   (never a fetched URL). Layout check without a DB: `pnpm exec ts-node --transpile-only scripts/dev-sample-hr-report.ts`.
 - Company replies to reviews are capped per company per calendar month by the replying owner's plan
-  (`MONTHLY_REPLY_LIMITS` in reviews.service.ts: Free 2, Blue 6, Blue+ 10, Enterprise unlimited); edits are free.
+  (`MONTHLY_REPLY_LIMITS` in reviews.service.ts: Free 2, Starter 6, Pro 10, Enterprise unlimited); edits are free.
+  Plan tiers are `OwnerTier` FREE/STARTER/PRO/ENTERPRISE (renamed from BLUE/BLUE_PLUS on 2026-10-11 - "Blue"
+  now only names the Starter tick colour).
+- Featured (boosted) job ads: a posting with `boostExpiresAt` in the future. Page 1 of /jobs shows up to 8 in a
+  gold "Featured jobs" row (`CompaniesService.featuredJobs`, random pick when more), above the standard cards.
+  Free 7-day boosts per company per month match Pricing (Starter 2, Pro 5, Enterprise 10, `decideBoostAccess.ts`,
+  counted from `boostStartedAt`). Owners boost at creation or later via dashboard Job Postings > Edit
+  (`PATCH my-companies/:companyId/job-postings/:id`: description and/or boost; title/work type fixed). Job ads
+  skip the review-only NAME_OR_SURNAME/JOB_TITLE checks (a title like "Kredi Analisti" looks like a name).
 - `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per
   company) and the admin queue on `/admin/content`.
 

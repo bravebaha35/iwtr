@@ -185,6 +185,10 @@ export const onboardingStatusSchema = z.object({
   // The same approved owner's uploaded employer photo, shown in the header in
   // place of their avatar until they remove it. Null for everyone else.
   ownerPhotoUrl: z.string().nullable(),
+  // Set only for a session opened with a company's shared login: which
+  // company it is limited to. The web app then shows just that company's
+  // dashboard and Jobs page, and none of the owner's personal pages.
+  companyAccount: z.object({ companyId: z.string().uuid(), companyName: z.string() }).nullable().default(null),
 });
 export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
 

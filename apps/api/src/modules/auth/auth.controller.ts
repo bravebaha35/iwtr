@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Post } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import {
+  companyLoginInputSchema,
   devAdminLoginInputSchema,
   devMemberLoginInputSchema,
   devOwnerLoginInputSchema,
@@ -9,6 +10,7 @@ import {
   refreshRequestSchema,
   registerEmailInputSchema,
   verifyAdminOtpInputSchema,
+  type CompanyLoginInput,
   type DevAdminLoginInput,
   type DevMemberLoginInput,
   type DevOwnerLoginInput,
@@ -38,6 +40,14 @@ export class AuthController {
   @Post("login")
   login(@Body(new ZodValidationPipe(loginEmailInputSchema)) body: LoginEmailInput) {
     return this.auth.loginWithEmail(body, "web");
+  }
+
+  // A company's shared login (see AuthService.loginWithCompanyLogin) - same
+  // low ceiling as a member login.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post("company-login")
+  companyLogin(@Body(new ZodValidationPipe(companyLoginInputSchema)) body: CompanyLoginInput) {
+    return this.auth.loginWithCompanyLogin(body, "web");
   }
 
   // Tighter still than login/register — this is the one endpoint that lets

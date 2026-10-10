@@ -14,6 +14,7 @@ import {
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { OnboardingService } from "./onboarding.service";
@@ -23,9 +24,12 @@ import { OnboardingService } from "./onboarding.service";
 export class OnboardingController {
   constructor(private readonly onboarding: OnboardingService) {}
 
+  // Also what a company-login session reads to learn it is one (and which
+  // company) - see OnboardingService.getStatus.
   @Get("status")
+  @CompanyAccountAllowed()
   getStatus(@CurrentUser() user: AuthenticatedUser) {
-    return this.onboarding.getStatus(user.id);
+    return this.onboarding.getStatus(user.id, user.companyScope);
   }
 
   // Each call sends a real, paid SMS via Twilio — tighter than the global

@@ -7,6 +7,7 @@ import {
   type UpdateOwnerMessagingNameInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
@@ -38,7 +39,10 @@ export class MessagingController {
 
   // The top-bar Messages page for an owner: all their companies in one list.
   @Get("owner/conversations")
+  @CompanyAccountAllowed()
   listForOwner(@CurrentUser() user: AuthenticatedUser) {
+    // A company login sees only its own company's conversations.
+    if (user.companyScope) return this.messaging.listForCompany(user.id, user.companyScope.companyId);
     return this.messaging.listForOwner(user.id);
   }
 
@@ -61,6 +65,7 @@ export class MessagingController {
   }
 
   @Get("owner/companies/:companyId/conversations")
+  @CompanyAccountAllowed()
   listForCompany(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,
@@ -69,30 +74,38 @@ export class MessagingController {
   }
 
   @Get("conversations/:id")
-  getThread(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) id: string) {
+  @CompanyAccountAllowed()
+  async getThread(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) id: string) {
+    await this.messaging.assertInCompanyScope(id, user.companyScope);
     return this.messaging.getThread(user.id, id);
   }
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("conversations/:id/messages")
-  send(
+  @CompanyAccountAllowed()
+  async send(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(sendMessageInputSchema, { strict: true })) body: SendMessageInput,
   ) {
+    await this.messaging.assertInCompanyScope(id, user.companyScope);
     return this.messaging.sendMessage(user.id, id, body);
   }
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("conversations/:id/end")
+  @CompanyAccountAllowed()
   @HttpCode(200)
-  end(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) id: string) {
+  async end(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) id: string) {
+    await this.messaging.assertInCompanyScope(id, user.companyScope);
     return this.messaging.endConversation(user.id, id);
   }
 
   @Post("conversations/:id/read")
+  @CompanyAccountAllowed()
   @HttpCode(204)
-  markRead(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) id: string) {
+  async markRead(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) id: string) {
+    await this.messaging.assertInCompanyScope(id, user.companyScope);
     return this.messaging.markRead(user.id, id);
   }
 }

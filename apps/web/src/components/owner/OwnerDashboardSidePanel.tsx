@@ -10,6 +10,7 @@ const STANDARD_SECTIONS = [
   { key: "applications", label: "Applications" },
   { key: "job-postings", label: "Job Postings" },
   { key: "customer-support", label: "Customer Support & Service Level (SLA)" },
+  { key: "company-login", label: "Company Login" },
 ] as const;
 
 // Paid-plan features, in their own panel under a "Premium Features" header.
@@ -40,15 +41,18 @@ function isPremium(key: OwnerDashboardCategory): key is PremiumSection {
 export function OwnerDashboardSidePanel({
   active,
   onChange,
+  isCompanyLogin = false,
 }: {
   active: OwnerDashboardCategory;
   onChange: (category: OwnerDashboardCategory) => void;
+  // Signed in with the company's shared login: it can't manage that login.
+  isCompanyLogin?: boolean;
 }) {
   return (
     <aside className="flex shrink-0 flex-col gap-3 sm:w-56">
       <SettingsNavList
         label="Company dashboard sections"
-        items={[...STANDARD_SECTIONS]}
+        items={STANDARD_SECTIONS.filter((s) => !isCompanyLogin || s.key !== "company-login")}
         active={isPremium(active) ? null : active}
         onChange={onChange}
       />

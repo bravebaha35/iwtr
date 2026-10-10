@@ -3,6 +3,7 @@ import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import { hrReportRequestSchema, type HrReportRequest } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
@@ -13,6 +14,7 @@ export class HrAnalyticsReportController {
   constructor(private readonly reports: HrAnalyticsReportService) {}
 
   @Get("my-companies/:companyId/hr-analytics-report")
+  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   overview(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
     return this.reports.overview(user.id, companyId);
@@ -22,6 +24,7 @@ export class HrAnalyticsReportController {
   // HrAnalyticsReportWorker builds it. A tight per-account throttle on top
   // of the service's daily cap, since every accepted call ends in a PDF build.
   @Post("my-companies/:companyId/hr-analytics-report")
+  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(202)
@@ -34,6 +37,7 @@ export class HrAnalyticsReportController {
   }
 
   @Get("my-companies/:companyId/hr-analytics-report/:jobId/download")
+  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   async download(
     @CurrentUser() user: AuthenticatedUser,

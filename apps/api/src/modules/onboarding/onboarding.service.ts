@@ -22,7 +22,8 @@ export class OnboardingService {
     private readonly employerProfile: EmployerProfileService,
   ) {}
 
-  async getStatus(userId: string): Promise<OnboardingStatus> {
+  async getStatus(userId: string, companyScope?: { companyId: string }): Promise<OnboardingStatus> {
+    if (companyScope) return this.companyAccountStatus(companyScope.companyId);
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const owner = await this.ownerIdentity(userId);
     return {
@@ -36,6 +37,27 @@ export class OnboardingService {
       displayName: user.displayName,
       ownerName: owner.name,
       ownerPhotoUrl: owner.photoUrl,
+      companyAccount: null,
+    };
+  }
+
+  // A company-login session acts for the owner, but must show nothing of
+  // them: no avatar, username, name, photo or location - only which company
+  // it is signed in for.
+  private async companyAccountStatus(companyId: string): Promise<OnboardingStatus> {
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { name: true } });
+    return {
+      status: "ACTIVE",
+      country: null,
+      city: null,
+      district: null,
+      avatarKey: null,
+      avatarGradient: null,
+      reviewUsername: null,
+      displayName: null,
+      ownerName: null,
+      ownerPhotoUrl: null,
+      companyAccount: { companyId, companyName: company.name },
     };
   }
 

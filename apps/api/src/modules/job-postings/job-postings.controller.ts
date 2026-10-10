@@ -8,6 +8,7 @@ import {
   type UpdateJobPostingInput,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -20,12 +21,14 @@ export class JobPostingsController {
   constructor(private readonly jobPostings: JobPostingsService) {}
 
   @Get("my-companies/:companyId/job-postings/boost-status")
+  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   boostStatus(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
     return this.jobPostings.getBoostStatus(user.id, companyId);
   }
 
   @Post("my-companies/:companyId/job-postings")
+  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -37,6 +40,7 @@ export class JobPostingsController {
 
   // The dashboard's Edit: new description and/or a boost on an active posting.
   @Patch("my-companies/:companyId/job-postings/:jobPostingId")
+  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -48,6 +52,7 @@ export class JobPostingsController {
   }
 
   @Post("my-companies/:companyId/job-postings/:jobPostingId/mark-filled")
+  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   markFilled(
     @CurrentUser() user: AuthenticatedUser,
@@ -58,6 +63,7 @@ export class JobPostingsController {
   }
 
   @Get("my-companies/:companyId/job-postings")
+  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   listOwnerPostings(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
     return this.jobPostings.listOwnerPostings(user.id, companyId);

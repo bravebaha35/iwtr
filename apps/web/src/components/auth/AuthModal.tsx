@@ -48,6 +48,7 @@ function CloseButton({ onClose }: { onClose: () => void }) {
 export function AuthModal() {
   const {
     login,
+    companyLogin,
     verifyAdminOtp,
     devAdminLogin,
     devOwnerLogin,
@@ -78,6 +79,9 @@ export function AuthModal() {
   // lib/emailVerification.ts), so EmailVerificationScreen re-asks for it.
   const [step, setStep] = useState<"form" | "verify" | "admin-otp">("form");
   const [devLoggingIn, setDevLoggingIn] = useState<"admin" | "owner" | "member" | null>(null);
+  // Log in tab only: sign in with a company's shared login instead of a
+  // personal account.
+  const [asCompany, setAsCompany] = useState(false);
 
   useEffect(() => {
     const pending = loadPendingVerification();
@@ -97,6 +101,7 @@ export function AuthModal() {
     setPassword("");
     setConfirmPassword("");
     setError(null);
+    setAsCompany(false);
   }
 
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
@@ -105,6 +110,18 @@ export function AuthModal() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (mode === "login" && asCompany) {
+      setSubmitting(true);
+      try {
+        await companyLogin(email.trim(), password);
+      } catch {
+        setError("The company email or password you entered is incorrect. Please try again.");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
 
     if (mode === "login") {
       const problem = formProblem(loginEmailInputSchema, { email, password }, { email: "email address" });
@@ -330,6 +347,24 @@ export function AuthModal() {
             <PasswordInput value={password} onChange={setPassword} placeholder="Password" autoComplete="current-password" />
           )}
 
+          {mode === "login" && (
+            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={asCompany}
+                onChange={(e) => {
+                  setAsCompany(e.target.checked);
+                  setError(null);
+                }}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-semibold text-foreground">Company login</span> - sign in with the login your
+                company&apos;s owner shared with you. It opens only that company&apos;s dashboard.
+              </span>
+            </label>
+          )}
+
           {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
           <button
@@ -337,7 +372,7 @@ export function AuthModal() {
             disabled={submitting || (mode === "register" && !canSubmitRegister)}
             className="mt-2 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            {submitting ? "Please wait..." : mode === "register" ? "Create account" : "Log in"}
+            {submitting ? "Please wait..." : mode === "register" ? "Create account" : asCompany ? "Log in to company" : "Log in"}
           </button>
         </form>
 

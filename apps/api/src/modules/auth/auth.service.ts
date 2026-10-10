@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import type {
   AuthTokensResponse,
+  CompanyLoginInput,
   LoginEmailInput,
   LoginResult,
   RegisterEmailInput,
@@ -100,6 +101,32 @@ export class AuthService {
 
     const tokens = await this.issueTokenPair(user.id, user.role, status, deviceLabel);
     return { status: "OK", ...tokens };
+  }
+
+  /**
+   * Signs in with a company's shared login (CompanyLogin). The session acts
+   * for the owner who set the login up but is limited to that one company
+   * and to routes opened with @CompanyAccountAllowed() (JwtAuthGuard). Same
+   * generic failure and constant-time compare as loginWithEmail, so it can't
+   * be used to find out which emails are company logins.
+   */
+  async loginWithCompanyLogin(input: CompanyLoginInput, deviceLabel?: string): Promise<AuthTokensResponse> {
+    const login = await this.prisma.companyLogin.findUnique({ where: { email: input.email } });
+    const valid = await bcrypt.compare(input.password, login?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!login || !valid) {
+      throw new UnauthorizedException("Invalid email or password");
+    }
+    const owner = await this.prisma.companyOwner.findFirst({
+      where: { userId: login.ownerUserId, companyId: login.companyId, claimStatus: "APPROVED" },
+      select: { id: true },
+    });
+    if (!owner) {
+      throw new UnauthorizedException("Invalid email or password");
+    }
+    return this.issueTokenPair(login.ownerUserId, "COMPANY_OWNER", "ACTIVE", deviceLabel, {
+      loginId: login.id,
+      companyId: login.companyId,
+    });
   }
 
   async verifyAdminLoginOtp(input: VerifyAdminOtpInput, deviceLabel?: string): Promise<AuthTokensResponse> {
@@ -213,6 +240,24 @@ export class AuthService {
       throw new UnauthorizedException("Refresh token is invalid or expired");
     }
 
+    // A company-login session stays one: re-check the login still exists and
+    // its owner still owns the company before handing out a new pair.
+    let companyScope: { loginId: string; companyId: string } | undefined;
+    if (stored.companyLoginId) {
+      const login = await this.prisma.companyLogin.findUnique({ where: { id: stored.companyLoginId } });
+      const stillOwner =
+        login &&
+        login.ownerUserId === stored.userId &&
+        (await this.prisma.companyOwner.findFirst({
+          where: { userId: login.ownerUserId, companyId: login.companyId, claimStatus: "APPROVED" },
+          select: { id: true },
+        }));
+      if (!login || !stillOwner) {
+        throw new UnauthorizedException("Refresh token is invalid or expired");
+      }
+      companyScope = { loginId: login.id, companyId: login.companyId };
+    }
+
     // Rotate: revoke the used token conditionally (WHERE revokedAt: null),
     // not with a plain update. Two concurrent refresh calls on the same
     // still-valid token would otherwise both pass the revokedAt check above
@@ -233,6 +278,9 @@ export class AuthService {
       throw new UnauthorizedException("Refresh token is invalid or expired");
     }
 
+    if (companyScope) {
+      return this.issueTokenPair(user.id, "COMPANY_OWNER", "ACTIVE", stored.deviceLabel ?? undefined, companyScope);
+    }
     return this.issueTokenPair(user.id, user.role, user.status, stored.deviceLabel ?? undefined);
   }
 
@@ -263,8 +311,14 @@ export class AuthService {
     role: "MEMBER" | "ADMIN" | "COMPANY_OWNER",
     status: "PENDING_PHONE" | "PENDING_PII" | "PENDING_HISTORY" | "PENDING_AVATAR" | "ACTIVE" | "SUSPENDED",
     deviceLabel?: string,
+    companyScope?: { loginId: string; companyId: string },
   ): Promise<AuthTokensResponse> {
-    const access = this.tokens.signAccessToken({ sub: userId, role, status });
+    const access = this.tokens.signAccessToken({
+      sub: userId,
+      role,
+      status,
+      ...(companyScope ? { cl: companyScope.loginId, cid: companyScope.companyId } : {}),
+    });
     const refresh = this.tokens.generateRefreshToken();
 
     await this.prisma.refreshToken.create({
@@ -273,6 +327,7 @@ export class AuthService {
         tokenHash: refresh.hash,
         deviceLabel,
         expiresAt: refresh.expiresAt,
+        companyLoginId: companyScope?.loginId ?? null,
       },
     });
 

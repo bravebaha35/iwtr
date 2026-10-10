@@ -1,6 +1,7 @@
 import { BadRequestException, Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { workplaceTypeSchema } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { TurnoverPredictionService } from "./turnover-prediction.service";
@@ -14,6 +15,7 @@ export class TurnoverRiskController {
   // requireApprovedOwnership) view of the caller's own company's turnover
   // risk. No public/rival visibility of this at all.
   @Get("my-companies/:companyId/turnover-risk")
+  @CompanyAccountAllowed()
   async getRisk(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId") companyId: string,

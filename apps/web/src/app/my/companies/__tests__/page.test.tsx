@@ -122,6 +122,7 @@ test("side panel lists the standard sections, then Premium Features as its own p
     "Applications",
     "Job Postings",
     "Customer Support & Service Level (SLA)",
+    "Company Login",
   ]);
   expect(screen.getByRole("heading", { name: "Premium Features", level: 2 })).toBeInTheDocument();
   const premium = screen.getByRole("navigation", { name: "Premium features" });
