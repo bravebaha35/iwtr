@@ -383,6 +383,27 @@ describe("JobPostingsService.update (dashboard Edit)", () => {
     expect(result.status).toBe("PENDING_ADMIN");
   });
 
+  it("doesn't start a boost while the edited posting waits for review", async () => {
+    const { prisma, update } = editPrisma(live);
+    const flagging = { checkContent: jest.fn().mockReturnValue({ violates: true, violationTypes: ["PROFANITY"] }) } as never;
+    const result = await new JobPostingsService(prisma as any, flagging, {} as any).update("u1", "c1", "p1", {
+      description: "bad words",
+      boost: { durationDays: 7 },
+    });
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe("PENDING_ADMIN");
+    expect(result.status !== "CHECKOUT_REQUIRED" && result.boostError).toMatch(/boost wasn't started/);
+  });
+
+  it("checks a job ad without the review-only name and job-title rules", async () => {
+    const { prisma } = editPrisma(live);
+    const moderation = { checkContent: jest.fn().mockReturnValue({ violates: false, violationTypes: [] }) };
+    await new JobPostingsService(prisma as any, moderation as never, {} as any).update("u1", "c1", "p1", { description: "new" });
+    expect(moderation.checkContent).toHaveBeenCalledWith(["Forklift Operatörü", "new"], {
+      skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"],
+    });
+  });
+
   it("boosts an active posting for free while the plan's monthly allowance lasts", async () => {
     const { prisma, update } = editPrisma(live, "STARTER", 1);
     const result = await service(prisma).update("u1", "c1", "p1", { boost: { durationDays: 7 } });

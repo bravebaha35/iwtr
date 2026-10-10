@@ -17,6 +17,13 @@ import { decideBoostAccess, freeBoostsRemaining, tierKeyFromOwnerTier } from "./
 import type { OwnerJobPosting } from "@iwtr/shared-types";
 import { shouldLazyReshare, isWithinSavedGraceWindow, daysRemaining } from "./job-postings.util";
 
+// A job ad is the employer's own text, like its IWT Social caption: a job
+// title such as "Kredi Analisti" reads as a first name + surname to the
+// review rules, so the name and job-title checks are skipped here (same
+// opt-out SocialService.createPost uses). Profanity, sexual content, abuse
+// and phone numbers still apply.
+const JOB_AD_SKIPPED_CHECKS = { skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"] as ("NAME_OR_SURNAME" | "JOB_TITLE")[] };
+
 const BOOST_PRICING: { durationDays: 7 | 14 | 21; priceTry: string }[] = [
   { durationDays: 7, priceTry: "299.99" },
   { durationDays: 14, priceTry: "599.99" },
@@ -139,7 +146,7 @@ export class JobPostingsService {
       throw new BadRequestException("workType must be one of this company's own work types.");
     }
 
-    const contentCheck = this.moderation.checkContent([input.jobTitle, input.description]);
+    const contentCheck = this.moderation.checkContent([input.jobTitle, input.description], JOB_AD_SKIPPED_CHECKS);
     const hasCompetitorName = await this.mentionsCompetitorName(companyId, `${input.jobTitle} ${input.description}`);
     const status: JobPostingStatus = contentCheck.violates || hasCompetitorName ? "PENDING_ADMIN" : "PUBLISHED";
 
@@ -356,7 +363,7 @@ export class JobPostingsService {
     let posting = existing;
     let savedStatus: "PUBLISHED" | "PENDING_ADMIN" = "PUBLISHED";
     if (input.description !== undefined && input.description !== existing.description) {
-      const contentCheck = this.moderation.checkContent([existing.jobTitle, input.description]);
+      const contentCheck = this.moderation.checkContent([existing.jobTitle, input.description], JOB_AD_SKIPPED_CHECKS);
       const hasCompetitorName = await this.mentionsCompetitorName(companyId, `${existing.jobTitle} ${input.description}`);
       savedStatus = contentCheck.violates || hasCompetitorName ? "PENDING_ADMIN" : "PUBLISHED";
       posting = await this.prisma.jobPosting.update({
@@ -367,6 +374,16 @@ export class JobPostingsService {
 
     if (!boost) {
       return { status: savedStatus, jobPosting: toPublic(posting) };
+    }
+    // A posting waiting for review isn't on the Jobs page, so a boost would
+    // burn days (or a free boost) unseen. Nothing is charged; boost it again
+    // once it's approved.
+    if (savedStatus === "PENDING_ADMIN") {
+      return {
+        status: savedStatus,
+        jobPosting: toPublic(posting),
+        boostError: "Your changes were saved, but they need a quick check first, so the boost wasn't started. You weren't charged - boost it again once it's approved.",
+      };
     }
     return this.startBoost(posting, boost, boostIsFree, savedStatus, "Your changes were saved");
   }
