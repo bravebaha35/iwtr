@@ -1,6 +1,5 @@
-// Shared by GlobalHeader's nav links and NotificationsMenu's trigger so every
-// slot in the nav row has the same shape: icon and label side by side on one
-// line, full header height, no box. The current page is marked by a Wood bar
+// The shape of every slot in GlobalHeader's nav row: icon and label side by
+// side on one line, full header height, no box. The current page is marked by a Wood bar
 // on the header's bottom edge (navItemActiveClass) rather than a filled pill.
 export const navItemClass =
   "relative flex h-16 shrink-0 items-center gap-2 px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground lg:px-3";

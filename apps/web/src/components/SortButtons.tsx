@@ -78,9 +78,8 @@ export function sortCompaniesBy<T extends { name: string; overallAvg: number | n
   }
 }
 
-const TOGGLE_SIZE = "px-4 py-2 text-sm";
-// Inside SearchSortBox, where they sit in the search pill's own height.
-const TOGGLE_SIZE_COMPACT = "px-3.5 py-1.5 text-xs";
+// Same height as the search field they sit beside (SearchSortBox).
+const TOGGLE_SIZE = "h-12 px-5 text-sm";
 const TOGGLE_OFF = "border-transparent bg-surface-muted text-muted-foreground hover:text-foreground";
 const TOGGLE_ON = "border-brand-600 bg-brand-600 text-white";
 
@@ -91,26 +90,24 @@ const TOGGLE_GREEN =
   "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400";
 
 /**
- * Separate sort buttons (not one segmented control), used by both
- * WorkplaceBrowser and JobsBrowser. A-Z loops A→Z / Z→A / off; Rating keeps
+ * Separate sort buttons (not one segmented control), shown right next to
+ * the search field on both WorkplaceBrowser and JobsBrowser. A-Z loops A→Z / Z→A / off; Rating keeps
  * its own red/green colours for least/best-rated first. With showRiskSort,
  * RS (Risk Score) comes first: red for riskiest first, green for cleanest first.
  */
 export function SortButtons({
   value,
   onChange,
-  compact = false,
   showRiskSort = false,
 }: {
   value: SortOption;
   onChange: (next: SortOption) => void;
-  compact?: boolean;
   showRiskSort?: boolean;
 }) {
   const alphaOn = value === "alphabetical" || value === "alphabeticalDesc";
-  const base = `rounded-full border font-medium transition-all duration-200 ${compact ? TOGGLE_SIZE_COMPACT : TOGGLE_SIZE}`;
+  const base = `rounded-full border font-medium transition-all duration-200 active:scale-[0.98] ${TOGGLE_SIZE}`;
   return (
-    <div role="group" aria-label="Sort" className={`flex items-center ${compact ? "shrink-0 gap-1.5" : "flex-wrap gap-2"}`}>
+    <div role="group" aria-label="Sort" className="flex shrink-0 items-center gap-2">
       {showRiskSort && (
         <button
           type="button"

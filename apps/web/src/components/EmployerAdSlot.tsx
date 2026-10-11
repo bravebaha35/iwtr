@@ -9,7 +9,8 @@ import { AdLabel } from "@/components/AdSlot";
 
 /**
  * The employer ad space beside the search bar on the Rating and Jobs pages.
- * Companies buy it with the "Maximum visibility" boost (AD_SPACE_14): one
+ * Companies buy it with the "Maximum visibility" package (AD_SPACE_14, ad
+ * space only - it does not put the job in the Featured jobs row): one
  * running buyer is picked at random on each visit (GET /companies/employer-ad)
  * and its job is shown here. While nobody has bought it, a made-up sample
  * employer ad fills the space. Square corners, like the other ad slots;

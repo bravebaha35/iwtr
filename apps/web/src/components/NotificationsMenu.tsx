@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
 import { HeartIcon } from "@/components/icons/HeartIcon";
-import { navItemClass, navItemLabelClass } from "@/components/layout/navItem";
 
 // ---------------------------------------------------------------------------
 // Notification model
@@ -400,14 +399,27 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
   );
 }
 
+// Saved on the account. If saving fails the next load simply shows them
+// unread again.
+function saveRead(ids: string[]) {
+  if (ids.length === 0) return;
+  void apiPost("/me/notifications/read", { ids }).catch(() => undefined);
+}
+
 /**
- * Header bell. Loads GET /me/notifications as soon as it mounts (so the
- * unread dot shows without opening it), again every time it's opened, and
- * whenever something on the page announces a new one (lib/notification-
- * events.ts). Read state is saved on the account (POST /me/notifications/read),
- * so a notification stays read after signing in again or on another device.
- * The bell only renders for a signed-in, active
- * account (GlobalHeader), so nothing is ever loaded or kept for a visitor.
+ * Header bell: a symbol with no label, with a red counter on its top-right
+ * corner while there is something new (like an app icon on a phone). Loads
+ * GET /me/notifications as soon as it mounts (so the counter shows without
+ * opening it), again every time it's opened, and whenever something on the
+ * page announces a new one (lib/notification-events.ts).
+ *
+ * Opening the panel counts as seeing what's in it: everything new is saved
+ * as read on the account straight away (POST /me/notifications/read), which
+ * is what makes the counter go away and stay away after signing in again or
+ * on another device. The rows that were new stay highlighted until the
+ * panel is closed, so it's still clear which ones they were.
+ * The bell only renders for a signed-in, active account (GlobalHeader), so
+ * nothing is ever loaded or kept for a visitor.
  */
 export function NotificationsMenu() {
   const { role } = useAuth();
@@ -415,6 +427,9 @@ export function NotificationsMenu() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  // New when the panel was last opened: already saved as read, still shown
+  // highlighted while the panel stays open.
+  const [freshIds, setFreshIds] = useState<ReadonlySet<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -431,26 +446,50 @@ export function NotificationsMenu() {
     setPanelPos({ top: Math.round(rect.bottom + 8), right: Math.max(12, Math.round(window.innerWidth - rect.right)) });
   }, []);
 
-  const load = useCallback(() => {
-    apiGet<ApiNotification[]>("/me/notifications")
-      .then((real) => {
-        setLoadFailed(false);
-        setNotifications(real.map(toAppNotification).sort(byNewestFirst));
-      })
-      .catch(() => {
-        setLoadFailed(true);
-      });
-  }, []);
+  // Saves every new notification this account can see as read and returns
+  // the list with them marked so (see the component comment).
+  const markSeen = useCallback(
+    (list: AppNotification[]): AppNotification[] => {
+      const ids = list
+        .filter((n) => n.unread && (isEmployer || CATEGORY_BY_KIND[n.kind] !== "EMPLOYER"))
+        .map((n) => n.id);
+      if (ids.length === 0) return list;
+      saveRead(ids);
+      setFreshIds((prev) => new Set([...prev, ...ids]));
+      return list.map((n) => (ids.includes(n.id) ? { ...n, unread: false } : n));
+    },
+    [isEmployer],
+  );
+
+  // seen = the panel is open, so whatever arrives is being looked at.
+  const load = useCallback(
+    (seen: boolean) => {
+      apiGet<ApiNotification[]>("/me/notifications")
+        .then((real) => {
+          setLoadFailed(false);
+          const list = real.map(toAppNotification).sort(byNewestFirst);
+          setNotifications(seen ? markSeen(list) : list);
+        })
+        .catch(() => {
+          setLoadFailed(true);
+        });
+    },
+    [markSeen],
+  );
 
   useEffect(() => {
-    load();
-    window.addEventListener(NOTIFICATIONS_STALE_EVENT, load);
-    return () => window.removeEventListener(NOTIFICATIONS_STALE_EVENT, load);
+    load(false);
   }, [load]);
 
   useEffect(() => {
+    const refresh = () => load(open);
+    window.addEventListener(NOTIFICATIONS_STALE_EVENT, refresh);
+    return () => window.removeEventListener(NOTIFICATIONS_STALE_EVENT, refresh);
+  }, [load, open]);
+
+  useEffect(() => {
     if (!open) return;
-    load();
+    load(true);
     placePanel();
     window.addEventListener("resize", placePanel);
     window.addEventListener("scroll", placePanel, true);
@@ -486,16 +525,22 @@ export function NotificationsMenu() {
   );
   const unreadCount = visible?.filter((n) => n.unread).length ?? 0;
 
-  // Saved on the account. The dot goes away straight away; if saving fails
-  // the next load simply shows them unread again.
-  function saveRead(ids: string[]) {
-    if (ids.length === 0) return;
-    void apiPost("/me/notifications/read", { ids }).catch(() => undefined);
+  // Opening: what's already loaded is seen right away, so the counter is
+  // gone the moment the panel appears (the refetch that follows covers
+  // anything newer).
+  function toggleOpen() {
+    if (!open) {
+      setFreshIds(new Set());
+      if (notifications) setNotifications(markSeen(notifications));
+    }
+    setOpen((v) => !v);
   }
 
+  // Also drops the "new" highlight from the rows that were new on opening.
   function markAllRead() {
     saveRead((notifications ?? []).filter((n) => n.unread).map((n) => n.id));
     setNotifications((prev) => prev?.map((n) => ({ ...n, unread: false })) ?? prev);
+    setFreshIds(new Set());
   }
 
   function markOneRead(id: string) {
@@ -509,23 +554,22 @@ export function NotificationsMenu() {
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         aria-label="Notifications"
         aria-expanded={open}
         title="Notifications"
-        className={navItemClass}
+        className="relative flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
       >
-        <span className="relative flex h-5 w-5 items-center justify-center">
-          <BellIcon className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span
-              data-unread-badge
-              className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-background"
-              aria-hidden="true"
-            />
-          )}
-        </span>
-        <span className={navItemLabelClass}>Notifications</span>
+        <BellIcon className="h-[22px] w-[22px]" />
+        {unreadCount > 0 && (
+          <span
+            data-unread-badge
+            className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold leading-none text-white ring-2 ring-background"
+            aria-hidden="true"
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
       </button>
 
       {open &&
@@ -542,7 +586,7 @@ export function NotificationsMenu() {
             <button
               type="button"
               onClick={markAllRead}
-              disabled={unreadCount === 0}
+              disabled={unreadCount === 0 && freshIds.size === 0}
               className="rounded-lg border border-border px-3 py-2 text-sm font-bold text-foreground transition hover:border-brand-600 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-foreground dark:hover:border-brand-400 dark:hover:text-brand-400"
             >
               Mark all as read
@@ -563,7 +607,7 @@ export function NotificationsMenu() {
           ) : (
             <ul className="flex max-h-[28rem] flex-col gap-1 overflow-y-auto">
               {visible.map((n) => (
-                <NotificationRow key={n.id} n={n} onOpen={markOneRead} />
+                <NotificationRow key={n.id} n={freshIds.has(n.id) ? { ...n, unread: true } : n} onOpen={markOneRead} />
               ))}
             </ul>
           )}

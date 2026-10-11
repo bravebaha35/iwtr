@@ -146,9 +146,6 @@ export function GlobalHeader() {
               </NavIconLink>
             ))}
 
-          {/* A company login has no personal notifications or IWT Social. */}
-          {showAccountControls && !companyAccount && <NotificationsMenu />}
-
           {showAccountControls && (
             <NavIconLink href="/jobs" label={isCompanyOwner ? "Hire now !" : "Jobs"} title={isCompanyOwner ? "Post a job" : "Jobs"} active={pathname.startsWith("/jobs")}>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -163,6 +160,15 @@ export function GlobalHeader() {
             </NavIconLink>
           )}
         </div>
+
+        {/* The bell is a symbol on its own (no label), next to the theme
+            switch rather than in the nav row. A company login has no
+            personal notifications. */}
+        {showAccountControls && !companyAccount && (
+          <div className="shrink-0">
+            <NotificationsMenu />
+          </div>
+        )}
 
         <div className="shrink-0">
           <ThemeToggle />

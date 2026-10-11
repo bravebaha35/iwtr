@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { CompanyListItem } from "@iwtr/shared-types";
 import { JobsBrowser } from "../JobsBrowser";
 import { apiGet } from "@/lib/api-client";
@@ -77,4 +78,25 @@ it("has no featured row when nothing is boosted", async () => {
   render(<JobsBrowser />);
   await screen.findByText("Depo Sorumlusu");
   expect(screen.queryByRole("region", { name: "Featured jobs" })).not.toBeInTheDocument();
+});
+
+// Fewer than 4 featured ads in the chosen city: the API tops the row up from
+// the same region, and the page has to say that's what happened.
+it("says when the featured row was topped up from the same region", async () => {
+  const manisa = { ...company("m", [{ id: "p9", jobTitle: "Üretim Operatörü" }]), city: "Manisa" } as CompanyListItem;
+  serve({
+    items: [],
+    total: 0,
+    page: 1,
+    pageSize: 20,
+    hiddenUnratedCount: 0,
+    featured: [{ company: manisa, posting: manisa.jobPostings[0] }],
+  });
+  render(<JobsBrowser />);
+  const row = await screen.findByRole("region", { name: "Featured jobs" });
+  expect(within(row).queryByText(/same region/)).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "İzmir" }));
+  expect(await within(row).findByText(/Fewer than 4 featured ads in İzmir.*same region .Ege./)).toBeInTheDocument();
+  expect(screen.getByText(/No companies in İzmir are looking for people.*from the same region/)).toBeInTheDocument();
 });

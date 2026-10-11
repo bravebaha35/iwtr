@@ -148,7 +148,9 @@ export function EditJobPostingModal({
             <p className="mb-2 text-[13px] font-semibold text-foreground">Boost</p>
             {boosted ? (
               <p className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-                Featured on the Jobs page until{" "}
+                {posting.boostAdSpace
+                  ? "In the employer ad space (Rating and Jobs pages) until"
+                  : "Featured on the Jobs page until"}{" "}
                 {new Date(posting.boostExpiresAt!).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}.
               </p>
             ) : (
