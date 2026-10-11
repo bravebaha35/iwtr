@@ -223,9 +223,10 @@ colour in a component. Stone/lichen neutrals with a green lean, deep pine text, 
 accent and the one "selected" colour. Headings are Bricolage Grotesque, body Google Sans Flex; the CV document
 alone keeps DM Serif Display (`.cv-document`).
 
-- **No outlined boxes for content.** Browsing content (company tiles, reviews, company page sections) sits
-  straight on the page, separated by space and hairlines. Records and forms (job cards, settings panels, owner
-  dashboard sections) are tonal panels: `rounded-2xl bg-surface shadow-xs`, no border. Only form inputs keep a
+- **No outlined boxes for content.** Reviews and company page sections sit straight on the page, separated by
+  space and hairlines. Company cards (rating page) and job cards share one look: a soft separated card,
+  `rounded-xl bg-surface shadow-xs`, banner flush at the top, no border. Settings panels and owner dashboard
+  sections are the same kind of tonal panel (`rounded-2xl bg-surface shadow-xs`). Only form inputs keep a
   1px border. Chips and secondary buttons are tonal (`bg-surface-muted`), not outlined.
 - **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`), the red/green
   Rating and RS sort states (`SortButtons.tsx`), score-band colours, tier ticks, and the gold featured outline.

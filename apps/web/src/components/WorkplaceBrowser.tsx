@@ -627,7 +627,7 @@ export function WorkplaceBrowser() {
                 company name instead of truncating it. */}
             <div
               aria-busy={loading}
-              className={`grid grid-cols-1 gap-x-6 gap-y-9 transition-opacity compact:gap-x-4 compact:gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              className={`grid grid-cols-1 gap-5 transition-opacity compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
                 loading && pageCompanies !== null ? "opacity-60" : ""
               }`}
             >
