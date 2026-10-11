@@ -9,17 +9,18 @@ import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { ConversationThreadView } from "./ConversationThreadView";
 import { ConversationStatus, CounterpartPicture } from "./conversationIdentity";
 
-// The private-messages dock, docked to the bottom right of IWT Social only
-// (it's rendered by app/social/page.tsx, so it simply doesn't exist on any
-// other page). The "Messages" tab sits at the far right; each conversation
+// The private-messages dock, docked to the bottom right of every page
+// except Edit Profile and the Dashboard (GlobalChatDock in layout.tsx
+// decides where; a company login gets it on its Dashboard instead). The "Messages" tab sits at the far right; each conversation
 // opened from it gets its own panel to the left, newest nearest the tab.
 //
 // Same endpoints and the same thread component as before - only the layout
 // moved here from the old /messages page. Nothing is kept in browser
 // storage: open panels live in memory and every panel fetches its
 // conversation from the API when it opens. A notification link arrives as
-// /social?openChat=<conversationId>; the dock opens that panel and removes
-// the parameter from the address bar.
+// /social?openChat=<conversationId> (the parameter works on any page that
+// shows the dock); the dock opens that panel and removes the parameter from
+// the address bar.
 
 type Mode = "reviewer" | "company";
 

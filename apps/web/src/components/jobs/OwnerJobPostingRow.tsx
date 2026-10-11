@@ -49,7 +49,7 @@ export function OwnerJobPostingRow({
           </p>
           {featured && (
             <p className="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              Featured until{" "}
+              {posting.boostAdSpace ? "In the ad space until" : "Featured until"}{" "}
               {new Date(posting.boostExpiresAt!).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}
             </p>
           )}

@@ -2,7 +2,6 @@ import { Body, Controller, Param, Post, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import { plusCheckoutInputSchema, type PlusCheckoutInput } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
-import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
@@ -12,8 +11,10 @@ import { PaymentsService } from "./payments.service";
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
 
+  // A membership (plan) is bought from the owner's own account only: this
+  // route is deliberately NOT opened to the shared company login, which can
+  // still buy boosts, ad space and reports for its company.
   @Post("my-companies/:companyId/plus/checkout")
-  @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)
   checkout(
     @CurrentUser() user: AuthenticatedUser,

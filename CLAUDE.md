@@ -93,7 +93,9 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   out). Routes without `:companyId` must scope themselves via `user.companyScope` (conversations, review
   replies, owned-companies lists). `OptionalJwtAuthGuard` treats it as logged out. The full list of opened
   routes is pinned in `auth/__tests__/company-login.test.ts` - opening a new one means updating that list
-  on purpose. Never open a personal route (profile, CV, reviews, PII, notifications, IWT Social) to it.
+  on purpose. Never open a personal route (profile, CV, reviews, PII, notifications, IWT Social) to it. A company
+  login can buy boosts, ad space and reports, but NOT a membership plan: `plus/checkout` is owner-only (decided
+  2026-10-12).
 - `pii-vault/` — the **only** module allowed to read/write the `PiiVault` Prisma model. Encrypts PII
   fields with per-record envelope encryption (AES-256-GCM field values, DEK wrapped by a master key derived
   from `PII_MASTER_KEY`). See Data Model below for the retention policy this module enforces.
@@ -124,9 +126,11 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `publicReviewerName` (the review's public display name), never a user id. Timestamps are day-precision;
   ordering/unread use the message `seq`. Anything that moves or deletes reviews/companies must carry
   `ReviewConversation.companyId` along (company merge does).
-  Both sides read their inbox in the bottom-right dock on IWT Social only (`components/messaging/ChatDock.tsx`,
-  mounted by `app/social/page.tsx`; owners get one list across all their companies via `GET owner/conversations`).
-  Notification links are `/social?openChat=<conversationId>`; the old `/messages?c=` route just redirects there.
+  Both sides read their inbox in the bottom-right dock (`components/messaging/ChatDock.tsx`), on every page except
+  Edit Profile (`/me`), the Dashboard and the admin pages: `GlobalChatDock` in `layout.tsx` decides where (a company
+  login gets the dock on its Dashboard instead; owners get one list across all their companies via
+  `GET owner/conversations`). Notification links are `/social?openChat=<conversationId>` (the parameter works on any
+  page with the dock); the old `/messages?c=` route just redirects there.
   Each side sees the review's public name/avatar (randomized stand-ins included) and the company logo. The
   reviewer sees no owner name until the company's first message (`companyReplied`), then the answering owner's
   legal name — from `EmployerProfile` only, never the PII vault — if that owner ticked "Show company owner's name
@@ -158,9 +162,9 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   them: the member's profile Sector, else work type (`forSector`/`forWorkType`, sent only while the sidebar has
   no work type/sector picked); then the chosen city/district, topped up from the same region (turkeyRegions)
   while fewer than 4; shuffled per tier. Boost options (`BoostOption`): FEATURED_7 (299,99), FEATURED_14
-  (599,99), AD_SPACE_14 (999,99 - also puts the company in the employer ad space beside the search bar on the
-  Rating and Jobs pages, `GET companies/employer-ad`, `JobPosting.boostAdSpace`; a sample test ad shows while
-  none is running). Free 7-day boosts per company per month match Pricing (Starter 2, Pro 5, Enterprise 10,
+  (599,99), AD_SPACE_14 (999,99 - ad space ONLY: the company's ad in the employer ad space beside the search bar on
+  the Rating and Jobs pages, `GET companies/employer-ad`, `JobPosting.boostAdSpace`; such a posting is never in
+  the Featured row; a sample test ad shows while none is running). Free 7-day boosts per company per month match Pricing (Starter 2, Pro 5, Enterprise 10,
   `decideBoostAccess.ts`, counted from `boostStartedAt`). Owners boost at creation or later via dashboard Job Postings > Edit
   (`PATCH my-companies/:companyId/job-postings/:id`: description and/or boost; title/work type fixed). Job ads
   skip the review-only NAME_OR_SURNAME/JOB_TITLE checks (a title like "Kredi Analisti" looks like a name).
@@ -230,8 +234,10 @@ alone keeps DM Serif Display (`.cv-document`).
   1px border. Chips and secondary buttons are tonal (`bg-surface-muted`), not outlined.
 - **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`), the red/green
   Rating and RS sort states (`SortButtons.tsx`), score-band colours, tier ticks, and the gold featured outline.
-- Header is one 64px line; the current page is marked by a Wood bar (`components/layout/navItem.ts`, shared with
-  the notifications trigger). Sidebar width and gaps are locked by tests (`SidebarShell`).
+- Header is one 64px line; the current page is marked by a Wood bar (`components/layout/navItem.ts`). The
+  notifications bell is a symbol with no label beside the theme switch, with a red counter that clears (and is
+  saved as read) the moment its panel is opened. Sort buttons (RS / A-Z / Rating) sit right next to the search
+  field, outside it (`SearchSortBox`). Sidebar width and gaps are locked by tests (`SidebarShell`).
 - A logged-out visitor sees `AnonGate`'s hero; the homepage adds `LandingSections` under it.
 
 ## Environment / local setup gotchas

@@ -13,6 +13,15 @@
 // harassment), "abaza"/"çingene" (ethnic groups), and the lists' spelling
 // junk ("ag", "emi", "cim", "sie", ...).
 //
+// 2026-10-12: the English slur list was filled out (racial, ethnic,
+// religious, homophobic and disability slurs) ahead of launch, so it is in
+// place before English-speaking members arrive. Left out on purpose, as
+// everyday words or names: "nip", "spade", "spook", "cracker", "queer",
+// "homo" (homo sapiens), "sambo" (the sport), "abo" (a Turkish
+// exclamation), "kkk" (Turkish laughter), "niga"/"nigar" (Nigar is a
+// Turkish name), "niggle"/"niggling", "negroni", and "kafir" with one f
+// (a Turkish word).
+//
 // Every entry is written in "folded" form: lower case, Turkish letters
 // flattened to ASCII (ç→c ğ→g ı→i ö→o ş→s ü→u) - see profanity-matcher.ts.
 // UNFOLDED_EXACT is the exception: words that are only rude WITH their
@@ -25,7 +34,10 @@ export const EXACT_WORDS: readonly string[] = [
   "tosser", "bollocks", "boob", "boobs", "tits", "titty", "titties", "pussy", "pussies", "anal", "anus", "jizz",
   "dumb", "retard", "retards", "retarded", "milf", "wtf", "stfu", "gtfo", "fck", "fk", "fuk", "phuck", "sht",
   "fag", "fags", "paki", "pakis", "spic", "spics", "kike", "kikes", "gook", "gooks", "chink", "chinks",
-  "dyke", "dykes", "tranny", "trannies", "nigga", "niggas", "negro", "negros",
+  "dyke", "dykes", "tranny", "trannies", "nigga", "niggas", "negro", "negros", "negroes", "negress", "nigra",
+  "nigras", "coon", "coons", "darky", "wog", "wogs", "wop", "wops", "dago", "dagos", "yid", "yids", "heeb",
+  "heebs", "hymie", "jap", "japs", "chinky", "chinaman", "chinamen", "gypo", "gyppo", "honky", "honkies",
+  "whitey", "injun", "injuns", "squaw", "spaz", "tard", "kraut", "krauts", "muzzie", "muzzies", "lesbo",
   // Turkish
   "amk", "amq", "aq", "amcik", "amck", "amcuk", "amik", "amna", "amina", "aminako", "aminakoyim", "amini",
   "sikerim", "sikeyim", "sikiyim", "sikim", "sikimi", "sikime", "sikik", "sikko", "sikmek",
@@ -58,8 +70,9 @@ export const PREFIX_WORDS: readonly string[] = [
   // English insults
   "stupid", "idiot", "moron", "imbecil", "cretin", "halfwit", "dimwit", "numbskull", "nitwit",
   // English slurs
-  "nigger", "faggot", "negroid", "wetback", "raghead", "towelhead", "beaner", "jigaboo", "darkie", "honkey",
-  "slanteye", "shemale",
+  "nigger", "nigga", "niglet", "nigglet", "faggot", "negroid", "wetback", "raghead", "towelhead", "beaner",
+  "jigaboo", "darkie", "honkey", "slanteye", "shemale", "pickaninn", "zipperhead", "redskin", "golliwog",
+  "kaffir", "mongoloid", "poofter", "sodomit", "pikey", "chingchong",
   // English sexual
   "porn", "p0rn", "blowjob", "handjob", "rimjob", "cumshot", "creampie", "gangbang", "bukkake", "dildo",
   "masturbat", "orgasm", "horny", "hentai", "erotic", "fetish", "bdsm", "bondage", "threesome", "nude",
@@ -78,7 +91,8 @@ export const PREFIX_WORDS: readonly string[] = [
 /** Multi-word phrases, matched as whole words in order. */
 export const PHRASES: readonly string[] = [
   "son of a bitch", "piece of shit", "go to hell", "shut the fuck up", "fuck off", "fuck you", "suck my",
-  "blow job", "hand job", "white power",
+  "blow job", "hand job", "white power", "white trash", "ching chong", "porch monkey", "jungle bunny",
+  "camel jockey", "sand nigger", "uncle tom", "tar baby", "half breed", "heil hitler", "sieg heil",
   "amina koy", "amina koyim", "amina koyayim", "amina koyarim", "anani sikeyim", "anani sikerim",
   "orospu cocugu", "orospunun evladi", "has siktir", "siktir git", "siktir lan", "siktir ol git",
   "otuz birci", "got veren", "got deligi", "veled i zina", "ananin ami",
@@ -91,6 +105,6 @@ export const PHRASES: readonly string[] = [
  * or "cunt" (Scunthorpe).
  */
 export const EMBEDDED_WORDS: readonly string[] = [
-  "fuck", "motherfucker", "bullshit", "asshole", "nigger", "faggot", "orospu", "siktir", "yarrak", "amcik",
+  "fuck", "motherfucker", "bullshit", "asshole", "nigger", "nigga", "faggot", "orospu", "siktir", "yarrak", "amcik",
   "pezevenk", "gerizekal", "serefsiz", "yavsak", "kahpe", "stupid", "idiot",
 ];

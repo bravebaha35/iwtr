@@ -230,7 +230,6 @@ describe("routes opened to company logins", () => {
         "GET my-companies/:companyId/job-applications",
         "POST my-companies/:companyId/job-applications/:id/mark-viewed",
         "GET my-companies/:companyId/job-applications/:id/pdf",
-        "POST my-companies/:companyId/plus/checkout",
         "POST my-companies/:companyId/sector-benchmark",
         "GET my-companies/:companyId/sector-benchmark",
         "GET my-companies/:companyId/sector-benchmark/:jobId/download",

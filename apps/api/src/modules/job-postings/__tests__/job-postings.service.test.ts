@@ -37,6 +37,25 @@ function service(prisma: Record<string, any>) {
   return new JobPostingsService(prisma as any, moderationPass, {} as any);
 }
 
+describe("JobPostingsService.create — competitor names", () => {
+  // Every job ad may say "apply through I Worked There": the site's own
+  // company row is never treated as a competitor.
+  it("never counts the site's own name as a competitor", async () => {
+    const prisma = makePrisma();
+    await service(prisma).create("u1", "c1", {
+      jobTitle: "Cashier",
+      description: "Apply with your CV through I Worked There.",
+      workType: "SERVICE",
+      autoReshareEnabled: false,
+      boost: null,
+    });
+    expect(prisma.company.findMany.mock.calls[0][0].where).toEqual({
+      id: { not: "c1" },
+      NOT: { name: { equals: "I Worked There", mode: "insensitive" } },
+    });
+  });
+});
+
 describe("JobPostingsService.create — workType validation", () => {
   it("rejects a workType the company doesn't have", async () => {
     const prisma = makePrisma();

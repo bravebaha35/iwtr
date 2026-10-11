@@ -7,6 +7,7 @@ import { GlobalHeader } from "@/components/GlobalHeader";
 import { HomeFiltersReset } from "@/components/HomeFiltersReset";
 import { GlobalFooter } from "@/components/GlobalFooter";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { GlobalChatDock } from "@/components/messaging/GlobalChatDock";
 import { MagneticPrimaryButtons } from "@/components/motion/MagneticPrimaryButtons";
 import { CookieConsentBanner } from "@/components/privacy/CookieConsentBanner";
 import { AnalyticsLoader } from "@/components/privacy/AnalyticsLoader";
@@ -126,6 +127,7 @@ export default function RootLayout({
             </main>
             <BackButton />
             <AuthModal />
+            <GlobalChatDock />
           </AuthProvider>
         </SettingsProvider>
         <GlobalFooter />

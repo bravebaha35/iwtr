@@ -685,7 +685,25 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 Premium Features sections can set pendingUpgradeTier via
                 onStartUpgrade — this must show regardless of which tab is
                 active when the upgrade button was clicked. */}
-            {pendingUpgradeTier && (
+            {/* A membership is bought from the owner's own account only
+                (the API refuses the company login too). */}
+            {pendingUpgradeTier && companyAccount && (
+              <div role="status" className="mt-3 rounded-2xl bg-surface-muted/60 p-4 text-sm">
+                <p className="font-semibold text-foreground">Membership plans are bought from the owner&apos;s own account.</p>
+                <p className="mt-1 text-muted-foreground">
+                  Sign in with the company owner&apos;s own email to change the plan. This company login can still buy
+                  featured job ads, ad space and reports.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPendingUpgradeTier(null)}
+                  className="mt-3 rounded-full bg-surface px-4 py-1.5 text-sm font-medium text-foreground shadow-xs transition hover:bg-border/70"
+                >
+                  OK
+                </button>
+              </div>
+            )}
+            {pendingUpgradeTier && !companyAccount && (
               <UpgradeCheckout
                 companyId={claim.companyId}
                 initialTier={pendingUpgradeTier}

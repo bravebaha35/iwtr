@@ -27,6 +27,9 @@ import { shouldLazyReshare, isWithinSavedGraceWindow, daysRemaining } from "./jo
 // and phone numbers still apply.
 const JOB_AD_SKIPPED_CHECKS = { skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE"] as ("NAME_OR_SURNAME" | "JOB_TITLE")[] };
 
+// The site's own company row (see scripts/grant-iwtr-ownership.ts).
+const PLATFORM_COMPANY_NAME = "I Worked There";
+
 const BOOST_PRICING: BoostPricingOption[] = [
   { option: "FEATURED_7", durationDays: BOOST_OPTION_DAYS.FEATURED_7, priceTry: "299.99" },
   { option: "FEATURED_14", durationDays: BOOST_OPTION_DAYS.FEATURED_14, priceTry: "599.99" },
@@ -40,7 +43,7 @@ function boostPrice(option: BoostOption): string {
 const BOOST_ITEM_NAME: Record<BoostOption, string> = {
   FEATURED_7: "Featured job ad: 7 days",
   FEATURED_14: "Featured job ad: 14 days",
-  AD_SPACE_14: "Employer ad space + featured job ad: 14 days",
+  AD_SPACE_14: "Employer ad space: 14 days",
 };
 
 function addDays(base: Date, days: number): Date {
@@ -112,9 +115,12 @@ export class JobPostingsService {
   // verdict-out, see its own class comment), so this competitor-name check
   // lives here rather than inside ModerationService.checkContent. Same
   // 5000-row safety ceiling companies.service.ts's search already accepts.
+  // The platform's own listing (PLATFORM_COMPANY_NAME) is never a
+  // competitor: "Apply with your CV through I Worked There" is a normal
+  // thing for any job ad on this site to say.
   private async mentionsCompetitorName(companyId: string, text: string): Promise<boolean> {
     const others = await this.prisma.company.findMany({
-      where: { id: { not: companyId } },
+      where: { id: { not: companyId }, NOT: { name: { equals: PLATFORM_COMPANY_NAME, mode: "insensitive" } } },
       select: { name: true },
       take: 5000,
     });

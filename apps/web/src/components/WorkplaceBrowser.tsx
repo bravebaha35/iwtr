@@ -569,9 +569,10 @@ export function WorkplaceBrowser() {
             <Suspense fallback={null}>
               <HighlightParamListener onHighlight={onHighlight} />
             </Suspense>
-            {/* Two rows: search + sort in one pill (SearchSortBox), then the
-                Quick Select pills on their own row - with the employer ad
-                space beside both on wide screens. */}
+            {/* Two rows: the search field with the sort buttons right next
+                to it (SearchSortBox), then the Quick Select pills on their
+                own row - with the employer ad space beside both on wide
+                screens. */}
             <div className="mb-7 flex items-stretch gap-4">
             <div className="min-w-0">
             <div className="mb-3">

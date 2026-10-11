@@ -125,6 +125,9 @@ export function CityDistrictPicker({
           />
         </div>
       </div>
+      {/* Country, search and the city list share one soft box, so the long
+          list reads as a contained control instead of loose rows. */}
+      <div className="rounded-2xl bg-surface p-2.5 shadow-xs">
       <div className="mb-2">
         <SingleSelectDropdown
           value={country}
@@ -146,7 +149,7 @@ export function CityDistrictPicker({
             City/district data for {country} isn&apos;t available yet — Turkey is the only country covered so far.
           </p>
         )}
-        <div className="no-scrollbar max-h-64 overflow-y-auto text-sm">
+        <div className="thin-scrollbar max-h-64 overflow-y-auto pr-1 text-sm">
         {filtered.map(({ province: p, matchingDistricts }) => {
           const isExpanded = expanded.has(p.name) || normalizedQuery !== "";
           const wholeCitySelected = selectedCities.includes(p.name);
@@ -242,6 +245,7 @@ export function CityDistrictPicker({
           );
         })}
         </div>
+      </div>
       </div>
     </div>
   );

@@ -66,6 +66,22 @@ describe("NotificationsMenu", () => {
     await waitFor(() => expect(badge()).not.toBeNull());
   });
 
+  // Like an app icon's counter: it shows how many are new, and opening the
+  // panel is what clears it - for good, because it's saved on the account.
+  it("shows a counter, and clears it as soon as the panel is opened", async () => {
+    get.mockResolvedValue([reply, { ...reply, id: "reply-2" }]);
+    render(<NotificationsMenu />);
+    await waitFor(() => expect(badge()).not.toBeNull());
+    expect(badge()).toHaveTextContent("2");
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    expect(badge()).toBeNull();
+    expect(post).toHaveBeenCalledWith("/me/notifications/read", {
+      ids: expect.arrayContaining(["reply-1", "reply-2"]),
+    });
+    // Still on screen and readable in the open panel.
+    expect(await screen.findAllByText("Acme replied to your review.")).toHaveLength(2);
+  });
+
   it("never shows made-up sample notifications", async () => {
     get.mockResolvedValue([reply]);
     render(<NotificationsMenu />);

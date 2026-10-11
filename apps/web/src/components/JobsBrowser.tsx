@@ -6,7 +6,15 @@ import { SearchSortBox } from "@/components/SearchSortBox";
 import { AdSlot } from "@/components/AdSlot";
 import { EmployerAdSlot } from "@/components/EmployerAdSlot";
 import Image from "next/image";
-import { JOBS_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type MyProfile, type WorkplaceType } from "@iwtr/shared-types";
+import {
+  JOBS_BROWSE_PAGE_SIZE,
+  findProvinceByCityName,
+  findRegionByProvinceName,
+  regionLabel,
+  type CompanyBrowseResult,
+  type MyProfile,
+  type WorkplaceType,
+} from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { fetchBrowsePage, hasBrowsePage, prefetchBrowsePage } from "@/lib/companyBrowse";
@@ -416,6 +424,21 @@ export function JobsBrowser() {
       : field?.workType && featured.some((f) => f.posting.workType === field.workType)
         ? (WORKPLACE_TYPES.find((w) => w.value === field.workType)?.label ?? null)
         : null;
+  // A place is chosen but some featured ads are from elsewhere: there were
+  // fewer than 4 in that place, so the row was topped up from the same
+  // region (pickFeatured on the API). Say so, rather than leave people
+  // wondering why Manisa shows up under İzmir.
+  const chosenPlaces = [...new Set([...selectedCities, ...selectedDistrictKeys.map((k) => k.split("::")[0])])];
+  const chosenProvinces = new Set(chosenPlaces.map((c) => findProvinceByCityName(c)?.name ?? c));
+  const regionFill =
+    chosenPlaces.length > 0 &&
+    featured.some((f) => !chosenProvinces.has(findProvinceByCityName(f.company.city)?.name ?? f.company.city ?? ""));
+  const chosenRegion = regionFill ? findRegionByProvinceName(chosenPlaces[0]) : null;
+  const regionFillNote = regionFill
+    ? `Fewer than 4 featured ads in ${chosenPlaces.join(", ")}, so this row also shows featured ads from the same region${
+        chosenRegion ? ` (${regionLabel(chosenRegion)})` : ""
+      }.`
+    : null;
   const featuredIds = new Set(featured.map((f) => f.posting.id));
   const standardCards = (pageCompanies ?? []).flatMap((c) => {
     const postings = postingsForCard(c);
@@ -576,41 +599,29 @@ export function JobsBrowser() {
               nearMeLoading={geoRequesting}
               nearMeActive={geo !== null && geo !== "denied"}
             />
+
+            {/* Employers only: sits under the Location list. */}
+            {isCompanyOwner && (
+              <button
+                type="button"
+                onClick={() => setJobFlowOpen(true)}
+                className="flex items-center justify-center rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
+              >
+                Create job posting !
+              </button>
+            )}
           </SidebarShell>
 
           {/* Results */}
           <div ref={resultsTopRef} className="min-w-0 flex-1">
-            {/* Two rows: search + sort in one pill (SearchSortBox) on top,
-                then Quick Select on its own row - same layout as the homepage
-                (WorkplaceBrowser.tsx). For an owner the Create button sits
-                right after the search pill; the block is as wide as the
-                Quick Select row, so the button's right edge lines up with
-                the last Quick Select pill. */}
+            {/* Two rows: the search field with the sort buttons right next
+                to it (SearchSortBox) on top, then Quick Select on its own
+                row - same layout as the homepage (WorkplaceBrowser.tsx). */}
             {/* The employer ad space sits beside the search + Quick Select
                 block on wide screens. */}
             <div className="mb-7 flex items-stretch gap-4">
-            <div className={`grid min-w-0 max-w-full gap-3 ${isCompanyOwner ? "w-fit" : ""}`}>
-              {isCompanyOwner ? (
-                <div className="flex flex-wrap items-stretch gap-2">
-                  <SearchSortBox
-                    query={query}
-                    onQueryChange={setQuery}
-                    sortBy={sortBy}
-                    onSortChange={setSortBy}
-                    showRiskSort
-                    widthClassName="min-w-[16rem] flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setJobFlowOpen(true)}
-                    className="flex shrink-0 items-center justify-center rounded-full bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700 max-sm:w-full max-sm:py-2"
-                  >
-                    Create job posting !
-                  </button>
-                </div>
-              ) : (
-                <SearchSortBox query={query} onQueryChange={setQuery} sortBy={sortBy} onSortChange={setSortBy} showRiskSort />
-              )}
+            <div className="grid min-w-0 max-w-full gap-3">
+              <SearchSortBox query={query} onQueryChange={setQuery} sortBy={sortBy} onSortChange={setSortBy} showRiskSort />
               {/* Same curated category-group quick filter as the rating
                   homepage (WorkplaceBrowser.tsx) — shared markup/config via
                   lib/categoryGroups.tsx, this page's own selection state. */}
@@ -648,11 +659,6 @@ export function JobsBrowser() {
                     Couldn&apos;t load workplaces right now — check your connection and try again.
                   </p>
                 )}
-                {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
-                  <p className="text-sm text-muted-foreground">
-                    No companies are looking for people under these filters yet.
-                  </p>
-                )}
                 {featured.length > 0 && (
                   <section aria-label="Featured jobs" className={`transition-opacity ${loading ? "opacity-60" : ""}`}>
                     <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
@@ -667,6 +673,7 @@ export function JobsBrowser() {
                         </span>
                       )}
                     </h2>
+                    {regionFillNote && <p className="-mt-1 mb-3 text-sm text-muted-foreground">{regionFillNote}</p>}
                     <div className="grid grid-cols-1 gap-5 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {featured.map((f) => (
                         <JobCard key={f.posting.id} company={f.company} posting={f.posting} variant="compact" boosted />
@@ -679,6 +686,17 @@ export function JobsBrowser() {
                       <span className="h-px flex-1 bg-foreground/40" />
                     </div>
                   </section>
+                )}
+
+                {/* Under the featured row (and its "All jobs" line), so it
+                    reads as "nothing in the normal list" and never contradicts
+                    featured ads shown above it. */}
+                {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
+                  <p className="text-sm text-muted-foreground">
+                    {regionFill
+                      ? `No companies in ${chosenPlaces.join(", ")} are looking for people under these filters yet. The featured ads above are from the same region.`
+                      : "No companies are looking for people under these filters yet."}
+                  </p>
                 )}
 
                 {/* One card per job (see postingsForCard) — a company with N

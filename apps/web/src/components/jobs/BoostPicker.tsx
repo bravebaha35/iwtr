@@ -28,7 +28,7 @@ const OPTION_COPY: Record<BoostOption, string> = {
   FEATURED_7: "Get hired faster. Boost your job posting for 7 days.",
   FEATURED_14: "Dominate the market. Boost your job posting for 14 days.",
   AD_SPACE_14:
-    "Maximum visibility. Your company's own ad space next to the search bar on both the Rating and Jobs pages - plus a featured post - for 14 days!",
+    "Maximum visibility. Your company's own ad in the ad space next to the search bar on both the Rating and Jobs pages, for 14 days. Ad space only: it does not add the post to Featured jobs.",
 };
 
 // Each box's outline: plain for 7 days, blue for 14 days, gold for the ad
