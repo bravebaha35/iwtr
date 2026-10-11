@@ -530,6 +530,29 @@ export function JobsBrowser() {
               </div>
             </div>
 
+            {/* Location sits right under Work-Type; Rating and Risk Score follow. */}
+            <CityDistrictPicker
+              selectedCities={selectedCities}
+              selectedDistrictKeys={selectedDistrictKeys}
+              onToggleCity={toggleCity}
+              onToggleDistrict={toggleDistrict}
+              onReset={resetLocation}
+              onNearMe={requestNearMe}
+              nearMeLoading={geoRequesting}
+              nearMeActive={geo !== null && geo !== "denied"}
+            />
+
+            {/* Employers only: sits under the Location list. */}
+            {isCompanyOwner && (
+              <button
+                type="button"
+                onClick={() => setJobFlowOpen(true)}
+                className="flex items-center justify-center rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
+              >
+                Create job posting !
+              </button>
+            )}
+
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-[13px] font-semibold text-foreground">Rating</h2>
@@ -588,28 +611,6 @@ export function JobsBrowser() {
             </div>
 
             <RiskScoreFilter value={maxRiskScore} onChange={setMaxRiskScore} />
-
-            <CityDistrictPicker
-              selectedCities={selectedCities}
-              selectedDistrictKeys={selectedDistrictKeys}
-              onToggleCity={toggleCity}
-              onToggleDistrict={toggleDistrict}
-              onReset={resetLocation}
-              onNearMe={requestNearMe}
-              nearMeLoading={geoRequesting}
-              nearMeActive={geo !== null && geo !== "denied"}
-            />
-
-            {/* Employers only: sits under the Location list. */}
-            {isCompanyOwner && (
-              <button
-                type="button"
-                onClick={() => setJobFlowOpen(true)}
-                className="flex items-center justify-center rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
-              >
-                Create job posting !
-              </button>
-            )}
           </SidebarShell>
 
           {/* Results */}

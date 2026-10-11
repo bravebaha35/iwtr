@@ -8,6 +8,7 @@ import { workplaceTypeLabel, WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarBorderClass, collarPillClassName } from "@/lib/collarColors";
 import { Avatar } from "@/components/Avatar";
 import { SingleSelectPillTabs } from "@/components/FilterPillGroup";
+import { scoreTextColor } from "@/lib/scoreBandColors";
 
 const CATEGORY_FIELDS: { score: keyof PublicReview; label: string }[] = [
   { score: "corporateCultureScore", label: "Corporate Culture" },
@@ -185,7 +186,7 @@ export function ReviewsList({
   const visibleReviews = collapsed ? filteredReviews.slice(0, initialVisibleCount) : filteredReviews;
 
   return (
-    <div className="flex flex-col gap-7 border-t border-border pt-10 compact:gap-4">
+    <div className="flex flex-col gap-12 border-t border-border pt-10 compact:gap-6">
       <h2 className="text-xl text-foreground">Reviews</h2>
       {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
@@ -210,22 +211,22 @@ export function ReviewsList({
           // plain gold outline instead (same gold as the boosted job cards).
           className={`scroll-mt-24 ${
             review === featured
-              ? "rounded-xl border border-amber-400 p-5 compact:p-3"
-              : `border-l-2 py-1 pl-5 compact:pl-3 ${collarBorderClass(review.workplaceType)}`
+              ? "rounded-xl border border-amber-400 p-6 compact:p-3"
+              : `border-l-2 py-1.5 pl-6 compact:pl-3 ${collarBorderClass(review.workplaceType)}`
           } ${pulsingId === review.id ? "highlight-pulse" : ""}`}
         >
           {review === featured && (
-            <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+            <p className="mb-4 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
                 <path d="M16 3a1 1 0 0 1 .7 1.7L15 6.4V10l3.3 3.3a1 1 0 0 1-.7 1.7H13v6a1 1 0 0 1-2 0v-6H6.4a1 1 0 0 1-.7-1.7L9 10V6.4L7.3 4.7A1 1 0 0 1 8 3h8Z" />
               </svg>
               Featured by {companyName ?? "the company"}
             </p>
           )}
-          <div className="mb-3 compact:mb-1.5 flex items-center gap-2">
+          <div className="mb-5 compact:mb-2 flex items-center gap-2.5">
             <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />
             {review.displayUsername && (
-              <span className="shrink-0 text-sm font-semibold text-foreground">{review.displayUsername}</span>
+              <span className="shrink-0 text-base font-semibold text-foreground">{review.displayUsername}</span>
             )}
             <div className="flex flex-wrap items-center gap-2">
               {/* Which of the company's (up to 2) workplaceTypes this review
@@ -247,16 +248,26 @@ export function ReviewsList({
               )}
             </div>
           </div>
-          <div className="flex flex-col gap-3 text-sm compact:text-xs">
-            <div className="flex flex-wrap gap-x-6 gap-y-1">
-              {CATEGORY_FIELDS.map((f) => (
-                <div key={f.label} className="text-muted-foreground">
-                  <span className="font-medium text-foreground">
-                    {f.label}: {String(review[f.score])}/5
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="flex flex-col gap-5 text-sm compact:gap-3 compact:text-xs">
+            {/* One column per category, lined up the same way in every
+                review: the name in bold, the score under it in its score
+                colour - so a name never runs into the next score. */}
+            <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
+              {CATEGORY_FIELDS.map((f) => {
+                const score = Number(review[f.score]);
+                return (
+                  <div key={f.label}>
+                    <dt className="font-bold text-foreground">{f.label}</dt>
+                    <dd className="mt-1 flex items-baseline gap-0.5">
+                      <span className={`font-display text-xl leading-none tabular-nums compact:text-base ${scoreTextColor(score)}`}>
+                        {score}
+                      </span>
+                      <span className="text-muted-foreground">/5</span>
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
             {review.generalThoughts && (
               <div className="max-w-[75ch] text-[15px] leading-relaxed text-foreground compact:text-sm">
                 &ldquo;{review.generalThoughts}&rdquo;
@@ -264,7 +275,7 @@ export function ReviewsList({
             )}
           </div>
 
-          <div className="mt-4 compact:mt-2 flex items-center gap-3 compact:gap-2">
+          <div className="mt-5 compact:mt-2 flex items-center gap-3 compact:gap-2">
             <button
               onClick={() => vote(review.id, 1)}
               disabled={!canVote || votingId === review.id}
