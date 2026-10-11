@@ -160,12 +160,12 @@ export function CategoryGroupFilter({
             role="radio"
             aria-checked={checked}
             onClick={() => onChange(checked ? null : opt.value)}
-            className={`flex h-10 items-center gap-2 border px-3 text-sm font-medium transition ${
+            className={`flex h-10 items-center gap-2 border px-3.5 text-sm font-medium transition active:scale-[0.98] ${
               vertical ? "w-full rounded-xl text-left" : "rounded-full"
             } ${
               checked
                 ? "border-brand-600 bg-brand-600 text-white"
-                : "border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+                : "border-transparent bg-surface-muted/70 text-foreground/80 hover:bg-surface-muted hover:text-foreground"
             }`}
           >
             <Icon className="h-5 w-5 shrink-0" />

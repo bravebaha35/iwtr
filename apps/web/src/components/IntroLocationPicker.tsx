@@ -63,7 +63,7 @@ export function IntroLocationPicker({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
+        <h2 className="text-[13px] font-semibold text-foreground">Location</h2>
         <button
           type="button"
           onClick={onNearMe}

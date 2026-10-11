@@ -27,8 +27,7 @@ const trackSegmentGridBaseClass =
 // (an always-dark box read as a broken, jarring island on the light-mode
 // page, per live screenshot feedback), so both halves are real dark:
 // variants, not one hardcoded look.
-const trackWrapperClass =
-  "rounded-xl border border-border bg-surface-muted p-1";
+const trackWrapperClass = "rounded-xl bg-surface-muted p-1";
 
 // Single shared building block for every button-style filter in the app —
 // restyling how an active/inactive filter pill looks is a one-function
@@ -36,13 +35,13 @@ const trackWrapperClass =
 // the class string.
 export function pillClass(active: boolean): string {
   return `${wrapPillBaseClass} ${
-    active ? "bg-brand-600 text-white" : "border border-border text-muted-foreground hover:bg-surface-muted"
+    active ? "bg-brand-600 text-white" : "bg-surface-muted text-muted-foreground hover:text-foreground"
   }`;
 }
 
 function gridPillClass(active: boolean): string {
   return `${gridPillBaseClass} ${
-    active ? "bg-brand-600 text-white" : "border border-border text-foreground hover:bg-surface-muted"
+    active ? "bg-brand-600 text-white" : "bg-surface-muted text-foreground hover:bg-border/70"
   }`;
 }
 
@@ -176,7 +175,7 @@ export function MultiFilterPillGroup<T extends string>({
     <div>
       {showHeading && (
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading}</h2>
+          <h2 className="text-[13px] font-semibold text-foreground">{heading}</h2>
           <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} disabled={disabled} />
         </div>
       )}

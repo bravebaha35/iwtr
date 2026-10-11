@@ -145,7 +145,7 @@ export function CvPreview({
   return (
     <div
       id={id}
-      className={`relative flex w-full flex-col border border-[#1e293b] bg-[#fafafa] p-6 font-jakarta text-[#0f172a] dark:bg-[#fafafa] dark:text-[#0f172a]${
+      className={`cv-document relative flex w-full flex-col border border-[#1e293b] bg-[#fafafa] p-6 font-jakarta text-[#0f172a] dark:bg-[#fafafa] dark:text-[#0f172a]${
         forPrint ? "" : " aspect-[1/1.414] overflow-y-auto"
       }`}
     >

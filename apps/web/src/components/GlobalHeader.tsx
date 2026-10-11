@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
 import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
+import { navItemActiveClass, navItemClass, navItemLabelClass } from "@/components/layout/navItem";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
 // uses (Home, Messages, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
@@ -21,21 +22,22 @@ function NavIconLink({
   label,
   title,
   disabled,
+  active = false,
   children,
 }: {
   href: string;
   label: string;
   title?: string;
   disabled?: boolean;
+  // The page the visitor is on: marked with a Wood bar under the item.
+  active?: boolean;
   children: ReactNode;
 }) {
-  const className =
-    "flex flex-col items-center gap-1 rounded-lg px-1.5 py-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground sm:px-2";
+  const className = `${navItemClass} ${active ? navItemActiveClass : ""}`;
   const inner = (
     <>
-      <span className="flex h-8 w-8 items-center justify-center">{children}</span>
-      {/* Icons only on phones (the label stays for screen readers). */}
-      <span className="sr-only text-[11px] font-medium leading-none sm:not-sr-only">{label}</span>
+      <span className="flex h-5 w-5 items-center justify-center">{children}</span>
+      <span className={navItemLabelClass}>{label}</span>
     </>
   );
   if (disabled) {
@@ -50,7 +52,7 @@ function NavIconLink({
     );
   }
   return (
-    <Link href={href} title={title ?? label} className={className}>
+    <Link href={href} title={title ?? label} aria-current={active ? "page" : undefined} className={className}>
       {inner}
     </Link>
   );
@@ -69,17 +71,19 @@ export function GlobalHeader() {
   const isCompanyOwner = useIsCompanyOwner();
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-surface py-3 pr-3 sm:gap-4 sm:py-4 sm:pr-6">
+    // One 64px line in the page's own colour (slightly see-through over
+    // scrolling content) with a single hairline under it, not a white bar.
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-2 border-b border-border/70 bg-background/90 pr-3 backdrop-blur-md sm:gap-4 sm:pr-8">
       <div
-        className={`flex shrink-0 items-center gap-3 ${pathname === "/" ? "pl-3 sm:pl-6" : "pl-14 sm:pl-20"}`}
+        className={`flex shrink-0 items-center gap-4 ${pathname === "/" ? "pl-3 sm:pl-8" : "pl-14 sm:pl-20"}`}
       >
-        <Link href="/" className="flex items-center gap-2">
-          <Logo size="sm" />
+        <Link href="/" className="flex items-center gap-2.5">
+          <Logo size="md" />
           {/* Logo only on the narrowest phones, so the header never forces the
               page wider than the screen. */}
-          <span className="hidden text-lg font-bold text-foreground min-[420px]:inline">I Worked There</span>
+          <span className="hidden font-display text-xl text-foreground min-[420px]:inline">I Worked There</span>
         </Link>
-        <span className="hidden text-sm font-light italic text-muted-foreground sm:inline">
+        <span className="hidden border-l border-border pl-4 text-sm text-muted-foreground xl:inline">
           No names. No HR. Just what it&apos;s really like to work there.
         </span>
       </div>
@@ -93,7 +97,7 @@ export function GlobalHeader() {
           than something a visitor has to know to scroll sideways to find. */}
       <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-4">
         {showAccountControls && role === "ADMIN" && (
-          <nav className="flex min-w-0 shrink items-center gap-4 overflow-x-auto no-scrollbar text-sm text-muted-foreground">
+          <nav className="flex min-w-0 shrink items-center gap-4 overflow-x-auto no-scrollbar border-r border-border pr-4 text-sm text-muted-foreground">
             <Link href="/admin/dashboard" className="hover:text-brand-600 dark:hover:text-brand-400">
               Admin Portal
             </Link>
@@ -112,8 +116,8 @@ export function GlobalHeader() {
           </nav>
         )}
 
-        <div className="flex min-w-0 shrink items-center gap-1 overflow-x-auto no-scrollbar">
-          <NavIconLink href="/" label="Home" title="Home">
+        <div className="flex min-w-0 shrink items-center overflow-x-auto no-scrollbar">
+          <NavIconLink href="/" label="Home" title="Home" active={pathname === "/" || pathname.startsWith("/companies")}>
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
@@ -122,7 +126,7 @@ export function GlobalHeader() {
 
           {showAccountControls &&
             (role === "COMPANY_OWNER" ? (
-              <NavIconLink href="/my/companies" label="Dashboard" title="Company dashboard">
+              <NavIconLink href="/my/companies" label="Dashboard" title="Company dashboard" active={pathname.startsWith("/my/companies")}>
                 {/* dashboard-tile-solid, svgrepo.com/show/445068 — fill
                     swapped for currentColor so it inherits this link's
                     light/dark text color instead of a color baked into the
@@ -135,7 +139,7 @@ export function GlobalHeader() {
                 </svg>
               </NavIconLink>
             ) : (
-              <NavIconLink href="/me/reviews" label="My Ratings" title="The reviews you've submitted">
+              <NavIconLink href="/me/reviews" label="My Ratings" title="The reviews you've submitted" active={pathname.startsWith("/me/reviews")}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
@@ -146,7 +150,7 @@ export function GlobalHeader() {
           {showAccountControls && !companyAccount && <NotificationsMenu />}
 
           {showAccountControls && (
-            <NavIconLink href="/jobs" label={isCompanyOwner ? "Hire now !" : "Jobs"} title={isCompanyOwner ? "Post a job" : "Jobs"}>
+            <NavIconLink href="/jobs" label={isCompanyOwner ? "Hire now !" : "Jobs"} title={isCompanyOwner ? "Post a job" : "Jobs"} active={pathname.startsWith("/jobs")}>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
               </svg>
@@ -154,7 +158,7 @@ export function GlobalHeader() {
           )}
 
           {!companyAccount && (
-            <NavIconLink href="/social" label="IWT Social">
+            <NavIconLink href="/social" label="IWT Social" active={pathname.startsWith("/social")}>
               <IwtSocialIcon className="h-5 w-5" />
             </NavIconLink>
           )}
@@ -185,7 +189,7 @@ export function GlobalHeader() {
               // Below md only the avatar shows, so it keeps its full size
               // (shrinking let it slide under the Log out icon on phones);
               // from md up the name beside it is what gives way.
-              className="flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition hover:bg-surface-muted md:shrink"
+              className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-full p-1 transition hover:bg-surface-muted md:shrink md:pr-3.5"
             >
               <span className="sr-only md:hidden">My profile</span>
               <Avatar
@@ -226,7 +230,7 @@ export function GlobalHeader() {
           <button
             type="button"
             onClick={() => openAuthModal()}
-            className="shrink-0 rounded-full bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            className="shrink-0 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
           >
             <span className="sm:hidden">Join</span>
             <span className="hidden sm:inline">Login/Register</span>

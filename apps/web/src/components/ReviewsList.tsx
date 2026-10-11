@@ -185,8 +185,8 @@ export function ReviewsList({
   const visibleReviews = collapsed ? filteredReviews.slice(0, initialVisibleCount) : filteredReviews;
 
   return (
-    <div className="flex flex-col gap-4 compact:gap-2">
-      <h2 className="text-lg font-semibold text-foreground">Reviews</h2>
+    <div className="flex flex-col gap-7 border-t border-border pt-10 compact:gap-4">
+      <h2 className="text-xl text-foreground">Reviews</h2>
       {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       {collarOptions.length > 1 && (
@@ -208,8 +208,10 @@ export function ReviewsList({
           id={`review-${review.id}`}
           // The featured review drops its work-type colour edge and gets a
           // plain gold outline instead (same gold as the boosted job cards).
-          className={`scroll-mt-24 rounded-xl border bg-surface p-5 compact:p-3 ${
-            review === featured ? "border-amber-400" : `border-border border-l-2 ${collarBorderClass(review.workplaceType)}`
+          className={`scroll-mt-24 ${
+            review === featured
+              ? "rounded-xl border border-amber-400 p-5 compact:p-3"
+              : `border-l-2 py-1 pl-5 compact:pl-3 ${collarBorderClass(review.workplaceType)}`
           } ${pulsingId === review.id ? "highlight-pulse" : ""}`}
         >
           {review === featured && (
@@ -223,13 +225,13 @@ export function ReviewsList({
           <div className="mb-3 compact:mb-1.5 flex items-center gap-2">
             <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />
             {review.displayUsername && (
-              <span className="shrink-0 text-xs font-medium text-muted-foreground">{review.displayUsername}</span>
+              <span className="shrink-0 text-sm font-semibold text-foreground">{review.displayUsername}</span>
             )}
             <div className="flex flex-wrap items-center gap-2">
               {/* Which of the company's (up to 2) workplaceTypes this review
                   is about — matters once a company spans more than one, e.g.
                   a hospital's Service and Office reviews read very differently. */}
-              <span className="inline-block rounded-full border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              <span className="inline-block rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 {workplaceTypeLabel(review.workplaceType)}
               </span>
               {review.contributorBadge && (
@@ -245,16 +247,18 @@ export function ReviewsList({
               )}
             </div>
           </div>
-          <div className="flex flex-col gap-1 text-sm compact:text-xs">
-            {CATEGORY_FIELDS.map((f) => (
-              <div key={f.label} className="text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  {f.label}: {String(review[f.score])}/5
-                </span>
-              </div>
-            ))}
+          <div className="flex flex-col gap-3 text-sm compact:text-xs">
+            <div className="flex flex-wrap gap-x-6 gap-y-1">
+              {CATEGORY_FIELDS.map((f) => (
+                <div key={f.label} className="text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {f.label}: {String(review[f.score])}/5
+                  </span>
+                </div>
+              ))}
+            </div>
             {review.generalThoughts && (
-              <div className="mt-1 italic text-muted-foreground">
+              <div className="max-w-[75ch] text-[15px] leading-relaxed text-foreground compact:text-sm">
                 &ldquo;{review.generalThoughts}&rdquo;
               </div>
             )}
@@ -268,7 +272,7 @@ export function ReviewsList({
               className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-40 ${
                 review.myVote === 1
                   ? "border-green-600 bg-green-50 text-green-700 dark:border-green-500 dark:bg-green-950 dark:text-green-400"
-                  : "border-border text-muted-foreground hover:bg-surface-muted"
+                  : "border-transparent bg-surface-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               Helpful ({review.likeCount})
@@ -280,7 +284,7 @@ export function ReviewsList({
               className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-40 ${
                 review.myVote === -1
                   ? "border-red-600 bg-red-50 text-red-700 dark:border-red-500 dark:bg-red-950 dark:text-red-300"
-                  : "border-border text-muted-foreground hover:bg-surface-muted"
+                  : "border-transparent bg-surface-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               Not helpful ({review.dislikeCount})
@@ -351,7 +355,7 @@ export function ReviewsList({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mx-auto flex items-center gap-1 rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-muted"
+          className="mx-auto flex items-center gap-1 rounded-full bg-surface-muted px-4 py-2 text-sm font-medium text-foreground transition hover:bg-border/70"
         >
           {collapsed ? (
             <>

@@ -80,8 +80,8 @@ export function sortCompaniesBy<T extends { name: string; overallAvg: number | n
 
 const TOGGLE_SIZE = "px-4 py-2 text-sm";
 // Inside SearchSortBox, where they sit in the search pill's own height.
-const TOGGLE_SIZE_COMPACT = "px-3 py-1 text-xs";
-const TOGGLE_OFF = "border-border bg-surface text-muted-foreground hover:text-foreground";
+const TOGGLE_SIZE_COMPACT = "px-3.5 py-1.5 text-xs";
+const TOGGLE_OFF = "border-transparent bg-surface-muted text-muted-foreground hover:text-foreground";
 const TOGGLE_ON = "border-brand-600 bg-brand-600 text-white";
 
 // Red for the "bad end first" state, green for the "good end first" state -

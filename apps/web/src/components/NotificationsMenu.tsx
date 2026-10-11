@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
 import { HeartIcon } from "@/components/icons/HeartIcon";
+import { navItemClass, navItemLabelClass } from "@/components/layout/navItem";
 
 // ---------------------------------------------------------------------------
 // Notification model
@@ -512,19 +513,19 @@ export function NotificationsMenu() {
         aria-label="Notifications"
         aria-expanded={open}
         title="Notifications"
-        className="relative flex flex-col items-center gap-1 rounded-lg px-2 py-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+        className={navItemClass}
       >
-        <span className="relative flex h-8 w-8 items-center justify-center">
+        <span className="relative flex h-5 w-5 items-center justify-center">
           <BellIcon className="h-5 w-5" />
           {unreadCount > 0 && (
             <span
               data-unread-badge
-              className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-surface"
+              className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-background"
               aria-hidden="true"
             />
           )}
         </span>
-        <span className="sr-only text-[11px] font-medium leading-none sm:not-sr-only">Notifications</span>
+        <span className={navItemLabelClass}>Notifications</span>
       </button>
 
       {open &&

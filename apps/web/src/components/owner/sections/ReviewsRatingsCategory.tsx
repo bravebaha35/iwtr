@@ -68,7 +68,7 @@ export function ReviewsRatingsCategory({
   }, [loadAllowance]);
 
   return (
-    <div className="rounded-xl border border-border p-6">
+    <div className="rounded-2xl bg-surface p-7 shadow-xs">
       <h3 className="mb-4 font-semibold text-foreground">Ratings</h3>
 
       {aggregate && aggregate.reviewCount > 0 ? (

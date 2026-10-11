@@ -7,6 +7,7 @@ import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
 import { ForbiddenBanner } from "@/components/ForbiddenBanner";
 import { AnonGate } from "@/components/auth/AnonGate";
+import { LandingSections } from "@/components/LandingSections";
 
 export function HomeClient({ hasSessionCookie }: { hasSessionCookie: boolean }) {
   const { isLoading, isAuthenticated, onboardingStatus, companyAccount } = useAuth();
@@ -61,6 +62,7 @@ export function HomeClient({ hasSessionCookie }: { hasSessionCookie: boolean }) 
         assumeAnonymous={!hasSessionCookie}
         title="See what it's really like to work there"
         description="Register for free to browse company scores and read anonymous employee reviews."
+        below={<LandingSections />}
       >
         <WorkplaceBrowser />
       </AnonGate>

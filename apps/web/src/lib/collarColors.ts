@@ -21,7 +21,7 @@ export const collarColorMap: Record<WorkplaceType, { text: string; border: strin
 // at which point its own color takes over. Showing every option in full
 // color at once (the original spec) read as too busy in practice; the color
 // is meant to be the *result* of picking a type, not a hint shown up front.
-const inactiveCollarPillClassName = "border border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground";
+const inactiveCollarPillClassName = "border border-transparent bg-surface-muted text-muted-foreground hover:text-foreground";
 
 // Active pills used to be a solid color fill (bg + white/dark text), then a
 // colored outline + colored label — per explicit user request, only the
@@ -62,10 +62,11 @@ const collarSegmentActiveClass: Record<WorkplaceType, string> = {
   MANUAL_LABOUR: "border border-blue-600 ring-1 ring-inset ring-blue-600 font-semibold text-foreground bg-surface",
 };
 
-// Unselected: every option always carries its own plain 1px outline, like a
-// button, instead of sitting borderless inside a shared track box.
+// Unselected: a quiet tonal button (the transparent 1px border only holds
+// the size steady). The outline is reserved for the picked option, where it
+// carries the collar colour.
 const collarOutlinedInactiveClass =
-  "border border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground";
+  "border border-transparent bg-surface-muted text-muted-foreground hover:text-foreground";
 
 export function collarOutlinedButtonClassName(type: WorkplaceType, active: boolean): string {
   return active ? collarSegmentActiveClass[type] : collarOutlinedInactiveClass;

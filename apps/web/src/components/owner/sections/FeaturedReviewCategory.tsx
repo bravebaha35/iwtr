@@ -54,7 +54,7 @@ export function FeaturedReviewCategory({
   const chosen = reviews?.find((r) => r.id === featuredReviewId) ?? null;
 
   return (
-    <div className="rounded-xl border border-border p-6">
+    <div className="rounded-2xl bg-surface p-7 shadow-xs">
       <h3 className="mb-1 font-semibold text-foreground">Featured Review Spotlight</h3>
       <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
         Pick one of your published reviews. It is pinned to the top of the reviews on your company page with a

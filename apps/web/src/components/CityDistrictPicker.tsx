@@ -105,7 +105,7 @@ export function CityDistrictPicker({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
+        <h2 className="text-[13px] font-semibold text-foreground">Location</h2>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -133,13 +133,13 @@ export function CityDistrictPicker({
           onChange={(next) => setCountry(next ?? DEFAULT_COUNTRY)}
         />
       </div>
-      <div className="rounded-lg border border-border p-1.5">
+      <div>
         <input
           type="search"
           placeholder={isTurkey ? "Search city or district..." : `Search ${country} city or district...`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="mb-1.5 w-full rounded-md border border-border bg-surface-muted px-2 py-1 text-xs text-foreground"
+          className="mb-2 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground"
         />
         {!isTurkey && (
           <p className="mb-1.5 rounded-lg border border-dashed border-border p-2.5 text-xs text-muted-foreground">
@@ -229,7 +229,7 @@ export function CityDistrictPicker({
                         className={`min-h-6 rounded-full px-2.5 py-1 text-[11px] transition ${
                           active
                             ? "bg-brand-600 text-white"
-                            : "border border-border text-muted-foreground hover:bg-surface-muted"
+                            : "bg-surface-muted text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {d}

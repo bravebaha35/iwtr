@@ -62,7 +62,7 @@ function PostImageCarousel({ imageUrls, alt }: { imageUrls: string[]; alt: strin
 
   return (
     <div
-      className="relative"
+      className="relative overflow-hidden rounded-[0.875rem]"
       onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
       onTouchEnd={(e) => {
         if (touchStartX === null) return;

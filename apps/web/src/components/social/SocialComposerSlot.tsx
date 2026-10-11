@@ -23,7 +23,7 @@ export function SocialComposerSlot() {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="mb-4 w-full rounded-xl border border-border bg-surface px-4 py-3 text-left text-sm text-muted-foreground transition hover:bg-surface-muted"
+        className="mb-6 w-full rounded-2xl bg-surface px-5 py-3.5 text-left text-[15px] text-muted-foreground shadow-xs transition hover:shadow-sm"
       >
         Tell us what you think !
       </button>

@@ -47,7 +47,7 @@ export function SupportCategory({ companyId, tier }: { companyId: string; tier: 
   }
 
   return (
-    <div className="rounded-xl border border-border p-6">
+    <div className="rounded-2xl bg-surface p-7 shadow-xs">
       <h3 className="mb-1 font-semibold text-foreground">Customer Support &amp; Service Level (SLA)</h3>
       <p className="mb-4 text-sm text-muted-foreground">
         Your plan includes: <span className="font-medium text-foreground">{SUPPORT_BY_TIER[tier]}</span>.

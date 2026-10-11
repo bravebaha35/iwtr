@@ -28,7 +28,7 @@ export function SearchSortBox({
 }) {
   return (
     <div
-      className={`flex ${widthClassName} items-center gap-2 rounded-full border border-border bg-surface py-1 pl-4 pr-1.5 transition focus-within:border-brand-600 ${
+      className={`flex ${widthClassName} items-center gap-2 rounded-full bg-surface py-1.5 pl-5 pr-2 shadow-sm ring-1 ring-border/70 transition focus-within:ring-2 focus-within:ring-brand-600 dark:focus-within:ring-brand-400 ${
         highlighted ? "highlight-pulse" : ""
       }`}
     >
@@ -38,7 +38,7 @@ export function SearchSortBox({
         placeholder="Search or sort a workplace you want !"
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
-        className="min-w-0 flex-1 bg-transparent py-1 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+        className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none"
       />
       <SortButtons value={sortBy} onChange={onSortChange} compact showRiskSort={showRiskSort} />
     </div>

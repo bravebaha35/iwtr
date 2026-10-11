@@ -63,29 +63,29 @@ export function CompanyWorkCard({
 
   const content = (
     <>
-      {/* Facebook-style cover-photo layout: the banner bleeds to the card's
-          outer edges (negative margin cancels the card's own p-4) and the
-          logo overlaps its bottom-left corner by half its own height
-          (top-full + -translate-y-1/2, anchored against this *relative*
-          wrapper) — mb-6 reserves room below the banner for the half of the
-          logo that hangs past it, so the name row below never collides with
-          it. 4:1 keeps the strip short relative to the rest of the card. */}
-      <div className="relative -mx-4 -mt-4 mb-6 w-[calc(100%+2rem)]">
-        <div className="relative aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+      {/* Cover-photo layout with no card frame around it: the banner is
+          its own rounded tile and the logo overlaps its bottom-left corner
+          by half its own height (top-full + -translate-y-1/2, anchored
+          against this *relative* wrapper) — mb-7 reserves room below the
+          banner for the half of the logo that hangs past it, so the name row
+          below never collides with it. 4:1 keeps the strip short relative to
+          the rest of the tile. */}
+      <div className="relative mb-7">
+        <div className="relative aspect-[4/1] w-full overflow-hidden rounded-[0.875rem] bg-surface-muted">
           <Image
             src={bannerUrl}
             alt=""
             fill
             sizes="(min-width: 1280px) 320px, (min-width: 640px) 50vw, 100vw"
             unoptimized={!isOwnStaticAsset(bannerUrl)}
-            className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
+            className={`h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04] motion-reduce:transition-none ${bannerIsGreyscale ? "grayscale" : ""}`}
           />
         </div>
-        <div className="absolute left-4 top-full -translate-y-1/2">
+        <div className="absolute left-3 top-full -translate-y-1/2">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="md" />
         </div>
         {riskScore !== undefined && (
-          <div className="absolute right-4 top-full mt-1.5">
+          <div className="absolute right-1 top-full mt-2">
             <RiskScoreBadge riskScore={riskScore} short />
           </div>
         )}
@@ -93,7 +93,7 @@ export function CompanyWorkCard({
 
       {/* The logo already sits above, overlapping the banner's bottom-left
           corner, so this row is just the name + verification tick. */}
-      <h3 className="line-clamp-2 min-w-0 text-lg leading-snug text-foreground">
+      <h3 className="line-clamp-2 min-w-0 text-[19px] leading-snug text-foreground transition-colors group-hover:text-brand-700 dark:group-hover:text-brand-300">
         {company.name}
         <CompanyVerificationTick
           badgeTier={company.badgeTier}
@@ -115,11 +115,11 @@ export function CompanyWorkCard({
 
       {/* Wraps onto a second line on narrow cards instead of squeezing the
           words ("Hiring now", "11 reviews") into each other or off the edge. */}
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-border/60 pt-2">
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 pt-2">
         {company.overallAvg !== null ? (
           <>
             <div className="flex items-center gap-1.5">
-              <span className="font-grotesk text-lg font-bold tabular-nums text-foreground">{company.overallAvg.toFixed(1)}</span>
+              <span className="font-display text-2xl leading-none tabular-nums text-foreground">{company.overallAvg.toFixed(1)}</span>
               <span className={`whitespace-nowrap text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
                 {scoreBandLabel(company.overallAvg)}
               </span>
@@ -152,11 +152,11 @@ export function CompanyWorkCard({
   // min-h (not a fixed h) — the standard card body is ~196px, but the banner
   // strip + overlapping logo need room to grow the card taller rather than
   // getting clipped.
-  const className = "flex min-h-[196px] flex-col gap-2 rounded-xl border border-border bg-surface p-4 transition";
+  const className = "group flex min-h-[196px] flex-col gap-1.5";
 
   if (href) {
     return (
-      <Link href={href} className={`${className} hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700`}>
+      <Link href={href} className={`${className} rounded-2xl outline-offset-4`}>
         {content}
       </Link>
     );

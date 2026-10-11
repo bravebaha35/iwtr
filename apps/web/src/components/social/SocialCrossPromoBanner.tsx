@@ -8,11 +8,11 @@ export function SocialCrossPromoBanner({ companySlug }: { companySlug: string; c
   return (
     <Link
       href={`/companies/${companySlug}?tab=social`}
-      className="mt-6 block overflow-hidden rounded-xl border border-border bg-surface transition hover:border-brand-400"
+      className="mt-6 block overflow-hidden rounded-2xl bg-surface shadow-xs transition hover:shadow-md"
     >
-      <div className="flex items-center gap-2 border-b border-border bg-surface-muted px-4 py-2">
+      <div className="flex items-center gap-2 bg-surface-muted px-4 py-2">
         <IwtSocialIcon className="h-4 w-4 text-brand-600 dark:text-brand-400" />
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">IWT Social</span>
+        <span className="text-[13px] font-semibold text-foreground">IWT Social</span>
       </div>
       <div className="flex items-center justify-between gap-3 px-4 py-4">
         <p className="text-lg font-bold text-foreground">See what they are doing !</p>

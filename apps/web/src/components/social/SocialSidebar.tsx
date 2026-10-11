@@ -30,8 +30,8 @@ function FollowingList() {
 
   return (
     <div>
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h2>
-      <div className="flex h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-1.5">
+      <h2 className="mb-2 text-[13px] font-semibold text-foreground">Following</h2>
+      <div className="thin-scrollbar flex h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-surface-muted/60 p-1.5">
         {loading && <p className="p-1.5 text-xs text-muted-foreground">Loading...</p>}
         {!loading && companies.length === 0 && (
           <p className="p-1.5 text-xs text-muted-foreground">You&apos;re not following any companies yet.</p>
@@ -64,8 +64,8 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
 
   return (
     <div>
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sort</h2>
-      <div className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface-muted p-1">
+      <h2 className="mb-2 text-[13px] font-semibold text-foreground">Sort</h2>
+      <div className="flex w-full flex-col gap-1 rounded-xl bg-surface-muted p-1">
         <button
           type="button"
           onClick={() => onChange(isOldest ? "newest" : "oldest")}
@@ -172,7 +172,7 @@ function SeeThemOn({ links }: { links: CompanySocialLinks }) {
 
   return (
     <div>
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">See Them On</h2>
+      <h2 className="mb-2 text-[13px] font-semibold text-foreground">See Them On</h2>
       {/* Tight, asymmetrical wrap - not a fixed grid - so a company with 2
           links doesn't leave a row of empty cells and one with 5 wraps
           naturally. */}
@@ -185,7 +185,7 @@ function SeeThemOn({ links }: { links: CompanySocialLinks }) {
             rel="noopener noreferrer"
             title={label}
             aria-label={label}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:border-foreground hover:text-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-muted text-muted-foreground transition hover:bg-border/70 hover:text-foreground"
           >
             {icon}
           </a>
@@ -274,7 +274,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
           className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
             savedView
               ? "border-brand-600 bg-brand-600 text-white"
-              : "border-border text-foreground hover:bg-surface-muted"
+              : "border-transparent bg-surface-muted text-foreground hover:bg-border/70"
           }`}
         >
           <BookmarkIcon className="h-4 w-4" />
@@ -283,7 +283,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
       )}
 
       <div>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick Select</h2>
+        <h2 className="mb-2 text-[13px] font-semibold text-foreground">Quick Select</h2>
         {/* Same 7 groups as the rating/jobs pages, stacked vertically here. */}
         <CategoryGroupFilter value={categoryGroup} onChange={onCategoryGroupChange} orientation="vertical" />
       </div>

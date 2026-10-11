@@ -49,48 +49,51 @@
   background-color: var(--muted-foreground);
 }
 
-/* "Friendly Habitat" (2026-09-25) — the Beaver Habitat colours, softened
-   and rounded. Named anchors:
-     Paper      #FBFAF5  light page background
-     Den        #333333  dark page background
-     Timber     #3B2A1A  light-mode text
+/* "Riverbank" (2026-10-12) - the beaver's habitat, read as a place rather
+   than as cream paper: stone and lichen neutrals with a green lean, deep
+   pine text, and Wood as the single accent. Named anchors:
+     Lichen     #F1F2EC  light page background
+     Night Pine #1B211D  dark page background
+     Pine Ink   #1C2620  light-mode text
      Wood       #8B5A2B  primary buttons AND the one "selected" colour
                          (brand-600 fill + white text, as in the city picker)
-     Forest     #3D6B3F  footer band and positive accents (forest-600)
-   WCAG contrast (AA needs 4.5, AAA 7): Timber/Paper 13.1, muted/Paper 6.3,
-   white/Wood 5.8, white/Forest 6.2, Birch text/Den 11.2,
-   dark muted/Den 7.4, dark muted/dark surface 6.4. Wood and Forest
-   themselves are too dark on Den, so dark mode reads their 300/400 shades.
-   Borders are deliberately soft (non-text, decorative separation only). */
+     Forest     #3D6B3F  positive accents (forest-600); the footer is a
+                         deeper pine
+   Text pairs are checked against WCAG AA (4.5) in both themes. Wood and
+   Forest themselves are too dark on Night Pine, so dark mode reads their
+   300/400 shades.
+   Structure rule: content is separated by tone, space and hairlines, not by
+   outlined boxes. --border is a quiet hairline; only form inputs rely on it
+   as an edge. */
 :root {
-  --background: #fbfaf5; /* Paper */
-  --foreground: #3b2a1a; /* Timber */
-  --surface: #ffffff;
-  --surface-muted: #f1ede3;
-  --muted-foreground: #6b5a48;
-  --border: #d6cebe;
+  --background: #f1f2ec; /* Lichen */
+  --foreground: #1c2620; /* Pine Ink */
+  --surface: #fafaf6;
+  --surface-muted: #e5e7dd;
+  --muted-foreground: #556056;
+  --border: #d3d6c9;
   /* Settings-page sidebars (/me, /my/companies) follow the theme. */
-  --sidebar: #f3efe6;
-  --sidebar-foreground: #3b2a1a;
+  --sidebar: #e9ebe2;
+  --sidebar-foreground: #1c2620;
   /* The footer is the one band that stays dark in both themes (see
-     GlobalFooter.tsx): deep forest. */
-  --footer: #263a2b;
-  --footer-foreground: #f5f1e8;
-  /* Soft, warm shadow tint used by the --shadow-* scale below. */
-  --shadow-tint: 59 42 26;
+     GlobalFooter.tsx): deep pine. */
+  --footer: #1f3326;
+  --footer-foreground: #f1f2ec;
+  /* Cool, green-leaning shadow tint used by the --shadow-* scale below. */
+  --shadow-tint: 28 38 32;
 }
 
 .dark {
-  --background: #333333; /* Den */
-  --foreground: #f5f1e8;
-  --surface: #3d3c3a;
-  --surface-muted: #484642;
-  --muted-foreground: #cdc5b6;
-  --border: #5c5a55;
-  --sidebar: #2b2b2a;
-  --sidebar-foreground: #f5f1e8;
-  --footer: #1f2e23;
-  --footer-foreground: #f5f1e8;
+  --background: #1b211d; /* Night Pine */
+  --foreground: #ecefe6;
+  --surface: #242b26;
+  --surface-muted: #2e362f;
+  --muted-foreground: #b3bbaf;
+  --border: #3d4740;
+  --sidebar: #20261f;
+  --sidebar-foreground: #ecefe6;
+  --footer: #121813;
+  --footer-foreground: #ecefe6;
   --shadow-tint: 0 0 0;
 }
 
@@ -101,18 +104,21 @@
   --color-surface-muted: var(--surface-muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
-  /* Typography: Google Sans Flex for body and UI text, DM Serif Display
-     for headings (both loaded in layout.tsx via next/font). */
+  /* Typography: Google Sans Flex for body and UI text, Bricolage Grotesque
+     for headings (both loaded in layout.tsx via next/font). The chunky
+     grotesque sits better beside the thick-outlined cartoon beavers than a
+     serif did. DM Serif Display stays loaded for the CV document only. */
   --font-sans: var(--font-google-sans-flex);
-  --font-display: var(--font-dm-serif-display);
+  --font-display: var(--font-bricolage);
+  --font-cv-display: var(--font-dm-serif-display);
   /* Older utility names kept working: both now resolve to the body face. */
   --font-jakarta: var(--font-google-sans-flex);
   --font-grotesk: var(--font-google-sans-flex);
 
   /* Named habitat colors (see the palette comment on :root). */
-  --color-birch: #f5f1e8;
-  --color-slate-dam: #333333;
-  --color-timber: #3b2a1a;
+  --color-birch: #f1f2ec;
+  --color-slate-dam: #1b211d;
+  --color-timber: #1c2620;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-footer: var(--footer);
@@ -187,16 +193,27 @@ body {
   font-variation-settings: "ROND" 50;
 }
 
-/* Every heading uses DM Serif Display. It has one weight, so font-bold on a
-   heading must not be faked by the browser (smeared strokes). */
+/* Every heading uses Bricolage Grotesque at one weight, pulled slightly
+   tight - hierarchy comes from size and colour, not from mixing weights. */
 h1,
 h2,
 h3,
 h4,
 .font-display {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 650;
   font-synthesis-weight: none;
+  letter-spacing: -0.015em;
+}
+
+/* The CV is a document, not site chrome: it keeps the serif headings it was
+   designed and exported with. */
+.cv-document h1,
+.cv-document h2,
+.cv-document h3,
+.cv-document h4 {
+  font-family: var(--font-cv-display);
+  font-weight: 400;
   letter-spacing: 0;
 }
 
