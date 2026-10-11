@@ -611,6 +611,14 @@ describe("CompaniesService.browse — featured (boosted) jobs", () => {
     expect(boostQuery.where.status).toBe("PUBLISHED");
   });
 
+  // The ad-space package buys the employer ad space only.
+  it("leaves ad-space postings out of the featured row", async () => {
+    const { service, jobPostingFindMany } = setup(["jp3"]);
+    await service.browse({ jobs: "1" } as any);
+    const boostQuery = jobPostingFindMany.mock.calls.find(([a]) => a.where.boostExpiresAt)[0];
+    expect(boostQuery.where.boostAdSpace).toBe(false);
+  });
+
   it("is empty on the homepage", async () => {
     const { service } = setup(["jp3"]);
     expect((await service.browse({} as any)).featured).toEqual([]);

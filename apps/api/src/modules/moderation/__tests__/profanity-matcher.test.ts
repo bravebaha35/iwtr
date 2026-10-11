@@ -5,6 +5,12 @@ const hit = (text: string) => {
   return m.plain || m.evasive;
 };
 
+// "nıggga" (dotless ı, stretched g) is how it was typed in a real company
+// reply on the dev site: it has to be caught as a dodge.
+it("catches a stretched slur typed with a Turkish dotless ı", () => {
+  expect(hit("nıggga")).toBe(true);
+});
+
 describe("findProfanity - catches", () => {
   it.each([
     "you are so stupid",
@@ -36,6 +42,24 @@ describe("findProfanity - catches", () => {
     "nigger",
     "faggot",
     "What's up negro ?",
+    "sup nigga",
+    "niggaz everywhere",
+    "those negroes",
+    "a bunch of coons",
+    "dirty wog",
+    "the chinaman at the desk",
+    "ching chong",
+    "he called me a kike",
+    "filthy yid",
+    "go home paki",
+    "lazy spic",
+    "towelhead boss",
+    "camel jockey",
+    "white trash team",
+    "such a spaz",
+    "mongoloid manager",
+    "the new guy is a poofter",
+    "heil hitler",
   ])("plain: %s", (text) => {
     expect(findProfanity(text).plain).toBe(true);
   });
@@ -100,6 +124,15 @@ describe("findProfanity - leaves normal text alone", () => {
     "A.B.D. merkezli bir şirket, T.C. vatandaşı olmak gerekiyor.",
     "Yıllık izin 14 gün, 2019-2023 arası çalıştım.",
     "Pustu kurdular dediler ama asılsızdı; pusu yok.",
+    // Look like the 2026-10-12 slur additions but are ordinary words or names.
+    "Nigar Hanım çok yardımcı oldu.",
+    "A niggling issue with the payroll system.",
+    "We had a negroni at the team dinner.",
+    "The raccoon got into the warehouse again.",
+    "Japonya ofisiyle çalıştık, Japon müşteriler memnundu.",
+    "Kafir diye bir söz duymadım, ortam saygılıydı.",
+    "Abo, bu kadar mesai olur mu!",
+    "The spade work was done by interns; nothing spooky about it.",
   ])("%s", (text) => {
     expect(hit(text)).toBe(false);
   });

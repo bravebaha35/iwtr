@@ -297,8 +297,8 @@ export class CompaniesService {
 
   /**
    * The employer ad space beside the search bar (Rating and Jobs pages): one
-   * company running the AD_SPACE_14 package, picked at random each time so
-   * every buyer gets shown. Null when none is running (the page then shows
+   * company running the AD_SPACE_14 package (which buys this space and
+   * nothing else), picked at random each time so every buyer gets shown. Null when none is running (the page then shows
    * a placeholder ad).
    */
   async employerAd(): Promise<EmployerAd> {
@@ -368,7 +368,9 @@ export class CompaniesService {
 
   /**
    * The Jobs page's featured row (page 1 only): live postings with an
-   * active boost, at most FEATURED_JOBS_LIMIT. Every sidebar filter applies
+   * active Featured boost, at most FEATURED_JOBS_LIMIT. The ad-space package
+   * (boostAdSpace) buys the employer ad space only, so those postings are
+   * left out of this row. Every sidebar filter applies
    * except the location, which pickFeatured handles itself (chosen place
    * first, topped up from the same region when there are fewer than 4).
    * The member's own Sector / kind of work (forSector / forWorkType) decide
@@ -385,6 +387,7 @@ export class CompaniesService {
           ],
         },
         status: "PUBLISHED",
+        boostAdSpace: false,
         boostExpiresAt: { gt: new Date() },
       },
       select: {

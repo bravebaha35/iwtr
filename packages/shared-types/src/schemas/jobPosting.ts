@@ -10,8 +10,8 @@ export type JobPostingStatus = z.infer<typeof jobPostingStatusSchema>;
 //   for 7 or 14 days (only FEATURED_7 can come out of the free monthly
 //   allowance);
 // - AD_SPACE_14: the company's own ad in the employer ad space beside the
-//   search bar on the Rating and Jobs pages, plus the Featured row, for 14
-//   days.
+//   search bar on the Rating and Jobs pages for 14 days. Ad space only: it
+//   does not put the posting in the Featured row.
 export const boostOptionSchema = z.enum(["FEATURED_7", "FEATURED_14", "AD_SPACE_14"]);
 export type BoostOption = z.infer<typeof boostOptionSchema>;
 export const BOOST_OPTION_DAYS: Record<BoostOption, number> = { FEATURED_7: 7, FEATURED_14: 14, AD_SPACE_14: 14 };
