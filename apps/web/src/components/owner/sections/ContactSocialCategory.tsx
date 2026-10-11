@@ -61,7 +61,7 @@ export function ContactSocialCategory(props: ContactSocialCategoryProps) {
   const noContact = !props.contactEmail.trim() && (!props.contactPhone.trim() || props.contactPhone.trim() === "+90");
 
   return (
-    <div className="rounded-xl border border-border p-6">
+    <div className="rounded-2xl bg-surface p-7 shadow-xs">
       <h3 className="mb-4 font-semibold text-foreground">Contact & Social Media</h3>
 
       <section className="max-w-3xl">

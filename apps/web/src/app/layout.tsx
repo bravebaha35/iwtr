@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Serif_Display, Google_Sans_Flex } from "next/font/google";
+import { Bricolage_Grotesque, DM_Serif_Display, Google_Sans_Flex } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { BackButton } from "@/components/BackButton";
@@ -35,13 +35,21 @@ const THEME_BOOT_SCRIPT = `(function(){
 })();`;
 
 // Body and UI text: Google Sans Flex (variable, with its roundness axis —
-// globals.css sets it part-way up for friendlier letterforms). Headings: DM
-// Serif Display. "latin-ext" is mandatory for both: Turkish letters
-// (İ/ı/Ş/ş/Ğ/ğ/Ç/ç/Ö/ö/Ü/ü) live in Latin Extended-A, not base Latin.
+// globals.css sets it part-way up for friendlier letterforms). Headings:
+// Bricolage Grotesque. DM Serif Display is kept for the CV document only
+// (.cv-document in globals.css). "latin-ext" is mandatory for all three:
+// Turkish letters (İ/ı/Ş/ş/Ğ/ğ/Ç/ç/Ö/ö/Ü/ü) live in Latin Extended-A, not
+// base Latin.
 const googleSansFlex = Google_Sans_Flex({
   variable: "--font-google-sans-flex",
   subsets: ["latin", "latin-ext"],
   axes: ["ROND"],
+  display: "swap",
+});
+
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
+  subsets: ["latin", "latin-ext"],
   display: "swap",
 });
 
@@ -92,7 +100,7 @@ export default function RootLayout({
       // reference resolves at the element declaring it. Since :root IS
       // <html>, without them here --font-sans resolves to nothing and every
       // font-sans rule silently falls back to the browser default.
-      className={`${googleSansFlex.variable} ${dmSerifDisplay.variable} h-full antialiased`}
+      className={`${googleSansFlex.variable} ${bricolage.variable} ${dmSerifDisplay.variable} h-full antialiased`}
       // The boot script below sets `.dark`/`data-density` synchronously,
       // before React hydrates, so the server-rendered markup never matches —
       // that's expected (it's what avoids a flash of the wrong theme), so
@@ -104,7 +112,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body
-        className={`${googleSansFlex.variable} ${dmSerifDisplay.variable} min-h-full flex flex-col bg-background text-foreground`}
+        className={`${googleSansFlex.variable} ${bricolage.variable} ${dmSerifDisplay.variable} min-h-full flex flex-col bg-background text-foreground`}
       >
         <SettingsProvider>
           <AuthProvider>

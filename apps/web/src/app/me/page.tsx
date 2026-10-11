@@ -617,11 +617,11 @@ function ProfilePageContent() {
     // what was making the sidebar visibly jump left/right when switching
     // tabs — each tab's card content has a different natural width.
     <div className="mx-auto min-h-screen w-full max-w-5xl px-6 py-10">
-      <h1 className="mb-6 text-2xl font-bold text-foreground">Your account</h1>
+      <h1 className="mb-8 text-4xl leading-tight text-foreground">Your account</h1>
 
       {profile === null ? (
         error ? (
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-2xl bg-surface shadow-xs p-5">
             <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
             <Link href="/" className="mt-2 inline-block text-sm text-brand-600 hover:underline dark:text-brand-400">
               &larr; Back home
@@ -639,7 +639,7 @@ function ProfilePageContent() {
           {activeTab === "customize" && (
           <>
           {/* Avatar, real name + chosen username preview, background, username picker */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-2xl bg-surface shadow-xs p-5">
             <div className="mb-4 flex items-center gap-3">
               <Avatar
                 avatarKey={profile.avatarKey}
@@ -671,7 +671,7 @@ function ProfilePageContent() {
                 photo (below) only, per 2026-09-11 product decision. */}
             {role !== "COMPANY_OWNER" && (
               <>
-                <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Username</p>
+                <p className="mb-1 mt-4 text-[13px] font-semibold text-foreground">Username</p>
                 <p className="mb-2 text-xs text-muted-foreground">
                   Shown on your own reviews instead of your real name — pick whichever one you like.
                 </p>
@@ -703,7 +703,7 @@ function ProfilePageContent() {
           </div>
 
           {role === "COMPANY_OWNER" && employerProfile && (
-            <div className="rounded-xl border border-border bg-surface p-5">
+            <div className="rounded-2xl bg-surface shadow-xs p-5">
               <h2 className="mb-1 font-semibold text-foreground">Employer Photo</h2>
               <p className="mb-4 text-xs text-muted-foreground">
                 Shown instead of your avatar wherever you appear under your real name as a verified company owner, until
@@ -725,7 +725,7 @@ function ProfilePageContent() {
           {activeTab === "personal" && (
           <>
           {/* Personal information */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-2xl bg-surface shadow-xs p-5">
             <h2 className="mb-3 font-semibold text-foreground">Personal Information</h2>
 
             <div className="text-sm">
@@ -890,7 +890,7 @@ function ProfilePageContent() {
           {activeTab === "contact" && (
           <>
           {/* Contact information */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-2xl bg-surface shadow-xs p-5">
             <h2 className="mb-3 font-semibold text-foreground">Contact Information</h2>
 
             <div className="text-sm">
@@ -981,7 +981,7 @@ function ProfilePageContent() {
           {activeTab === "education" && (
           <>
           {/* Education */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-2xl bg-surface shadow-xs p-5">
             <h2 className="mb-3 font-semibold text-foreground">Education</h2>
             {profile.education.length > 0 && (
               <ul className="mb-4 flex flex-col gap-2">
@@ -1161,7 +1161,7 @@ function ProfilePageContent() {
           </div>
 
           {/* Employment history */}
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-2xl bg-surface shadow-xs p-5">
             <h2 className="mb-1 font-semibold text-foreground">Employment history</h2>
             <p className="mb-3 text-xs text-muted-foreground">
               Pick a real workplace from the list below — no free typing, same as everywhere else on this page.
@@ -1341,7 +1341,7 @@ function ProfilePageContent() {
 
           {activeTab === "cv" && (
           <>
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-2xl bg-surface shadow-xs p-5">
             <h2 className="mb-3 font-semibold text-foreground">My CV</h2>
             <div className="flex flex-col gap-6 sm:flex-row">
               <div className="flex-1 flex flex-col gap-4">

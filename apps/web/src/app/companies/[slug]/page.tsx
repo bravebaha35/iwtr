@@ -55,7 +55,7 @@ function RatingNarrativeBox({
     // illustration on desktop (350px) → lg:h-[360px]. Scoped to lg: so the
     // mobile stacked layout flows; the 0-review empty state holds this same
     // slot.
-    <div className="flex flex-col items-center gap-6 rounded-xl border border-border bg-surface p-6 font-sans sm:flex-row sm:items-center lg:h-[360px] lg:max-w-2xl lg:shrink-0">
+    <div className="flex flex-col items-center gap-6 font-sans sm:flex-row sm:items-center lg:h-[360px] lg:max-w-2xl lg:shrink-0">
       {imageSrc ? (
         // A small fixed set of local /public illustrations, not a
         // remote/arbitrary URL.
@@ -64,7 +64,7 @@ function RatingNarrativeBox({
         <div className="h-72 w-56 shrink-0" aria-hidden="true" />
       )}
       {narrative?.description ? (
-        <p className="text-center text-sm text-foreground sm:text-left">{narrative.description}</p>
+        <p className="text-center text-[15px] leading-relaxed text-foreground sm:text-left">{narrative.description}</p>
       ) : waitingLine ? (
         <p className="text-center text-sm text-muted-foreground sm:text-left">{waitingLine}</p>
       ) : null}
@@ -90,20 +90,14 @@ function CompanyDetailsBox({ company }: { company: Company }) {
     company.xUrl ? { label: "X (Twitter)", href: company.xUrl, external: true } : null,
   ].filter((v): v is { label: string; href: string; external: boolean } => v !== null);
 
-  // Fixed height (matching WorkplaceVibeFlags), not content-driven — see
-  // that component's comment. lg:h-[672px] matches the Vibe Flags box's
-  // true worst-case height (all 10 flags in a single column, live-measured
-  // at 657px — SERVICE all-red at the lg min width 1024px) plus a 15px
-  // buffer. Scoped to lg: because that's where this box is paired
-  // side-by-side with WorkplaceVibeFlags and their bottom edges must
-  // align; on mobile it stacks and h-auto lets it flow. overflow-y-auto
-  // is an inert safety net for anything that still doesn't fit.
+  // Sits beside WorkplaceVibeFlags as a plain column: neither is a box any
+  // more, so there are no bottom edges to line up and both size to content.
   return (
-    <div className="h-auto overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans lg:h-[672px]">
-      <h2 className="mb-4 text-lg font-semibold text-foreground">Company Details</h2>
-      <div className="flex flex-col gap-4 text-sm">
+    <div className="font-sans">
+      <h2 className="mb-5 text-xl text-foreground">Company Details</h2>
+      <div className="flex flex-col gap-5 text-sm">
         <div>
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-1 text-[13px] font-semibold text-foreground">
             Overall Information
           </h2>
           {company.description ? (
@@ -124,17 +118,17 @@ function CompanyDetailsBox({ company }: { company: Company }) {
         </div>
 
         <div>
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</h2>
+          <h2 className="mb-1 text-[13px] font-semibold text-foreground">Location</h2>
           <p className="text-foreground">{location || "Not provided yet."}</p>
         </div>
 
         <div>
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sector</h2>
+          <h2 className="mb-1 text-[13px] font-semibold text-foreground">Sector</h2>
           <p className="text-foreground">{company.category}</p>
         </div>
 
         <div>
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mb-1 text-[13px] font-semibold text-foreground">
             Contact &amp; Social Media
           </h2>
           {socialLinks.length > 0 ? (
@@ -244,7 +238,7 @@ export default async function CompanyPage({
           {/* 5:1, not 4:1 — on this full-width hero a 4:1 slab ran ~290px
               tall and read as a wall; 5:1 keeps it a cover strip. mb-14
               clears the half of the lg logo that hangs below it. */}
-          <div className="relative aspect-[5/1] w-full overflow-hidden rounded-xl">
+          <div className="relative aspect-[5/1] w-full overflow-hidden rounded-2xl bg-surface-muted">
             <Image
               src={bannerUrl}
               alt=""
@@ -262,7 +256,7 @@ export default async function CompanyPage({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">
+              <h1 className="text-3xl leading-tight text-foreground sm:text-4xl">
                 {company.name}
                 <CompanyVerificationTick
                   badgeTier={company.badgeTier}
@@ -271,11 +265,11 @@ export default async function CompanyPage({
                   className="ml-2"
                 />
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="mt-1 text-[15px] text-muted-foreground">
                 {company.category} · <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
                 {company.city ? ` · ${company.city}` : ""}
               </p>
-              <div className="mt-1">
+              <div className="mt-2">
                 {/* "-" mirrors the same rule job cards use: no real, open
                     posting to have a repost history against yet. isHiring is
                     the one signal already on this page's own CompanyDetail
@@ -310,7 +304,7 @@ export default async function CompanyPage({
           company={company}
           aggregate={aggregate}
           ratings={
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-10">
               {/* Rating visuals (left) + the category-breakdown box (right)
                   sit in their own full-width flex row, so there's real room
                   for the dynamic image + text beside the 5 category bars.
@@ -319,41 +313,43 @@ export default async function CompanyPage({
                   (SurveyHighlights, the old Q&A detail box) is intentionally
                   not rendered here any more — the component itself is
                   untouched and still available to reuse elsewhere later. */}
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3">
+              <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
                 <RatingNarrativeBox
                   score={aggregate && aggregate.reviewCount > 0 ? aggregate.overallAvg : null}
                   workplaceType={company.workplaceTypes[0]}
                   narrative={narrative}
                 />
 
-                <div className="flex-1 rounded-xl border border-border bg-surface p-6 font-sans">
-                  <h2 className="mb-4 text-lg font-semibold text-foreground">Rating Breakdown</h2>
+                <div className="flex-1 font-sans lg:border-l lg:border-border lg:pl-12">
+                  <h2 className="mb-4 text-xl text-foreground">Rating Breakdown</h2>
                   {aggregate && aggregate.reviewCount > 0 ? (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2.5">
+                      {/* The overall score leads: it is the one number a
+                          job-seeker came for. The five categories follow. */}
+                      <div className="mb-4 flex items-baseline gap-2">
+                        <span className="font-display text-6xl leading-none tabular-nums text-foreground">{aggregate.overallAvg.toFixed(1)}</span>
+                        <span className="text-sm text-muted-foreground">/ 5.0</span>
+                        <span className={`ml-3 text-lg font-semibold ${scoreTextColor(aggregate.overallAvg)}`}>
+                          {scoreBandLabel(aggregate.overallAvg)}
+                        </span>
+                        <span className="ml-auto text-sm text-muted-foreground">
+                          {aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"}
+                        </span>
+                      </div>
                       {CATEGORIES.map((c) => (
                         <div key={c.key} className="flex items-center gap-3">
-                          <span className="w-40 shrink-0 text-sm text-muted-foreground sm:w-56">{c.label}</span>
-                          <div className="h-1.5 flex-1 rounded-full bg-surface-muted">
+                          <span className="w-40 shrink-0 text-sm text-foreground sm:w-56">{c.label}</span>
+                          <div className="h-2 flex-1 rounded-full bg-surface-muted">
                             <div
-                              className={`h-1.5 rounded-full ${scoreBarColor(aggregate[c.key])}`}
+                              className={`h-2 rounded-full ${scoreBarColor(aggregate[c.key])}`}
                               style={{ width: `${(aggregate[c.key] / 5) * 100}%` }}
                             />
                           </div>
-                          <span className="w-8 text-right font-grotesk text-sm tabular-nums text-muted-foreground">
+                          <span className="w-8 text-right text-sm font-semibold tabular-nums text-foreground">
                             {aggregate[c.key].toFixed(1)}
                           </span>
                         </div>
                       ))}
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"}
-                      </p>
-                      <div className="mt-3 flex items-baseline gap-2 border-t border-border pt-3">
-                        <span className="font-grotesk text-3xl font-bold tabular-nums text-foreground">{aggregate.overallAvg.toFixed(1)}</span>
-                        <span className="text-sm text-muted-foreground">/ 5.0</span>
-                        <span className={`ml-auto text-sm font-semibold ${scoreTextColor(aggregate.overallAvg)}`}>
-                          {scoreBandLabel(aggregate.overallAvg)}
-                        </span>
-                      </div>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
@@ -363,7 +359,7 @@ export default async function CompanyPage({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-10 border-t border-border pt-10 lg:grid-cols-2 lg:gap-12">
                 <WorkplaceVibeFlags companySlug={slug} />
                 <CompanyDetailsBox company={company} />
               </div>
@@ -385,7 +381,7 @@ export default async function CompanyPage({
           }
         />
 
-        <div className="mt-8">
+        <div className="mt-14">
           <OwnerClaimPanel companySlug={slug} hasApprovedOwner={company.hasApprovedOwner} />
         </div>
       </div>

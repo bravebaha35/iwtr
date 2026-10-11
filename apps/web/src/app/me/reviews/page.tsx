@@ -93,7 +93,7 @@ export default function MyReviewsPage() {
       <AdSlot />
 
       <div className="w-full max-w-4xl">
-        <h1 className="mb-1 text-2xl font-bold text-foreground">My Ratings</h1>
+        <h1 className="mb-1 text-4xl leading-tight text-foreground">My Ratings</h1>
         <p className="mb-6 text-sm text-muted-foreground">
           Every review you&apos;ve submitted, and how it&apos;s doing. Open a company to edit a review you&apos;ve
           already posted there.
@@ -112,7 +112,7 @@ export default function MyReviewsPage() {
             <div
               key={review.id}
               id={`review-${review.id}`}
-              className={`scroll-mt-24 rounded-xl border border-border bg-surface p-5 compact:p-3 ${
+              className={`scroll-mt-24 rounded-2xl bg-surface shadow-xs p-5 compact:p-3 ${
                 pulsingId === review.id ? "highlight-pulse" : ""
               }`}
             >
@@ -133,7 +133,7 @@ export default function MyReviewsPage() {
               </div>
 
               <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-block rounded-full border border-border px-2 py-0.5 font-medium">
+                <span className="inline-block rounded-full bg-surface-muted px-2 py-0.5 font-medium">
                   {workplaceTypeLabel(review.workplaceType)}
                 </span>
                 <span>{formatDate(review.createdAt)}</span>

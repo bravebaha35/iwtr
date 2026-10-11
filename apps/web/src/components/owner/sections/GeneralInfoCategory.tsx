@@ -62,7 +62,7 @@ export interface GeneralInfoCategoryProps {
 
 function DashboardBox({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
   return (
-    <div className={`relative rounded-xl border border-border p-6 ${className}`}>
+    <div className={`relative rounded-2xl bg-surface p-7 shadow-xs ${className}`}>
       <h3 className="mb-3 font-semibold text-foreground">{title}</h3>
       {children}
     </div>

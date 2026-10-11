@@ -216,6 +216,23 @@ sees it; the review form's spam trap (`lib/formTrap.ts`: hidden field + minimum 
 bot submission never reaches `apps/api` or any log. Analytics may only load via `components/privacy/AnalyticsLoader`
 — consent-gated, public pages only, and switched off while the review form is open (`lib/analyticsPolicy.ts`).
 
+### Visual design ("Riverbank", 2026-10-12)
+
+All colour, type, radius and shadow tokens live in `apps/web/src/app/globals.css`; never hard-code a brand
+colour in a component. Stone/lichen neutrals with a green lean, deep pine text, Wood (`brand-600`) as the one
+accent and the one "selected" colour. Headings are Bricolage Grotesque, body Google Sans Flex; the CV document
+alone keeps DM Serif Display (`.cv-document`).
+
+- **No outlined boxes for content.** Browsing content (company tiles, reviews, company page sections) sits
+  straight on the page, separated by space and hairlines. Records and forms (job cards, settings panels, owner
+  dashboard sections) are tonal panels: `rounded-2xl bg-surface shadow-xs`, no border. Only form inputs keep a
+  1px border. Chips and secondary buttons are tonal (`bg-surface-muted`), not outlined.
+- **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`), the red/green
+  Rating and RS sort states (`SortButtons.tsx`), score-band colours, tier ticks, and the gold featured outline.
+- Header is one 64px line; the current page is marked by a Wood bar (`components/layout/navItem.ts`, shared with
+  the notifications trigger). Sidebar width and gaps are locked by tests (`SidebarShell`).
+- A logged-out visitor sees `AnonGate`'s hero; the homepage adds `LandingSections` under it.
+
 ## Environment / local setup gotchas
 
 - **Windows + Turkish locale**: PostgreSQL's `initdb` fails under a Turkish system locale

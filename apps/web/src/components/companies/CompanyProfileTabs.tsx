@@ -146,19 +146,15 @@ export function CompanyProfileTabs({
   );
 
   return (
-    <div className="mt-6">
-      {/* Index tabs on a company file: a baseline rule runs the full width,
-          and the open tab is a folder tab sitting on it - Wood top edge,
-          side edges, page-coloured fill that covers the rule so the tab and
-          the section below read as one piece. Closed tabs are just their
-          serif label on the line. Left-aligned and sized to their labels;
-          min-h keeps each past the 44px tap-target floor; padding and
-          size step down on phones so all three fit at 320px. */}
+    <div className="mt-8">
+      {/* Plain word tabs on a full-width baseline rule; the open one carries a
+          Wood bar on that rule. Each tab keeps a 48px minimum height (past
+          the 44px tap-target floor). */}
       <div
         role="tablist"
         aria-label="Company profile sections"
         onKeyDown={onKeyDown}
-        className="flex items-end gap-0.5 border-b border-border sm:gap-1"
+        className="flex items-end gap-6 border-b border-border sm:gap-9"
       >
         {TABS.map((tab, i) => {
           const selected = active === tab.key;
@@ -176,9 +172,9 @@ export function CompanyProfileTabs({
               aria-controls={panelId[tab.key]}
               tabIndex={selected ? 0 : -1}
               onClick={() => selectTab(tab.key)}
-              className={`-mb-px flex min-h-12 shrink-0 items-baseline gap-2 rounded-t-[0.5rem] border-x border-t px-3 pb-2.5 pt-3 font-display text-base leading-none sm:px-5 sm:text-lg transition-colors focus-visible:outline-offset-[-4px] ${
+              className={`-mb-px flex min-h-12 shrink-0 items-baseline gap-2 border-b-[3px] px-0.5 pb-3 pt-3 font-display text-lg leading-none sm:text-xl transition-colors focus-visible:outline-offset-[-4px] ${
                 selected
-                  ? "border-x-border border-t-brand-600 bg-background text-foreground [border-top-width:3px]"
+                  ? "border-brand-600 text-foreground dark:border-brand-400"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -196,7 +192,7 @@ export function CompanyProfileTabs({
         })}
       </div>
 
-      <div className="mt-6">
+      <div className="mt-10">
         <div
           role="tabpanel"
           id={panelId.ratings}

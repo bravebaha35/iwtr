@@ -718,7 +718,7 @@ function CompanyTabs({
   return (
     <nav
       aria-label="Your companies"
-      className="mb-6 flex flex-row gap-1 overflow-x-auto rounded-2xl border border-border bg-sidebar p-2"
+      className="mb-6 flex flex-row gap-1 overflow-x-auto rounded-full bg-surface-muted/70 p-1.5"
     >
       {companies.map((c) => {
         const active = c.companyId === selectedId;
@@ -794,14 +794,14 @@ export default function MyCompaniesPage() {
       <div className="w-full max-w-7xl">
         {companyAccount ? (
           <>
-            <h1 className="mb-1 text-2xl font-bold text-foreground">{companyAccount.companyName}</h1>
+            <h1 className="mb-1 text-4xl leading-tight text-foreground">{companyAccount.companyName}</h1>
             <p className="mb-6 text-sm text-muted-foreground">
               Signed in with the company login. Messages from reviewers are in the chat box at the bottom right.
             </p>
           </>
         ) : (
           <>
-            <h1 className="mb-1 text-2xl font-bold text-foreground">My companies</h1>
+            <h1 className="mb-1 text-4xl leading-tight text-foreground">My companies</h1>
             <p className="mb-6 text-sm text-muted-foreground">
               Companies you&apos;ve claimed, and their approval status. Search a workplace and use &ldquo;Claim this
               company&rdquo; on its page to add one here.
@@ -834,7 +834,7 @@ export default function MyCompaniesPage() {
               {otherClaims.map((claim) => (
                 <div
                   key={claim.id}
-                  className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 compact:p-2.5"
+                  className="flex items-center justify-between rounded-2xl bg-surface shadow-xs p-4 compact:p-2.5"
                 >
                   <Link href={`/companies/${claim.companySlug}`} className="font-medium text-foreground hover:underline">
                     {claim.companyName}

@@ -49,7 +49,7 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Risk Score</h2>
+        <h2 className="text-[13px] font-semibold text-foreground">Risk Score</h2>
         <RewindButton onClick={() => onChange(3)} active={value !== 3} title="Reset Risk Score filter" />
       </div>
       <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">

@@ -88,7 +88,7 @@ export function CompanyLoginCategory({ companyId, companyName }: { companyId: st
   const inputClass = "w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground";
 
   return (
-    <div className="rounded-xl border border-border p-6">
+    <div className="rounded-2xl bg-surface p-7 shadow-xs">
       <h3 className="mb-1 font-semibold text-foreground">Company Login</h3>
       <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
         One shared login for {companyName} that you can give to your team. It opens only this company&apos;s dashboard -
@@ -133,7 +133,7 @@ export function CompanyLoginCategory({ companyId, companyName }: { companyId: st
 
       {editing && (
         <div className="flex max-w-md flex-col gap-3">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="company-login-email">
+          <label className="text-[13px] font-semibold text-foreground" htmlFor="company-login-email">
             Login email
           </label>
           <input

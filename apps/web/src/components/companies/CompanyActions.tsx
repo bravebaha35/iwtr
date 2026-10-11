@@ -13,8 +13,9 @@ import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 
 const BUTTON =
-  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition disabled:opacity-50";
-const OUTLINE = "border-border bg-surface text-foreground hover:bg-surface-muted";
+  "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50";
+// Quiet tonal buttons (the name is historical: they used to be outlined).
+const OUTLINE = "border-transparent bg-surface-muted text-foreground hover:bg-border/70";
 // The site's one "selected" look: Wood fill + white text.
 const SELECTED = "border-brand-600 bg-brand-600 text-white hover:bg-brand-700";
 

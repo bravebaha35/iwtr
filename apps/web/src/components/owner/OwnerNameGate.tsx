@@ -60,7 +60,7 @@ export function OwnerNameGate({ children }: { children: ReactNode }) {
 
   const inputClass = "rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground";
   return (
-    <div className="max-w-xl rounded-xl border border-border bg-surface p-5">
+    <div className="max-w-xl rounded-2xl bg-surface shadow-xs p-5">
       <h2 className="text-base font-semibold text-foreground">Add your name to continue</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Every company owner on I Worked There gives their legal name. Reviewers only see it if you choose to show it

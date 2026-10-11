@@ -61,7 +61,7 @@ export function AvatarEditor({
     <>
       {showWorkTypePicker && (
         <>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">What kind of work?</p>
+          <p className="mb-2 text-[13px] font-semibold text-foreground">What kind of work?</p>
           <div className="mb-4">
             <WorkTypePicker value={browsingWorkType} onChange={pickWorkType} />
           </div>
@@ -70,7 +70,7 @@ export function AvatarEditor({
 
       {browsingWorkType && (
         <>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 text-[13px] font-semibold text-foreground">
             Choose your avatar
           </p>
           <div className="mb-6 grid grid-cols-4 gap-3">
@@ -93,7 +93,7 @@ export function AvatarEditor({
         </>
       )}
 
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Background</p>
+      <p className="mb-2 text-[13px] font-semibold text-foreground">Background</p>
       <div className="mb-2 grid grid-cols-6 gap-2">
         {AVATAR_GRADIENTS.map((g) => (
           <button

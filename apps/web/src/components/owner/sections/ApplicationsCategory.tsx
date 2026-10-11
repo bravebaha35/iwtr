@@ -59,7 +59,7 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
         {applications.map((a) => (
           <li
             key={a.id}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-3"
+            className="flex items-center justify-between gap-3 rounded-2xl bg-surface-muted/60 p-3"
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-bold">{a.applicantDisplayName}</p>

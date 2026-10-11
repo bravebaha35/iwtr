@@ -487,7 +487,7 @@ export function WorkplaceBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h2>
+                <h2 className="text-[13px] font-semibold text-foreground">Rating</h2>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               {/* Red-to-green slider, no stars. Shows companies at or BELOW
@@ -572,7 +572,7 @@ export function WorkplaceBrowser() {
             {/* Two rows: search + sort in one pill (SearchSortBox), then the
                 Quick Select pills on their own row - with the employer ad
                 space beside both on wide screens. */}
-            <div className="mb-4 flex items-stretch gap-4">
+            <div className="mb-7 flex items-stretch gap-4">
             <div className="min-w-0">
             <div className="mb-3">
               <SearchSortBox
@@ -627,7 +627,7 @@ export function WorkplaceBrowser() {
                 company name instead of truncating it. */}
             <div
               aria-busy={loading}
-              className={`grid grid-cols-1 gap-4 transition-opacity compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              className={`grid grid-cols-1 gap-x-6 gap-y-9 transition-opacity compact:gap-x-4 compact:gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
                 loading && pageCompanies !== null ? "opacity-60" : ""
               }`}
             >

@@ -140,7 +140,7 @@ export function PricingComparisonTable({ onClose }: { onClose: () => void }) {
             </colgroup>
             <thead>
               <tr className="sticky top-0 z-10 bg-surface">
-                <th className="border-b border-border px-4 py-4 text-left align-bottom text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <th className="border-b border-border px-4 py-4 text-left align-bottom text-[13px] font-semibold text-foreground">
                   Feature
                 </th>
                 {TIER_HEADERS.map((tier) => (

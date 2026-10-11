@@ -14,12 +14,12 @@ export function BackButton() {
   if (pathname === "/") return null;
 
   return (
-    <div className="fixed top-4 left-4 z-50">
+    <div className="fixed top-3 left-4 z-50">
       <button
         type="button"
         onClick={() => router.back()}
         aria-label="Go back"
-        className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-foreground shadow-sm transition hover:bg-surface-muted"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-muted text-foreground transition hover:bg-border active:scale-[0.96]"
       >
         <svg
           viewBox="0 0 24 24"

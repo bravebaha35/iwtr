@@ -33,7 +33,7 @@ export function JobPostingsCategory({ companyId }: { companyId: string }) {
   const sorted = postings ? [...postings].sort((a, b) => Number(isActivePosting(b)) - Number(isActivePosting(a))) : null;
 
   return (
-    <div className="rounded-xl border border-border p-6">
+    <div className="rounded-2xl bg-surface p-7 shadow-xs">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold text-foreground">Job Postings</h3>

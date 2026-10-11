@@ -198,8 +198,8 @@ function FollowingFilterList({
 
   return (
     <div>
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Following</h2>
-      <div className="flex h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-1.5">
+      <h2 className="mb-2 text-[13px] font-semibold text-foreground">Following</h2>
+      <div className="thin-scrollbar flex h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-surface-muted/60 p-1.5">
         {loading && <p className="p-1.5 text-xs text-muted-foreground">Loading...</p>}
         {!loading && companies.length === 0 && (
           <p className="p-1.5 text-xs text-muted-foreground">You&apos;re not following any companies yet.</p>
@@ -460,10 +460,10 @@ export function JobsBrowser() {
       <AdSlot />
 
       <div className="w-full max-w-[1600px]">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Jobs</h1>
-          <p className="text-sm text-muted-foreground">
-            Open roles at companies currently looking for people — same ratings and reviews as the homepage.
+        <div className="mb-8">
+          <h1 className="text-4xl leading-tight text-foreground">Jobs</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground">
+            Open roles at companies currently looking for people, with the same ratings and reviews as the homepage.
           </p>
         </div>
 
@@ -479,7 +479,7 @@ export function JobsBrowser() {
                   className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                     savedView
                       ? "border-brand-600 bg-brand-600 text-white"
-                      : "border-border text-foreground hover:bg-surface-muted"
+                      : "border-transparent bg-surface-muted text-foreground hover:bg-border/70"
                   }`}
                 >
                   <BookmarkIcon className="h-4 w-4" />
@@ -509,7 +509,7 @@ export function JobsBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating</h2>
+                <h2 className="text-[13px] font-semibold text-foreground">Rating</h2>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
@@ -588,7 +588,7 @@ export function JobsBrowser() {
                 the last Quick Select pill. */}
             {/* The employer ad space sits beside the search + Quick Select
                 block on wide screens. */}
-            <div className="mb-4 flex items-stretch gap-4">
+            <div className="mb-7 flex items-stretch gap-4">
             <div className={`grid min-w-0 max-w-full gap-3 ${isCompanyOwner ? "w-fit" : ""}`}>
               {isCompanyOwner ? (
                 <div className="flex flex-wrap items-stretch gap-2">
@@ -634,7 +634,7 @@ export function JobsBrowser() {
                 {!savedLoading && savedPostings.length === 0 && (
                   <p className="text-sm text-muted-foreground">You haven&apos;t saved any job postings yet.</p>
                 )}
-                <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-5 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {savedPostings.map((p) => (
                     <JobCard key={p.posting.id} company={p.company} posting={p.posting} expired={p.expired} variant="compact" />
                   ))}
@@ -667,7 +667,7 @@ export function JobsBrowser() {
                         </span>
                       )}
                     </h2>
-                    <div className="grid grid-cols-1 gap-4 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-5 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {featured.map((f) => (
                         <JobCard key={f.posting.id} company={f.company} posting={f.posting} variant="compact" boosted />
                       ))}
@@ -685,7 +685,7 @@ export function JobsBrowser() {
                     open postings renders N cards here, not one crowded card. */}
                 <div
                   aria-busy={loading}
-                  className={`grid grid-cols-1 gap-4 transition-opacity compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+                  className={`grid grid-cols-1 gap-5 transition-opacity compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
                     loading && pageCompanies !== null ? "opacity-60" : ""
                   }`}
                 >

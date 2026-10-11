@@ -302,7 +302,7 @@ export function JobCard({
     <div
       ref={cardRef}
       className={`relative flex flex-col rounded-xl border bg-surface transition ${
-        boosted ? "boosted-card" : "border-border hover:border-brand-300 dark:hover:border-brand-700"
+        boosted ? "boosted-card" : "border-transparent shadow-xs hover:shadow-md"
       } ${expired ? "opacity-50" : ""} ${expandedView ? "shadow-2xl" : ""}`}
     >
       {/* Banner sits above the square content box (not inside it, so it
@@ -474,7 +474,7 @@ export function JobCard({
           posting behind it (the auto-classified fallback and the "no open
           roles" empty state both count as no real posting; see
           RiskScoreBadge). */}
-      <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 compact:px-2 compact:py-1.5">
+      <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-2.5 compact:px-2 compact:py-1.5">
         <p className="min-w-0 truncate text-xs text-muted-foreground">
           <span className="font-bold">{workplaceTypeLabel(cardWorkType)}</span>
           {company.isChainStore ? " · Chain store" : ""}

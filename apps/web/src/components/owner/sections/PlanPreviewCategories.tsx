@@ -21,7 +21,7 @@ export function FeaturedJobAdsCategory({
 }) {
   const status = useBoostStatus(companyId);
   return (
-    <div className="rounded-xl border border-border p-6">
+    <div className="rounded-2xl bg-surface p-7 shadow-xs">
       <h3 className="mb-1 font-semibold text-foreground">Posting Featured Job Ads</h3>
       <p className="mb-4 text-sm text-muted-foreground">
         Your plan includes: {pricingFeature("job-ads").values[tierKeyFromOwnerTier(tier)]}.

@@ -118,7 +118,7 @@ export function EditJobPostingModal({
           <>
             <h2 className="mb-5 text-xl font-bold text-foreground">Edit job posting</h2>
 
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Looking for</p>
+            <p className="mb-1 text-[13px] font-semibold text-foreground">Looking for</p>
             <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted px-3 py-2">
               <span className="font-semibold text-foreground">{posting.jobTitle}</span>
               <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -130,7 +130,7 @@ export function EditJobPostingModal({
               </span>
             </div>
 
-            <label htmlFor="edit-job-description" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <label htmlFor="edit-job-description" className="mb-1 block text-[13px] font-semibold text-foreground">
               Description
             </label>
             <textarea
@@ -145,7 +145,7 @@ export function EditJobPostingModal({
               {description.length}/{DESCRIPTION_MAX}
             </p>
 
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Boost</p>
+            <p className="mb-2 text-[13px] font-semibold text-foreground">Boost</p>
             {boosted ? (
               <p className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                 Featured on the Jobs page until{" "}

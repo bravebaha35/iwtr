@@ -117,7 +117,7 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
 
   if (loadFailed) {
     return (
-      <div className="h-auto overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans lg:h-[672px]">
+      <div className="font-sans">
         <p className="text-sm text-red-600 dark:text-red-300">Couldn&apos;t load workplace flags right now.</p>
       </div>
     );
@@ -145,9 +145,9 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
   // stack, so h-auto lets them flow instead of carrying dead space.
   // overflow-y-auto is now just an inert safety net.
   return (
-    <div className="h-auto overflow-y-auto rounded-xl border border-border bg-surface p-6 font-sans lg:h-[672px]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-foreground">
+    <div className="font-sans">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl text-foreground">
           Workplace Vibe Flags
           {activeType && populated.length <= 1 && (
             <span className="font-normal text-muted-foreground"> — {workplaceTypeLabel(activeType)}</span>
