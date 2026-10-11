@@ -78,22 +78,45 @@ export function sortCompaniesBy<T extends { name: string; overallAvg: number | n
   }
 }
 
-// Same height as the search field they sit beside (SearchSortBox).
-const TOGGLE_SIZE = "h-12 px-5 text-sm";
-const TOGGLE_OFF = "border-transparent bg-surface-muted text-muted-foreground hover:text-foreground";
-const TOGGLE_ON = "border-brand-600 bg-brand-600 text-white";
+// Each sort is a plain word, as tall as the search field it sits beside
+// (SearchSortBox). The one in use takes its colour and gets a bar of that
+// colour under it - no button shapes.
+const TOGGLE_BASE =
+  "relative flex h-12 items-center gap-1 px-3 text-sm font-semibold transition-colors after:absolute after:inset-x-3 after:bottom-2 after:h-[3px] after:rounded-full";
+const TOGGLE_OFF = "text-muted-foreground hover:text-foreground";
+// A-Z in use: Wood, the site's one "selected" colour.
+const TOGGLE_ON = "text-brand-700 after:bg-brand-600 dark:text-brand-300 dark:after:bg-brand-400";
 
 // Red for the "bad end first" state, green for the "good end first" state -
 // shared by Rating and RS.
-const TOGGLE_RED = "border-red-200 bg-red-50 text-red-700 dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-400";
-const TOGGLE_GREEN =
-  "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-400";
+const TOGGLE_RED = "text-red-700 after:bg-red-500 dark:text-red-400";
+const TOGGLE_GREEN = "text-emerald-700 after:bg-emerald-500 dark:text-emerald-400";
+
+// Which way a Rating / RS sort runs: up = lowest first, down = highest first.
+function DirectionArrow({ up }: { up: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-3.5 w-3.5 ${up ? "" : "rotate-180"}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 19V5M6 11l6-6 6 6" />
+    </svg>
+  );
+}
 
 /**
- * Separate sort buttons (not one segmented control), shown right next to
- * the search field on both WorkplaceBrowser and JobsBrowser. A-Z loops A→Z / Z→A / off; Rating keeps
- * its own red/green colours for least/best-rated first. With showRiskSort,
- * RS (Risk Score) comes first: red for riskiest first, green for cleanest first.
+ * The sort controls, shown right next to the search field on both
+ * WorkplaceBrowser and JobsBrowser: three words after a "Sort" label, the
+ * one in use coloured with a bar under it. A-Z loops A→Z / Z→A / off (Wood);
+ * Rating keeps its own red/green colours for least/best-rated first, with
+ * an arrow for the direction. With showRiskSort, RS (Risk Score) comes
+ * first: red for riskiest first, green for cleanest first.
  */
 export function SortButtons({
   value,
@@ -105,9 +128,12 @@ export function SortButtons({
   showRiskSort?: boolean;
 }) {
   const alphaOn = value === "alphabetical" || value === "alphabeticalDesc";
-  const base = `rounded-full border font-medium transition-all duration-200 active:scale-[0.98] ${TOGGLE_SIZE}`;
+  const base = TOGGLE_BASE;
   return (
-    <div role="group" aria-label="Sort" className="flex shrink-0 items-center gap-2">
+    <div role="group" aria-label="Sort" className="flex h-12 shrink-0 items-center pl-1">
+      <span aria-hidden="true" className="pr-1 text-sm text-muted-foreground">
+        Sort
+      </span>
       {showRiskSort && (
         <button
           type="button"
@@ -124,6 +150,8 @@ export function SortButtons({
           className={`${base} ${value === "riskDesc" ? TOGGLE_RED : value === "riskAsc" ? TOGGLE_GREEN : TOGGLE_OFF}`}
         >
           RS
+          {value === "riskDesc" && <DirectionArrow up={false} />}
+          {value === "riskAsc" && <DirectionArrow up />}
         </button>
       )}
       <button
@@ -145,6 +173,8 @@ export function SortButtons({
         className={`${base} ${value === "ratingAsc" ? TOGGLE_RED : value === "ratingDesc" ? TOGGLE_GREEN : TOGGLE_OFF}`}
       >
         Rating
+        {value === "ratingAsc" && <DirectionArrow up />}
+        {value === "ratingDesc" && <DirectionArrow up={false} />}
       </button>
     </div>
   );

@@ -485,6 +485,18 @@ export function WorkplaceBrowser() {
               </div>
             </div>
 
+            {/* Location sits right under Work-Type; Rating and Risk Score follow. */}
+            <CityDistrictPicker
+              selectedCities={selectedCities}
+              selectedDistrictKeys={selectedDistrictKeys}
+              onToggleCity={toggleCity}
+              onToggleDistrict={toggleDistrict}
+              onReset={resetLocation}
+              onNearMe={requestNearMe}
+              nearMeLoading={geoRequesting}
+              nearMeActive={geo !== null && geo !== "denied"}
+            />
+
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-[13px] font-semibold text-foreground">Rating</h2>
@@ -551,17 +563,6 @@ export function WorkplaceBrowser() {
             </div>
 
             <RiskScoreFilter value={maxRiskScore} onChange={setMaxRiskScore} />
-
-            <CityDistrictPicker
-              selectedCities={selectedCities}
-              selectedDistrictKeys={selectedDistrictKeys}
-              onToggleCity={toggleCity}
-              onToggleDistrict={toggleDistrict}
-              onReset={resetLocation}
-              onNearMe={requestNearMe}
-              nearMeLoading={geoRequesting}
-              nearMeActive={geo !== null && geo !== "denied"}
-            />
           </SidebarShell>
 
           {/* Results */}
