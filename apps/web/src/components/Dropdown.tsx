@@ -210,7 +210,8 @@ export function SingleSelectDropdown({
  * Generic multi-select dropdown: same closed-by-default box + overlay panel
  * as SingleSelectDropdown, but ticking an option doesn't close the panel —
  * it stays open so several options can be picked in one go (e.g. districts
- * within a city), closing only on an outside click or Escape.
+ * within a city), closing only on an outside click or Escape. With
+ * `onClear`, a first row un-ticks everything (the Sector filter).
  */
 export function MultiSelectDropdown({
   values,
@@ -220,6 +221,9 @@ export function MultiSelectDropdown({
   maxHeightClassName = "max-h-64",
   disabled = false,
   searchable: searchableOverride,
+  onClear,
+  countNoun = "selected",
+  ariaLabel,
 }: {
   values: string[];
   options: DropdownOption[];
@@ -228,6 +232,11 @@ export function MultiSelectDropdown({
   maxHeightClassName?: string;
   disabled?: boolean;
   searchable?: boolean;
+  // Shows a "clear" row at the top of the list while anything is ticked.
+  onClear?: () => void;
+  // The closed box reads "3 <countNoun>" once more than one is ticked.
+  countNoun?: string;
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -249,7 +258,7 @@ export function MultiSelectDropdown({
       ? placeholder
       : values.length === 1
         ? (options.find((o) => o.value === values[0])?.label ?? placeholder)
-        : `${values.length} selected`;
+        : `${values.length} ${countNoun}`;
 
   return (
     <div className="relative">
@@ -257,6 +266,9 @@ export function MultiSelectDropdown({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel ?? (values.length === 0 ? placeholder : undefined)}
         className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:border-border/50 disabled:bg-surface-muted disabled:text-muted-foreground disabled:opacity-60 disabled:hover:bg-surface-muted"
       >
         <span className={`min-w-0 truncate ${values.length > 0 ? "text-foreground" : "text-muted-foreground"}`}>
@@ -284,6 +296,15 @@ export function MultiSelectDropdown({
               />
             )}
             <div className={`thin-scrollbar overflow-y-auto py-0.5 ${maxHeightClassName}`}>
+              {onClear && values.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onClear}
+                  className="block w-full px-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-surface-muted"
+                >
+                  Clear ({values.length} ticked)
+                </button>
+              )}
               {searchable && visibleOptions.length === 0 && (
                 <p className="px-2 py-1.5 text-xs text-muted-foreground">No matches.</p>
               )}
@@ -293,12 +314,15 @@ export function MultiSelectDropdown({
                   <button
                     key={o.value}
                     type="button"
+                    role="option"
+                    aria-selected={checked}
                     onClick={() => onToggle(o.value)}
                     className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs ${
                       checked ? "font-semibold text-brand-600 dark:text-brand-400" : "text-foreground hover:bg-surface-muted"
                     }`}
                   >
                     <span
+                      aria-hidden="true"
                       className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-md border text-[9px] leading-none ${
                         checked ? "border-brand-600 bg-brand-600 text-white dark:border-brand-400 dark:bg-brand-400" : "border-border"
                       }`}

@@ -225,6 +225,30 @@ describe("CV profile fields", () => {
     });
   });
 
+  it("saves the languages once each, in the order given", async () => {
+    const prisma = makePrisma();
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { languages: ["tr", "en", "tr"] });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { languages: ["tr", "en"] },
+    });
+  });
+
+  it("saves the 'show my username in the header' tick", async () => {
+    const prisma = makePrisma();
+    const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
+
+    await service.updateProfile(userId, { showUsernameInHeader: true });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { showUsernameInHeader: true },
+    });
+  });
+
   it("getMyProfile returns the three new fields", async () => {
     const prisma = {
       user: {

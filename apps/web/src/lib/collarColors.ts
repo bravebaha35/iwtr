@@ -68,6 +68,18 @@ const collarSegmentActiveClass: Record<WorkplaceType, string> = {
 const collarOutlinedInactiveClass =
   "border border-transparent bg-surface-muted text-muted-foreground hover:text-foreground";
 
+// A picked Work-Type tile (WorkTypeTiles): the work type's own hue as a
+// soft wash over the tile, and the same hue at full strength for the short
+// bar under its name. Hues unchanged (Office slate, Hybrid/Remote teal,
+// Service orange, Manual-Labour blue), one step lighter in dark mode so
+// they stay readable on the dark page.
+export const collarTileTone: Record<WorkplaceType, { wash: string; bar: string }> = {
+  OFFICE: { wash: "bg-slate-500/20 dark:bg-slate-300/20", bar: "bg-slate-700 dark:bg-slate-300" },
+  HYBRID_REMOTE: { wash: "bg-teal-600/15 dark:bg-teal-400/20", bar: "bg-teal-600 dark:bg-teal-400" },
+  SERVICE: { wash: "bg-orange-600/15 dark:bg-orange-400/20", bar: "bg-orange-600 dark:bg-orange-400" },
+  MANUAL_LABOUR: { wash: "bg-blue-600/15 dark:bg-blue-400/20", bar: "bg-blue-600 dark:bg-blue-400" },
+};
+
 export function collarOutlinedButtonClassName(type: WorkplaceType, active: boolean): string {
   return active ? collarSegmentActiveClass[type] : collarOutlinedInactiveClass;
 }

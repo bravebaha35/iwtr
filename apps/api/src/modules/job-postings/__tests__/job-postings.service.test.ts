@@ -46,6 +46,7 @@ describe("JobPostingsService.create — competitor names", () => {
       jobTitle: "Cashier",
       description: "Apply with your CV through I Worked There.",
       workType: "SERVICE",
+      positions: ["SPECIALIST"],
       autoReshareEnabled: false,
       boost: null,
     });
@@ -64,6 +65,7 @@ describe("JobPostingsService.create — workType validation", () => {
         jobTitle: "Cashier",
         description: "d",
         workType: "MANUAL_LABOUR",
+        positions: ["SPECIALIST"],
         autoReshareEnabled: false,
         boost: null,
       }),
@@ -76,6 +78,7 @@ describe("JobPostingsService.create — workType validation", () => {
       jobTitle: "Cashier",
       description: "d",
       workType: "SERVICE",
+      positions: ["SPECIALIST"],
       autoReshareEnabled: false,
       boost: null,
     });
@@ -89,6 +92,7 @@ describe("JobPostingsService.create — workType validation", () => {
         jobTitle: "Cashier",
         description: "d",
         workType: "SERVICE",
+        positions: ["SPECIALIST"],
         autoReshareEnabled: false,
         boost: null,
       }),
@@ -103,6 +107,7 @@ describe("JobPostingsService.create — Risk Score", () => {
       jobTitle: "Cashier",
       description: "d",
       workType: "SERVICE",
+      positions: ["SPECIALIST"],
       autoReshareEnabled: false,
       boost: null,
     });
@@ -120,6 +125,7 @@ describe("JobPostingsService.create — Risk Score", () => {
       jobTitle: "Cashier",
       description: "d",
       workType: "SERVICE",
+      positions: ["SPECIALIST"],
       autoReshareEnabled: false,
       boost: null,
     });
@@ -171,6 +177,7 @@ describe("JobPostingsService.create — Risk Score", () => {
       jobTitle: "Cashier",
       description: "d",
       workType: "SERVICE",
+      positions: ["SPECIALIST"],
       autoReshareEnabled: false,
       boost: null,
     });
@@ -319,6 +326,7 @@ describe("JobPostingsService.create — paid boost failure paths", () => {
         jobTitle: "Cashier",
         description: "d",
         workType: "SERVICE",
+        positions: ["SPECIALIST"],
         autoReshareEnabled: false,
         boost: { option: "FEATURED_14" },
       }),
@@ -336,6 +344,7 @@ describe("JobPostingsService.create — paid boost failure paths", () => {
       jobTitle: "Cashier",
       description: "d",
       workType: "SERVICE",
+      positions: ["SPECIALIST"],
       autoReshareEnabled: false,
       boost: { option: "FEATURED_14", billing },
     });

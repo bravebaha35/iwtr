@@ -12,6 +12,7 @@ import {
   findRegionByProvinceName,
   regionLabel,
   type CompanyBrowseResult,
+  type JobPosition,
   type MyProfile,
   type WorkplaceType,
 } from "@iwtr/shared-types";
@@ -19,12 +20,12 @@ import { apiGet } from "@/lib/api-client";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { fetchBrowsePage, hasBrowsePage, prefetchBrowsePage } from "@/lib/companyBrowse";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-import { collarOutlinedButtonClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { type CategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
-import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
+import { WorkTypeTiles } from "@/components/WorkTypeTiles";
+import { PositionPicker } from "@/components/jobs/PositionPicker";
 import { RewindButton } from "@/components/RewindButton";
-import { SingleSelectDropdown } from "@/components/Dropdown";
+import { MultiSelectDropdown } from "@/components/Dropdown";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { JobCard, postingsForCard } from "@/components/jobs/JobCard";
 import { JobCreationFlow } from "@/components/jobs/JobCreationFlow";
@@ -68,8 +69,10 @@ function activeMoodIndex(value: number): number {
 }
 
 
-// 4 columns × 4 rows at the desktop breakpoint, matching the homepage's own
-// "columns × rows" page-size convention (see WorkplaceBrowser.tsx).
+// 4 across and 5 rows of job cards a page, the same grid as the homepage.
+// Page 1 gives up to 2 of those rows to the Featured ads (8 featured -> 12
+// standard cards under them); the server does that arithmetic and says how
+// many pages there are (CompaniesService.browseJobs).
 const RESULTS_PAGE_SIZE = JOBS_BROWSE_PAGE_SIZE;
 
 function pageNumbers(current: number, total: number): (number | "...")[] {
@@ -159,7 +162,8 @@ function jobsParams(f: {
   selectedDistrictKeys: string[];
   minRating: number;
   maxRiskScore: number;
-  selectedCategory: string | null;
+  selectedCategories: string[];
+  positions: JobPosition[];
   categoryGroup: CategoryGroup | null;
   sortBy: SortOption;
   geo: Geo;
@@ -176,12 +180,14 @@ function jobsParams(f: {
   if (f.selectedDistrictKeys.length > 0) params.set("districtKeys", f.selectedDistrictKeys.join(","));
   if (f.minRating > 0) params.set("minRating", String(f.minRating));
   if (f.maxRiskScore < 3) params.set("maxRiskScore", String(f.maxRiskScore));
-  if (f.selectedCategory) params.set("category", f.selectedCategory);
+  // "|" between sectors: a sector name can contain a comma.
+  if (f.selectedCategories.length > 0) params.set("categories", f.selectedCategories.join("|"));
+  if (f.positions.length > 0) params.set("positions", f.positions.join(","));
   if (f.categoryGroup) params.set("categoryGroup", f.categoryGroup);
   if (f.sortBy !== "default") params.set("sort", f.sortBy);
   if (f.geo && f.geo !== "denied") params.set("nearCity", f.geo.nearCity);
   if (f.selectedCompanyId) params.set("companyId", f.selectedCompanyId);
-  if (f.workplaceTypes.length === 0 && !f.selectedCategory) {
+  if (f.workplaceTypes.length === 0 && f.selectedCategories.length === 0) {
     if (f.field.sector) params.set("forSector", f.field.sector.value);
     if (f.field.workType) params.set("forWorkType", f.field.workType);
   }
@@ -236,7 +242,9 @@ export function JobsBrowser() {
   const isCompanyOwner = useIsCompanyOwner();
   const [jobFlowOpen, setJobFlowOpen] = useState(false);
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  // The Position filter: postings hiring for any one of the ticked levels.
+  const [positions, setPositions] = useState<JobPosition[]>([]);
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
   const [minRating, setMinRating] = useState(0);
   // 3 = "Any" (no filter) — riskScore's own max is 3, so "3 and below"
@@ -331,8 +339,8 @@ export function JobsBrowser() {
   }, []);
 
   // Every filter, the sort, Quick Select, Near Me, the Following pick and
-  // the page go to the server, which sends back only the 16 cards on screen
-  // with their open postings. Filter changes wait 250ms (one request per
+  // the page go to the server, which sends back only the job cards on
+  // screen. Filter changes wait 250ms (one request per
   // slider drag, not one per step); page clicks go at once; a page already
   // fetched or fetched ahead shows with no request at all.
   const filterParams = useMemo(
@@ -344,14 +352,15 @@ export function JobsBrowser() {
         selectedDistrictKeys,
         minRating,
         maxRiskScore,
-        selectedCategory,
+        selectedCategories,
+        positions,
         categoryGroup,
         sortBy,
         geo,
         selectedCompanyId,
         field: field ?? NO_FIELD,
       }),
-    [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore, selectedCategory, categoryGroup, sortBy, geo, selectedCompanyId, field],
+    [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore, selectedCategories, positions, categoryGroup, sortBy, geo, selectedCompanyId, field],
   );
   const lastFilterParams = useRef<string | null>(null);
 
@@ -370,7 +379,8 @@ export function JobsBrowser() {
           setResult(data);
           setLoading(false);
           if (data.page !== page) setPage(data.page);
-          if (data.page * data.pageSize < data.total) prefetchBrowsePage(filterParams, data.page + 1);
+          const pages = data.totalPages ?? Math.ceil(data.total / data.pageSize);
+          if (data.page < pages) prefetchBrowsePage(filterParams, data.page + 1);
         })
         .catch(() => {
           if (cancelled) return;
@@ -386,7 +396,7 @@ export function JobsBrowser() {
   }, [filterParams, page, field]);
 
   useEffect(() => {
-    setSelectedCategory(null);
+    setSelectedCategories([]);
   }, [workplaceTypes]);
 
   const sectorOptions = useMemo(() => sectorsForWorkplaceTypes(workplaceTypes), [workplaceTypes]);
@@ -395,7 +405,8 @@ export function JobsBrowser() {
     setPage(1);
   }, [
     workplaceTypes,
-    selectedCategory,
+    selectedCategories,
+    positions,
     categoryGroup,
     minRating,
     maxRiskScore,
@@ -408,15 +419,15 @@ export function JobsBrowser() {
   ]);
 
   const total = result?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / RESULTS_PAGE_SIZE));
+  const totalPages = Math.max(1, result?.totalPages ?? Math.ceil(total / RESULTS_PAGE_SIZE));
   const pageCompanies = result?.items ?? null;
   // Page 1 only: boosted postings get their own row above the rest (see
-  // CompaniesService.featuredJobs). On that page they're left out of the
-  // standard cards below so no job shows twice; a company whose open
-  // postings are all featured has no standard card on page 1.
+  // CompaniesService.featuredJobs). The server already leaves them out of
+  // the standard cards on every page, so no job shows twice; the same check
+  // here is only a second line of defence.
   const featured = page === 1 ? (result?.featured ?? []) : [];
   // Says whose field the featured row was picked for, while it was.
-  const usesField = workplaceTypes.length === 0 && !selectedCategory;
+  const usesField = workplaceTypes.length === 0 && selectedCategories.length === 0;
   const fieldNote = !usesField
     ? null
     : field?.sector && featured.some((f) => f.company.category === field.sector!.value)
@@ -461,6 +472,15 @@ export function JobsBrowser() {
 
   function resetWorkplaceTypes() {
     setWorkplaceTypes([]);
+    setSelectedCategories([]);
+  }
+
+  function toggleCategory(value: string) {
+    setSelectedCategories((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+  }
+
+  function togglePosition(value: JobPosition) {
+    setPositions((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   }
 
   function toggleCity(city: string) {
@@ -511,21 +531,24 @@ export function JobsBrowser() {
               </>
             )}
             <div>
-              <MultiFilterPillGroup
-                heading="Work-Type"
-                options={WORKPLACE_TYPES}
-                selected={workplaceTypes}
-                onToggle={toggleWorkplaceType}
-                onReset={resetWorkplaceTypes}
-                direction="grid"
-                pillColorClassName={collarOutlinedButtonClassName}
-              />
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[13px] font-semibold text-foreground">Work-Type</h2>
+                <RewindButton
+                  onClick={resetWorkplaceTypes}
+                  active={workplaceTypes.length > 0 || selectedCategories.length > 0}
+                  title="Clear Work-Type and Sector filter"
+                />
+              </div>
+              <WorkTypeTiles selected={workplaceTypes} onToggle={toggleWorkplaceType} />
+              {/* A tick list: several sectors can be on at once. */}
               <div className="mt-2">
-                <SingleSelectDropdown
-                  value={selectedCategory}
+                <MultiSelectDropdown
+                  values={selectedCategories}
                   options={sectorOptions}
                   placeholder="Sector"
-                  onChange={setSelectedCategory}
+                  countNoun="sectors"
+                  onToggle={toggleCategory}
+                  onClear={() => setSelectedCategories([])}
                 />
               </div>
             </div>
@@ -552,6 +575,19 @@ export function JobsBrowser() {
                 Create job posting !
               </button>
             )}
+
+            {/* Position: the same buttons an owner ticks when posting a job.
+                Any number can be on; a posting hiring for any one of them
+                is listed. */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[13px] font-semibold text-foreground">Position</h2>
+                <RewindButton onClick={() => setPositions([])} active={positions.length > 0} title="Clear Position filter" />
+              </div>
+              <div className="rounded-2xl bg-surface p-1.5 shadow-xs">
+                <PositionPicker selected={positions} onToggle={togglePosition} />
+              </div>
+            </div>
 
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -696,7 +732,9 @@ export function JobsBrowser() {
                   <p className="text-sm text-muted-foreground">
                     {regionFill
                       ? `No companies in ${chosenPlaces.join(", ")} are looking for people under these filters yet. The featured ads above are from the same region.`
-                      : "No companies are looking for people under these filters yet."}
+                      : positions.length > 0
+                        ? "No job posting is hiring for the ticked position under these filters yet."
+                        : "No companies are looking for people under these filters yet."}
                   </p>
                 )}
 
@@ -721,8 +759,8 @@ export function JobsBrowser() {
                 {total > 0 && (
                   <>
                     <p className="mt-4 text-center text-xs text-muted-foreground">
-                      Page {page} of {totalPages} — {total} compan
-                      {total === 1 ? "y" : "ies"} hiring
+                      Page {page} of {totalPages} — {total} job listing
+                      {total === 1 ? "" : "s"}
                     </p>
                     <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
                   </>

@@ -19,6 +19,8 @@ function company(overrides: Record<string, unknown> = {}) {
     isChainStore: false,
     isHiring: false,
     contactEmail: null,
+    contactEmail2: null,
+    contactEmail3: null,
     contactPhone: null,
     facebookUrl: null,
     instagramUrl: null,

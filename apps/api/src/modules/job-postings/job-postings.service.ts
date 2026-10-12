@@ -3,6 +3,7 @@ import type {
   AdminJobPosting,
   CreateJobPostingInput,
   CreateJobPostingResult,
+  JobPosition,
   JobPosting as JobPostingView,
   JobPostingBoostStatus,
   JobPostingStatus,
@@ -58,6 +59,7 @@ function toPublic(posting: {
   jobTitle: string;
   description: string;
   workType: WorkplaceType | null;
+  positions?: JobPosition[];
   status: JobPostingStatus;
   boostDurationDays: number | null;
   boostExpiresAt: Date | null;
@@ -70,6 +72,7 @@ function toPublic(posting: {
     jobTitle: posting.jobTitle,
     description: posting.description,
     workType: posting.workType,
+    positions: posting.positions ?? [],
     status: posting.status,
     boostDurationDays: posting.boostDurationDays ?? null,
     boostExpiresAt: posting.boostExpiresAt ? posting.boostExpiresAt.toISOString() : null,
@@ -193,6 +196,7 @@ export class JobPostingsService {
           jobTitle: input.jobTitle,
           description: input.description,
           workType,
+          positions: input.positions,
           autoReshareEnabled: input.autoReshareEnabled,
           status,
         },

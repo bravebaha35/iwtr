@@ -100,6 +100,7 @@ export class SavedJobPostingsService {
           jobTitle: posting.jobTitle,
           description: posting.description,
           workType: posting.workType,
+          positions: posting.positions ?? [],
         },
         expired: posting.status !== "PUBLISHED" || daysRemaining(effective) === 0,
       });

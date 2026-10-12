@@ -17,6 +17,7 @@ const patch = apiPatch as jest.Mock;
 const posting = (over: Partial<OwnerJobPosting>): OwnerJobPosting => ({
   id: "p",
   companyId: "c1",
+  positions: [],
   jobTitle: "Job",
   description: "old description",
   workType: "MANUAL_LABOUR",

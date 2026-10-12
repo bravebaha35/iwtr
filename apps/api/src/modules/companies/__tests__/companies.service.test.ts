@@ -252,7 +252,7 @@ describe("CompaniesService.jobPostingsForSlug — the company profile 'Job Posti
     const result = await service.jobPostingsForSlug("co");
 
     expect(result.jobPostings).toEqual([
-      { jobTitle: "Forklift Operatörü", description: "Depo vardiyası", workType: "MANUAL_LABOUR" },
+      { jobTitle: "Forklift Operatörü", description: "Depo vardiyası", workType: "MANUAL_LABOUR", positions: [] },
     ]);
     // Gibberish that classifyJobRole can't place is dropped, same as /jobs.
     expect(result.jobTitles).toEqual([{ title: "Muhasebe", workType: "OFFICE" }]);
@@ -419,7 +419,7 @@ describe("CompaniesService — public job postings lifecycle", () => {
 
     const results = await service.search({ includeJobTitles: true } as any);
 
-    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d" }]);
+    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d", positions: [] }]);
   });
 
   it("drops a stale posting that isn't set to auto-reshare", async () => {
@@ -486,7 +486,7 @@ describe("CompaniesService — public job postings lifecycle", () => {
       where: { id: { in: ["jp1"] } },
       data: { lastResharedAt: expect.any(Date) },
     });
-    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d" }]);
+    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d", positions: [] }]);
   });
 });
 
@@ -622,5 +622,144 @@ describe("CompaniesService.browse — featured (boosted) jobs", () => {
   it("is empty on the homepage", async () => {
     const { service } = setup(["jp3"]);
     expect((await service.browse({} as any)).featured).toEqual([]);
+  });
+});
+
+describe("CompaniesService.browse — the Jobs page is paged by job card", () => {
+  const companyRow = (n: number) => ({
+    id: `c${n}`,
+    slug: `c${n}`,
+    name: `Co ${String(n).padStart(2, "0")}`,
+    category: "Software",
+    city: "İzmir",
+    riskScore: 0,
+    workplaceTypes: ["OFFICE"],
+    aggregate: null,
+  });
+  const posting = (id: string, companyId: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    companyId,
+    jobTitle: `Job ${id}`,
+    description: "d",
+    workType: "OFFICE",
+    positions: ["SPECIALIST"],
+    status: "PUBLISHED",
+    createdAt: new Date(),
+    lastResharedAt: null,
+    filledAt: null,
+    autoReshareEnabled: false,
+    company: { city: "İzmir", district: null, category: "Software" },
+    ...extra,
+  });
+
+  // 30 companies: the first has 3 open postings, every other one has 1.
+  function setup(boostedIds: string[] = []) {
+    const companies = Array.from({ length: 30 }, (_, i) => companyRow(i + 1));
+    const postings = [
+      posting("a1", "c1"),
+      posting("a2", "c1"),
+      posting("a3", "c1"),
+      ...companies.slice(1).map((c) => posting(`p-${c.id}`, c.id)),
+    ];
+    const companyFindMany = jest.fn().mockImplementation(({ where }) =>
+      Promise.resolve(where?.id?.in ? companies.filter((c) => where.id.in.includes(c.id)) : companies),
+    );
+    const jobPostingFindMany = jest.fn().mockImplementation(({ where }) => {
+      if (where.boostExpiresAt) return Promise.resolve(postings.filter((p) => boostedIds.includes(p.id)));
+      if (where.companyId?.in) return Promise.resolve(postings.filter((p) => where.companyId.in.includes(p.companyId)));
+      return Promise.resolve(postings);
+    });
+    const prisma = makePrisma({
+      company: { findMany: companyFindMany },
+      jobPosting: { findMany: jobPostingFindMany, updateMany: jest.fn() },
+    });
+    return { service: new CompaniesService(prisma as any, {} as any), companyFindMany, jobPostingFindMany };
+  }
+
+  it("page 1 holds 20 cards when nothing is featured, one card per posting", async () => {
+    const { service } = setup();
+    const result = await service.browse({ jobs: "1" } as any);
+    expect(result.total).toBe(32);
+    expect(result.totalPages).toBe(2);
+    expect(result.items).toHaveLength(20);
+    // The three-posting company takes three places, one posting each.
+    expect(result.items.slice(0, 3).map((i) => i.id)).toEqual(["c1", "c1", "c1"]);
+    expect(result.items.every((i) => i.jobPostings.length === 1)).toBe(true);
+    expect(new Set(result.items.map((i) => i.jobPostings[0].id)).size).toBe(20);
+  });
+
+  it("page 1 holds 12 standard cards under a full featured row, and later pages 20", async () => {
+    const boosted = Array.from({ length: 8 }, (_, i) => `p-c${i + 2}`);
+    const { service } = setup(boosted);
+    const first = await service.browse({ jobs: "1" } as any);
+    expect(first.featured).toHaveLength(8);
+    expect(first.items).toHaveLength(12);
+    expect(first.total).toBe(24);
+    expect(first.totalPages).toBe(2);
+    // No job is shown twice: a featured posting is not a standard card too.
+    const featuredIds = new Set(first.featured.map((f) => f.posting.id));
+    expect(first.items.some((i) => featuredIds.has(i.jobPostings[0].id))).toBe(false);
+
+    const second = await service.browse({ jobs: "1", page: 2 } as any);
+    expect(second.featured).toEqual([]);
+    expect(second.items).toHaveLength(12);
+    const seen = new Set(first.items.map((i) => i.jobPostings[0].id));
+    expect(second.items.some((i) => seen.has(i.jobPostings[0].id) || featuredIds.has(i.jobPostings[0].id))).toBe(false);
+  });
+
+  it("builds the card list once per set of filters, not once per page", async () => {
+    const { service, companyFindMany } = setup();
+    await service.browse({ jobs: "1" } as any);
+    await service.browse({ jobs: "1", page: 2 } as any);
+    // One light list of every hiring company, then one full read per page.
+    const lightReads = companyFindMany.mock.calls.filter(([a]) => !a.where?.id?.in);
+    expect(lightReads).toHaveLength(1);
+    await service.browse({ jobs: "1", q: "Co" } as any);
+    expect(companyFindMany.mock.calls.filter(([a]) => !a.where?.id?.in)).toHaveLength(2);
+  });
+
+  it("a hiring company with no posting keeps its inferred job titles, one card each", async () => {
+    const prisma = makePrisma({
+      company: { findMany: jest.fn().mockResolvedValue([companyRow(1)]) },
+      employmentHistory: {
+        groupBy: jest.fn().mockResolvedValue([
+          { companyId: "c1", jobTitle: "Avukat", _count: { jobTitle: 2 } },
+          { companyId: "c1", jobTitle: "Muhasebe", _count: { jobTitle: 5 } },
+        ]),
+      },
+    });
+    const service = new CompaniesService(prisma as any, {} as any);
+    const result = await service.browse({ jobs: "1" } as any);
+    expect(result.items.map((i) => i.jobTitles.map((t) => t.title))).toEqual([["Muhasebe"], ["Avukat"]]);
+    expect(result.items.every((i) => i.jobPostings.length === 0)).toBe(true);
+  });
+
+  it("the Position filter keeps only postings hiring for one of the ticked positions", async () => {
+    const { service, companyFindMany, jobPostingFindMany } = setup();
+    await service.browse({ jobs: "1", positions: "INTERN,SPECIALIST,NOT_A_POSITION" } as any);
+    const light = jobPostingFindMany.mock.calls.find(([a]) => !a.where.boostExpiresAt && !a.where.companyId)[0];
+    expect(light.where.positions).toEqual({ hasSome: ["INTERN", "SPECIALIST"] });
+    const boost = jobPostingFindMany.mock.calls.find(([a]) => a.where.boostExpiresAt)[0];
+    expect(boost.where.positions).toEqual({ hasSome: ["INTERN", "SPECIALIST"] });
+    const companyQuery = companyFindMany.mock.calls.find(([a]) => !a.where?.id?.in)[0];
+    expect(JSON.stringify(companyQuery.where)).toContain('"hasSome":["INTERN","SPECIALIST"]');
+  });
+});
+
+describe("CompaniesService.search — several sectors at once", () => {
+  it("matches a company in any one of the ticked sectors", async () => {
+    const prisma = makePrisma();
+    const service = new CompaniesService(prisma as any, {} as any);
+    await service.search({ categories: "Software|Banking, Finance & Insurance" });
+    expect(prisma.company.findMany.mock.calls[0][0].where.category).toEqual({
+      in: ["Software", "Banking, Finance & Insurance"],
+    });
+  });
+
+  it("still takes one exact sector", async () => {
+    const prisma = makePrisma();
+    const service = new CompaniesService(prisma as any, {} as any);
+    await service.search({ category: "Software" });
+    expect(prisma.company.findMany.mock.calls[0][0].where.category).toBe("Software");
   });
 });
