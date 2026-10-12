@@ -1,14 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import type { BoostOption, OwnerJobPosting, UpdateJobPostingInput, UpdateJobPostingResult } from "@iwtr/shared-types";
+import {
+  JOB_DESCRIPTION_MAX_LENGTH,
+  type BoostOption,
+  type OwnerJobPosting,
+  type UpdateJobPostingInput,
+  type UpdateJobPostingResult,
+} from "@iwtr/shared-types";
 import { apiPatch, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { BoostPicker, boostInput, boostNeedsBilling, emptyBilling, useBoostStatus } from "@/components/jobs/BoostPicker";
 import { CloseButton } from "@/components/jobs/JobBoostModal";
+import { BulletTextarea } from "@/components/BulletTextarea";
 
-const DESCRIPTION_MAX = 600;
+const DESCRIPTION_MAX = JOB_DESCRIPTION_MAX_LENGTH;
 
 export function isBoostActive(posting: Pick<OwnerJobPosting, "boostExpiresAt">): boolean {
   return !!posting.boostExpiresAt && new Date(posting.boostExpiresAt).getTime() > Date.now();
@@ -133,13 +140,12 @@ export function EditJobPostingModal({
             <label htmlFor="edit-job-description" className="mb-1 block text-[13px] font-semibold text-foreground">
               Description
             </label>
-            <textarea
+            <BulletTextarea
               id="edit-job-description"
               value={description}
               maxLength={DESCRIPTION_MAX}
-              rows={6}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
+              onChange={setDescription}
+              className="h-56"
             />
             <p className="mb-5 text-right text-xs text-muted-foreground">
               {description.length}/{DESCRIPTION_MAX}

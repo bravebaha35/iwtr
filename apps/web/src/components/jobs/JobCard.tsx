@@ -9,6 +9,7 @@ import { isOwnStaticAsset } from "@/lib/imageSource";
 import {
   type CompanyListItem,
   type CompanyVibeFlags,
+  type JobPosition,
   type VibeFlag,
   type WorkplaceType,
   primaryWorkplaceType,
@@ -16,6 +17,7 @@ import {
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { jobPositionLabel } from "@/lib/jobPositions";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
@@ -190,7 +192,15 @@ function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
 // the UI up with what the data model already supports: pick "3D Artist",
 // not "3D Artist AND Forklift Operatörü", when buying a boost.
 export type CardPosting =
-  | { id?: string; jobTitle: string; description: string | null; workType: WorkplaceType | null }
+  | {
+      id?: string;
+      jobTitle: string;
+      description: string | null;
+      workType: WorkplaceType | null;
+      // The level(s) the owner ticked; empty for inferred titles and for
+      // postings older than the Position field.
+      positions?: JobPosition[];
+    }
   | null;
 
 export function postingsForCard(company: CompanyListItem): CardPosting[] {
@@ -200,6 +210,7 @@ export function postingsForCard(company: CompanyListItem): CardPosting[] {
       jobTitle: p.jobTitle,
       description: p.description,
       workType: p.workType,
+      positions: p.positions,
     }));
   }
   if (company.jobTitles.length > 0) {
@@ -431,6 +442,19 @@ export function JobCard({
               {posting?.id && <ApplyButton jobPostingId={posting.id} />}
             </div>
           </div>
+
+          {/* Position: only on the opened ("expanded") and full cards -
+              the short grid card has no room for it. */}
+          {!compact && posting?.positions && posting.positions.length > 0 && (
+            <p className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+              <span className="mr-0.5 font-semibold text-foreground">Position</span>
+              {posting.positions.map((p) => (
+                <span key={p} className="rounded-md bg-surface-muted px-2 py-0.5 text-foreground">
+                  {jobPositionLabel(p)}
+                </span>
+              ))}
+            </p>
+          )}
 
           {/* The description the owner wrote for this posting — shown by
               default, filling the rest of the box, not tucked behind a click.

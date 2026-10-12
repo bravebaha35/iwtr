@@ -2,8 +2,10 @@ import { BadRequestException, ConflictException, Injectable } from "@nestjs/comm
 import {
   COMPANY_BROWSE_PAGE_SIZE,
   FEATURED_JOBS_LIMIT,
-  JOBS_BROWSE_PAGE_SIZE,
   findProvinceByCityName,
+  jobPositionSchema,
+  jobsPageCount,
+  jobsPageRange,
   workplaceTypeSchema,
   type AdminCreateCompanyInput,
   type ClassifiedJobTitle,
@@ -15,6 +17,7 @@ import {
   type CompanyBrowseQuery,
   type CompanyBrowseResult,
   type EmployerAd,
+  type JobPosition,
   type CompanySearchQuery,
   type PublicJobPosting,
   type WorkplaceType,
@@ -32,8 +35,41 @@ import { resolveLocation } from "./resolve-location.util";
 import { classifyJobRole } from "./workplace-classifier/classifyJobRole";
 import { WORKPLACE_CATEGORY_MAP } from "./workplace-classifier/workplaceCategories";
 
+// One standard card on the Jobs page: a real posting, an inferred job
+// title (a hiring company with no posting of its own), or - with neither -
+// the company's "no open roles listed yet" card.
+interface JobCardRef {
+  companyId: string;
+  postingId?: string;
+  title?: string;
+}
+
+// Every standard card the Jobs page has for one set of filters, in order,
+// plus that view's Featured row.
+interface JobsIndex {
+  cards: JobCardRef[];
+  featured: CompanyBrowseResult["featured"];
+}
+
+// How long one set of filters keeps its card list. Paging through the Jobs
+// page, and everyone looking at the same view in that minute, reuse it
+// instead of making the database list every hiring company again.
+const JOBS_INDEX_TTL_MS = 60_000;
+const JOBS_INDEX_MAX_ENTRIES = 200;
+// How many company ids one inferred-job-title read takes at a time.
+const JOB_TITLE_CHUNK = 2000;
+
+/** The Position filter's values; anything unrecognised is dropped, like workplaceTypes. */
+function parsePositions(raw: string | undefined): JobPosition[] {
+  if (!raw) return [];
+  const known = jobPositionSchema.options as string[];
+  return [...new Set(raw.split(",").map((p) => p.trim()))].filter((p): p is JobPosition => known.includes(p));
+}
+
 @Injectable()
 export class CompaniesService {
+  private readonly jobsIndexCache = new Map<string, { at: number; index: Promise<JobsIndex> }>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly reviews: ReviewsService,
@@ -142,6 +178,11 @@ export class CompaniesService {
           .filter((t): t is WorkplaceType => (workplaceTypeSchema.options as string[]).includes(t))
       : [];
 
+    // The Sector tick list: any one of the ticked sectors matches.
+    const categories = query.categories
+      ? query.categories.split("|").map((c) => c.trim()).filter(Boolean)
+      : [];
+
     const canonicalCities = cities
       .map((c) => findProvinceByCityName(c)?.name)
       .filter((c): c is string => c !== undefined);
@@ -181,7 +222,11 @@ export class CompaniesService {
       // surface — the homepage/jobs browser included.
       ...PUBLIC_COMPANY_WHERE,
       ...(query.q ? { name: { contains: query.q, mode: "insensitive" } } : {}),
-      ...(query.category ? { category: query.category } : {}),
+      ...(categories.length > 0
+        ? { category: { in: categories } }
+        : query.category
+          ? { category: query.category }
+          : {}),
       // hasSome, not has: the sidebar filter is OR semantics across
       // however many types are checked ("Office" or "Service" companies),
       // matching MultiFilterPillGroup's multi-select in WorkplaceBrowser.
@@ -245,13 +290,12 @@ export class CompaniesService {
    * directory going to the browser.
    */
   async browse(query: CompanyBrowseQuery): Promise<CompanyBrowseResult> {
+    if (query.jobs === "1") return this.browseJobs(query);
     const sort = query.sort ?? "default";
-    const jobs = query.jobs === "1";
     const matches = await this.prisma.company.findMany({
       where: {
         AND: [
-          // includeJobTitles is what scopes search to hiring companies.
-          this.buildSearchWhere({ ...query, includeJobTitles: jobs }),
+          this.buildSearchWhere({ ...query, includeJobTitles: false }),
           categoryGroupWhere(query.categoryGroup),
           query.companyId ? { id: query.companyId } : {},
         ],
@@ -277,22 +321,186 @@ export class CompaniesService {
       sort,
       query.nearCity,
     );
-    // The Jobs page shows every hiring company, reviewed or not.
-    const { visible, hiddenUnratedCount } = jobs
-      ? { visible: rows, hiddenUnratedCount: 0 }
-      : visibleBrowseRows(rows, { sort, categoryGroup: query.categoryGroup, q: query.q });
+    const { visible, hiddenUnratedCount } = visibleBrowseRows(rows, { sort, categoryGroup: query.categoryGroup, q: query.q });
 
-    const pageSize = jobs ? JOBS_BROWSE_PAGE_SIZE : COMPANY_BROWSE_PAGE_SIZE;
+    const pageSize = COMPANY_BROWSE_PAGE_SIZE;
     // A page past the end (the list shrank since the visitor last looked)
     // lands on the last page rather than an empty one.
     const page = Math.min(query.page ?? 1, Math.max(1, Math.ceil(visible.length / pageSize)));
     const pageIds = visible.slice((page - 1) * pageSize, page * pageSize).map((r) => r.id);
 
-    const [items, featured] = await Promise.all([
-      this.browseCards(pageIds, jobs),
-      jobs && page === 1 ? this.featuredJobs(query) : Promise.resolve([]),
+    const items = await this.browseCards(pageIds, false);
+    return { items, total: visible.length, page, pageSize, hiddenUnratedCount, featured: [] };
+  }
+
+  /**
+   * The Jobs page (GET /companies/browse?jobs=1), one page of job cards at
+   * a time: 4 across and 5 rows, like the homepage. Page 1 gives up to 2 of
+   * those rows to the Featured ads (8 featured -> 12 standard cards), every
+   * later page holds 20. Each item sent back is one card: the company with
+   * the single posting (or inferred job title) that card shows - so a
+   * company with three open roles takes three places, and no page comes out
+   * longer or shorter than the grid.
+   */
+  private async browseJobs(query: CompanyBrowseQuery): Promise<CompanyBrowseResult> {
+    const index = await this.jobsIndex(query);
+    const featuredCount = index.featured.length;
+    const totalPages = jobsPageCount(index.cards.length, featuredCount);
+    // A page past the end lands on the last page rather than an empty one.
+    const page = Math.min(query.page ?? 1, totalPages);
+    const { start, size } = jobsPageRange(page, featuredCount);
+    const refs = index.cards.slice(start, start + size);
+
+    // Only the companies on this page are loaded in full.
+    const companies = await this.browseCards([...new Set(refs.map((r) => r.companyId))], true);
+    const companyById = new Map(companies.map((c) => [c.id, c]));
+    const items = refs.flatMap((ref): CompanyListItem[] => {
+      const company = companyById.get(ref.companyId);
+      if (!company) return [];
+      if (ref.postingId) {
+        // Gone since the list was built (filled, expired, hidden): skip it.
+        const posting = company.jobPostings.find((p) => p.id === ref.postingId);
+        return posting ? [{ ...company, jobPostings: [posting], jobTitles: [] }] : [];
+      }
+      if (ref.title !== undefined) {
+        const title = company.jobTitles.find((t) => t.title === ref.title);
+        return title ? [{ ...company, jobPostings: [], jobTitles: [title] }] : [];
+      }
+      return [{ ...company, jobPostings: [], jobTitles: [] }];
+    });
+
+    return {
+      items,
+      total: index.cards.length,
+      page,
+      pageSize: size,
+      totalPages,
+      hiddenUnratedCount: 0,
+      featured: page === 1 ? index.featured : [],
+    };
+  }
+
+  // The card list for one set of Jobs filters, kept for a minute (see
+  // JOBS_INDEX_TTL_MS). The Featured row is picked once with it, so the ads
+  // shown in that row are the same ones left out of the standard cards on
+  // every page - no job shows twice, and none goes missing between pages.
+  private jobsIndex(query: CompanyBrowseQuery): Promise<JobsIndex> {
+    const key = JSON.stringify(
+      Object.entries({ ...query, page: undefined })
+        .filter(([, v]) => v !== undefined && v !== "")
+        .sort(([a], [b]) => a.localeCompare(b)),
+    );
+    const hit = this.jobsIndexCache.get(key);
+    if (hit && Date.now() - hit.at < JOBS_INDEX_TTL_MS) return hit.index;
+
+    const index = this.buildJobsIndex(query);
+    this.jobsIndexCache.delete(key);
+    this.jobsIndexCache.set(key, { at: Date.now(), index });
+    // A failed build mustn't stay cached.
+    index.catch(() => this.jobsIndexCache.delete(key));
+    while (this.jobsIndexCache.size > JOBS_INDEX_MAX_ENTRIES) {
+      this.jobsIndexCache.delete(this.jobsIndexCache.keys().next().value!);
+    }
+    return index;
+  }
+
+  private async buildJobsIndex(query: CompanyBrowseQuery): Promise<JobsIndex> {
+    const positions = parsePositions(query.positions);
+    const companyWhere: Prisma.CompanyWhereInput = {
+      AND: [
+        // includeJobTitles is what scopes search to hiring companies.
+        this.buildSearchWhere({ ...query, includeJobTitles: true }),
+        categoryGroupWhere(query.categoryGroup),
+        query.companyId ? { id: query.companyId } : {},
+      ],
+    };
+    const postingWhere: Prisma.JobPostingWhereInput = {
+      status: "PUBLISHED",
+      ...(positions.length > 0 ? { positions: { hasSome: positions } } : {}),
+    };
+
+    // Light reads only - ids and the few fields sorting and "is it still
+    // live" need. Descriptions and banners are loaded for one page at a time.
+    const [matches, postingRows, featured] = await Promise.all([
+      this.prisma.company.findMany({
+        // Under a Position filter, only companies with such a posting.
+        where: positions.length > 0 ? { AND: [companyWhere, { jobPostings: { some: postingWhere } }] } : companyWhere,
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          riskScore: true,
+          aggregate: { select: { overallAvg: true, reviewCount: true } },
+        },
+        orderBy: { name: "asc" },
+      }),
+      this.prisma.jobPosting.findMany({
+        where: { company: companyWhere, ...postingWhere },
+        select: {
+          id: true,
+          companyId: true,
+          status: true,
+          createdAt: true,
+          lastResharedAt: true,
+          filledAt: true,
+          autoReshareEnabled: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.featuredJobs(query),
     ]);
-    return { items, total: visible.length, page, pageSize, hiddenUnratedCount, featured };
+
+    const rows = sortBrowseRows(
+      matches.map((m) => ({
+        id: m.id,
+        name: m.name,
+        city: m.city,
+        overallAvg: m.aggregate?.overallAvg ?? null,
+        reviewCount: m.aggregate?.reviewCount ?? 0,
+        riskScore: m.riskScore,
+      })),
+      query.sort ?? "default",
+      query.nearCity,
+    );
+
+    // Same "still live" rule as jobPostingsByCompanyId, newest first.
+    const livePostingIds = new Map<string, string[]>();
+    for (const p of postingRows) {
+      if (!shouldLazyReshare(p) && daysRemaining(p) === 0) continue;
+      const list = livePostingIds.get(p.companyId) ?? [];
+      list.push(p.id);
+      livePostingIds.set(p.companyId, list);
+    }
+
+    // Hiring companies with no posting of their own show the job titles
+    // their past employees held instead - never under a Position filter,
+    // since an inferred title has no position.
+    const titlesByCompany = new Map<string, ClassifiedJobTitle[]>();
+    if (positions.length === 0) {
+      const withoutPosting = rows.filter((r) => !livePostingIds.has(r.id)).map((r) => r.id);
+      for (let i = 0; i < withoutPosting.length; i += JOB_TITLE_CHUNK) {
+        const chunk = await this.jobTitlesByCompanyId(withoutPosting.slice(i, i + JOB_TITLE_CHUNK));
+        for (const [companyId, titles] of chunk) titlesByCompany.set(companyId, titles);
+      }
+    }
+
+    const featuredIds = new Set(featured.map((f) => f.posting.id));
+    const cards: JobCardRef[] = [];
+    for (const row of rows) {
+      const postingIds = livePostingIds.get(row.id);
+      if (postingIds) {
+        // A posting in the Featured row isn't repeated among the standard cards.
+        for (const postingId of postingIds) {
+          if (!featuredIds.has(postingId)) cards.push({ companyId: row.id, postingId });
+        }
+        continue;
+      }
+      if (positions.length > 0) continue;
+      const titles = titlesByCompany.get(row.id) ?? [];
+      if (titles.length === 0) cards.push({ companyId: row.id });
+      for (const t of titles) cards.push({ companyId: row.id, title: t.title });
+    }
+    return { cards, featured };
   }
 
   /**
@@ -377,6 +585,7 @@ export class CompaniesService {
    * which ads come first. Shuffled, so every paid boost gets its turn.
    */
   private async featuredJobs(query: CompanyBrowseQuery): Promise<CompanyBrowseResult["featured"]> {
+    const positions = parsePositions(query.positions);
     const boosted = await this.prisma.jobPosting.findMany({
       where: {
         company: {
@@ -389,6 +598,7 @@ export class CompaniesService {
         status: "PUBLISHED",
         boostAdSpace: false,
         boostExpiresAt: { gt: new Date() },
+        ...(positions.length > 0 ? { positions: { hasSome: positions } } : {}),
       },
       select: {
         id: true,
@@ -447,6 +657,7 @@ export class CompaniesService {
         filledAt: true,
         autoReshareEnabled: true,
         workType: true,
+        positions: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -467,7 +678,13 @@ export class CompaniesService {
         continue;
       }
       const list = byCompany.get(row.companyId) ?? [];
-      list.push({ id: row.id, jobTitle: row.jobTitle, description: row.description, workType: row.workType });
+      list.push({
+        id: row.id,
+        jobTitle: row.jobTitle,
+        description: row.description,
+        workType: row.workType,
+        positions: row.positions ?? [],
+      });
       byCompany.set(row.companyId, list);
     }
     if (staleIds.length > 0) {

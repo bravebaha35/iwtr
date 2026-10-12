@@ -129,6 +129,24 @@ enum JobPostingStatus {
   @@schema("public")
 }
 
+// The level(s) a job posting hires for - mirrors jobPositionSchema in
+// shared-types/jobPosting.ts.
+enum JobPosition {
+  SENIOR_EXECUTIVE
+  MIDDLE_MANAGER
+  MANAGEMENT_TRAINEE
+  SPECIALIST
+  ENTRY_LEVEL
+  FREELANCER
+  BLUE_COLLAR
+  INTERN
+  ASSISTANT_SPECIALIST
+  STAFF_MEMBER
+  SERVICE_STAFF
+
+  @@schema("public")
+}
+
 enum JobPostingBoostPaymentStatus {
   PENDING
   PAID
@@ -239,6 +257,14 @@ model User {
   // of this claim — it's informational context on the applicant's own CV,
   // not a moderation or eligibility gate.
   isPublicEmployee     Boolean        @default(false)
+  // Members only: show reviewUsername in the header's top-right corner even
+  // when a display name is set (Edit Profile > Customize). Owners are always
+  // shown by real name there, whatever this says.
+  showUsernameInHeader Boolean        @default(false)
+  // Languages the member says they know, as codes from shared-types'
+  // LANGUAGES list (never free text), in the order they added them. Shown on
+  // their CV.
+  languages            String[]       @default([])
   // Free-typed employment history for a company not in the constrained
   // EmploymentHistory picker list (e.g. "Freelance, 2022-2023, no matching
   // company on file"). Sanitized server-side (ProfileService.updateProfile,
@@ -659,6 +685,9 @@ model JobPosting {
   // from the risk-score match query (it can never `equals` a real enum
   // value), so no other code needs to special-case it.
   workType           WorkplaceType?
+  // 1 to 3 for every posting created since positions existed; empty for
+  // older ones. The Jobs page's Position filter matches on this.
+  positions          JobPosition[]                 @default([])
   autoReshareEnabled Boolean                       @default(false)
   lastResharedAt     DateTime?
   // Set only by JobPostingsService.markFilled — the anchor the 30-day

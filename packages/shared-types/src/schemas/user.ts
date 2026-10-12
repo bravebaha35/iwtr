@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { workplaceTypeSchema } from "./workplaceType";
 import { sectorSchema, skillSchema } from "./skill";
+import { languageCodeSchema, MAX_LANGUAGES_PER_MEMBER } from "./language";
 
 export const userRoleSchema = z.enum(["MEMBER", "ADMIN", "COMPANY_OWNER"]);
 export type UserRole = z.infer<typeof userRoleSchema>;
@@ -176,6 +177,11 @@ export const onboardingStatusSchema = z.object({
   // by GlobalHeader as the member-side counterpart to the owner-side
   // employerDisplayName fallback that already exists there.
   displayName: z.string().nullable(),
+  // Members only: the member ticked "Show my username in the top-right
+  // corner" (Edit Profile > Customize), so the header shows reviewUsername
+  // even when they typed a display name for their CV. Never applies to a
+  // company owner, who is always shown by real name there.
+  showUsernameInHeader: z.boolean().default(false),
   // A verified (APPROVED claim) company owner's real name — the employer
   // profile's name when set, otherwise the name they registered with. The
   // header shows this for owners instead of reviewUsername/displayName, so an
@@ -223,6 +229,10 @@ export const myProfileSchema = z.object({
   // NEVER used as a Review/SocialComment author identity. See this file's
   // updateProfileInputSchema comment and the plan's Global Constraints.
   displayName: z.string().nullable(),
+  // See onboardingStatusSchema.showUsernameInHeader.
+  showUsernameInHeader: z.boolean().default(false),
+  // Language codes (see language.ts), in the order the member added them.
+  languages: z.array(z.string()).default([]),
   isPublicEmployee: z.boolean(),
   customExperienceText: z.string().nullable(),
   workType: workplaceTypeSchema.nullable(),
@@ -256,6 +266,9 @@ export const updateProfileInputSchema = z
     // displayName/customExperienceText above.
     sectorId: z.union([z.string().uuid(), z.literal("")]).optional(),
     skillIds: z.array(z.string().uuid()).max(10).optional(),
+    showUsernameInHeader: z.boolean().optional(),
+    // The whole list, replacing what was there (an empty list clears it).
+    languages: z.array(languageCodeSchema).max(MAX_LANGUAGES_PER_MEMBER).optional(),
   })
   .refine(
     (v) =>
@@ -270,7 +283,9 @@ export const updateProfileInputSchema = z
       v.customExperienceText !== undefined ||
       v.workType !== undefined ||
       v.sectorId !== undefined ||
-      v.skillIds !== undefined,
+      v.skillIds !== undefined ||
+      v.showUsernameInHeader !== undefined ||
+      v.languages !== undefined,
     { message: "Provide at least one field to update" },
   );
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;

@@ -135,6 +135,13 @@ export type Company = z.infer<typeof companySchema>;
 export const companySearchQuerySchema = z.object({
   q: z.string().trim().max(200).optional(),
   category: z.string().trim().max(200).optional(),
+  // The sidebar's Sector dropdown is a tick list: several sectors at once,
+  // joined with "|" (a sector name can contain a comma). A company in any
+  // one of them matches. `category` above stays for a single exact value.
+  categories: z.string().trim().max(4000).optional(),
+  // Jobs page only: comma-separated JobPosition values. Only postings
+  // hiring for at least one of them are listed.
+  positions: z.string().trim().max(400).optional(),
   // Comma-separated, like cities/districtKeys below — the sidebar's
   // "Workplace" filter is a multi-select (e.g. Office + Service at once),
   // not a single value, so this can't be a bare workplaceTypeSchema.

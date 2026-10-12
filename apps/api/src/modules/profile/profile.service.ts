@@ -95,6 +95,8 @@ export class ProfileService {
       city: user.city,
       district: user.district,
       displayName: user.displayName,
+      showUsernameInHeader: user.showUsernameInHeader,
+      languages: user.languages,
       isPublicEmployee: user.isPublicEmployee,
       customExperienceText: user.customExperienceText,
       workType: user.workType,
@@ -190,6 +192,10 @@ export class ProfileService {
         ...(input.district !== undefined ? { district: input.district } : {}),
         ...(input.displayName !== undefined ? { displayName: sanitizeFreeText(input.displayName) } : {}),
         ...(input.isPublicEmployee !== undefined ? { isPublicEmployee: input.isPublicEmployee } : {}),
+        ...(input.showUsernameInHeader !== undefined ? { showUsernameInHeader: input.showUsernameInHeader } : {}),
+        // Codes only (the schema allows nothing else), each once, in the
+        // order the member added them.
+        ...(input.languages !== undefined ? { languages: [...new Set(input.languages)] } : {}),
         ...(input.customExperienceText !== undefined
           ? { customExperienceText: sanitizeFreeText(input.customExperienceText) }
           : {}),

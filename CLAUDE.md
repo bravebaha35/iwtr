@@ -168,6 +168,23 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `decideBoostAccess.ts`, counted from `boostStartedAt`). Owners boost at creation or later via dashboard Job Postings > Edit
   (`PATCH my-companies/:companyId/job-postings/:id`: description and/or boost; title/work type fixed). Job ads
   skip the review-only NAME_OR_SURNAME/JOB_TITLE checks (a title like "Kredi Analisti" looks like a name).
+- The Jobs page (`GET companies/browse?jobs=1`, `CompaniesService.browseJobs`) is paged by job card, not by company:
+  4 across and 5 rows. Page 1 gives up to 2 rows to the Featured ads (8 featured -> 12 standard cards), later pages
+  hold 20 (`jobsFirstPageSize` / `jobsPageRange` / `jobsPageCount` in shared-types; the result carries `totalPages`).
+  Each item returned is one card: the company with the single posting (or inferred job title) it shows. The ordered
+  card list for one set of filters, with that view's Featured pick, is built from light reads and kept in memory for
+  60 s (`jobsIndex`), so paging and repeat views don't list every hiring company again; a featured posting is left
+  out of the standard cards on every page. Only the companies on the requested page are loaded in full.
+- Job positions (`JobPosition`, 11 fixed levels): an owner ticks 1 to 3 when posting (`JobPosting.positions`); the
+  Jobs sidebar's Position buttons filter on them (`positions=`, any-of; inferred job titles are left out while it is
+  on); only the opened / full job card lists them, never the short grid card. "Tell us more" is plain text up to
+  4000 characters (`JOB_DESCRIPTION_MAX_LENGTH`); `BulletTextarea` adds bullet / numbered lists as ordinary characters.
+- The sidebar Sector filter is a tick list: `categories=A|B` (pipe-separated, any-of) on search and browse.
+- Member profile: `User.languages` (codes from shared-types `LANGUAGES`, max 8, saved the moment one is added or
+  removed, always printed on the CV) - languages are no longer rows in `Skill`. Verified skills are picked through a
+  search box (the list is fetched once, searched in the browser; max 10); `scripts/seed-skills.ts` is additive and
+  safe to re-run. `User.showUsernameInHeader` (Edit Profile > Customize, members only) makes the header show
+  `reviewUsername` instead of the CV display name (`headerDisplayName`); an owner is always shown by real name.
 - `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per
   company) and the admin queue on `/admin/content`.
 
@@ -236,8 +253,14 @@ alone keeps DM Serif Display (`.cv-document`).
   Rating and RS sort states (`SortButtons.tsx`), score-band colours, tier ticks, and the gold featured outline.
 - Header is one 64px line; the current page is marked by a Wood bar (`components/layout/navItem.ts`). The
   notifications bell is a symbol with no label beside the theme switch, with a red counter that clears (and is
-  saved as read) the moment its panel is opened. Sort buttons (RS / A-Z / Rating) sit right next to the search
-  field, outside it (`SearchSortBox`). Sidebar width and gaps are locked by tests (`SidebarShell`).
+  saved as read) the moment its panel is opened. The sort controls (RS / A-Z / Rating) are plain words with a
+  coloured bar under the one in use, right next to the search field (`SearchSortBox`); no "Sort" label.
+  Sidebar width and gaps are locked by tests (`SidebarShell`); its order is Work-Type (+ Sector), Location,
+  (Jobs: Create job posting, Position), Rating, Risk Score.
+- Work-Type is four tiles (`WorkTypeTiles`): the name, and the beaver dressed for that work peeking from the bottom
+  edge - grey at rest; picked, the tile takes its collar colour as a soft wash plus a short bar (`collarTileTone`).
+  Same tiles for "What kind of work?" on Edit Profile. Multi-choice lists (Position) are tick rows that turn Wood
+  when ticked (`PositionPicker`), inside a soft panel in the sidebar.
 - A logged-out visitor sees `AnonGate`'s hero; the homepage adds `LandingSections` under it.
 
 ## Environment / local setup gotchas

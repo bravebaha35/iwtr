@@ -16,6 +16,28 @@ export const boostOptionSchema = z.enum(["FEATURED_7", "FEATURED_14", "AD_SPACE_
 export type BoostOption = z.infer<typeof boostOptionSchema>;
 export const BOOST_OPTION_DAYS: Record<BoostOption, number> = { FEATURED_7: 7, FEATURED_14: 14, AD_SPACE_14: 14 };
 
+// The level(s) a posting is hiring for. The owner ticks 1 to 3 when
+// creating it (Post a job > Position); the Jobs page filters on them, and
+// the full job card lists them. This order is the display order everywhere.
+export const jobPositionSchema = z.enum([
+  "SENIOR_EXECUTIVE",
+  "MIDDLE_MANAGER",
+  "MANAGEMENT_TRAINEE",
+  "SPECIALIST",
+  "ENTRY_LEVEL",
+  "FREELANCER",
+  "BLUE_COLLAR",
+  "INTERN",
+  "ASSISTANT_SPECIALIST",
+  "STAFF_MEMBER",
+  "SERVICE_STAFF",
+]);
+export type JobPosition = z.infer<typeof jobPositionSchema>;
+export const MAX_JOB_POSITIONS = 3;
+
+// "Tell us more": plain text, bullet lines included.
+export const JOB_DESCRIPTION_MAX_LENGTH = 4000;
+
 // Mirrors PricingTierKey in apps/web/src/lib/pricingTiers.ts — kept as a
 // separate shared-types enum since apps/api needs it too (to compute
 // freeBoostsRemaining), not just the web app.
@@ -28,6 +50,8 @@ export const jobPostingSchema = z.object({
   jobTitle: z.string(),
   description: z.string(),
   workType: workplaceTypeSchema.nullable(),
+  // Empty for postings created before positions existed.
+  positions: z.array(jobPositionSchema).default([]),
   status: jobPostingStatusSchema,
   // Days of the current/last boost (legacy rows may hold 21).
   boostDurationDays: z.number().int().nullable(),
@@ -48,6 +72,7 @@ export const publicJobPostingSchema = z.object({
   jobTitle: z.string(),
   description: z.string(),
   workType: workplaceTypeSchema.nullable().default(null),
+  positions: z.array(jobPositionSchema).default([]),
 });
 export type PublicJobPosting = z.infer<typeof publicJobPostingSchema>;
 
@@ -80,8 +105,13 @@ export type CompanyJobPostings = z.infer<typeof companyJobPostingsSchema>;
 // billing shape.
 export const createJobPostingInputSchema = z.object({
   jobTitle: z.string().trim().min(1).max(200),
-  description: z.string().min(1).max(600),
+  description: z.string().min(1).max(JOB_DESCRIPTION_MAX_LENGTH),
   workType: workplaceTypeSchema,
+  positions: z
+    .array(jobPositionSchema)
+    .min(1, "Pick at least one position")
+    .max(MAX_JOB_POSITIONS, "Pick at most 3 positions")
+    .refine((v) => new Set(v).size === v.length, "Each position can be picked once"),
   autoReshareEnabled: z.boolean().optional().default(false),
   boost: z
     .object({
@@ -149,7 +179,7 @@ export type OwnerJobPosting = z.infer<typeof ownerJobPostingSchema>;
 // posting that isn't boosted right now. Same boost/billing shape as create.
 export const updateJobPostingInputSchema = z
   .object({
-    description: z.string().min(1).max(600).optional(),
+    description: z.string().min(1).max(JOB_DESCRIPTION_MAX_LENGTH).optional(),
     boost: createJobPostingInputSchema.shape.boost.optional(),
   })
   .refine((v) => v.description !== undefined || (v.boost !== undefined && v.boost !== null), {

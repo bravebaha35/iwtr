@@ -60,6 +60,7 @@ export function JobBoostModal({
         jobTitle: setupData.jobTitle,
         description: setupData.description,
         workType: setupData.workType,
+        positions: setupData.positions,
         autoReshareEnabled,
         boost,
       };

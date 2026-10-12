@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { EduLevel, MyEmploymentEntry, MyProfile } from "@iwtr/shared-types";
+import { languageLabel, type EduLevel, type MyEmploymentEntry, type MyProfile } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { Avatar } from "@/components/Avatar";
@@ -141,6 +141,8 @@ export function CvPreview({
   const locationLine = [profile.district, profile.city, profile.country].filter(Boolean).join(", ");
   const education = profile.education;
   const workTypeLabel = profile.workType ? workplaceTypeLabel(profile.workType) : null;
+  // Picked on Edit Profile > Personal Information; always on the CV.
+  const languages = (profile.languages ?? []).map(languageLabel);
 
   return (
     <div
@@ -207,6 +209,11 @@ export function CvPreview({
               </span>
             ))}
           </div>
+        )}
+        {languages.length > 0 && (
+          <p className="mt-2 break-words text-sm">
+            <span className="font-bold">Languages:</span> {languages.join(", ")}
+          </p>
         )}
         {profile.customExperienceText && (
           <p className="mt-3 whitespace-pre-wrap text-sm">{profile.customExperienceText}</p>

@@ -1,13 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MAX_SKILLS_PER_MEMBER, type Skill } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 
-// Magnetic-snap hover (a small scale bump that "catches" the cursor) + a
-// crisp, high-contrast active state — both pure CSS via Tailwind's
-// transition/scale utilities, no extra library needed for an effect this
-// small.
+// How many matches are listed under the search box at once.
+const MAX_RESULTS = 8;
+
+// Lower-case with Turkish letters folded to plain ones, so "isci" finds
+// "Isci" and "CNC" finds "cnc".
+function fold(text: string): string {
+  return text
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * Skills whose name matches the search, best first: names that start with
+ * it, then names with a word that starts with it, then names that merely
+ * contain it.
+ */
+export function matchSkills(all: Skill[], query: string, excludeIds: string[]): Skill[] {
+  const q = fold(query.trim());
+  if (!q) return [];
+  const starts: Skill[] = [];
+  const wordStarts: Skill[] = [];
+  const contains: Skill[] = [];
+  for (const skill of all) {
+    if (excludeIds.includes(skill.id)) continue;
+    const name = fold(skill.name);
+    if (name.startsWith(q)) starts.push(skill);
+    else if (name.split(/[\s/(&-]+/).some((word) => word.startsWith(q))) wordStarts.push(skill);
+    else if (name.includes(q)) contains.push(skill);
+  }
+  return [...starts, ...wordStarts, ...contains];
+}
+
+/**
+ * Verified skills on Edit Profile: a search box instead of the whole list.
+ * The member types, picks from the few matches shown under the box, and
+ * their chosen skills (10 at most) sit below as removable chips. The list
+ * itself is fetched once and searched in the browser, so typing sends
+ * nothing to the server.
+ */
 export function SkillsPicker({
   selectedIds,
   onChange,
@@ -16,6 +53,8 @@ export function SkillsPicker({
   onChange: (ids: string[]) => void;
 }) {
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -24,46 +63,130 @@ export function SkillsPicker({
         if (!cancelled) setAllSkills(data);
       })
       .catch(() => {
-        if (!cancelled) setAllSkills([]);
+        if (!cancelled) setLoadFailed(true);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  function toggle(id: string) {
-    if (selectedIds.includes(id)) {
-      onChange(selectedIds.filter((s) => s !== id));
-      return;
-    }
-    if (selectedIds.length >= MAX_SKILLS_PER_MEMBER) return;
+  const full = selectedIds.length >= MAX_SKILLS_PER_MEMBER;
+  const matches = useMemo(() => matchSkills(allSkills, query, selectedIds), [allSkills, query, selectedIds]);
+  const shown = matches.slice(0, MAX_RESULTS);
+  // In the order the member picked them.
+  const selected = selectedIds
+    .map((id) => allSkills.find((s) => s.id === id))
+    .filter((s): s is Skill => s !== undefined);
+
+  function add(id: string) {
+    if (full || selectedIds.includes(id)) return;
     onChange([...selectedIds, id]);
+    setQuery("");
+  }
+
+  function remove(id: string) {
+    onChange(selectedIds.filter((s) => s !== id));
   }
 
   return (
     <div>
-      <p className="text-xs text-muted-foreground uppercase tracking-widest">Select up to 10 verified skills.</p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {allSkills.map((skill) => {
-          const selected = selectedIds.includes(skill.id);
-          const disabled = !selected && selectedIds.length >= MAX_SKILLS_PER_MEMBER;
-          return (
-            <button
-              key={skill.id}
-              type="button"
-              disabled={disabled}
-              onClick={() => toggle(skill.id)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition duration-150 ease-out hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
-                selected
-                  ? "border-brand-600 bg-brand-600 text-white"
-                  : "border-border text-muted-foreground hover:border-brand-600 hover:text-foreground"
-              }`}
-            >
-              {skill.name}
-            </button>
-          );
-        })}
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <label htmlFor="skill-search" className="text-xs font-medium text-muted-foreground">
+          Verified skills
+        </label>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {selectedIds.length} / {MAX_SKILLS_PER_MEMBER}
+        </span>
       </div>
+
+      <div className="relative">
+        <svg
+          viewBox="0 0 24 24"
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="M16 16l4.5 4.5" />
+        </svg>
+        <input
+          id="skill-search"
+          type="search"
+          autoComplete="off"
+          value={query}
+          disabled={full}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && shown.length > 0) {
+              e.preventDefault();
+              add(shown[0].id);
+            }
+          }}
+          placeholder={
+            full ? "You've picked 10 - remove one to add another" : "Search a skill: welding, Excel, barista, forklift..."
+          }
+          className="w-full rounded-full border border-border bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:bg-surface-muted"
+        />
+      </div>
+
+      {loadFailed && (
+        <p className="mt-2 text-xs text-red-600 dark:text-red-300">Couldn&apos;t load the skill list. Reload the page to try again.</p>
+      )}
+
+      {query.trim() !== "" && !loadFailed && (
+        <ul aria-label="Matching skills" className="mt-2 flex flex-col gap-0.5 rounded-xl bg-surface-muted/60 p-1.5">
+          {shown.length === 0 && (
+            <li className="px-2.5 py-2 text-sm text-muted-foreground">
+              No skill matches &quot;{query.trim()}&quot;. Try a shorter or different word.
+            </li>
+          )}
+          {shown.map((skill) => (
+            <li key={skill.id}>
+              <button
+                type="button"
+                onClick={() => add(skill.id)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition hover:bg-surface"
+              >
+                <span>{skill.name}</span>
+                <span className="shrink-0 text-xs font-semibold text-brand-700 dark:text-brand-300">Add</span>
+              </button>
+            </li>
+          ))}
+          {matches.length > shown.length && (
+            <li className="px-2.5 pb-1 pt-1.5 text-xs text-muted-foreground">
+              {matches.length - shown.length} more - keep typing to narrow it down.
+            </li>
+          )}
+        </ul>
+      )}
+
+      {selected.length > 0 ? (
+        <ul aria-label="Your skills" className="mt-3 flex flex-wrap gap-1.5">
+          {selected.map((skill) => (
+            <li key={skill.id}>
+              <button
+                type="button"
+                onClick={() => remove(skill.id)}
+                title={`Remove ${skill.name}`}
+                aria-label={`Remove ${skill.name}`}
+                className="group flex items-center gap-1.5 rounded-full bg-brand-600 py-1 pl-3 pr-2 text-xs font-semibold text-white transition hover:bg-brand-700"
+              >
+                {skill.name}
+                <svg viewBox="0 0 24 24" className="h-3 w-3 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Up to {MAX_SKILLS_PER_MEMBER} skills, shown on your CV. Nothing picked yet.
+        </p>
+      )}
     </div>
   );
 }

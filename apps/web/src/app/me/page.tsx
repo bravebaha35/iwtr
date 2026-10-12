@@ -6,6 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE,
+  LANGUAGES,
+  MAX_LANGUAGES_PER_MEMBER,
+  languageLabel,
   type EduLevel,
   type EducationHistoryEntry,
   type EmployerProfileView,
@@ -107,6 +110,9 @@ function ProfilePageContent() {
   const [reviewUsername, setReviewUsername] = useState<string | null>(null);
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarGradient, setAvatarGradient] = useState<string | null>(null);
+  // Members only: show the username (not the CV display name) top-right.
+  const [showUsernameDraft, setShowUsernameDraft] = useState(false);
+  const [languagesError, setLanguagesError] = useState<string | null>(null);
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
 
   // My CV tab — seeded from `profile` in load(), same as every other draft
@@ -217,6 +223,7 @@ function ProfilePageContent() {
       setReviewUsername(profileData.reviewUsername);
       setAvatarKey(profileData.avatarKey);
       setAvatarGradient(profileData.avatarGradient);
+      setShowUsernameDraft(profileData.showUsernameInHeader);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
       setEditingLocation(!profileData.country || !profileData.city);
       setDisplayNameDraft(profileData.displayName ?? "");
@@ -306,7 +313,7 @@ function ProfilePageContent() {
       await apiPatch("/me/profile", {
         avatarKey,
         avatarGradient,
-        ...(role === "COMPANY_OWNER" ? {} : { reviewUsername }),
+        ...(role === "COMPANY_OWNER" ? {} : { reviewUsername, showUsernameInHeader: showUsernameDraft }),
       });
       await load();
       // The homepage header reads avatar/name from AuthContext's
@@ -344,6 +351,22 @@ function ProfilePageContent() {
       setLocationError(err instanceof ApiError ? err.message : "Couldn't save changes.");
     } finally {
       setLocationSaving(false);
+    }
+  }
+
+  // Languages save the moment one is added or removed - on their own, so
+  // unsaved edits elsewhere on this tab (work type, sector, skills) are left
+  // exactly as they are. If the save fails the list goes back.
+  async function saveLanguages(next: string[]) {
+    if (!profile) return;
+    const previous = profile.languages;
+    setLanguagesError(null);
+    setProfile({ ...profile, languages: next });
+    try {
+      await apiPatch("/me/profile", { languages: next });
+    } catch (err) {
+      setProfile((p) => (p ? { ...p, languages: previous } : p));
+      setLanguagesError(err instanceof ApiError ? err.message : "Couldn't save your languages.");
     }
   }
 
@@ -688,6 +711,22 @@ function ProfilePageContent() {
                   Want a one-off random name instead, for a single review? You can turn that on at the end of the review
                   itself, when you submit or edit it.
                 </p>
+
+                <label className="mb-3 mt-4 flex cursor-pointer items-start gap-2.5 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={showUsernameDraft}
+                    onChange={(e) => setShowUsernameDraft(e.target.checked)}
+                  />
+                  <span>
+                    Show my username in the top-right corner
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      The corner of the site then shows the username above instead of your name (the display name from
+                      My CV). Only you see that corner - your CV keeps your name.
+                    </span>
+                  </span>
+                </label>
               </>
             )}
 
@@ -819,6 +858,59 @@ function ProfilePageContent() {
                   </button>
                 </div>
               )}
+            </div>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                <p className="text-xs font-medium text-muted-foreground">Languages</p>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {profile.languages.length} / {MAX_LANGUAGES_PER_MEMBER}
+                </span>
+              </div>
+              <div className="max-w-xs">
+                <SingleSelectDropdown
+                  value={null}
+                  onChange={(code) => {
+                    if (code) void saveLanguages([...profile.languages, code]);
+                  }}
+                  options={LANGUAGES.filter((l) => !profile.languages.includes(l.code)).map((l) => ({
+                    value: l.code,
+                    label: l.label,
+                  }))}
+                  placeholder={
+                    profile.languages.length >= MAX_LANGUAGES_PER_MEMBER
+                      ? "Remove one to add another"
+                      : "Add a language you know"
+                  }
+                  ariaLabel="Add a language you know"
+                  clearable={false}
+                  disabled={profile.languages.length >= MAX_LANGUAGES_PER_MEMBER}
+                />
+              </div>
+              {profile.languages.length > 0 ? (
+                <ul aria-label="Your languages" className="mt-3 flex flex-wrap gap-1.5">
+                  {profile.languages.map((code) => (
+                    <li key={code}>
+                      <button
+                        type="button"
+                        onClick={() => void saveLanguages(profile.languages.filter((c) => c !== code))}
+                        title={`Remove ${languageLabel(code)}`}
+                        aria-label={`Remove ${languageLabel(code)}`}
+                        className="group flex items-center gap-1.5 rounded-full bg-brand-600 py-1 pl-3 pr-2 text-xs font-semibold text-white transition hover:bg-brand-700"
+                      >
+                        {languageLabel(code)}
+                        <svg viewBox="0 0 24 24" className="h-3 w-3 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                          <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">None added yet.</p>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">Saved as you pick, and shown on your CV.</p>
+              {languagesError && <p className="mt-1 text-sm text-red-600 dark:text-red-300">{languagesError}</p>}
             </div>
 
             <div className="mt-4 border-t border-border pt-4">
@@ -1348,8 +1440,9 @@ function ProfilePageContent() {
                 <div>
                   <label className="text-sm font-medium text-foreground">Display name</label>
                   <p className="text-xs text-muted-foreground">
-                    Optional. Shown on your CV and in the site header instead of your anonymous handle — your reviews
-                    always stay under your anonymous handle regardless of this setting.
+                    Optional. Shown on your CV and in the site header instead of your anonymous handle (unless you
+                    ticked &quot;Show my username in the top-right corner&quot; on Customize) — your reviews always
+                    stay under your anonymous handle regardless of this setting.
                   </p>
                   <input
                     type="text"

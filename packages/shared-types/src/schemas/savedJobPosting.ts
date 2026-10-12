@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { companyListItemSchema } from "./company";
 import { workplaceTypeSchema } from "./workplaceType";
+import { jobPositionSchema } from "./jobPosting";
 
 // Toggle result mirrors savedPostToggleResultSchema's shape/convention
 // exactly (see follow.ts).
@@ -30,6 +31,7 @@ export const savedJobPostingSchema = z.object({
     jobTitle: z.string(),
     description: z.string(),
     workType: workplaceTypeSchema.nullable(),
+    positions: z.array(jobPositionSchema).default([]),
   }),
   expired: z.boolean(),
 });

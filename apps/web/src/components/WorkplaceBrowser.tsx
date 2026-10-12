@@ -9,13 +9,11 @@ import Image from "next/image";
 import { COMPANY_BROWSE_PAGE_SIZE, type CompanyBrowseResult, type WorkplaceType } from "@iwtr/shared-types";
 import { fetchBrowsePage, hasBrowsePage, prefetchBrowsePage } from "@/lib/companyBrowse";
 import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
-import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-import { collarOutlinedButtonClassName } from "@/lib/collarColors";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { type CategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
-import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
+import { WorkTypeTiles } from "@/components/WorkTypeTiles";
 import { RewindButton } from "@/components/RewindButton";
-import { SingleSelectDropdown } from "@/components/Dropdown";
+import { MultiSelectDropdown } from "@/components/Dropdown";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
 import { CompanyWorkCard } from "@/components/company/CompanyWorkCard";
@@ -134,7 +132,9 @@ const FILTER_STORAGE_KEY = HOME_FILTERS_STORAGE_KEY;
 
 interface PersistedFilters {
   workplaceTypes: WorkplaceType[];
-  selectedCategory: string | null;
+  selectedCategories: string[];
+  // What a tab saved before the Sector filter became a tick list.
+  selectedCategory?: string | null;
   minRating: number;
   maxRiskScore: number;
   selectedCities: string[];
@@ -190,7 +190,13 @@ export function WorkplaceBrowser() {
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>(() =>
     Array.isArray(initialFilters.workplaceTypes) ? initialFilters.workplaceTypes : [],
   );
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(() => initialFilters.selectedCategory ?? null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(() =>
+    Array.isArray(initialFilters.selectedCategories)
+      ? initialFilters.selectedCategories
+      : initialFilters.selectedCategory
+        ? [initialFilters.selectedCategory]
+        : [],
+  );
   const [minRating, setMinRating] = useState(() => (typeof initialFilters.minRating === "number" ? initialFilters.minRating : 0));
   // 3 = "Any" (Risk Score's own maximum), same as the Jobs page.
   const [maxRiskScore, setMaxRiskScore] = useState(() =>
@@ -228,7 +234,7 @@ export function WorkplaceBrowser() {
   // The two "reset on filter change" effects below (category-reset,
   // page-reset) would otherwise fire on this very first render too — since
   // effect dependency arrays trigger once on mount regardless — and wipe out
-  // the selectedCategory/page values just restored from sessionStorage above.
+  // the selectedCategories/page values just restored from sessionStorage above.
   const skipCategoryResetOnce = useRef(true);
   const skipPageResetOnce = useRef(true);
 
@@ -321,12 +327,13 @@ export function WorkplaceBrowser() {
     if (selectedDistrictKeys.length > 0) params.set("districtKeys", selectedDistrictKeys.join(","));
     if (minRating > 0) params.set("minRating", String(minRating));
     if (maxRiskScore < 3) params.set("maxRiskScore", String(maxRiskScore));
-    if (selectedCategory) params.set("category", selectedCategory);
+    // "|" between sectors: a sector name can contain a comma.
+    if (selectedCategories.length > 0) params.set("categories", selectedCategories.join("|"));
     if (categoryGroup) params.set("categoryGroup", categoryGroup);
     if (sortBy !== "default") params.set("sort", sortBy);
     if (geo && geo !== "denied") params.set("nearCity", geo.nearCity);
     return params.toString();
-  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore, selectedCategory, categoryGroup, sortBy, geo]);
+  }, [query, workplaceTypes, selectedCities, selectedDistrictKeys, minRating, maxRiskScore, selectedCategories, categoryGroup, sortBy, geo]);
   const lastFilterParams = useRef<string | null>(null);
 
   useEffect(() => {
@@ -369,7 +376,7 @@ export function WorkplaceBrowser() {
       skipCategoryResetOnce.current = false;
       return;
     }
-    setSelectedCategory(null);
+    setSelectedCategories([]);
   }, [workplaceTypes]);
 
   // Narrows the Sector dropdown to whichever sectors are tagged with at
@@ -387,7 +394,7 @@ export function WorkplaceBrowser() {
       return;
     }
     setPage(1);
-  }, [workplaceTypes, selectedCategory, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, sortBy, query, categoryGroup, geo]);
+  }, [workplaceTypes, selectedCategories, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, sortBy, query, categoryGroup, geo]);
 
   // Mirror every filter/search/sort/page choice into sessionStorage as it
   // changes, so loadPersistedFilters picks it back up on the next mount (see
@@ -396,7 +403,7 @@ export function WorkplaceBrowser() {
     if (typeof window === "undefined") return;
     const toStore: PersistedFilters = {
       workplaceTypes,
-      selectedCategory,
+      selectedCategories,
       minRating,
       maxRiskScore,
       selectedCities,
@@ -412,7 +419,7 @@ export function WorkplaceBrowser() {
       // Storage can throw under private-browsing/storage-restricted settings —
       // remembering filters is a nice-to-have, never required for the page to work.
     }
-  }, [workplaceTypes, selectedCategory, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, query, sortBy, categoryGroup, page]);
+  }, [workplaceTypes, selectedCategories, minRating, maxRiskScore, selectedCities, selectedDistrictKeys, query, sortBy, categoryGroup, page]);
 
   const total = result?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / RESULTS_PAGE_SIZE));
@@ -441,6 +448,11 @@ export function WorkplaceBrowser() {
   // as "show every workplace type".
   function resetWorkplaceTypes() {
     setWorkplaceTypes([]);
+    setSelectedCategories([]);
+  }
+
+  function toggleCategory(value: string) {
+    setSelectedCategories((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   }
 
   // Single-select: picking a different city replaces whichever one was
@@ -466,21 +478,24 @@ export function WorkplaceBrowser() {
         <SidebarContentRow>
           <SidebarShell>
             <div>
-              <MultiFilterPillGroup
-                heading="Work-Type"
-                options={WORKPLACE_TYPES}
-                selected={workplaceTypes}
-                onToggle={toggleWorkplaceType}
-                onReset={resetWorkplaceTypes}
-                direction="grid"
-                pillColorClassName={collarOutlinedButtonClassName}
-              />
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[13px] font-semibold text-foreground">Work-Type</h2>
+                <RewindButton
+                  onClick={resetWorkplaceTypes}
+                  active={workplaceTypes.length > 0 || selectedCategories.length > 0}
+                  title="Clear Work-Type and Sector filter"
+                />
+              </div>
+              <WorkTypeTiles selected={workplaceTypes} onToggle={toggleWorkplaceType} />
+              {/* A tick list: several sectors can be on at once. */}
               <div className="mt-2">
-                <SingleSelectDropdown
-                  value={selectedCategory}
+                <MultiSelectDropdown
+                  values={selectedCategories}
                   options={sectorOptions}
                   placeholder="Sector"
-                  onChange={setSelectedCategory}
+                  countNoun="sectors"
+                  onToggle={toggleCategory}
+                  onClear={() => setSelectedCategories([])}
                 />
               </div>
             </div>

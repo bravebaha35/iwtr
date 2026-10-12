@@ -15,6 +15,7 @@ describe("jobPosting schemas", () => {
       jobTitle: "Cashier",
       description: "Front register",
       workType: "SERVICE",
+      positions: ["SERVICE_STAFF"],
       boost: null,
     });
     expect(parsed.autoReshareEnabled).toBe(false);
@@ -28,9 +29,25 @@ describe("jobPosting schemas", () => {
       jobTitle: "  Cashier  ",
       description: "d",
       workType: "SERVICE",
+      positions: ["SERVICE_STAFF"],
       boost: null,
     });
     expect(parsed.jobTitle).toBe("Cashier");
+  });
+
+  it("createJobPostingInputSchema takes 1 to 3 different positions and a description up to 4000 characters", () => {
+    const base = { jobTitle: "Cashier", description: "d", workType: "SERVICE", boost: null };
+    const ok = (positions: string[]) => createJobPostingInputSchema.safeParse({ ...base, positions }).success;
+    expect(ok(["INTERN"])).toBe(true);
+    expect(ok(["INTERN", "SPECIALIST", "FREELANCER"])).toBe(true);
+    expect(ok([])).toBe(false);
+    expect(ok(["INTERN", "SPECIALIST", "FREELANCER", "STAFF_MEMBER"])).toBe(false);
+    expect(ok(["INTERN", "INTERN"])).toBe(false);
+    expect(ok(["CEO"])).toBe(false);
+    const withText = (n: number) =>
+      createJobPostingInputSchema.safeParse({ ...base, positions: ["INTERN"], description: "x".repeat(n) }).success;
+    expect(withText(4000)).toBe(true);
+    expect(withText(4001)).toBe(false);
   });
 
   it("publicJobPostingSchema requires an id", () => {

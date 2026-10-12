@@ -112,7 +112,7 @@ function DirectionArrow({ up }: { up: boolean }) {
 
 /**
  * The sort controls, shown right next to the search field on both
- * WorkplaceBrowser and JobsBrowser: three words after a "Sort" label, the
+ * WorkplaceBrowser and JobsBrowser: three plain words, the
  * one in use coloured with a bar under it. A-Z loops A→Z / Z→A / off (Wood);
  * Rating keeps its own red/green colours for least/best-rated first, with
  * an arrow for the direction. With showRiskSort, RS (Risk Score) comes
@@ -130,10 +130,7 @@ export function SortButtons({
   const alphaOn = value === "alphabetical" || value === "alphabeticalDesc";
   const base = TOGGLE_BASE;
   return (
-    <div role="group" aria-label="Sort" className="flex h-12 shrink-0 items-center pl-1">
-      <span aria-hidden="true" className="pr-1 text-sm text-muted-foreground">
-        Sort
-      </span>
+    <div role="group" aria-label="Sort" className="flex h-12 shrink-0 items-center">
       {showRiskSort && (
         <button
           type="button"
