@@ -118,6 +118,20 @@ export const PRICING_FEATURE_ROWS: PricingFeatureRow[] = [
     lockedBelowRank: 1,
   },
   {
+    // IWT Social, owner dashboard: how far back Insights look. The same
+    // numbers as SOCIAL_INSIGHTS_DAYS in shared-types, which the API enforces.
+    id: "social-insights",
+    label: "IWT Social Insights",
+    values: { free: "Last 7 days", starter: "Last 30 days", pro: "Last 90 days", enterprise: "Last 12 months" },
+  },
+  {
+    // How many posts can wait to go out later (SOCIAL_SCHEDULED_POST_LIMITS).
+    id: "social-scheduling",
+    label: "Scheduled IWT Social Posts",
+    values: { free: "No", starter: "3 waiting at a time", pro: "10 waiting at a time", enterprise: "30 waiting at a time" },
+    lockedBelowRank: 1,
+  },
+  {
     id: "support",
     label: "Customer Support & Service Level (SLA)",
     values: {

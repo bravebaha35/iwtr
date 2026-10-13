@@ -29,7 +29,10 @@ function passthroughHeaders(res: Response): HeadersInit {
 // byte-for-byte regardless of content type.
 async function buildResponse(upstream: Response): Promise<NextResponse> {
   const responseBody = await upstream.arrayBuffer();
-  return new NextResponse(responseBody, {
+  // A "no content" answer (the post-views report) must be passed on with no
+  // body at all: a Response with one, even empty, cannot have these statuses.
+  const noBody = upstream.status === 204 || upstream.status === 304;
+  return new NextResponse(noBody ? null : responseBody, {
     status: upstream.status,
     headers: passthroughHeaders(upstream),
   });

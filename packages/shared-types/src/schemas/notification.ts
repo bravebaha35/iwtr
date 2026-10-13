@@ -49,6 +49,9 @@ export const notificationTypeSchema = z.enum([
   // member asked their company something. Both carry `href`: the question.
   "QUESTION_ANSWERED",
   "COMPANY_QUESTION_ASKED",
+  // Owner-only: a scheduled IWT Social post could not go out when its time
+  // came. Carries `href`: the dashboard's IWT Social section, which says why.
+  "SCHEDULED_POST_FAILED",
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

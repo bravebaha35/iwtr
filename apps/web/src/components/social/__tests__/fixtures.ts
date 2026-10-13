@@ -29,6 +29,7 @@ export function makePost(overrides: Partial<PublicSocialPost> = {}): PublicSocia
     pinned: false,
     edited: false,
     canManage: false,
+    viewCount: null,
     ...overrides,
   };
 }

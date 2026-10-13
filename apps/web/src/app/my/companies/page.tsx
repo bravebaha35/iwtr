@@ -40,6 +40,7 @@ import { SupportCategory } from "@/components/owner/sections/SupportCategory";
 import { FeaturedReviewCategory } from "@/components/owner/sections/FeaturedReviewCategory";
 import { BenchmarkReportsCategory } from "@/components/owner/sections/BenchmarkReportsCategory";
 import { QuestionsCategory } from "@/components/owner/sections/QuestionsCategory";
+import { SocialToolsCategory } from "@/components/owner/sections/SocialToolsCategory";
 import { PremiumLocked } from "@/components/owner/sections/PremiumLocked";
 import { TierInfoDialog } from "@/components/owner/TierInfoDialog";
 
@@ -654,6 +655,20 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
             {activeCategory === "questions" && questionsOn && (
               <QuestionsCategory companyId={claim.companyId} companyName={claim.companyName} onCounts={setQuestionCounts} />
+            )}
+
+            {activeCategory === "social" && !companyAccount && (
+              <SocialToolsCategory
+                company={{
+                  companyId: claim.companyId,
+                  companyName: detail?.company.name ?? claim.companyName,
+                  companySlug: claim.companySlug,
+                  tier: claim.tier,
+                  planStatus: claim.planStatus,
+                  isVerifiedBadge: claim.isVerifiedBadge,
+                }}
+                onOpenPricing={() => setShowPricing(true)}
+              />
             )}
 
             {activeCategory === "job-postings" && (

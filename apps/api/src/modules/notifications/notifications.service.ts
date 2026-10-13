@@ -285,6 +285,7 @@ export class NotificationsService {
 
     events.push(...(await this.reviewClaimAndOwnerEvents(userId, myReviews, ownedCompanyIds)));
     if (socialQuestionsEnabled()) events.push(...(await this.questionEvents(userId, ownedCompanyIds)));
+    events.push(...(await this.scheduledPostEvents(ownedCompanyIds)));
 
     events.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     const latest = events.slice(0, MAX_NOTIFICATIONS);
@@ -311,6 +312,31 @@ export class NotificationsService {
       skipDuplicates: true,
     });
     return { ok: true };
+  }
+
+  /**
+   * For an approved owner: scheduled IWT Social posts that could not go out
+   * (see SocialScheduleService). Each stays until the owner gives the post a
+   * new time or deletes it; it opens the dashboard section that says why.
+   */
+  private async scheduledPostEvents(ownedCompanyIds: string[]): Promise<NotificationEvent[]> {
+    if (ownedCompanyIds.length === 0) return [];
+    const failed = await this.prisma.scheduledSocialPost.findMany({
+      where: { companyId: { in: ownedCompanyIds }, status: "FAILED" },
+      select: { id: true, companyId: true, publishAt: true, company: { select: { name: true, slug: true } } },
+      orderBy: { publishAt: "desc" },
+      take: MAX_NOTIFICATIONS,
+    });
+    const now = Date.now();
+    return failed.map((p) => ({
+      id: `scheduled-post-failed-${p.id}`,
+      type: "SCHEDULED_POST_FAILED" as NotificationType,
+      companyName: p.company.name,
+      companySlug: p.company.slug,
+      // The time it was due (never ahead of now, for a post sent out early by hand).
+      createdAt: new Date(Math.min(p.publishAt.getTime(), now)).toISOString(),
+      href: `/my/companies?company=${p.companyId}&category=social`,
+    }));
   }
 
   /**

@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
+import { usePostSeen } from "@/lib/socialViews";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { shortRelativeTime } from "./socialTime";
 import { SocialComments } from "./SocialComments";
@@ -260,8 +261,11 @@ export function SocialPostCard({
   // The first card on a page: its photo loads right away, not lazily.
   priority?: boolean;
 }) {
-  const { isAuthenticated, openAuthModal } = useAuth();
+  const { isAuthenticated, role, openAuthModal } = useAuth();
   const { followedIds, canFollow, toggleFollow } = useFollowedCompanies();
+  // A member having this card on screen adds one to the company's view count.
+  const cardRef = useRef<HTMLElement>(null);
+  usePostSeen(cardRef, post.id, role === "MEMBER" && !post.canManage);
   const [showComments, setShowComments] = useState(defaultCommentsOpen);
   const [likeBusy, setLikeBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
@@ -386,7 +390,7 @@ export function SocialPostCard({
   const lit = "text-brand-600 dark:text-brand-400";
 
   return (
-    <article className="rounded-2xl bg-surface shadow-xs">
+    <article ref={cardRef} className="rounded-2xl bg-surface shadow-xs">
       {showPinned && post.pinned && (
         <p className="flex items-center gap-1.5 px-4 pt-3 text-xs font-semibold text-muted-foreground">
           <PinIcon className="h-3.5 w-3.5" />
@@ -415,6 +419,16 @@ export function SocialPostCard({
                 {shortRelativeTime(post.createdAt)}
               </Link>
               {post.edited && <> &middot; Edited</>}
+              {/* The company's own number: the API sends it to its owner only. */}
+              {post.viewCount !== null && (
+                <>
+                  {" "}
+                  &middot;{" "}
+                  <span title="How many times members have seen this post. Only you can see this number.">
+                    {post.viewCount.toLocaleString("en-GB")} {post.viewCount === 1 ? "view" : "views"}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>

@@ -145,3 +145,58 @@ it("a hiring post offers only the company's live job postings", async () => {
   expect(fd.get("kind")).toBe("HIRING");
   expect(fd.get("jobPostingId")).toBe("j1");
 });
+
+const paidCompanies = [{ companyId: "c1", companyName: "Acme", companySlug: "acme", tier: "STARTER", planStatus: "ACTIVE", isVerifiedBadge: true }];
+
+it("Later sends the post to be scheduled, with the chosen moment, instead of publishing it", async () => {
+  const scheduled = { id: "s1", companyId: "c1", publishAt: "2026-10-20T07:30:00.000Z" };
+  (apiClient.apiUpload as jest.Mock).mockResolvedValue(scheduled);
+  const onPosted = jest.fn();
+  const onScheduled = jest.fn();
+  render(<SocialComposer companies={paidCompanies as never} onPosted={onPosted} onScheduled={onScheduled} onCancel={jest.fn()} />);
+
+  // Now is the default: no date field until Later is picked.
+  expect(screen.getByRole("radio", { name: "Now" })).toHaveAttribute("aria-checked", "true");
+  expect(screen.queryByLabelText("Date and time to post")).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByPlaceholderText("Tell us what you think !"), { target: { value: "new gear" } });
+  fireEvent.click(screen.getByRole("radio", { name: "Later" }));
+  const inAWeek = new Date(Date.now() + 7 * 86_400_000);
+  inAWeek.setSeconds(0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const value = `${inAWeek.getFullYear()}-${pad(inAWeek.getMonth() + 1)}-${pad(inAWeek.getDate())}T${pad(inAWeek.getHours())}:${pad(inAWeek.getMinutes())}`;
+  fireEvent.change(screen.getByLabelText("Date and time to post"), { target: { value } });
+  fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
+
+  await waitFor(() => expect(onScheduled).toHaveBeenCalledWith(scheduled));
+  expect(onPosted).not.toHaveBeenCalled();
+  const [path, fd] = (apiClient.apiUpload as jest.Mock).mock.calls[0] as [string, FormData];
+  expect(path).toBe("/social/scheduled-posts");
+  expect(fd.get("caption")).toBe("new gear");
+  expect(fd.get("publishAt")).toBe(inAWeek.toISOString());
+});
+
+it("Later wants a time that is still ahead", async () => {
+  render(<SocialComposer companies={paidCompanies as never} onPosted={jest.fn()} onCancel={jest.fn()} />);
+  fireEvent.change(screen.getByPlaceholderText("Tell us what you think !"), { target: { value: "new gear" } });
+  fireEvent.click(screen.getByRole("radio", { name: "Later" }));
+  fireEvent.change(screen.getByLabelText("Date and time to post"), { target: { value: "2020-01-01T09:00" } });
+  fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
+  expect(await screen.findByText("Pick a time at least 5 minutes from now.")).toBeInTheDocument();
+  expect(apiClient.apiUpload).not.toHaveBeenCalled();
+});
+
+it("on the Free plan, Later explains which plans have it and cannot be sent", () => {
+  render(<SocialComposer companies={companies as never} onPosted={jest.fn()} onCancel={jest.fn()} />);
+  fireEvent.click(screen.getByRole("radio", { name: "Later" }));
+  expect(screen.getByText(/part of the Starter plan and above/)).toBeInTheDocument();
+  expect(screen.queryByLabelText("Date and time to post")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Schedule" })).toBeDisabled();
+});
+
+it("the dashboard's form is always for later: no Now choice", () => {
+  render(<SocialComposer companies={paidCompanies as never} alwaysLater onPosted={jest.fn()} onCancel={jest.fn()} />);
+  expect(screen.queryByRole("radio", { name: "Now" })).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Date and time to post")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Schedule" })).toBeEnabled();
+});

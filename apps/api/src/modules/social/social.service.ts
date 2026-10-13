@@ -23,6 +23,7 @@ import {
   type SocialCommentVoteResult,
   type SocialCompanySort,
   type SocialFeedPage,
+  type SocialPostKind,
   type SocialPostLikeResult,
   type SocialPostPinResult,
   type SocialRail,
@@ -77,6 +78,7 @@ const POST_ROW_SELECT = {
   eventLocation: true,
   pollEndsAt: true,
   imageAspectRatios: true,
+  viewCount: true,
   pollOptions: { select: { id: true, text: true }, orderBy: { position: "asc" } },
   jobPosting: {
     select: {
@@ -104,6 +106,24 @@ const CAPTION_SKIPPED_CHECKS = {
   skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"] as ("NAME_OR_SURNAME" | "JOB_TITLE" | "ABUSE_OR_INSULT")[],
 };
 const CAPTION_REJECTED_MESSAGE = "That text breaks our content rules (profanity or contact details) - please reword it.";
+
+// A new post with everything about it settled: the text has passed the
+// content rules, the photos are processed files, the job ad was checked.
+// What "post now" writes at once and "post later" keeps until its time.
+export interface PreparedSocialPost {
+  companyId: string;
+  kind: SocialPostKind;
+  caption: string | null;
+  title: string | null;
+  eventStartsAt: Date | null;
+  eventLocation: string | null;
+  pollOptions: string[];
+  // A poll runs this many days from the moment it is published.
+  pollDays: number | null;
+  jobPostingId: string | null;
+  imageUrls: string[];
+  imageAspectRatios: number[];
+}
 
 // The rail lists that are the same for every visitor.
 type RailSharedLists = Pick<SocialRail, "trending" | "hiringNow" | "openQuestions">;
@@ -173,6 +193,19 @@ export class SocialService {
     input: CreateSocialPostInput,
     files: Express.Multer.File[] | undefined,
   ): Promise<{ id: string }> {
+    const prepared = await this.prepareNewPost(userId, input, files);
+    return this.publishPrepared(prepared, userId);
+  }
+
+  // Every check a new post has to pass, and its photos turned into files.
+  // `goesOutAt` is when the post will be published: now, or the time a
+  // scheduled post was given (an event must start after it).
+  async prepareNewPost(
+    userId: string,
+    input: CreateSocialPostInput,
+    files: Express.Multer.File[] | undefined,
+    goesOutAt: Date = new Date(),
+  ): Promise<PreparedSocialPost> {
     await this.requireApprovedOwnership(userId, input.companyId);
     files = files ?? [];
 
@@ -208,11 +241,9 @@ export class SocialService {
       if (eventStartsAt <= new Date()) {
         throw new BadRequestException("Pick a date and time that is still ahead.");
       }
-    }
-    let pollEndsAt: Date | null = null;
-    if (kind === "POLL") {
-      pollEndsAt = new Date();
-      pollEndsAt.setDate(pollEndsAt.getDate() + input.pollDays!);
+      if (eventStartsAt <= goesOutAt) {
+        throw new BadRequestException("The event has to start after the post goes out.");
+      }
     }
     let jobPostingId: string | null = null;
     if (kind === "HIRING") {
@@ -243,24 +274,67 @@ export class SocialService {
       imageAspectRatios.push(aspectRatio);
     }
 
-    const post = await this.prisma.socialPost.create({
+    return {
+      companyId: input.companyId,
+      kind,
+      caption: input.caption || null,
+      title,
+      eventStartsAt,
+      eventLocation,
+      pollOptions,
+      pollDays: kind === "POLL" ? input.pollDays! : null,
+      jobPostingId,
+      imageUrls,
+      imageAspectRatios,
+    };
+  }
+
+  // Writes a prepared post. `db` lets a caller do it inside its own
+  // transaction (a scheduled post is removed in the same one).
+  async publishPrepared(
+    prepared: PreparedSocialPost,
+    authorUserId: string | null,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<{ id: string }> {
+    let pollEndsAt: Date | null = null;
+    if (prepared.kind === "POLL" && prepared.pollDays) {
+      pollEndsAt = new Date();
+      pollEndsAt.setDate(pollEndsAt.getDate() + prepared.pollDays);
+    }
+    const post = await db.socialPost.create({
       data: {
-        companyId: input.companyId,
-        authorUserId: userId,
-        kind,
-        imageUrls,
-        imageAspectRatios,
-        caption: input.caption || null,
-        title,
-        eventStartsAt,
-        eventLocation,
+        companyId: prepared.companyId,
+        authorUserId,
+        kind: prepared.kind,
+        imageUrls: prepared.imageUrls,
+        imageAspectRatios: prepared.imageAspectRatios,
+        caption: prepared.caption,
+        title: prepared.title,
+        eventStartsAt: prepared.eventStartsAt,
+        eventLocation: prepared.eventLocation,
         pollEndsAt,
-        jobPostingId,
-        ...(pollOptions.length > 0 ? { pollOptions: { create: pollOptions.map((text, position) => ({ text, position })) } } : {}),
+        jobPostingId: prepared.jobPostingId,
+        ...(prepared.pollOptions.length > 0
+          ? { pollOptions: { create: prepared.pollOptions.map((text, position) => ({ text, position })) } }
+          : {}),
       },
       select: { id: true },
     });
     return { id: post.id };
+  }
+
+  // Is this job ad the company's own and on the Jobs page right now?
+  async isLiveJobOf(companyId: string, jobPostingId: string): Promise<boolean> {
+    const job = await this.prisma.jobPosting.findUnique({
+      where: { id: jobPostingId },
+      select: { companyId: true, status: true, createdAt: true, lastResharedAt: true, filledAt: true, autoReshareEnabled: true },
+    });
+    return Boolean(job && job.companyId === companyId && isLiveJob(job));
+  }
+
+  // Removes a post's photo files (a scheduled post that was deleted).
+  async unlinkImages(imageUrls: string[]): Promise<void> {
+    await Promise.all(imageUrls.map((url) => this.unlinkSocialImage(url)));
   }
 
   // Global feed - newest post first across every company. `q` (optional) is a
@@ -862,6 +936,8 @@ export class SocialService {
       pinned: Boolean(r.pinnedAt),
       edited: Boolean(r.editedAt),
       canManage,
+      // The company's own number: nobody else is sent it.
+      viewCount: canManage ? r.viewCount : null,
       };
     });
   }
