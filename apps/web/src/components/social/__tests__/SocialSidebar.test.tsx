@@ -12,8 +12,6 @@ const baseProps = {
   onWorkplaceTypeChange: jest.fn(),
   categoryGroup: null,
   onCategoryGroupChange: jest.fn(),
-  savedView: false,
-  onToggleSavedView: jest.fn(),
 };
 
 beforeEach(() => {
@@ -53,18 +51,15 @@ it("'Only Show Me' is single-select: picking a second option replaces the first"
   expect(onWorkplaceTypeChange).toHaveBeenCalledWith("OFFICE");
 });
 
-it("hides Following and Saved Posts for a non-MEMBER (anonymous or owner)", () => {
+it("hides the Following list for a non-MEMBER (anonymous or owner)", () => {
   render(<SocialSidebar {...baseProps} isMember={false} />);
   expect(screen.queryByText(/following/i)).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /saved posts/i })).not.toBeInTheDocument();
 });
 
-it("shows Following + Saved Posts for a MEMBER and toggles the saved view", () => {
-  const onToggleSavedView = jest.fn();
-  render(<SocialSidebar {...baseProps} isMember={true} onToggleSavedView={onToggleSavedView} />);
+it("shows the Following list for a MEMBER; Saved is a feed tab now, not a sidebar button", () => {
+  render(<SocialSidebar {...baseProps} isMember={true} />);
   expect(screen.getByText("Following")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /saved posts/i }));
-  expect(onToggleSavedView).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button", { name: /saved/i })).not.toBeInTheDocument();
 });
 
 it("picking a Quick Select icon reports the underlying CategoryGroup value", () => {

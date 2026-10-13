@@ -1222,6 +1222,12 @@ model SocialPost {
   // ModerationService.checkContent before persist (hard-reject on violation).
   caption      String?
   createdAt    DateTime @default(now())
+  // Set while this is the company's pinned post (at most one per company -
+  // SocialService.togglePin unpins the others): it leads the company's own
+  // feed in the default order.
+  pinnedAt     DateTime?
+  // Set when the owner changes the caption after posting ("Edited" label).
+  editedAt     DateTime?
 
   comments             SocialComment[]
   likes                SocialPostLike[]

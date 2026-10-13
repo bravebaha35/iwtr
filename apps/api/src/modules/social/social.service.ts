@@ -17,13 +17,17 @@ import {
   type ReportSocialCommentResult,
   type AdminReportedSocialComment,
   type AdminSocialComment,
+  type CompanySocialSummary,
   type SavedPostToggleResult,
   type SocialCommentIdentityContext,
   type SocialCommentVoteResult,
   type SocialCompanySort,
   type SocialFeedPage,
   type SocialPostLikeResult,
-  type TrendingToday,
+  type SocialPostPinResult,
+  type SocialRail,
+  type SocialTrending,
+  type UpdateSocialPostInput,
   type VoteValue,
   type WorkplaceType,
 } from "@iwtr/shared-types";
@@ -44,6 +48,34 @@ const SOCIAL_UPLOADS_DIR = join(process.cwd(), "uploads", "social");
 // without a second COUNT query.
 export const SOCIAL_FEED_PAGE_SIZE = 10;
 const TRENDING_POST_LIMIT = 5;
+const TRENDING_WINDOW_DAYS = 7;
+const RAIL_LIST_LIMIT = 5;
+const HIRING_NOW_WINDOW_DAYS = 7;
+
+// The company fields every post shape carries. An explicit select, like the
+// rest of this file (REVIEW.md): a post query never pulls a whole row.
+const POST_COMPANY_SELECT = { slug: true, name: true, mainPhotoUrl: true, badgeTier: true, workplaceTypes: true } as const;
+// What serializePosts needs from a post row - never authorUserId.
+const POST_ROW_SELECT = {
+  id: true,
+  companyId: true,
+  imageUrls: true,
+  caption: true,
+  createdAt: true,
+  pinnedAt: true,
+  editedAt: true,
+  company: { select: POST_COMPANY_SELECT },
+} as const;
+
+// Same caption rules for a new post and an edited one. An employer captioning
+// its own post may name its own staff and job roles and write an all-caps
+// announcement - those rules exist to stop an anonymous employee venting
+// about their boss in a review, not this. Profanity, sexual content and phone
+// numbers still hard-reject.
+const CAPTION_SKIPPED_CHECKS = {
+  skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"] as ("NAME_OR_SURNAME" | "JOB_TITLE" | "ABUSE_OR_INSULT")[],
+};
+const CAPTION_REJECTED_MESSAGE = "That caption breaks our content rules (profanity or contact details) - please reword it.";
 
 // The Quick Select / "Industry Tags" bucket, identical set to apps/web's
 // lib/categoryGroups.tsx CategoryGroup - kept here as a manually-synced
@@ -112,21 +144,8 @@ export class SocialService {
       }
     }
 
-    if (input.caption) {
-      // An employer captioning its own post may name its own staff and job
-      // roles and write an all-caps announcement - those rules exist to stop an
-      // anonymous employee venting about their boss in a review, not this.
-      // Profanity, sexual content and phone numbers still hard-reject.
-      // addComment below keeps the full ruleset for comment bodies.
-      const result = this.moderation.checkContent([input.caption], {
-        skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"],
-      });
-      if (result.violates) {
-        throw new BadRequestException(
-          "That caption breaks our content rules (profanity or contact details) - please reword it.",
-        );
-      }
-    }
+    // addComment below keeps the full ruleset for comment bodies.
+    this.assertCaptionAllowed(input.caption);
 
     await mkdir(SOCIAL_UPLOADS_DIR, { recursive: true });
     const origin = process.env.API_PUBLIC_ORIGIN ?? `http://localhost:${process.env.PORT ?? 3001}`;
@@ -156,8 +175,11 @@ export class SocialService {
   // likedByMe/savedByMe: null on every post.
   async feed(
     viewerUserId: string | undefined,
-    opts: { cursor?: string; q?: string; workplaceTypes?: WorkplaceType[]; categoryGroup?: CategoryGroup },
+    opts: { cursor?: string; q?: string; workplaceTypes?: WorkplaceType[]; categoryGroup?: CategoryGroup; following?: boolean },
   ): Promise<SocialFeedPage> {
+    // "Following" is the caller's own list: nobody to follow for a
+    // logged-out caller, so an empty page rather than everyone's posts.
+    if (opts.following && !viewerUserId) return { posts: [], nextCursor: null };
     const categoryFilter = categoryGroupWhere(opts.categoryGroup);
     // The global feed is always gated on the post's company being publicly
     // visible — a company an ADMIN has hidden (Company.hiddenAt) drops out
@@ -172,6 +194,7 @@ export class SocialService {
         ? { workplaceTypes: { hasSome: opts.workplaceTypes } }
         : {}),
       ...(categoryFilter !== undefined ? { category: categoryFilter } : {}),
+      ...(opts.following ? { followers: { some: { userId: viewerUserId } } } : {}),
     };
     const where: Prisma.SocialPostWhereInput = { company: companyWhere };
     return this.pageFromWhere(viewerUserId, where, opts.cursor);
@@ -190,39 +213,180 @@ export class SocialService {
       select: { id: true, hiddenAt: true },
     });
     assertCompanyVisibleOrThrow(company);
-    return this.pageFromWhere(viewerUserId, { companyId: company.id }, opts.cursor, opts.sort);
+    return this.pageFromWhere(viewerUserId, { companyId: company.id }, opts.cursor, opts.sort, { pinnedFirst: true });
   }
 
-  // Top 5 posts today (server UTC midnight cutoff, matching how createdAt
-  // is stored), split by like count and by comment count, across every
-  // publicly-visible company. Computed live on each request - no caching
+  // One post by id, for its own page (share links). 404s when the post is
+  // gone or its company has been hidden - same gate as the feeds.
+  async getPost(viewerUserId: string | undefined, postId: string): Promise<PublicSocialPost> {
+    const row = await this.prisma.socialPost.findFirst({
+      where: { id: postId, company: PUBLIC_COMPANY_WHERE },
+      select: POST_ROW_SELECT,
+    });
+    if (!row) throw new NotFoundException("Post not found");
+    const [post] = await this.serializePosts([row], viewerUserId);
+    return post;
+  }
+
+  // The two lists beside the IWT Social feed.
+  async rail(viewerUserId: string | undefined): Promise<SocialRail> {
+    const since = new Date();
+    since.setDate(since.getDate() - HIRING_NOW_WINDOW_DAYS);
+    const [companies, jobs] = await Promise.all([
+      this.prisma.company.findMany({
+        where: {
+          ...PUBLIC_COMPANY_WHERE,
+          socialPosts: { some: {} },
+          ...(viewerUserId ? { followers: { none: { userId: viewerUserId } } } : {}),
+        },
+        orderBy: [{ followers: { _count: "desc" } }, { name: "asc" }],
+        take: RAIL_LIST_LIMIT,
+        select: { id: true, ...POST_COMPANY_SELECT },
+      }),
+      // A few more than shown, so several fresh ads from one company still
+      // leave room for others once cut down to one per company.
+      this.prisma.jobPosting.findMany({
+        where: { status: "PUBLISHED", createdAt: { gte: since }, company: PUBLIC_COMPANY_WHERE },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: RAIL_LIST_LIMIT * 6,
+        select: { id: true, jobTitle: true, companyId: true, company: { select: { slug: true, name: true, mainPhotoUrl: true } } },
+      }),
+    ]);
+
+    const hiringNow: SocialRail["hiringNow"] = [];
+    const seenCompanies = new Set<string>();
+    for (const job of jobs) {
+      if (seenCompanies.has(job.companyId)) continue;
+      seenCompanies.add(job.companyId);
+      hiringNow.push({
+        jobPostingId: job.id,
+        jobTitle: job.jobTitle,
+        companySlug: job.company.slug,
+        companyName: job.company.name,
+        companyLogoUrl: job.company.mainPhotoUrl,
+      });
+      if (hiringNow.length === RAIL_LIST_LIMIT) break;
+    }
+
+    return {
+      suggestedCompanies: companies.map((c) => ({
+        companyId: c.id,
+        companySlug: c.slug,
+        companyName: c.name,
+        companyLogoUrl: c.mainPhotoUrl,
+        companyBadgeTier: c.badgeTier as PublicSocialPost["companyBadgeTier"],
+        companyWorkplaceTypes: c.workplaceTypes as PublicSocialPost["companyWorkplaceTypes"],
+      })),
+      hiringNow,
+    };
+  }
+
+  // Bare counts for the company Social tab. SECURITY (REVIEW.md): a count
+  // only - never select CompanyFollow.userId here.
+  async companySummary(slug: string): Promise<CompanySocialSummary> {
+    const company = await this.prisma.company.findUnique({ where: { slug }, select: { id: true, hiddenAt: true } });
+    assertCompanyVisibleOrThrow(company);
+    const [followerCount, postCount] = await Promise.all([
+      this.prisma.companyFollow.count({ where: { companyId: company.id } }),
+      this.prisma.socialPost.count({ where: { companyId: company.id } }),
+    ]);
+    return { followerCount, postCount };
+  }
+
+  // --- The owner's own post tools (the card's "..." menu). Each one is for
+  // an approved owner of the post's company - any of them, not only the
+  // person who posted it: a post belongs to the company.
+
+  // Caption only; photos are fixed once posted. An empty caption removes it.
+  async updatePost(userId: string, postId: string, input: UpdateSocialPostInput): Promise<PublicSocialPost> {
+    await this.requireOwnedPost(userId, postId);
+    this.assertCaptionAllowed(input.caption);
+    const row = await this.prisma.socialPost.update({
+      where: { id: postId },
+      data: { caption: input.caption || null, editedAt: new Date() },
+      select: POST_ROW_SELECT,
+    });
+    const [post] = await this.serializePosts([row], userId);
+    return post;
+  }
+
+  // A hard delete, same as adminRemovePost: the thread, likes and saves go
+  // with the post (onDelete: Cascade) and its image files are unlinked.
+  async deletePost(userId: string, postId: string): Promise<{ success: true }> {
+    const post = await this.requireOwnedPost(userId, postId);
+    await this.prisma.socialPost.delete({ where: { id: postId } });
+    await Promise.all(post.imageUrls.map((url) => this.unlinkSocialImage(url)));
+    await this.prisma.auditLog.create({
+      data: {
+        actorUserId: userId,
+        action: "SOCIAL_POST_DELETED_BY_OWNER",
+        targetType: "SocialPost",
+        targetId: postId,
+        metadata: { companyId: post.companyId },
+      },
+    });
+    return { success: true };
+  }
+
+  // Pin, or unpin if it is the pinned one. One pinned post per company, so
+  // pinning takes the pin off whichever post had it.
+  async togglePin(userId: string, postId: string): Promise<SocialPostPinResult> {
+    const post = await this.requireOwnedPost(userId, postId);
+    if (post.pinnedAt) {
+      await this.prisma.socialPost.update({ where: { id: postId }, data: { pinnedAt: null } });
+      return { postId, pinned: false };
+    }
+    await this.prisma.$transaction([
+      this.prisma.socialPost.updateMany({ where: { companyId: post.companyId, pinnedAt: { not: null } }, data: { pinnedAt: null } }),
+      this.prisma.socialPost.update({ where: { id: postId }, data: { pinnedAt: new Date() } }),
+    ]);
+    return { postId, pinned: true };
+  }
+
+  private async requireOwnedPost(userId: string, postId: string) {
+    const post = await this.prisma.socialPost.findUnique({
+      where: { id: postId },
+      select: { id: true, companyId: true, imageUrls: true, pinnedAt: true },
+    });
+    if (!post) throw new NotFoundException("Post not found");
+    await this.requireApprovedOwnership(userId, post.companyId);
+    return post;
+  }
+
+  private assertCaptionAllowed(caption: string | undefined): void {
+    if (!caption) return;
+    if (this.moderation.checkContent([caption], CAPTION_SKIPPED_CHECKS).violates) {
+      throw new BadRequestException(CAPTION_REJECTED_MESSAGE);
+    }
+  }
+
+  // Top 5 posts of the last 7 days, split by like count and by comment
+  // count, across every publicly-visible company. A week, not a day: on a
+  // quiet day "today" is simply empty. Computed live on each request - no caching
   // layer, matching this app's current scale. A post with zero of the
   // relevant metric is filtered out even if it filled an empty slot in the
-  // top-5 query (e.g. only 2 posts exist today and neither has been liked
+  // top-5 query (e.g. only 2 posts exist this week and neither has been liked
   // yet) - the frontend renders nothing for an empty section, not an error.
-  async trendingToday(viewerUserId: string | undefined): Promise<TrendingToday> {
-    const startOfToday = new Date();
-    startOfToday.setUTCHours(0, 0, 0, 0);
+  async trending(viewerUserId: string | undefined): Promise<SocialTrending> {
+    const since = new Date();
+    since.setDate(since.getDate() - TRENDING_WINDOW_DAYS);
     const where: Prisma.SocialPostWhereInput = {
-      createdAt: { gte: startOfToday },
+      createdAt: { gte: since },
       company: PUBLIC_COMPANY_WHERE,
     };
-    const include = {
-      company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true, workplaceTypes: true } },
-    } as const;
 
     const [mostLikedRows, mostCommentedRows] = await Promise.all([
       this.prisma.socialPost.findMany({
         where,
         orderBy: [{ likes: { _count: "desc" } }, { id: "desc" }],
         take: TRENDING_POST_LIMIT,
-        include,
+        select: POST_ROW_SELECT,
       }),
       this.prisma.socialPost.findMany({
         where,
         orderBy: [{ comments: { _count: "desc" } }, { id: "desc" }],
         take: TRENDING_POST_LIMIT,
-        include,
+        select: POST_ROW_SELECT,
       }),
     ]);
 
@@ -424,7 +588,7 @@ export class SocialService {
     where: Prisma.SocialPostWhereInput,
     cursor: string | undefined,
     sort: SocialCompanySort = "newest",
-    options: { exactTimes?: boolean } = {},
+    options: { exactTimes?: boolean; pinnedFirst?: boolean } = {},
   ): Promise<SocialFeedPage> {
     // id is always the final tie-breaker: createdAt alone is not unique
     // (same-millisecond posts from a seed script or a burst) and an unstable
@@ -437,12 +601,17 @@ export class SocialService {
           : sort === "mostCommented"
             ? [{ comments: { _count: "desc" } }, { id: "desc" }]
             : [{ createdAt: "desc" }, { id: "desc" }];
+    // A company's pinned post leads its own feed, in the default order only -
+    // an explicit sort (oldest, most liked...) is exactly what was asked for.
+    if (options.pinnedFirst && sort === "newest") {
+      orderBy.unshift({ pinnedAt: { sort: "desc", nulls: "last" } });
+    }
     const rows = await this.prisma.socialPost.findMany({
       where,
       orderBy,
       take: SOCIAL_FEED_PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      include: { company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true, workplaceTypes: true } } },
+      select: POST_ROW_SELECT,
     });
     const hasMore = rows.length > SOCIAL_FEED_PAGE_SIZE;
     const pageRows = hasMore ? rows.slice(0, SOCIAL_FEED_PAGE_SIZE) : rows;
@@ -458,13 +627,15 @@ export class SocialService {
   private async serializePosts(
     rows: Array<{
       id: string; companyId: string; imageUrls: string[]; caption: string | null; createdAt: Date;
+      pinnedAt: Date | null; editedAt: Date | null;
       company: { slug: string; name: string; mainPhotoUrl: string | null; badgeTier: string; workplaceTypes: PublicSocialPost["companyWorkplaceTypes"] };
     }>,
     viewerUserId: string | undefined,
     options: { exactTimes?: boolean } = {},
   ): Promise<PublicSocialPost[]> {
     const ids = rows.map((r) => r.id);
-    const [likeCounts, commentCounts, myLikes, mySaves] = await Promise.all([
+    const companyIds = [...new Set(rows.map((r) => r.companyId))];
+    const [likeCounts, commentCounts, myLikes, mySaves, myCompanies] = await Promise.all([
       this.prisma.socialPostLike.groupBy({ by: ["postId"], where: { postId: { in: ids } }, _count: { _all: true } }),
       this.prisma.socialComment.groupBy({ by: ["postId"], where: { postId: { in: ids } }, _count: { _all: true } }),
       viewerUserId
@@ -479,11 +650,19 @@ export class SocialService {
             select: { postId: true },
           })
         : Promise.resolve([]),
+      // Which of these posts' companies the viewer is an approved owner of.
+      viewerUserId && companyIds.length > 0
+        ? this.prisma.companyOwner.findMany({
+            where: { userId: viewerUserId, companyId: { in: companyIds }, claimStatus: "APPROVED" },
+            select: { companyId: true },
+          })
+        : Promise.resolve([]),
     ]);
     const likeByPost = new Map(likeCounts.map((r) => [r.postId, r._count._all]));
     const commentByPost = new Map(commentCounts.map((r) => [r.postId, r._count._all]));
     const likedByMe = new Set(myLikes.map((r) => r.postId));
     const savedByMe = new Set(mySaves.map((r) => r.postId));
+    const managedCompanies = new Set(myCompanies.map((r) => r.companyId));
 
     return rows.map((r) => ({
       id: r.id,
@@ -501,6 +680,9 @@ export class SocialService {
       commentCount: commentByPost.get(r.id) ?? 0,
       likedByMe: viewerUserId ? likedByMe.has(r.id) : null,
       savedByMe: viewerUserId ? savedByMe.has(r.id) : null,
+      pinned: Boolean(r.pinnedAt),
+      edited: Boolean(r.editedAt),
+      canManage: managedCompanies.has(r.companyId),
     }));
   }
 
@@ -899,16 +1081,7 @@ export class SocialService {
       // be forwarded in the response.
       select: {
         id: true,
-        post: {
-          select: {
-            id: true,
-            companyId: true,
-            imageUrls: true,
-            caption: true,
-            createdAt: true,
-            company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true, workplaceTypes: true } },
-          },
-        },
+        post: { select: POST_ROW_SELECT },
       },
     });
     const hasMore = rows.length > SOCIAL_FEED_PAGE_SIZE;

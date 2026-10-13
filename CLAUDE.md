@@ -140,6 +140,17 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   both sides see a warning note; reviews and IWT Social still block them.
 - IWT Social post/comment times go out to members and companies rounded to the hour (`toUtcHour`); the DB keeps
   the exact moment, which only the admin endpoints return (legal record).
+- IWT Social is being rebuilt in four phases (`docs/superpowers/specs/2026-10-13-iwt-social-redesign-design.md`);
+  phase 1 is in. `/social` is filter sidebar + feed + right-hand rail (`SocialRail`: Trending this week, Companies
+  to follow, Hiring this week, then the page's right ad). Members get Explore / Following / Saved as plain-word tabs
+  (`WordTabs`; `GET social/feed?following=1`); an owner or admin can't follow or save, so they get no tab row and no
+  "Companies to follow". Every post has its own page (`/social/posts/:id`, same register gate), reached from the
+  card's time link and Copy link. An approved owner of the post's company gets the card's "..." menu
+  (`PublicSocialPost.canManage`): edit caption (`PATCH social/posts/:id`, sets `editedAt`), delete, pin (one pinned
+  post per company, leads the company feed in the default order only). The company Social tab shows follower and
+  post counts (`GET social/companies/:slug/summary` - a bare count, never the follower list) and Posts / Photos
+  views; Follow stays the one button in the company page header. None of the new routes is opened to the company
+  login. Still to come: more post types, member Questions with a "Worked there" badge, owner insights.
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
   matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").

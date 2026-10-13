@@ -23,14 +23,14 @@ export function SocialComposerSlot() {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="mb-6 w-full rounded-2xl bg-surface px-5 py-3.5 text-left text-[15px] text-muted-foreground shadow-xs transition hover:shadow-sm"
+        className="w-full rounded-2xl bg-surface px-5 py-3.5 text-left text-[15px] text-muted-foreground shadow-xs transition hover:shadow-sm"
       >
         Tell us what you think !
       </button>
     );
   }
   return (
-    <div className="mb-4">
+    <div>
       <SocialComposer
         companies={companies}
         onPosted={() => {

@@ -14,9 +14,18 @@ import { useAuth } from "@/lib/auth-context";
 let cache: FollowedCompanySummary[] | null = null;
 let inFlight: Promise<FollowedCompanySummary[]> | null = null;
 const listeners = new Set<() => void>();
+// How many follow / unfollow clicks the server has confirmed so far. A
+// follower count shown on the page reads itself again when this moves.
+let confirmedToggles = 0;
 
 function setCache(next: FollowedCompanySummary[]) {
   cache = next;
+  listeners.forEach((l) => l());
+}
+
+function clearCache() {
+  if (cache === null) return;
+  cache = null;
   listeners.forEach((l) => l());
 }
 
@@ -49,9 +58,13 @@ export function useFollowedCompanies() {
   const canFollow = isAuthenticated && role === "MEMBER";
   const [companies, setCompanies] = useState<FollowedCompanySummary[]>(cache ?? []);
   const [loading, setLoading] = useState(() => canFollow && cache === null);
+  const [confirmed, setConfirmed] = useState(confirmedToggles);
 
   useEffect(() => {
-    const listener = () => setCompanies(cache ?? []);
+    const listener = () => {
+      setCompanies(cache ?? []);
+      setConfirmed(confirmedToggles);
+    };
     listeners.add(listener);
     return () => {
       listeners.delete(listener);
@@ -60,7 +73,12 @@ export function useFollowedCompanies() {
 
   useEffect(() => {
     if (!canFollow) {
-      setCache([]);
+      // Not a member - or not known to be one yet: a page can mount this
+      // before the session check has answered. Forget the list rather than
+      // caching an empty one, which would be taken for "follows nobody" and
+      // never loaded once the member is known (and a click on Follow would
+      // then unfollow a company they already follow).
+      clearCache();
       return;
     }
     if (cache) return;
@@ -97,6 +115,8 @@ export function useFollowedCompanies() {
       setCache(next);
       try {
         await apiPost<CompanyFollowToggleResult>(`/me/follows/companies/${companyId}`, {});
+        confirmedToggles += 1;
+        listeners.forEach((l) => l());
       } catch {
         setCache(current);
       }
@@ -104,5 +124,5 @@ export function useFollowedCompanies() {
     [canFollow],
   );
 
-  return { companies, followedIds, loading, canFollow, toggleFollow };
+  return { companies, followedIds, loading, canFollow, toggleFollow, confirmedToggles: confirmed };
 }

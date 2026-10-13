@@ -10,14 +10,6 @@ import { CompanyLogo } from "@/components/CompanyLogo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { SidebarShell } from "@/components/layout/SidebarShell";
 
-function BookmarkIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4-7 4V4.5a1 1 0 0 1 1-1Z" />
-    </svg>
-  );
-}
-
 // The caller's own followed companies - scrollable, fixed-height so it
 // can't push the rest of the sidebar down as the list grows. Same
 // data/toggle source (useFollowedCompanies) the post-card Follow button
@@ -203,8 +195,6 @@ type SocialSidebarProps =
       onWorkplaceTypeChange: (v: WorkplaceType | null) => void;
       categoryGroup: CategoryGroup | null;
       onCategoryGroupChange: (v: CategoryGroup | null) => void;
-      savedView: boolean;
-      onToggleSavedView: () => void;
       isMember: boolean;
     }
   | {
@@ -227,7 +217,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
     );
   }
 
-  const { query, onQueryChange, workplaceType, onWorkplaceTypeChange, categoryGroup, onCategoryGroupChange, savedView, onToggleSavedView, isMember } = props;
+  const { query, onQueryChange, workplaceType, onWorkplaceTypeChange, categoryGroup, onCategoryGroupChange, isMember } = props;
 
   // "Only show me:" is single-select (unlike the rating/jobs pages' up-to-2
   // Work-Type filter), so this wraps WorkTypeTiles' onToggle contract (one
@@ -263,22 +253,6 @@ export function SocialSidebar(props: SocialSidebarProps) {
         </div>
         <WorkTypeTiles selected={workplaceType ? [workplaceType] : []} onToggle={toggleWorkplaceType} />
       </div>
-
-      {isMember && (
-        <button
-          type="button"
-          onClick={onToggleSavedView}
-          aria-pressed={savedView}
-          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-            savedView
-              ? "border-brand-600 bg-brand-600 text-white"
-              : "border-transparent bg-surface-muted text-foreground hover:bg-border/70"
-          }`}
-        >
-          <BookmarkIcon className="h-4 w-4" />
-          Saved Posts
-        </button>
-      )}
 
       <div>
         <h2 className="mb-2 text-[13px] font-semibold text-foreground">Quick Select</h2>
