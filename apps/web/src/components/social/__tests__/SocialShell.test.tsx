@@ -80,3 +80,37 @@ it("a member's Questions tab has the ask box, its own filters, and searches with
   fireEvent.change(screen.getByPlaceholderText("Search questions..."), { target: { value: "overtime" } });
   await waitFor(() => expect(questionCalls()).toContain("/social/questions?q=overtime&filter=unanswered"));
 });
+
+it("keeps the feed in the middle of the page: equal side columns, an ad at each outer edge", async () => {
+  mockAuth = { isAuthenticated: true, role: "MEMBER", openAuthModal: jest.fn() };
+  render(<SocialShell />);
+  await waitFor(() => expect(feedCalls()).toEqual(["/social/feed"]));
+
+  const tablist = screen.getByRole("tablist");
+  const row = tablist.closest(".lg\\:grid") as HTMLElement;
+  // 1fr, the feed, 1fr: whatever sits left and right, the feed column is centred.
+  expect(row).toHaveClass("lg:grid-cols-[1fr_minmax(0,36rem)_1fr]");
+  const [left, middle, right] = Array.from(row.children) as HTMLElement[];
+  expect(middle).toContainElement(tablist);
+  // Both sides get the wider one's width as their minimum at each step, so
+  // they stay equal (and the feed centred) on a smaller window too.
+  for (const side of [left, right]) expect(side).toHaveClass("lg:min-w-72", "min-[86rem]:min-w-[25.5rem]", "min-[100rem]:min-w-[29.5rem]");
+
+  // Left column: the ad first (outer edge), then the sidebar, pushed against the feed.
+  expect(left).toHaveClass("lg:justify-end");
+  expect(left.firstElementChild).toHaveAttribute("data-testid", "ad-slot");
+  // ...from the width where the feed keeps a comfortable size beside it.
+  expect(left.firstElementChild).toHaveClass("hidden", "min-[86rem]:block");
+  expect(left).toContainElement(screen.getByLabelText("Search IWT Social"));
+
+  // Right column: the rail, then the ad in a column of its own at the outer
+  // edge on a wide window. The copy under the rail only shows where that
+  // column does not fit, so the two are never on screen together.
+  const rail = screen.getByRole("complementary", { name: "More on IWT Social" });
+  expect(right.firstElementChild).toBe(rail);
+  const outerAd = right.lastElementChild as HTMLElement;
+  expect(outerAd).toHaveAttribute("data-testid", "ad-slot");
+  expect(outerAd).toHaveClass("hidden", "min-[100rem]:block");
+  const underRail = rail.querySelector('[data-testid="ad-slot"]') as HTMLElement;
+  expect(underRail).toHaveClass("xl:block", "min-[100rem]:hidden");
+});

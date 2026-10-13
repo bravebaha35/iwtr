@@ -237,6 +237,11 @@ function ReportedQuestionsPanel() {
                   Filter match{item.flaggedReviewReason ? `: ${item.flaggedReviewReason}` : ""}
                 </span>
               )}
+              {item.reportedByCompany && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-300">
+                  Reported by the company it was put to
+                </span>
+              )}
             </div>
             <div className="mb-1 flex flex-wrap gap-1">
               {Object.entries(item.reportReasonCounts).map(([reason, count]) => (

@@ -5,6 +5,8 @@ import Link from "next/link";
 import {
   companyContactPhoneSchema,
   type CompanyDetail,
+  type CompanyQuestionCounts,
+  type JobPostingBoostStatus,
   type MyCompanyClaim,
   type PaidOwnerTier,
   type PlusCheckoutResult,
@@ -16,7 +18,8 @@ import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { OwnerNameGate } from "@/components/owner/OwnerNameGate";
 import { AdSlot } from "@/components/AdSlot";
-import { canUseBanner, planNameForOwnerTier } from "@/lib/pricingTiers";
+import { canUseBanner, planNameForOwnerTier, pricingFeature, tierKeyFromOwnerTier } from "@/lib/pricingTiers";
+import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
@@ -36,7 +39,7 @@ import { ChatDock } from "@/components/messaging/ChatDock";
 import { SupportCategory } from "@/components/owner/sections/SupportCategory";
 import { FeaturedReviewCategory } from "@/components/owner/sections/FeaturedReviewCategory";
 import { BenchmarkReportsCategory } from "@/components/owner/sections/BenchmarkReportsCategory";
-import { FeaturedJobAdsCategory } from "@/components/owner/sections/PlanPreviewCategories";
+import { QuestionsCategory } from "@/components/owner/sections/QuestionsCategory";
 import { PremiumLocked } from "@/components/owner/sections/PremiumLocked";
 import { TierInfoDialog } from "@/components/owner/TierInfoDialog";
 
@@ -278,6 +281,26 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
   const [showPricing, setShowPricing] = useState(false);
   const [showTierInfo, setShowTierInfo] = useState(false);
+
+  // The two bold lines in the side list: free featured ads left this month
+  // (also shown in the Job Postings section) and questions waiting for an
+  // answer. Both are read again when the section they belong to changes.
+  const [freeAdsLeft, setFreeAdsLeft] = useState<number | null>(null);
+  const [questionCounts, setQuestionCounts] = useState<CompanyQuestionCounts | null>(null);
+  const questionsOn = SOCIAL_QUESTIONS_ENABLED && !companyAccount;
+  const loadFreeAds = useCallback(() => {
+    apiGet<JobPostingBoostStatus>(`/my-companies/${claim.companyId}/job-postings/boost-status`)
+      .then((s) => setFreeAdsLeft(s.freeBoostsRemaining))
+      .catch(() => setFreeAdsLeft(0));
+  }, [claim.companyId]);
+  useEffect(() => {
+    loadFreeAds();
+    if (questionsOn) {
+      apiGet<CompanyQuestionCounts>(`/social/company-questions/${claim.companyId}/counts`)
+        .then(setQuestionCounts)
+        .catch(() => undefined);
+    }
+  }, [claim.companyId, loadFreeAds, questionsOn]);
 
   const hasActivePaidTier = claim.tier !== "FREE" && claim.planStatus === "ACTIVE";
 
@@ -540,6 +563,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             isCompanyLogin={!!companyAccount}
             active={activeCategory}
             onChange={setActiveCategory}
+            freeAdsLeft={freeAdsLeft}
+            questionsWaiting={questionCounts?.waiting ?? null}
           />
 
           <section className="min-w-0 flex-1">
@@ -627,7 +652,18 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
             {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
 
-            {activeCategory === "job-postings" && <JobPostingsCategory companyId={claim.companyId} />}
+            {activeCategory === "questions" && questionsOn && (
+              <QuestionsCategory companyId={claim.companyId} companyName={claim.companyName} onCounts={setQuestionCounts} />
+            )}
+
+            {activeCategory === "job-postings" && (
+              <JobPostingsCategory
+                companyId={claim.companyId}
+                freeAdsLeft={freeAdsLeft}
+                planIncludes={pricingFeature("job-ads").values[tierKeyFromOwnerTier(claim.tier)]}
+                onChanged={loadFreeAds}
+              />
+            )}
 
             {activeCategory === "company-login" && !companyAccount && (
               <CompanyLoginCategory companyId={claim.companyId} companyName={claim.companyName} />
@@ -663,22 +699,6 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 city={detail?.company.city ?? null}
               />
             )}
-
-            {activeCategory === "featured-job-ads" &&
-              (hasActivePaidTier ? (
-                <FeaturedJobAdsCategory
-                  companyId={claim.companyId}
-                  tier={claim.tier}
-                  onOpenJobPostings={() => setActiveCategory("job-postings")}
-                />
-              ) : (
-                <PremiumLocked
-                  title="Posting Featured Job Ads"
-                  description="Show your job ads above the others on the Jobs page."
-                  onStartUpgrade={setPendingUpgradeTier}
-                  onOpenPricing={() => setShowPricing(true)}
-                />
-              ))}
 
             {/* Rendered here (sibling to every activeCategory block, not nested
                 inside general-info's) because GeneralInfoCategory and the locked

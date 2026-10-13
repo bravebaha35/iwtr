@@ -297,7 +297,7 @@ describe("CompaniesService — default banner keyed on the primary work-type", (
     const result = await service.getBySlug("co");
 
     // primary is MANUAL_LABOUR — the secondary (OFFICE) never affects the banner
-    expect(result.company.defaultBannerUrl).toBe("/manual-labour-default-banner.webp");
+    expect(result.company.defaultBannerUrl).toBe("/Labour%20Banner.webp");
   });
 
   it("search attaches a defaultBannerUrl to every row", async () => {
@@ -313,8 +313,8 @@ describe("CompaniesService — default banner keyed on the primary work-type", (
 
     const results = await service.search(baseQuery());
 
-    expect(results[0].defaultBannerUrl).toBe("/office-default-banner.webp");
-    expect(results[1].defaultBannerUrl).toBe("/service-default-banner.webp");
+    expect(results[0].defaultBannerUrl).toBe("/Office%20Banner.webp");
+    expect(results[1].defaultBannerUrl).toBe("/Service%20Banner.webp");
   });
 });
 

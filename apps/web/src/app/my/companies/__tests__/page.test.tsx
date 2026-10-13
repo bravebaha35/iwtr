@@ -84,6 +84,8 @@ function mockApiGet() {
     if (path === `/owner/companies/${claim.companyId}/conversations`) return Promise.resolve([]);
     if (path === "/me/employer-profile") return Promise.resolve({ firstName: "Ahmet", lastName: "Yılmaz" });
     if (path.endsWith("/job-postings")) return Promise.resolve([]);
+    if (path.endsWith("/job-postings/boost-status")) return Promise.resolve({ tierKey: "free", freeBoostsRemaining: 2, pricing: [] });
+    if (path === `/social/company-questions/${claim.companyId}/counts`) return Promise.resolve({ waiting: 3, hidden: 1, shown: 4 });
     return Promise.reject(new Error(`Unhandled apiGet path in test: ${path}`));
   });
 }
@@ -109,7 +111,7 @@ function generalInfoBox(): HTMLElement {
   return screen.getByRole("heading", { name: "General Information", level: 3 }).parentElement as HTMLElement;
 }
 
-test("side panel is one list: the standard sections, then the paid features at the end", async () => {
+test("side panel is one list: the standard sections, then the paid features at the end - with the ads left and questions waiting in bold", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
 
@@ -119,14 +121,17 @@ test("side panel is one list: the standard sections, then the paid features at t
     "General Information",
     "Contact & Social Media",
     "Reviews & Ratings",
+    "Questions3 waiting for you",
     "Applications",
-    "Job Postings",
+    "Job Postings2 free ads left this month",
     "Customer Support & Service Level (SLA)",
     "Company Login",
     "Featured Review Spotlight",
     "Benchmark Reports",
-    "Posting Featured Job Ads",
   ]);
+  // No separate "Posting Featured Job Ads" section any more: the count sits under Job Postings, in bold.
+  expect(within(nav).queryByRole("button", { name: /Posting Featured Job Ads/ })).not.toBeInTheDocument();
+  expect(within(nav).getByText("2 free ads left this month")).toHaveClass("font-bold");
   expect(screen.queryByRole("heading", { name: "Premium Features" })).not.toBeInTheDocument();
 
   expect(screen.getByRole("heading", { name: "General Information", level: 3 })).toBeInTheDocument();
@@ -335,7 +340,7 @@ test("a single company gets no tab bar", async () => {
 test("Job Postings opens inside the dashboard with plain wording", async () => {
   const user = userEvent.setup();
   await renderLoadedPage();
-  await user.click(screen.getByRole("button", { name: "Job Postings" }));
+  await user.click(screen.getByRole("button", { name: /^Job Postings/ }));
   expect(screen.getByRole("heading", { name: "Job Postings", level: 3 })).toBeInTheDocument();
   expect(screen.getByText(/All the job ads you.ve posted for this company/)).toBeInTheDocument();
   expect(await screen.findByText("You haven't posted any jobs yet.")).toBeInTheDocument();

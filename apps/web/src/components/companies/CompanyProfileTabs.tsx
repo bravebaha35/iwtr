@@ -8,7 +8,6 @@ import { SocialComposerSlot } from "@/components/social/SocialComposerSlot";
 import { CompanySocialHeader, type CompanySocialView } from "@/components/social/CompanySocialHeader";
 import { QuestionsFeed } from "@/components/social/QuestionsFeed";
 import { CompanyPhotoGrid } from "@/components/social/CompanyPhotoGrid";
-import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 
 // The consolidated company-profile hub. Sits directly under the page's
@@ -214,12 +213,13 @@ export function CompanyProfileTabs({
           hidden={active !== "social"}
         >
           {visited.has("social") && (
-            // Same shell shape as the root /social page's SocialShell (sidebar
-            // + a single centered max-w-xl column) - not a copy of that
-            // page's 3-column ad-rail, since a tab panel has no ad slots of
-            // its own, but the sidebar width and feed column width match
-            // exactly so posts render at the same size on both pages.
-            <SidebarContentRow>
+            // Same shape as the root /social page's SocialShell: 1fr, the
+            // feed, 1fr from `lg` up, so the posts and questions sit in the
+            // middle of the page here too. The sidebar is the left column's
+            // only content; the right column is an empty one of the same
+            // width (a tab panel has no rail or ad slots of its own). Sidebar
+            // and feed widths match /social, so posts render the same size.
+            <div className="flex flex-col gap-6 sm:flex-row lg:grid lg:grid-cols-[1fr_minmax(0,36rem)_1fr] lg:items-start">
               <SocialSidebar
                 mode="company"
                 sort={sort}
@@ -249,7 +249,8 @@ export function CompanyProfileTabs({
                   )}
                 </div>
               </div>
-            </SidebarContentRow>
+              <div aria-hidden="true" className="hidden lg:block lg:min-w-56" />
+            </div>
           )}
         </div>
 

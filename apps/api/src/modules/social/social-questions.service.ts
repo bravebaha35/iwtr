@@ -8,6 +8,10 @@ import {
   workplaceTypeSchema,
   type AdminReportedSocialQuestionItem,
   type CommentIdentityMode,
+  type CompanyQuestionCounts,
+  type CompanyQuestionFilter,
+  type CompanyQuestionPage,
+  type CompanyQuestionVisibilityChoice,
   type CreateSocialAnswerInput,
   type CreateSocialQuestionInput,
   type PublicSocialAnswer,
@@ -19,6 +23,7 @@ import {
   type SocialQuestionIdentity,
   type SocialQuestionPage,
   type SocialQuestionTarget,
+  type SocialQuestionVisibility,
   type WorkplaceType,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -49,6 +54,7 @@ const QUESTION_ROW_SELECT = {
   authorUserId: true,
   identityMode: true,
   randomUsername: true,
+  visibility: true,
   company: { select: { slug: true, name: true, mainPhotoUrl: true, badgeTier: true } },
   _count: { select: { answers: true } },
 } as const;
@@ -71,6 +77,21 @@ type AnswerRow = Prisma.SocialAnswerGetPayload<{ select: typeof ANSWER_ROW_SELEC
 const ANSWER_ORDER: Prisma.SocialAnswerOrderByWithRelationInput[] = [{ votes: { _count: "desc" } }, { createdAt: "asc" }, { id: "asc" }];
 
 type Viewer = { id: string; role: string; ownedCompanyIds: Set<string> };
+
+// The dashboard's filter words, as the stored state.
+const COMPANY_FILTER_VISIBILITY = { waiting: "PENDING", hidden: "HIDDEN", shown: "PUBLIC" } as const;
+
+// What this viewer may be sent: every question that is shown to everyone,
+// their own whatever its state, and - for an approved owner - everything put
+// to their own companies. Nobody else ever receives a waiting or hidden one.
+function viewableBy(viewer: Viewer | null): Prisma.SocialQuestionWhereInput {
+  const or: Prisma.SocialQuestionWhereInput[] = [{ visibility: "PUBLIC" }];
+  if (viewer) {
+    or.push({ authorUserId: viewer.id });
+    if (viewer.ownedCompanyIds.size > 0) or.push({ companyId: { in: [...viewer.ownedCompanyIds] } });
+  }
+  return { AND: [VISIBLE_QUESTION_WHERE, { OR: or }] };
+}
 
 export type ListQuestionsOptions = {
   cursor?: string;
@@ -99,6 +120,15 @@ function escapeRegExp(text: string): string {
  * reports plus a content match queues the item for an admin); nothing is
  * removed without a person looking. A company cannot delete a question put
  * to it - only its author or an admin can.
+ *
+ * A question put to a claimed company starts out seen by its asker and that
+ * company's owner only (SocialQuestion.visibility PENDING). The owner answers
+ * it - from the dashboard's Questions section - and picks whether it is then
+ * shown to everyone or stays hidden; that choice can be changed later, but
+ * showing a question always needs the company's own answer on it. The owner's
+ * one way to respond is that answer: there is no message to the asker, and
+ * the asker is as anonymous to the company as to anyone else. A question that
+ * breaks the rules is reported, which puts it in front of an admin.
  */
 @Injectable()
 export class SocialQuestionsService {
@@ -118,6 +148,9 @@ export class SocialQuestionsService {
     }
 
     let companyName: string | null = null;
+    // A claimed company sees the question first; with nobody to do that, and
+    // for a question put to a kind of work, it is shown to everyone at once.
+    let visibility: SocialQuestionVisibility = "PUBLIC";
     if (input.companyId) {
       const company = await this.prisma.company.findUnique({
         where: { id: input.companyId },
@@ -125,6 +158,8 @@ export class SocialQuestionsService {
       });
       assertCompanyVisibleOrThrow(company);
       companyName = company.name;
+      const owners = await this.prisma.companyOwner.count({ where: { companyId: company.id, claimStatus: "APPROVED" } });
+      if (owners > 0) visibility = "PENDING";
     }
     this.assertTextAllowed(input.body, companyName);
 
@@ -137,6 +172,7 @@ export class SocialQuestionsService {
         body: input.body,
         identityMode: mode,
         randomUsername: mode === "PERSONAL_RANDOM" ? this.randomName(input.workType) : null,
+        visibility,
       },
       select: QUESTION_ROW_SELECT,
     });
@@ -151,7 +187,8 @@ export class SocialQuestionsService {
     // "My questions" is the caller's own list: nothing for a logged-out caller.
     if (filter === "mine" && !viewerUserId) return { questions: [], nextCursor: null };
 
-    const and: Prisma.SocialQuestionWhereInput[] = [VISIBLE_QUESTION_WHERE];
+    const viewer = await this.loadViewer(viewerUserId);
+    const and: Prisma.SocialQuestionWhereInput[] = [viewableBy(viewer)];
     if (opts.companySlug) and.push({ company: { slug: opts.companySlug } });
     const q = opts.q?.trim();
     if (q) {
@@ -183,19 +220,92 @@ export class SocialQuestionsService {
     });
     const hasMore = rows.length > SOCIAL_QUESTION_PAGE_SIZE;
     const pageRows = hasMore ? rows.slice(0, SOCIAL_QUESTION_PAGE_SIZE) : rows;
-    const questions = await this.serializeQuestions(pageRows, await this.loadViewer(viewerUserId), { allAnswers: false });
+    const questions = await this.serializeQuestions(pageRows, viewer, { allAnswers: false });
     return { questions, nextCursor: hasMore ? pageRows[pageRows.length - 1].id : null };
   }
 
-  // One question with every answer, for its own page.
+  // One question with every answer, for its own page. A waiting or hidden
+  // one answers "not found" to everybody but its asker and the company.
   async get(viewerUserId: string | undefined, questionId: string): Promise<PublicSocialQuestion> {
+    const viewer = await this.loadViewer(viewerUserId);
     const row = await this.prisma.socialQuestion.findFirst({
-      where: { AND: [{ id: questionId }, VISIBLE_QUESTION_WHERE] },
+      where: { AND: [{ id: questionId }, viewableBy(viewer)] },
       select: QUESTION_ROW_SELECT,
     });
     if (!row) throw new NotFoundException("Question not found");
-    const [question] = await this.serializeQuestions([row], await this.loadViewer(viewerUserId), { allAnswers: true });
+    const [question] = await this.serializeQuestions([row], viewer, { allAnswers: true });
     return question;
+  }
+
+  // The owner dashboard's Questions section: everything put to one of the
+  // caller's own companies, whatever its state, newest first, with how many
+  // are in each state. Anyone but that company's approved owner gets 403.
+  async listForCompany(
+    userId: string,
+    companyId: string,
+    opts: { filter?: CompanyQuestionFilter; cursor?: string },
+  ): Promise<CompanyQuestionPage> {
+    const viewer = await this.loadViewer(userId);
+    if (!viewer || !viewer.ownedCompanyIds.has(companyId)) {
+      throw new ForbiddenException("Only this company's approved owner can see its questions.");
+    }
+    const filter = opts.filter ?? "all";
+    const where: Prisma.SocialQuestionWhereInput = {
+      companyId,
+      ...(filter === "all" ? {} : { visibility: COMPANY_FILTER_VISIBILITY[filter] }),
+    };
+    const [rows, counts] = await Promise.all([
+      this.prisma.socialQuestion.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: SOCIAL_QUESTION_PAGE_SIZE + 1,
+        ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+        select: QUESTION_ROW_SELECT,
+      }),
+      this.companyCounts(companyId),
+    ]);
+    const hasMore = rows.length > SOCIAL_QUESTION_PAGE_SIZE;
+    const pageRows = hasMore ? rows.slice(0, SOCIAL_QUESTION_PAGE_SIZE) : rows;
+    const questions = await this.serializeQuestions(pageRows, viewer, { allAnswers: false });
+    return { questions, nextCursor: hasMore ? pageRows[pageRows.length - 1].id : null, counts };
+  }
+
+  // Just the three numbers, for the dashboard's side list ("2 waiting").
+  async countsForCompany(userId: string, companyId: string): Promise<CompanyQuestionCounts> {
+    const viewer = await this.loadViewer(userId);
+    if (!viewer || !viewer.ownedCompanyIds.has(companyId)) {
+      throw new ForbiddenException("Only this company's approved owner can see its questions.");
+    }
+    return this.companyCounts(companyId);
+  }
+
+  private async companyCounts(companyId: string): Promise<CompanyQuestionCounts> {
+    const grouped = await this.prisma.socialQuestion.groupBy({ by: ["visibility"], where: { companyId }, _count: { _all: true } });
+    const counts: CompanyQuestionCounts = { waiting: 0, hidden: 0, shown: 0 };
+    for (const g of grouped) {
+      if (g.visibility === "PENDING") counts.waiting = g._count._all;
+      else if (g.visibility === "HIDDEN") counts.hidden = g._count._all;
+      else counts.shown = g._count._all;
+    }
+    return counts;
+  }
+
+  // The asked company's approved owner hides a question or shows it to
+  // everyone. Showing needs the company's own answer on it first.
+  async setVisibility(userId: string, questionId: string, visibility: CompanyQuestionVisibilityChoice): Promise<PublicSocialQuestion> {
+    const viewer = await this.loadViewer(userId);
+    const question = await this.prisma.socialQuestion.findUnique({ where: { id: questionId }, select: { companyId: true } });
+    if (!question) throw new NotFoundException("Question not found");
+    if (!viewer || !question.companyId || !viewer.ownedCompanyIds.has(question.companyId)) {
+      throw new ForbiddenException("Only the company that was asked can hide or show this question.");
+    }
+    if (visibility === "PUBLIC") {
+      const answered = await this.prisma.socialAnswer.count({ where: { questionId, identityMode: "OWNER_REAL_NAME" } });
+      if (answered === 0) throw new BadRequestException("Answer the question first - then you can show it to everyone.");
+    }
+    const row = await this.prisma.socialQuestion.update({ where: { id: questionId }, data: { visibility }, select: QUESTION_ROW_SELECT });
+    const [serialized] = await this.serializeQuestions([row], viewer, { allAnswers: false });
+    return serialized;
   }
 
   // The name a member would ask or answer under, for the composer.
@@ -211,16 +321,21 @@ export class SocialQuestionsService {
   // owner of the asked company answers under their real name. Nobody else
   // can answer: another company's owner has no standing in the thread, and a
   // kind-of-work question has no company to speak for.
+  //
+  // The owner's answer also settles who sees the question: `visibility` from
+  // the answer form, or - left out - a question still waiting becomes hidden
+  // and any other keeps its state. A member's `visibility` is ignored.
   async answer(userId: string, questionId: string, input: CreateSocialAnswerInput): Promise<PublicSocialAnswer> {
-    const question = await this.prisma.socialQuestion.findFirst({
-      where: { AND: [{ id: questionId }, VISIBLE_QUESTION_WHERE] },
-      select: { id: true, companyId: true, workType: true, authorUserId: true, company: { select: { name: true } } },
-    });
-    if (!question) throw new NotFoundException("Question not found");
     const viewer = await this.loadViewer(userId);
     if (!viewer) throw new ForbiddenException();
+    const question = await this.prisma.socialQuestion.findFirst({
+      where: { AND: [{ id: questionId }, viewableBy(viewer)] },
+      select: { id: true, companyId: true, workType: true, authorUserId: true, visibility: true, company: { select: { name: true } } },
+    });
+    if (!question) throw new NotFoundException("Question not found");
 
     let identityMode: CommentIdentityMode;
+    let nextVisibility: SocialQuestionVisibility | null = null;
     let randomUsername: string | null = null;
     let workedThere = false;
     if (viewer.role === "MEMBER") {
@@ -235,6 +350,7 @@ export class SocialQuestionsService {
     } else if (viewer.role === "COMPANY_OWNER" && question.companyId && viewer.ownedCompanyIds.has(question.companyId)) {
       await this.requireOwnerName(userId);
       identityMode = "OWNER_REAL_NAME";
+      nextVisibility = input.visibility ?? (question.visibility === "PENDING" ? "HIDDEN" : question.visibility);
     } else {
       throw new ForbiddenException("Only members and the company that was asked can answer this question.");
     }
@@ -243,10 +359,19 @@ export class SocialQuestionsService {
 
     let row: AnswerRow;
     try {
-      row = await this.prisma.socialAnswer.create({
+      const create = this.prisma.socialAnswer.create({
         data: { questionId, authorUserId: userId, body: input.body, identityMode, randomUsername, workedThere },
         select: ANSWER_ROW_SELECT,
       });
+      if (nextVisibility !== null && nextVisibility !== question.visibility) {
+        // The answer and who-sees-it land together or not at all.
+        [row] = await this.prisma.$transaction([
+          create,
+          this.prisma.socialQuestion.update({ where: { id: questionId }, data: { visibility: nextVisibility }, select: { id: true } }),
+        ]);
+      } else {
+        row = await create;
+      }
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         throw new BadRequestException("You already answered this question.");
@@ -277,7 +402,11 @@ export class SocialQuestionsService {
 
   // "Helpful" on an answer: one per member, a second click takes it off.
   async toggleHelpful(userId: string, answerId: string): Promise<SocialAnswerHelpfulResult> {
-    const answer = await this.prisma.socialAnswer.findUnique({ where: { id: answerId }, select: { authorUserId: true } });
+    const viewer = await this.loadViewer(userId);
+    const answer = await this.prisma.socialAnswer.findFirst({
+      where: { id: answerId, question: viewableBy(viewer) },
+      select: { authorUserId: true },
+    });
     if (!answer) throw new NotFoundException("Answer not found");
     if (answer.authorUserId === userId) throw new ForbiddenException("You can't mark your own answer as helpful.");
 
@@ -302,20 +431,24 @@ export class SocialQuestionsService {
     return { answerId, helpfulCount, helpfulByMe };
   }
 
-  // Anyone signed in except the item's own author; a repeat report from the
-  // same person adds nothing. Crossing three reports runs the content rules
-  // again and, on a match, marks the item for the admin queue. It is never
-  // removed automatically.
+  // Anyone signed in who can see the item, except its own author; a repeat
+  // report from the same person adds nothing. Every reported item is listed
+  // for the admins (adminListReported) - this is how the asked company flags
+  // a question it shouldn't have been sent. Crossing three reports also runs
+  // the content rules again and, on a match, marks the item as pre-flagged.
+  // It is never removed automatically.
   async report(
     userId: string,
     kind: "QUESTION" | "ANSWER",
     id: string,
     reason: SocialCommentReportReason,
   ): Promise<ReportSocialCommentResult> {
+    const viewable = viewableBy(await this.loadViewer(userId));
+    const select = { authorUserId: true, body: true, flaggedForReview: true } as const;
     const item =
       kind === "QUESTION"
-        ? await this.prisma.socialQuestion.findUnique({ where: { id }, select: { authorUserId: true, body: true, flaggedForReview: true } })
-        : await this.prisma.socialAnswer.findUnique({ where: { id }, select: { authorUserId: true, body: true, flaggedForReview: true } });
+        ? await this.prisma.socialQuestion.findFirst({ where: { AND: [{ id }, viewable] }, select })
+        : await this.prisma.socialAnswer.findFirst({ where: { id, question: viewable }, select });
     if (!item) throw new NotFoundException(kind === "QUESTION" ? "Question not found" : "Answer not found");
     if (item.authorUserId === userId) throw new ForbiddenException("You can't report your own text.");
 
@@ -346,7 +479,15 @@ export class SocialQuestionsService {
     const [questions, answers] = await Promise.all([
       this.prisma.socialQuestion.findMany({
         where: { reports: { some: {} } },
-        select: { id: true, body: true, createdAt: true, flaggedForReview: true, flaggedReviewReason: true, _count: { select: { reports: true } } },
+        select: {
+          id: true,
+          body: true,
+          createdAt: true,
+          companyId: true,
+          flaggedForReview: true,
+          flaggedReviewReason: true,
+          _count: { select: { reports: true } },
+        },
         take: 2000,
       }),
       this.prisma.socialAnswer.findMany({
@@ -358,7 +499,7 @@ export class SocialQuestionsService {
           createdAt: true,
           flaggedForReview: true,
           flaggedReviewReason: true,
-          question: { select: { body: true } },
+          question: { select: { body: true, companyId: true } },
           _count: { select: { reports: true } },
         },
         take: 2000,
@@ -368,16 +509,34 @@ export class SocialQuestionsService {
       questions.length + answers.length > 0
         ? await this.prisma.socialQuestionReport.findMany({
             where: { OR: [{ questionId: { in: questions.map((q) => q.id) } }, { answerId: { in: answers.map((a) => a.id) } }] },
-            select: { questionId: true, answerId: true, reason: true },
+            select: { questionId: true, answerId: true, reason: true, reporterId: true },
           })
         : [];
+    // Which reports came from the asked company itself: its approved owners,
+    // looked up once. Only the yes/no leaves this method, never who.
+    const companyIdByItem = new Map<string, string | null>([
+      ...questions.map((q) => [q.id, q.companyId] as const),
+      ...answers.map((a) => [a.id, a.question.companyId] as const),
+    ]);
+    const askedCompanyIds = [...new Set([...companyIdByItem.values()].filter((id): id is string => id !== null))];
+    const owners =
+      askedCompanyIds.length > 0
+        ? await this.prisma.companyOwner.findMany({
+            where: { companyId: { in: askedCompanyIds }, claimStatus: "APPROVED" },
+            select: { companyId: true, userId: true },
+          })
+        : [];
+    const ownerPairs = new Set(owners.map((o) => `${o.companyId} ${o.userId}`));
     const reasonsByItem = new Map<string, Record<string, number>>();
+    const reportedByCompany = new Set<string>();
     for (const r of reports) {
       const key = r.questionId ?? r.answerId;
       if (!key) continue;
       const bucket = reasonsByItem.get(key) ?? {};
       bucket[r.reason] = (bucket[r.reason] ?? 0) + 1;
       reasonsByItem.set(key, bucket);
+      const companyId = companyIdByItem.get(key);
+      if (companyId && r.reporterId && ownerPairs.has(`${companyId} ${r.reporterId}`)) reportedByCompany.add(key);
     }
 
     const items: AdminReportedSocialQuestionItem[] = [
@@ -392,6 +551,7 @@ export class SocialQuestionsService {
         reportReasonCounts: reasonsByItem.get(q.id) ?? {},
         flaggedForReview: q.flaggedForReview,
         flaggedReviewReason: q.flaggedReviewReason,
+        reportedByCompany: reportedByCompany.has(q.id),
       })),
       ...answers.map((a) => ({
         kind: "ANSWER" as const,
@@ -404,6 +564,7 @@ export class SocialQuestionsService {
         reportReasonCounts: reasonsByItem.get(a.id) ?? {},
         flaggedForReview: a.flaggedForReview,
         flaggedReviewReason: a.flaggedReviewReason,
+        reportedByCompany: reportedByCompany.has(a.id),
       })),
     ];
     // The pre-flagged ones first, then newest.
@@ -537,6 +698,7 @@ export class SocialQuestionsService {
       const canAnswer = viewer !== null && !answeredByMe.has(r.id) && (viewer.role === "MEMBER" ? !mine : ownsAskedCompany);
       // The company's own answer leads, then the order the rows came in.
       const sorted = [...(answersByQuestion.get(r.id) ?? [])].sort((a, b) => Number(b.fromCompany) - Number(a.fromCompany));
+      const visibility = r.visibility as SocialQuestionVisibility;
 
       return {
         id: r.id,
@@ -552,6 +714,10 @@ export class SocialQuestionsService {
         answers: options.allAnswers ? sorted : sorted.slice(0, SOCIAL_QUESTION_PREVIEW_ANSWERS),
         canAnswer,
         answersAsCompany: canAnswer && ownsAskedCompany,
+        visibility,
+        canSetVisibility: ownsAskedCompany,
+        // Both answer reads carry every company answer, so this is exact.
+        companyAnswered: sorted.some((a) => a.fromCompany),
       };
     });
   }

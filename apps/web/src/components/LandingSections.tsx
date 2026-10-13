@@ -1,15 +1,15 @@
 import Image from "next/image";
-import { scoreBands, type WorkplaceType } from "@iwtr/shared-types";
+import { DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE, scoreBands, type WorkplaceType } from "@iwtr/shared-types";
 import { RATING_TICKS } from "@/lib/beaverRating";
 import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
 // The four work types with the same default banner art company pages use.
 const WORK_TYPES: { type: WorkplaceType; banner: string; line: string }[] = [
-  { type: "MANUAL_LABOUR", banner: "/manual-labour-default-banner.webp", line: "Sites, factories, warehouses and workshops." },
-  { type: "SERVICE", banner: "/service-default-banner.webp", line: "Shops, restaurants, hospitals and call centres." },
-  { type: "OFFICE", banner: "/office-default-banner.webp", line: "Desks, meetings and management." },
-  { type: "HYBRID_REMOTE", banner: "/hybrid-remote-default-banner.webp", line: "Home, office, or a bit of both." },
+  { type: "MANUAL_LABOUR", banner: DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE.MANUAL_LABOUR, line: "Sites, factories, warehouses and workshops." },
+  { type: "SERVICE", banner: DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE.SERVICE, line: "Shops, restaurants, hospitals and call centres." },
+  { type: "OFFICE", banner: DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE.OFFICE, line: "Desks, meetings and management." },
+  { type: "HYBRID_REMOTE", banner: DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE.HYBRID_REMOTE, line: "Home, office, or a bit of both." },
 ];
 
 const TRUST_POINTS: { title: string; body: string }[] = [

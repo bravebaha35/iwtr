@@ -316,7 +316,9 @@ export class NotificationsService {
   /**
    * IWT Social Questions, last 30 days: answers to the caller's own
    * questions and - for an approved owner - questions put to their companies.
-   * Both open the question's own page. Hour precision, like the question.
+   * The asker's opens the question's own page; the owner's opens the
+   * dashboard's Questions section, where it is answered and then hidden or
+   * shown to everyone. Hour precision, like the question.
    */
   private async questionEvents(userId: string, ownedCompanyIds: string[]): Promise<NotificationEvent[]> {
     const since = new Date(Date.now() - RECENT_WINDOW_MS);
@@ -330,7 +332,7 @@ export class NotificationsService {
       ownedCompanyIds.length > 0
         ? this.prisma.socialQuestion.findMany({
             where: { companyId: { in: ownedCompanyIds }, createdAt: { gte: since } },
-            select: { id: true, createdAt: true, company: { select: { name: true, slug: true } } },
+            select: { id: true, companyId: true, createdAt: true, company: { select: { name: true, slug: true } } },
             orderBy: { createdAt: "desc" },
             take: MAX_NOTIFICATIONS,
           })
@@ -352,7 +354,7 @@ export class NotificationsService {
         companyName: q.company?.name ?? "",
         companySlug: q.company?.slug ?? null,
         createdAt: toUtcHour(q.createdAt).toISOString(),
-        href: `/social/questions/${q.id}`,
+        href: `/my/companies?company=${q.companyId}&category=questions`,
       })),
     ];
   }

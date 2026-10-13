@@ -224,3 +224,47 @@ Questions view a short "How questions work" panel in place of Sort. Width and ga
 - `GET social/rail` carries `openQuestions`.
 - None of the new routes is opened to the shared company login. Company merge moves a
   duplicate's questions to the master.
+
+## Phase 3, second pass (2026-10-14): the company sees a question first
+
+Asked for by the owner after trying phase 3.
+
+**Who sees a question.** `SocialQuestion.visibility` is PENDING, HIDDEN or PUBLIC.
+
+- A question put to a company with an approved owner starts PENDING: its asker and that company's owner see it, nobody
+  else is ever sent it (list, question page, rail, answering, Helpful and reporting all read through the same
+  "what this viewer may be sent" rule).
+- The owner is notified, and the notification opens the dashboard's new **Questions** section
+  (`/my/companies?company=...&category=questions`). There the owner answers and sends the answer with one of two
+  buttons: "Answer and show to everyone" (PUBLIC) or "Answer and keep hidden" (HIDDEN). The choice can be changed
+  later from the same card ("Show to everyone" / "Hide").
+- Showing a question always needs the company's own answer on it. Hiding never does.
+- A question put to a kind of work, or to a company nobody has claimed, is PUBLIC from the start - there is nobody
+  to see it first.
+- The asker sees a line on their own question saying where it stands ("Sent to X. Only you and the company can see
+  it until the company answers." / "X keeps this question hidden.").
+
+**What the owner cannot do.** There is no message to the asker, by design: the company's one way to respond is its
+answer, and the asker stays as anonymous to the company as to everyone else. A company still cannot delete a
+question. A question that breaks the rules is sent to the admins with "Report to admin" on the card; the admin queue
+marks a report that came from the asked company.
+
+**My own decisions, not the owner's words:** an unclaimed company's questions are public at once; publishing needs
+the company's answer; the shared company login does not get the Questions section (an answer is the owner speaking
+under their own name); a hidden question keeps any member answers it already had, out of sight, and shows them again
+if it is shown again.
+
+**API.** `PATCH social/questions/:id/visibility`, `GET social/company-questions/:companyId` (+ `/counts`), an
+optional `visibility` on the answer input (owner only; ignored from a member). None opened to the company login.
+
+**Also in this pass.**
+
+- IWT Social's row is three columns - 1fr, the feed, 1fr - so posts and questions sit in the exact middle of the
+  page at every width from `lg` up; the right-hand ad has a column of its own beside the rail from 100rem, and the
+  left ad waits for 86rem so the feed is not squeezed. Same centring on the company Social tab.
+- Work-Type tiles show an object per kind of work (the owner's art: pencil, headset, two hands, hammer) instead of
+  the beaver; the four default banners are the owner's new ones. The files keep the names the owner gave them.
+- The gold featured job card no longer carries a "Featured" tag.
+- Dashboard: "Posting Featured Job Ads" is gone as a section; "N free ads left this month" sits in bold under Job
+  Postings in the side list and at the top of that section.
+- `scripts/seed-social-demo.ts` writes demo polls, questions and answers in every state (dev only, re-runnable).

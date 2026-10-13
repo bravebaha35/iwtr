@@ -52,7 +52,7 @@ beforeEach(() => {
 const titles = () => screen.getAllByText(/role|Operatörü|Sorumlusu/).map((el) => el.textContent);
 
 it("lists active postings first (green dot), then inactive ones (red dot)", async () => {
-  render(<JobPostingsCategory companyId="c1" />);
+  render(<JobPostingsCategory companyId="c1" freeAdsLeft={2} planIncludes="5 free ads a month" />);
   await screen.findByText("Forklift Operatörü");
   expect(titles()).toEqual(["Forklift Operatörü", "Depo Sorumlusu", "Filled role", "Expired role"]);
   expect(screen.getAllByRole("img", { name: "Active" })).toHaveLength(2);
@@ -60,7 +60,7 @@ it("lists active postings first (green dot), then inactive ones (red dot)", asyn
 });
 
 it("puts Edit just before Remove, on active postings only", async () => {
-  render(<JobPostingsCategory companyId="c1" />);
+  render(<JobPostingsCategory companyId="c1" freeAdsLeft={2} planIncludes="5 free ads a month" />);
   const edits = await screen.findAllByRole("button", { name: "Edit" });
   expect(edits).toHaveLength(2);
   const remove = screen.getAllByRole("button", { name: "Remove" })[0];
@@ -70,7 +70,7 @@ it("puts Edit just before Remove, on active postings only", async () => {
 it("Edit keeps the job title fixed and saves a new description and a free boost", async () => {
   patch.mockResolvedValue({ status: "PUBLISHED", jobPosting: { ...list[1], boostExpiresAt: new Date(Date.now() + 7 * 864e5).toISOString() } });
   const user = userEvent.setup();
-  render(<JobPostingsCategory companyId="c1" />);
+  render(<JobPostingsCategory companyId="c1" freeAdsLeft={2} planIncludes="5 free ads a month" />);
   await user.click((await screen.findAllByRole("button", { name: "Edit" }))[0]);
   const dialog = screen.getByRole("dialog", { name: "Edit Forklift Operatörü" });
   expect(within(dialog).queryByRole("textbox", { name: /looking for/i })).not.toBeInTheDocument();
@@ -97,7 +97,7 @@ it("Edit changes the positions: shows the saved ones ticked and sends only the n
   );
   patch.mockResolvedValue({ status: "PUBLISHED", jobPosting: posting({ id: "2", positions: ["SPECIALIST"] }) });
   const user = userEvent.setup();
-  render(<JobPostingsCategory companyId="c1" />);
+  render(<JobPostingsCategory companyId="c1" freeAdsLeft={2} planIncludes="5 free ads a month" />);
   await user.click(await screen.findByRole("button", { name: "Edit" }));
   const dialog = screen.getByRole("dialog", { name: "Edit Forklift Operatörü" });
   const save = within(dialog).getByRole("button", { name: "Save changes" });
@@ -112,4 +112,14 @@ it("Edit changes the positions: shows the saved ones ticked and sends only the n
   await user.click(save);
   expect(patch).toHaveBeenCalledWith("/my-companies/c1/job-postings/2", { positions: ["SPECIALIST"] });
   expect(await within(dialog).findByText("Changes saved")).toBeInTheDocument();
+});
+
+it("says in bold how many free featured ads are left, and holds the line's space while that is not known", async () => {
+  const { rerender } = render(<JobPostingsCategory companyId="c1" freeAdsLeft={null} planIncludes="5 free ads a month" />);
+  await screen.findByText("Forklift Operatörü");
+  expect(screen.queryByText(/free ads? left this month/)).not.toBeInTheDocument();
+
+  rerender(<JobPostingsCategory companyId="c1" freeAdsLeft={1} planIncludes="5 free ads a month" />);
+  expect(screen.getByText("1 free ad left this month")).toHaveClass("font-bold");
+  expect(screen.getByText(/Featured job ads on your plan: 5 free ads a month\./)).toBeInTheDocument();
 });

@@ -66,7 +66,8 @@ type NotificationKind =
   | "CLAIM_REJECTED"
   | "JOB_APPLICATION_RECEIVED"
   // Real: IWT Social Questions (an answer to your question; a question put
-  // to your company). Both carry their own href: the question's page.
+  // to your company). Both carry their own href: the question's page for the
+  // asker, the dashboard's Questions section for the owner.
   | "QUESTION_ANSWERED"
   | "COMPANY_QUESTION_ASKED";
 
@@ -167,7 +168,9 @@ function describeNotification(n: AppNotification): string {
     case "QUESTION_ANSWERED":
       return n.companyName ? `Your question to ${n.companyName} has a new answer.` : "Your question has a new answer.";
     case "COMPANY_QUESTION_ASKED":
-      return n.companyName ? `Someone asked ${n.companyName} a question. Answer it here!` : "Someone asked your company a question.";
+      return n.companyName
+        ? `Someone asked ${n.companyName} a question. Answer it, then choose who sees it.`
+        : "Someone asked your company a question.";
   }
 }
 

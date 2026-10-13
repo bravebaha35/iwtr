@@ -4,7 +4,9 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 
 export type SettingsNavItem<K extends string> =
-  | { key: K; label: string }
+  // `note`: a short bold line under the label for something the reader
+  // should not miss ("2 free ads left this month").
+  | { key: K; label: string; note?: string | null }
   // A real route rather than a locally-switched tab (e.g. the owner
   // dashboard's Job Postings page).
   | { key: string; label: string; href: string };
@@ -81,6 +83,7 @@ export function SettingsNavList<K extends string>({
               className={isActive ? ITEM_ACTIVE : ITEM_IDLE}
             >
               {item.label}
+              {item.note && <span className={`mt-0.5 block text-xs font-bold ${isActive ? "" : "text-sidebar-foreground"}`}>{item.note}</span>}
             </button>
           </motion.div>
         );

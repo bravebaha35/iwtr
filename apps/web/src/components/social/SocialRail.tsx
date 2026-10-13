@@ -31,8 +31,10 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
  * The column to the right of the IWT Social feed: what's busy this week,
  * questions still waiting for an answer, companies worth following and
  * fresh job ads, each a quiet panel that isn't
- * shown at all while it has nothing in it. The page's right-hand ad sits
- * under them. Hidden below `lg`, where there's no room beside the feed.
+ * shown at all while it has nothing in it. Hidden below `lg`, where there's
+ * no room beside the feed. The page's right-hand ad has a column of its own
+ * beside this one on a wide window (SocialShell); on a narrower one, where
+ * that column doesn't fit, it sits under these panels instead.
  * One request fills them all; what it last answered is shown straight away
  * on a return visit and read again behind it.
  */
@@ -196,7 +198,7 @@ export function SocialRail({ onOpenQuestions }: { onOpenQuestions?: () => void }
       )}
 
       <div className="flex justify-center">
-        <AdSlot side="right" />
+        <AdSlot side="right" show="xl-until-wide" />
       </div>
     </aside>
   );
