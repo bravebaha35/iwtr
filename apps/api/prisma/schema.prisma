@@ -315,6 +315,7 @@ model User {
   employerProfile            EmployerProfile?
   jobPostings                JobPosting[]
   socialPosts                SocialPost[]                @relation("SocialPostAuthor")
+  socialPollVotes            SocialPollVote[]            @relation("SocialPollVoter")
   socialComments             SocialComment[]             @relation("SocialCommentAuthor")
   socialPostLikes            SocialPostLike[]            @relation("SocialPostLiker")
   socialCommentVotes         SocialCommentVote[]         @relation("SocialCommentVoter")
@@ -709,6 +710,7 @@ model JobPosting {
   boostAdSpace       Boolean                       @default(false)
   createdAt          DateTime                      @default(now())
   savedBy            SavedJobPosting[]
+  socialPosts        SocialPost[]
   jobApplications    JobApplication[]
 
   @@index([companyId])
@@ -1228,15 +1230,90 @@ model SocialPost {
   pinnedAt     DateTime?
   // Set when the owner changes the caption after posting ("Edited" label).
   editedAt     DateTime?
+  // What kind of post this is. PHOTO and UPDATE are the plain ones (with and
+  // without photos); the others carry the extra fields below.
+  kind         SocialPostKind @default(PHOTO)
+  // EVENT and MILESTONE: the headline ("Open day at the Manisa plant").
+  title          String?
+  // EVENT only. The event's own date and place - content the company
+  // publishes, so it is shown exactly, unlike createdAt.
+  eventStartsAt  DateTime?
+  eventLocation  String?
+  // POLL only: voting closes at this moment.
+  pollEndsAt     DateTime?
+  // HIRING only: the job ad this post is about. SetNull so the post outlives
+  // the ad's row (it then reads as "position filled").
+  jobPostingId   String?
+  jobPosting     JobPosting? @relation(fields: [jobPostingId], references: [id], onDelete: SetNull)
+  // Width / height of each image in imageUrls, same order, so the page can
+  // hold the right space before a photo arrives. Empty on older posts.
+  imageAspectRatios Float[] @default([])
 
   comments             SocialComment[]
   likes                SocialPostLike[]
   savedBy              SavedPost[]
   commentIdentityLocks SocialCommentIdentityLock[]
+  pollOptions          SocialPollOption[]
+  pollVotes            SocialPollVote[]
 
   @@index([companyId])
   @@index([authorUserId])
   @@index([createdAt])
+  @@index([jobPostingId])
+  @@schema("public")
+}
+
+enum SocialPostKind {
+  PHOTO
+  UPDATE
+  POLL
+  EVENT
+  MILESTONE
+  HIRING
+
+  @@schema("public")
+}
+
+// One answer of a POLL post, in the order the company wrote them.
+model SocialPollOption {
+  id       String     @id @default(uuid())
+  postId   String
+  post     SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  position Int
+  text     String
+
+  votes SocialPollVote[]
+
+  @@index([postId])
+  @@schema("public")
+}
+
+// A member's vote on a poll: one per member per poll, changeable until the
+// poll closes. Same anonymity rule as SocialPostLike (REVIEW.md): only
+// counts ever leave the API, never who voted for what. userId is nullable +
+// SetNull so a deleted account's vote still counts.
+model SocialPollVote {
+  id        String           @id @default(uuid())
+  postId    String
+  post      SocialPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    SocialPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?            @relation("SocialPollVoter", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime         @default(now())
+
+  @@unique([postId, userId])
+  @@index([optionId])
+  @@index([userId])
+  @@schema("public")
+}
+
+// The reactions a post can get. LIKE is the old single "like".
+enum SocialReaction {
+  LIKE
+  WELL_DONE
+  CURIOUS
+
   @@schema("public")
 }
 
@@ -1398,6 +1475,8 @@ model SocialPostLike {
   post      SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String?
   user      User?      @relation("SocialPostLiker", fields: [userId], references: [id], onDelete: SetNull)
+  // Which of the reactions this is; one reaction per member per post.
+  reaction  SocialReaction @default(LIKE)
   createdAt DateTime   @default(now())
 
   @@unique([postId, userId])

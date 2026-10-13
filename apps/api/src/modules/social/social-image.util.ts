@@ -16,9 +16,11 @@ const HEIC_MIME_TYPES = new Set(["image/heic", "image/heif"]);
  * Decode any accepted upload (HEIC via heic-convert, JPEG/PNG natively) and
  * re-encode it to a compressed, metadata-stripped WebP. The returned buffer
  * is what gets written to disk - a client-supplied file is never stored
- * as-is. Throws BadRequestException if the bytes can't be decoded.
+ * as-is. `aspectRatio` is the stored image's width / height, kept on the
+ * post so a page can hold the right space before the photo arrives. Throws
+ * BadRequestException if the bytes can't be decoded.
  */
-export async function processSocialImage(buffer: Buffer, mimeType: string): Promise<Buffer> {
+export async function processSocialImage(buffer: Buffer, mimeType: string): Promise<{ webp: Buffer; aspectRatio: number }> {
   let decoded = buffer;
 
   // sharp's prebuilt binaries omit HEIC decoding (libheif licensing), so a
@@ -34,13 +36,14 @@ export async function processSocialImage(buffer: Buffer, mimeType: string): Prom
   }
 
   try {
-    return await sharp(decoded)
+    const { data, info } = await sharp(decoded)
       // Honour EXIF orientation before stripping metadata, or a phone photo
       // lands sideways.
       .rotate()
       .resize({ width: SOCIAL_IMAGE_OUTPUT_MAX_WIDTH_PX, withoutEnlargement: true })
       .webp({ quality: SOCIAL_IMAGE_WEBP_QUALITY })
-      .toBuffer();
+      .toBuffer({ resolveWithObject: true });
+    return { webp: data, aspectRatio: Number((info.width / info.height).toFixed(4)) };
   } catch {
     throw new BadRequestException("That file could not be read as an image.");
   }

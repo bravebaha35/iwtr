@@ -150,7 +150,15 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   post per company, leads the company feed in the default order only). The company Social tab shows follower and
   post counts (`GET social/companies/:slug/summary` - a bare count, never the follower list) and Posts / Photos
   views; Follow stays the one button in the company page header. None of the new routes is opened to the company
-  login. Still to come: more post types, member Questions with a "Worked there" badge, owner insights.
+  login. Phase 2 is in too: a post has a `kind` (PHOTO / UPDATE / POLL / EVENT / MILESTONE / HIRING, picked in the
+  composer's tab row; `createSocialPostInputSchema`). Polls: members vote once (`POST social/posts/:id/poll-vote`,
+  movable until `pollEndsAt`), the split stays hidden until the viewer has voted, the poll has closed or the viewer
+  owns the company, and only counts ever leave the API. A HIRING post points at the company's own live job ad.
+  Reactions are three beavers (LIKE / WELL_DONE / CURIOUS, `SocialPostLike.reaction`, one per member per post, small
+  WebP cuts in `public/reactions/`). No visible waits: lists come back from memory first (`socialFeedCache`),
+  first loads show `SocialPostSkeleton`, photos reserve their space from `SocialPost.imageAspectRatios` and load
+  lazily, the rail is one request whose shared lists the API caches for a minute, and posting refreshes the lists
+  instead of reloading the page. Still to come: member Questions with a "Worked there" badge, owner insights.
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
   matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").

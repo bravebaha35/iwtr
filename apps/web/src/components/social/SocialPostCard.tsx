@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { PublicSocialPost, SavedPostToggleResult, SocialPostLikeResult, SocialPostPinResult } from "@iwtr/shared-types";
+import type { PublicSocialPost, SavedPostToggleResult, SocialPostLikeResult, SocialPostPinResult, SocialReaction } from "@iwtr/shared-types";
 import { apiDelete, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { CompanyLogo } from "@/components/CompanyLogo";
@@ -12,12 +12,17 @@ import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { shortRelativeTime } from "./socialTime";
 import { SocialComments } from "./SocialComments";
 import { ImageLightbox } from "./ImageLightbox";
-import { HeartIcon } from "@/components/icons/HeartIcon";
+import { ReactionButton } from "./ReactionButton";
+import { SocialPostBody } from "./SocialPostBody";
 
 const CAPTION_MAX = 1000;
 
+// The tallest a photo is shown in the feed (4:5, the usual portrait cap):
+// anything taller is cropped to it, and opens in full in the lightbox.
+const MIN_ASPECT_RATIO = 0.8;
+
 // Universally-recognized social glyphs instead of text buttons -
-// heart/speech-bubble/link/bookmark, filled once active. No save *count* is
+// speech-bubble/link/bookmark, filled once active. No save *count* is
 // shown next to the bookmark: PublicSocialPost has no such field (SavedPost
 // is a private per-user preference on the API side, never a public tally -
 // see REVIEW.md).
@@ -68,7 +73,19 @@ const SWIPE_THRESHOLD_PX = 40;
 // vertically centered on the image, plus a touch-swipe gesture. Arrows only
 // render once there's more than one photo; a single-photo post is just a
 // plain image. Flush with the card's edges: the card supplies the corners.
-function PostImageCarousel({ imageUrls, alt }: { imageUrls: string[]; alt: string }) {
+// Each photo's own proportions hold its space before it has loaded, so the
+// feed never jumps; photos below the first card load as they come near.
+function PostImageCarousel({
+  imageUrls,
+  aspectRatios,
+  alt,
+  priority,
+}: {
+  imageUrls: string[];
+  aspectRatios: number[];
+  alt: string;
+  priority: boolean;
+}) {
   const [index, setIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -93,8 +110,11 @@ function PostImageCarousel({ imageUrls, alt }: { imageUrls: string[]; alt: strin
       <img
         src={imageUrls[index]}
         alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
         onClick={() => setLightboxOpen(true)}
-        className="w-full cursor-zoom-in bg-surface-muted object-cover"
+        style={aspectRatios[index] ? { aspectRatio: Math.max(aspectRatios[index], MIN_ASPECT_RATIO) } : undefined}
+        className="block w-full cursor-zoom-in bg-surface-muted object-cover"
       />
 
       {many && index > 0 && (
@@ -139,11 +159,14 @@ function PostImageCarousel({ imageUrls, alt }: { imageUrls: string[]; alt: strin
 // The "..." menu an approved owner of the post's company gets on the card.
 function OwnerMenu({
   pinned,
+  canEdit,
   onEdit,
   onTogglePin,
   onDelete,
 }: {
   pinned: boolean;
+  // A poll's question can't be reworded once people have answered it.
+  canEdit: boolean;
   onEdit: () => void;
   onTogglePin: () => void;
   onDelete: () => void;
@@ -191,9 +214,11 @@ function OwnerMenu({
       </button>
       {open && (
         <div role="menu" className="absolute right-0 top-9 z-20 w-44 rounded-xl bg-surface p-1 shadow-lg ring-1 ring-border/60">
-          <button type="button" role="menuitem" onClick={pick(onEdit)} className={itemClass}>
-            Edit caption
-          </button>
+          {canEdit && (
+            <button type="button" role="menuitem" onClick={pick(onEdit)} className={itemClass}>
+              Edit caption
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={pick(onTogglePin)} className={itemClass}>
             {pinned ? "Unpin" : "Pin to top"}
           </button>
@@ -208,9 +233,10 @@ function OwnerMenu({
 
 /**
  * One post: a soft separated card (the same family as the job and company
- * cards) with the photo flush between its header and footer. The time is a
- * link to the post's own page; an approved owner of the post's company gets
- * the "..." menu (edit caption, pin, delete).
+ * cards) with the photo flush between its header and footer, then whatever
+ * its kind adds (SocialPostBody: a poll, an event, a milestone, a job ad).
+ * The time is a link to the post's own page; an approved owner of the
+ * post's company gets the "..." menu (edit caption, pin, delete).
  */
 export function SocialPostCard({
   post,
@@ -219,6 +245,7 @@ export function SocialPostCard({
   onPinToggled,
   showPinned = false,
   defaultCommentsOpen = false,
+  priority = false,
 }: {
   post: PublicSocialPost;
   onChanged?: (p: PublicSocialPost) => void;
@@ -230,6 +257,8 @@ export function SocialPostCard({
   // the company's own feed.
   showPinned?: boolean;
   defaultCommentsOpen?: boolean;
+  // The first card on a page: its photo loads right away, not lazily.
+  priority?: boolean;
 }) {
   const { isAuthenticated, openAuthModal } = useAuth();
   const { followedIds, canFollow, toggleFollow } = useFollowedCompanies();
@@ -243,20 +272,26 @@ export function SocialPostCard({
   const [ownerBusy, setOwnerBusy] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
 
-  async function toggleLike() {
+  // Leave a reaction, swap it for another, or (the same one again) take it
+  // back. Shown at once; the server's counts replace the guess when they land.
+  async function react(reaction: SocialReaction) {
     if (!isAuthenticated) return openAuthModal();
     if (likeBusy) return;
     setLikeBusy(true);
-    // optimistic
-    const optimistic: PublicSocialPost = {
+    const next = post.myReaction === reaction ? null : reaction;
+    const reactionCounts = { ...post.reactionCounts };
+    if (post.myReaction) reactionCounts[post.myReaction] -= 1;
+    if (next) reactionCounts[next] += 1;
+    onChanged?.({
       ...post,
-      likedByMe: !post.likedByMe,
-      likeCount: post.likeCount + (post.likedByMe ? -1 : 1),
-    };
-    onChanged?.(optimistic);
+      myReaction: next,
+      likedByMe: next !== null,
+      reactionCounts,
+      likeCount: post.likeCount + (next ? 1 : 0) - (post.myReaction ? 1 : 0),
+    });
     try {
-      const r = await apiPost<SocialPostLikeResult>(`/social/posts/${post.id}/like`, {});
-      onChanged?.({ ...post, likedByMe: r.likedByMe, likeCount: r.likeCount });
+      const r = await apiPost<SocialPostLikeResult>(`/social/posts/${post.id}/like`, { reaction });
+      onChanged?.({ ...post, likedByMe: r.likedByMe, likeCount: r.likeCount, myReaction: r.myReaction, reactionCounts: r.reactionCounts });
     } catch (e) {
       onChanged?.(post); // revert
       if (e instanceof ApiError && e.status === 401) openAuthModal();
@@ -400,6 +435,7 @@ export function SocialPostCard({
           {post.canManage && (
             <OwnerMenu
               pinned={post.pinned}
+              canEdit={post.kind !== "POLL"}
               onEdit={() => {
                 setDraft(post.caption ?? "");
                 setOwnerError(null);
@@ -415,7 +451,20 @@ export function SocialPostCard({
         </div>
       </header>
 
-      <PostImageCarousel imageUrls={post.imageUrls} alt={post.caption ?? `${post.companyName} post`} />
+      {/* A poll leads with its question; every other kind leads with its
+          photos (when it has any), then what the kind adds, then the text. */}
+      {post.kind === "POLL" && !editing && post.caption && (
+        <p className="whitespace-pre-wrap px-4 text-[17px] font-semibold leading-snug text-foreground">{post.caption}</p>
+      )}
+      {post.imageUrls.length > 0 && (
+        <PostImageCarousel
+          imageUrls={post.imageUrls}
+          aspectRatios={post.imageAspectRatios}
+          alt={post.caption ?? post.title ?? `${post.companyName} post`}
+          priority={priority}
+        />
+      )}
+      <SocialPostBody post={post} onChanged={onChanged} />
 
       {editing ? (
         <div className="px-4 pt-3">
@@ -448,7 +497,18 @@ export function SocialPostCard({
           </div>
         </div>
       ) : (
-        post.caption && <p className="whitespace-pre-wrap px-4 pt-3 text-[15px] leading-relaxed text-foreground">{post.caption}</p>
+        post.kind !== "POLL" &&
+        post.caption && (
+          <p
+            className={`whitespace-pre-wrap px-4 text-foreground ${
+              // A text-only update is the whole post, so it reads a size up
+              // and sits straight under the header.
+              post.kind === "UPDATE" ? "text-[17px] leading-relaxed" : "pt-3 text-[15px] leading-relaxed"
+            }`}
+          >
+            {post.caption}
+          </p>
+        )
       )}
 
       {confirmingDelete && (
@@ -473,16 +533,7 @@ export function SocialPostCard({
       {ownerError && <p className="px-4 pt-2 text-sm text-red-600 dark:text-red-300">{ownerError}</p>}
 
       <div className="flex items-center gap-5 px-4 py-3 text-sm">
-        <button
-          type="button"
-          onClick={toggleLike}
-          aria-label="Like"
-          aria-pressed={post.likedByMe ?? false}
-          className={`${actionClass} ${post.likedByMe ? lit : quiet}`}
-        >
-          <HeartIcon className="h-5 w-5" filled={post.likedByMe ?? false} />
-          <span className="tabular-nums">{post.likeCount}</span>
-        </button>
+        <ReactionButton counts={post.reactionCounts} total={post.likeCount} mine={post.myReaction} onReact={(r) => void react(r)} />
         <button
           type="button"
           onClick={() => setShowComments((v) => !v)}

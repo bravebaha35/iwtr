@@ -7,7 +7,7 @@ import { ModerationService } from "../../moderation/moderation.service";
 import { encryptField, generateDek, wrapDek } from "../../employer-profile/crypto.util";
 
 jest.mock("../social-image.util", () => ({
-  processSocialImage: jest.fn().mockResolvedValue(Buffer.alloc(64, 9)),
+  processSocialImage: jest.fn().mockResolvedValue({ webp: Buffer.alloc(64, 9), aspectRatio: 1.5 }),
   SOCIAL_IMAGE_OUTPUT_MAX_WIDTH_PX: 1080,
 }));
 
@@ -406,21 +406,43 @@ describe("SocialService comments + likes", () => {
     expect((out.find((c) => c.id === "cm2") as any).mine).toBe(true);
   });
 
-  it("toggleLike adds then removes", async () => {
-    const like = { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn(), count: jest.fn() };
-    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;
+  const likePrisma = (like: Record<string, jest.Mock>) =>
+    ({ socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like }) as never;
+
+  it("toggleLike adds a plain like, then the same click takes it off", async () => {
+    const like = { findUnique: jest.fn(), delete: jest.fn(), create: jest.fn(), update: jest.fn(), groupBy: jest.fn() };
 
     like.findUnique.mockResolvedValueOnce(null);
-    like.count.mockResolvedValue(1);
-    const r1 = await new SocialService(prisma, moderationPass).toggleLike("u1", "p1");
-    expect(r1).toEqual({ postId: "p1", likeCount: 1, likedByMe: true });
-    expect(like.create).toHaveBeenCalled();
+    like.groupBy.mockResolvedValue([{ reaction: "LIKE", _count: { _all: 1 } }]);
+    const r1 = await new SocialService(likePrisma(like), moderationPass).toggleLike("u1", "p1");
+    expect(r1).toEqual({
+      postId: "p1", likeCount: 1, likedByMe: true, myReaction: "LIKE", reactionCounts: { LIKE: 1, WELL_DONE: 0, CURIOUS: 0 },
+    });
+    expect(like.create).toHaveBeenCalledWith({ data: { postId: "p1", userId: "u1", reaction: "LIKE" } });
 
-    like.findUnique.mockResolvedValueOnce({ id: "like-1" });
-    like.count.mockResolvedValue(0);
-    const r2 = await new SocialService(prisma, moderationPass).toggleLike("u1", "p1");
-    expect(r2).toEqual({ postId: "p1", likeCount: 0, likedByMe: false });
-    expect(like.delete).toHaveBeenCalled();
+    like.findUnique.mockResolvedValueOnce({ id: "like-1", reaction: "LIKE" });
+    like.groupBy.mockResolvedValue([]);
+    const r2 = await new SocialService(likePrisma(like), moderationPass).toggleLike("u1", "p1");
+    expect(r2).toMatchObject({ likeCount: 0, likedByMe: false, myReaction: null });
+    expect(like.delete).toHaveBeenCalledWith({ where: { id: "like-1" } });
+  });
+
+  it("a different reaction replaces the one already left - still one per member", async () => {
+    const like = {
+      findUnique: jest.fn().mockResolvedValue({ id: "like-1", reaction: "LIKE" }),
+      delete: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      groupBy: jest.fn().mockResolvedValue([
+        { reaction: "WELL_DONE", _count: { _all: 1 } },
+        { reaction: "CURIOUS", _count: { _all: 2 } },
+      ]),
+    };
+    const r = await new SocialService(likePrisma(like), moderationPass).toggleLike("u1", "p1", "WELL_DONE");
+    expect(like.update).toHaveBeenCalledWith({ where: { id: "like-1" }, data: { reaction: "WELL_DONE" } });
+    expect(like.create).not.toHaveBeenCalled();
+    expect(like.delete).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ likeCount: 3, myReaction: "WELL_DONE", reactionCounts: { LIKE: 0, WELL_DONE: 1, CURIOUS: 2 } });
   });
 
   it("toggleLike swallows a concurrent-create P2002 and reports now-liked", async () => {
@@ -429,12 +451,11 @@ describe("SocialService comments + likes", () => {
       create: jest.fn().mockRejectedValue(
         new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "x" }),
       ),
-      count: jest.fn().mockResolvedValue(1),
+      groupBy: jest.fn().mockResolvedValue([{ reaction: "LIKE", _count: { _all: 1 } }]),
       delete: jest.fn(),
     };
-    const prisma = { socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1" }) }, socialPostLike: like } as never;
-    const r = await new SocialService(prisma, moderationPass).toggleLike("u1", "p1");
-    expect(r).toEqual({ postId: "p1", likeCount: 1, likedByMe: true });
+    const r = await new SocialService(likePrisma(like), moderationPass).toggleLike("u1", "p1");
+    expect(r).toMatchObject({ postId: "p1", likeCount: 1, likedByMe: true });
   });
 
   it("toggleLike rethrows a non-P2002 create error", async () => {
@@ -1320,7 +1341,7 @@ describe("SocialService.getPost / rail / companySummary", () => {
     expect(findFirst.mock.calls[0][0].select.authorUserId).toBeUndefined();
   });
 
-  it("rail suggests companies that post and the viewer doesn't follow, and one fresh job ad per company", async () => {
+  it("rail: trending posts, companies the viewer doesn't follow yet, one fresh job ad per company - shared lists cached", async () => {
     const companyFindMany = jest.fn().mockResolvedValue([
       { id: "c1", slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "PRO", workplaceTypes: ["OFFICE"] },
     ]);
@@ -1328,9 +1349,37 @@ describe("SocialService.getPost / rail / companySummary", () => {
       id, jobTitle: `Job ${id}`, companyId, company: { slug: companyId, name: companyId.toUpperCase(), mainPhotoUrl: null },
     });
     const jobFindMany = jest.fn().mockResolvedValue([job("j1", "c1"), job("j2", "c1"), job("j3", "c2")]);
-    const prisma = { company: { findMany: companyFindMany }, jobPosting: { findMany: jobFindMany } } as never;
+    const trendingPost = (id: string, likes: number, comments: number, imageUrls: string[] = []) => ({
+      id, caption: `post ${id}`, title: null, imageUrls, company: { name: "Acme", mainPhotoUrl: null }, _count: { likes, comments },
+    });
+    // The same busy post tops both lists; a post nobody touched fills a slot.
+    const postFindMany = jest
+      .fn()
+      .mockResolvedValueOnce([trendingPost("busy", 3, 1, ["/u/busy.webp"]), trendingPost("liked", 2, 0), trendingPost("quiet", 0, 0)])
+      .mockResolvedValueOnce([trendingPost("talked", 0, 5), trendingPost("busy", 3, 1, ["/u/busy.webp"])]);
+    const prisma = {
+      company: { findMany: companyFindMany },
+      jobPosting: { findMany: jobFindMany },
+      socialPost: { findMany: postFindMany },
+    } as never;
 
-    const rail = await new SocialService(prisma, moderationPass).rail("viewer-1");
+    const service = new SocialService(prisma, moderationPass);
+    const rail = await service.rail("viewer-1");
+
+    // Trending: each post once, busiest first, untouched posts left out.
+    expect(rail.trending.map((p) => p.postId)).toEqual(["talked", "busy", "liked"]);
+    expect(rail.trending[1]).toEqual({
+      postId: "busy", companyName: "Acme", companyLogoUrl: null, thumbUrl: "/u/busy.webp", caption: "post busy", likeCount: 3, commentCount: 1,
+    });
+    expect(rail.trending[0].thumbUrl).toBeNull();
+    expect(Date.now() - postFindMany.mock.calls[0][0].where.createdAt.gte.getTime()).toBeGreaterThan(6.9 * 86_400_000);
+
+    // The shared lists are reused for the next visitor; only "companies to follow" is asked again.
+    const again = await service.rail("viewer-2");
+    expect(again.trending).toEqual(rail.trending);
+    expect(postFindMany).toHaveBeenCalledTimes(2);
+    expect(jobFindMany).toHaveBeenCalledTimes(1);
+    expect(companyFindMany).toHaveBeenCalledTimes(2);
 
     const where = companyFindMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ hiddenAt: null, socialPosts: { some: {} }, followers: { none: { userId: "viewer-1" } } });
@@ -1354,26 +1403,6 @@ describe("SocialService.getPost / rail / companySummary", () => {
 
     prisma.company.findUnique.mockResolvedValue({ id: "c1", hiddenAt: new Date() });
     await expect(new SocialService(prisma as never, moderationPass).companySummary("acme")).rejects.toBeInstanceOf(NotFoundException);
-  });
-});
-
-describe("SocialService.trending", () => {
-  it("excludes a post that made the top-5 query but has zero of that metric", async () => {
-    const zeroLikedPost = {
-      id: "p1", companyId: "c1", imageUrls: ["x"], caption: null, createdAt: new Date(),
-      company: { slug: "s", name: "N", mainPhotoUrl: null, badgeTier: "FREE", workplaceTypes: ["OFFICE"] },
-    };
-    const prisma = makePrisma({
-      socialPost: { findMany: jest.fn().mockResolvedValue([zeroLikedPost]) },
-      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]) }, // no likes at all -> likeCount 0
-      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
-      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
-    });
-
-    const result = await new SocialService(prisma, moderationPass).trending(undefined);
-
-    expect(result.mostLiked).toEqual([]);
-    expect(result.mostCommented).toEqual([]);
   });
 });
 
@@ -1425,5 +1454,224 @@ describe("SocialService times (members see the hour, admins the exact moment)", 
       expect.objectContaining({ id: "cm2", createdAt: exact.toISOString(), isReply: true }),
     ]);
     expect(comments.every((c) => !("authorUserId" in c))).toBe(true);
+  });
+});
+
+describe("SocialService post kinds (2026-10-13)", () => {
+  const liveJob = {
+    id: "22222222-2222-2222-2222-222222222222", companyId: CID, status: "PUBLISHED", createdAt: new Date(),
+    lastResharedAt: null, filledAt: null, autoReshareEnabled: false,
+  };
+
+  function kindPrisma(job: unknown = liveJob) {
+    return {
+      companyOwner: { findUnique: jest.fn().mockResolvedValue({ claimStatus: "APPROVED" }) },
+      socialPost: { create: jest.fn().mockResolvedValue({ id: "post-1" }) },
+      jobPosting: { findUnique: jest.fn().mockResolvedValue(job) },
+    };
+  }
+  const created = (prisma: ReturnType<typeof kindPrisma>) => prisma.socialPost.create.mock.calls[0][0].data;
+
+  it("a post with no photos is a text UPDATE and needs some text; with photos it is a PHOTO and keeps their proportions", async () => {
+    const text = kindPrisma();
+    await new SocialService(text as never, moderationPass).createPost("u1", { companyId: CID, caption: "We moved offices." }, []);
+    expect(created(text)).toMatchObject({ kind: "UPDATE", imageUrls: [], imageAspectRatios: [], caption: "We moved offices." });
+
+    await expect(new SocialService(kindPrisma() as never, moderationPass).createPost("u1", { companyId: CID, kind: "UPDATE" }, [])).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+
+    const photo = kindPrisma();
+    await new SocialService(photo as never, moderationPass).createPost("u1", { companyId: CID, kind: "UPDATE" }, [jpegFile, jpegFile]);
+    expect(created(photo)).toMatchObject({ kind: "PHOTO", imageAspectRatios: [1.5, 1.5] });
+  });
+
+  it("a poll stores its answers in order and closes after the chosen number of days; it can't carry photos", async () => {
+    const prisma = kindPrisma();
+    await new SocialService(prisma as never, moderationPass).createPost(
+      "u1",
+      { companyId: CID, kind: "POLL", caption: "Which shift do you prefer?", pollOptions: ["Morning", "Evening", "Night"], pollDays: 3 },
+      [],
+    );
+    const data = created(prisma);
+    expect(data.kind).toBe("POLL");
+    expect(data.pollOptions).toEqual({
+      create: [{ text: "Morning", position: 0 }, { text: "Evening", position: 1 }, { text: "Night", position: 2 }],
+    });
+    const days = (data.pollEndsAt.getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(2.9);
+    expect(days).toBeLessThan(3.1);
+
+    await expect(
+      new SocialService(kindPrisma() as never, moderationPass).createPost(
+        "u1",
+        { companyId: CID, kind: "POLL", caption: "Q?", pollOptions: ["A", "B"], pollDays: 1 },
+        [jpegFile],
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("runs every piece of the company's text through the content rules - a bad poll answer stops the post", async () => {
+    const checkContent = jest.fn((texts: string[]) => ({ violates: texts[0] === "rude answer", violationTypes: [] }));
+    const prisma = kindPrisma();
+    await expect(
+      new SocialService(prisma as never, { checkContent } as never).createPost(
+        "u1",
+        { companyId: CID, kind: "POLL", caption: "Fine question?", pollOptions: ["ok", "rude answer"], pollDays: 1 },
+        [],
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.socialPost.create).not.toHaveBeenCalled();
+  });
+
+  it("an event keeps its title, time and place, and its time has to be ahead", async () => {
+    const startsAt = new Date(Date.now() + 5 * 86_400_000).toISOString();
+    const prisma = kindPrisma();
+    await new SocialService(prisma as never, moderationPass).createPost(
+      "u1",
+      { companyId: CID, kind: "EVENT", title: "Open day", eventStartsAt: startsAt, eventLocation: "Manisa plant" },
+      [],
+    );
+    expect(created(prisma)).toMatchObject({ kind: "EVENT", title: "Open day", eventLocation: "Manisa plant", eventStartsAt: new Date(startsAt) });
+
+    await expect(
+      new SocialService(kindPrisma() as never, moderationPass).createPost(
+        "u1",
+        { companyId: CID, kind: "EVENT", title: "Yesterday", eventStartsAt: new Date(Date.now() - 86_400_000).toISOString() },
+        [],
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("a hiring post only takes this company's own job ad, and only while it is live", async () => {
+    const input = { companyId: CID, kind: "HIRING" as const, jobPostingId: liveJob.id };
+    const ok = kindPrisma();
+    await new SocialService(ok as never, moderationPass).createPost("u1", input, []);
+    expect(created(ok)).toMatchObject({ kind: "HIRING", jobPostingId: liveJob.id });
+
+    for (const job of [null, { ...liveJob, companyId: "another-company" }, { ...liveJob, status: "FILLED", filledAt: new Date() }]) {
+      const prisma = kindPrisma(job);
+      await expect(new SocialService(prisma as never, moderationPass).createPost("u1", input, [])).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.socialPost.create).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe("SocialService polls", () => {
+  const future = new Date(Date.now() + 86_400_000);
+  const pollRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "p1", companyId: "c1", kind: "POLL", imageUrls: [], imageAspectRatios: [], caption: "Which shift?", createdAt: new Date(),
+    pinnedAt: null, editedAt: null, title: null, eventStartsAt: null, eventLocation: null, pollEndsAt: future, jobPosting: null,
+    pollOptions: [{ id: "o1", text: "Morning" }, { id: "o2", text: "Night" }],
+    company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE", workplaceTypes: ["OFFICE"] },
+    ...overrides,
+  });
+
+  function pollPrisma(row: ReturnType<typeof pollRow>, opts: { myVote?: string; owner?: boolean } = {}) {
+    return {
+      socialPost: { findFirst: jest.fn().mockResolvedValue(row) },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+      companyOwner: { findMany: jest.fn().mockResolvedValue(opts.owner ? [{ companyId: "c1" }] : []) },
+      socialPollVote: {
+        groupBy: jest.fn().mockResolvedValue([{ optionId: "o1", _count: { _all: 3 } }, { optionId: "o2", _count: { _all: 1 } }]),
+        findMany: jest.fn().mockResolvedValue(opts.myVote ? [{ postId: "p1", optionId: opts.myVote }] : []),
+        upsert: jest.fn().mockResolvedValue({}),
+      },
+    };
+  }
+  const poll = async (prisma: ReturnType<typeof pollPrisma>, viewer: string | undefined) =>
+    (await new SocialService(prisma as never, moderationPass).getPost(viewer, "p1")).poll!;
+
+  it("hides the split until the viewer has voted, the poll has closed, or the viewer owns the company", async () => {
+    const hidden = await poll(pollPrisma(pollRow()), "member-1");
+    expect(hidden).toMatchObject({ closed: false, totalVotes: 4, myOptionId: null });
+    expect(hidden.options).toEqual([{ id: "o1", text: "Morning", votes: null }, { id: "o2", text: "Night", votes: null }]);
+
+    const voted = await poll(pollPrisma(pollRow(), { myVote: "o2" }), "member-1");
+    expect(voted.myOptionId).toBe("o2");
+    expect(voted.options.map((o) => o.votes)).toEqual([3, 1]);
+
+    const closed = await poll(pollPrisma(pollRow({ pollEndsAt: new Date(Date.now() - 1000) })), undefined);
+    expect(closed.closed).toBe(true);
+    expect(closed.options.map((o) => o.votes)).toEqual([3, 1]);
+
+    const owner = await poll(pollPrisma(pollRow(), { owner: true }), "owner-1");
+    expect(owner.options.map((o) => o.votes)).toEqual([3, 1]);
+  });
+
+  it("only ever counts votes: the vote queries never select a voter", async () => {
+    const prisma = pollPrisma(pollRow(), { myVote: "o1" });
+    await poll(prisma, "member-1");
+    expect(prisma.socialPollVote.groupBy).toHaveBeenCalledWith({ by: ["optionId"], where: { postId: { in: ["p1"] } }, _count: { _all: true } });
+    expect(prisma.socialPollVote.findMany).toHaveBeenCalledWith({
+      where: { postId: { in: ["p1"] }, userId: "member-1" },
+      select: { postId: true, optionId: true },
+    });
+  });
+
+  it("votePoll records one vote per member (a second pick moves it) and returns the post with the result open", async () => {
+    const prisma = pollPrisma(pollRow(), { myVote: "o2" });
+    const post = await new SocialService(prisma as never, moderationPass).votePoll("member-1", "p1", "o2");
+    expect(prisma.socialPollVote.upsert).toHaveBeenCalledWith({
+      where: { postId_userId: { postId: "p1", userId: "member-1" } },
+      create: { postId: "p1", optionId: "o2", userId: "member-1" },
+      update: { optionId: "o2" },
+    });
+    expect(post.poll!.options.map((o) => o.votes)).toEqual([3, 1]);
+  });
+
+  it("votePoll refuses a closed poll, an answer from another poll, and a post that isn't a poll", async () => {
+    const closed = pollPrisma(pollRow({ pollEndsAt: new Date(Date.now() - 1000) }));
+    await expect(new SocialService(closed as never, moderationPass).votePoll("m", "p1", "o1")).rejects.toBeInstanceOf(BadRequestException);
+
+    const open = pollPrisma(pollRow());
+    await expect(new SocialService(open as never, moderationPass).votePoll("m", "p1", "not-an-option")).rejects.toBeInstanceOf(BadRequestException);
+    expect(open.socialPollVote.upsert).not.toHaveBeenCalled();
+
+    const missing = pollPrisma(pollRow());
+    missing.socialPost.findFirst.mockResolvedValue(null);
+    await expect(new SocialService(missing as never, moderationPass).votePoll("m", "p1", "o1")).rejects.toBeInstanceOf(NotFoundException);
+    expect(missing.socialPost.findFirst.mock.calls[0][0].where).toMatchObject({ id: "p1", kind: "POLL" });
+  });
+
+  it("a poll can't be reworded once posted", async () => {
+    const prisma = {
+      socialPost: { findUnique: jest.fn().mockResolvedValue({ id: "p1", companyId: "c1", imageUrls: [], pinnedAt: null, kind: "POLL" }), update: jest.fn() },
+      companyOwner: { findUnique: jest.fn().mockResolvedValue({ claimStatus: "APPROVED" }) },
+    };
+    await expect(new SocialService(prisma as never, moderationPass).updatePost("u1", "p1", { caption: "New question?" })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(prisma.socialPost.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("SocialService hiring posts", () => {
+  it("shows the job ad, and says it is no longer live once it is filled or gone", async () => {
+    const row = (jobPosting: unknown) => ({
+      id: "p1", companyId: "c1", kind: "HIRING", imageUrls: [], imageAspectRatios: [], caption: null, createdAt: new Date(),
+      pinnedAt: null, editedAt: null, title: null, eventStartsAt: null, eventLocation: null, pollEndsAt: null, pollOptions: [], jobPosting,
+      company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE", workplaceTypes: ["OFFICE"] },
+    });
+    const job = {
+      id: "j1", jobTitle: "Forklift Operator", workType: "MANUAL_LABOUR", positions: ["BLUE_COLLAR"], status: "PUBLISHED",
+      createdAt: new Date(), lastResharedAt: null, filledAt: null, autoReshareEnabled: false,
+    };
+    const get = (jobPosting: unknown) => {
+      const prisma = {
+        socialPost: { findFirst: jest.fn().mockResolvedValue(row(jobPosting)) },
+        socialPostLike: { groupBy: jest.fn().mockResolvedValue([]) },
+        socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      };
+      return new SocialService(prisma as never, moderationPass).getPost(undefined, "p1");
+    };
+
+    expect((await get(job)).job).toEqual({
+      jobPostingId: "j1", jobTitle: "Forklift Operator", workType: "MANUAL_LABOUR", positions: ["BLUE_COLLAR"], live: true,
+    });
+    expect((await get({ ...job, status: "FILLED", filledAt: new Date() })).job).toMatchObject({ live: false });
+    expect((await get(null)).job).toMatchObject({ jobPostingId: null, live: false });
   });
 });

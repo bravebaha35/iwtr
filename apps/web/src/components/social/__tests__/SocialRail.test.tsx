@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
-import type { PublicSocialPost, SocialRail as SocialRailData } from "@iwtr/shared-types";
-import { SocialRail, mergeTrending } from "../SocialRail";
+import type { SocialRail as SocialRailData } from "@iwtr/shared-types";
+import { SocialRail } from "../SocialRail";
+import { clearSocialCache } from "../socialFeedCache";
 import * as apiClient from "@/lib/api-client";
 
 const openAuthModal = jest.fn();
@@ -11,69 +12,67 @@ jest.mock("@/lib/api-client");
 jest.mock("@/lib/auth-context", () => ({ useAuth: () => mockAuth }));
 jest.mock("@/lib/useFollowedCompanies", () => ({ useFollowedCompanies: () => mockFollowed }));
 
-function post(id: string, likeCount: number, commentCount: number): PublicSocialPost {
-  return {
-    id, companyId: `c-${id}`, companySlug: id, companyName: `Company ${id}`, companyLogoUrl: null, companyBadgeTier: "FREE",
-    companyWorkplaceTypes: ["OFFICE"], imageUrls: [`/u/${id}.webp`], caption: null, createdAt: new Date().toISOString(),
-    likeCount, commentCount, likedByMe: null, savedByMe: null, pinned: false, edited: false, canManage: false,
-  };
-}
-
 const rail: SocialRailData = {
+  trending: [
+    { postId: "p1", companyName: "Acme", companyLogoUrl: null, thumbUrl: "/u/p1.webp", caption: "New line opened", likeCount: 2, commentCount: 1 },
+    { postId: "p2", companyName: "Borusan", companyLogoUrl: null, thumbUrl: null, caption: "Which shift?", likeCount: 0, commentCount: 4 },
+  ],
   suggestedCompanies: [
     { companyId: "c1", companySlug: "acme", companyName: "Acme", companyLogoUrl: null, companyBadgeTier: "PRO", companyWorkplaceTypes: ["SERVICE"] },
   ],
   hiringNow: [{ jobPostingId: "j1", jobTitle: "Forklift Operator", companySlug: "acme", companyName: "Acme", companyLogoUrl: null }],
 };
-
-function serve(railData: SocialRailData, trending: { mostLiked: PublicSocialPost[]; mostCommented: PublicSocialPost[] }) {
-  jest.mocked(apiClient.apiGet).mockImplementation((path: string) =>
-    Promise.resolve(path === "/social/rail" ? railData : trending) as never,
-  );
-}
+const empty: SocialRailData = { trending: [], suggestedCompanies: [], hiringNow: [] };
 
 beforeEach(() => {
-  jest.mocked(apiClient.apiGet).mockClear();
+  clearSocialCache();
+  jest.mocked(apiClient.apiGet).mockReset();
   openAuthModal.mockClear();
   toggleFollow.mockClear();
   mockAuth = { isAuthenticated: true, openAuthModal };
   mockFollowed = { followedIds: new Set(), canFollow: true, toggleFollow };
 });
 
-it("mergeTrending lists each post once, busiest first, five at most", () => {
-  const a = post("a", 1, 0);
-  const b = post("b", 4, 3);
-  const many = Array.from({ length: 6 }, (_, i) => post(`m${i}`, 0, 1));
-  const merged = mergeTrending({ mostLiked: [a, b], mostCommented: [b, ...many] });
-  expect(merged).toHaveLength(5);
-  expect(merged[0].id).toBe("b");
-  expect(merged.filter((p) => p.id === "b")).toHaveLength(1);
-});
-
-it("shows the three panels with links, and Follow follows the suggested company", async () => {
-  serve(rail, { mostLiked: [post("p1", 2, 1)], mostCommented: [] });
+it("fills all three panels from one request, with links, and Follow follows the suggested company", async () => {
+  jest.mocked(apiClient.apiGet).mockResolvedValue(rail);
   render(<SocialRail />);
 
   const trending = (await screen.findByRole("heading", { name: "Trending this week" })).closest("section")!;
-  expect(within(trending).getByRole("link")).toHaveAttribute("href", "/social/posts/p1");
+  const links = within(trending).getAllByRole("link");
+  expect(links.map((a) => a.getAttribute("href"))).toEqual(["/social/posts/p1", "/social/posts/p2"]);
   expect(within(trending).getByText(/2 likes/)).toHaveTextContent("1 comment");
+  // A post without a photo shows no broken thumbnail.
+  expect(trending.querySelectorAll("img")).toHaveLength(1);
 
   const hiring = screen.getByRole("heading", { name: "Hiring this week" }).closest("section")!;
   expect(within(hiring).getByRole("link", { name: /Forklift Operator/ })).toHaveAttribute("href", "/companies/acme?tab=jobs");
 
   fireEvent.click(screen.getByRole("button", { name: "Follow Acme" }));
   expect(toggleFollow).toHaveBeenCalledWith("c1", expect.objectContaining({ companySlug: "acme" }));
+  expect(apiClient.apiGet).toHaveBeenCalledTimes(1);
+  expect(apiClient.apiGet).toHaveBeenCalledWith("/social/rail");
 });
 
 it("shows no panel at all for an empty list", async () => {
-  serve({ suggestedCompanies: [], hiringNow: [] }, { mostLiked: [], mostCommented: [] });
+  jest.mocked(apiClient.apiGet).mockResolvedValue(empty);
   render(<SocialRail />);
-  await waitFor(() => expect(apiClient.apiGet).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(apiClient.apiGet).toHaveBeenCalledTimes(1));
   expect(screen.queryByRole("heading")).not.toBeInTheDocument();
 });
 
+it("shows what it last answered straight away on a return visit, before the new answer lands", async () => {
+  jest.mocked(apiClient.apiGet).mockResolvedValue(rail);
+  const first = render(<SocialRail />);
+  await screen.findByRole("heading", { name: "Hiring this week" });
+  first.unmount();
+
+  jest.mocked(apiClient.apiGet).mockReturnValue(new Promise(() => undefined));
+  render(<SocialRail />);
+  expect(screen.getByRole("heading", { name: "Hiring this week" })).toBeInTheDocument();
+});
+
 it("shows an owner (who can't follow) no Companies to follow panel, and sends a logged-out visitor to sign in", async () => {
-  serve(rail, { mostLiked: [], mostCommented: [] });
+  jest.mocked(apiClient.apiGet).mockResolvedValue(rail);
   mockFollowed = { followedIds: new Set(), canFollow: false, toggleFollow };
   const { unmount } = render(<SocialRail />);
   await screen.findByRole("heading", { name: "Hiring this week" });

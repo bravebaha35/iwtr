@@ -1,8 +1,11 @@
 # IWT Social redesign - design
 
 Date: 2026-10-13. Approved in chat by the product owner ("Yes go ahead"): all four phases in
-this order, and members may start Questions (phase 3). Phase 1 is specified in full here;
-phases 2 to 4 get their own spec when their turn comes.
+this order, and members may start Questions (phase 3). Phases 1 and 2 are specified here and
+built; phases 3 and 4 get their own section when their turn comes.
+
+With the go-ahead for phase 2 the owner added two standing wishes: put performance first
+("so the website can work without loads") and design with the Taste Skill.
 
 ## Why
 
@@ -88,3 +91,58 @@ the card's time link point here.
 Service tests for each new method (ownership, hidden company, one-pin rule, following filter),
 schema tests for the new input, component tests for the tabs, the owner menu, the rail and the
 company views. Then a click-through on the running site in both themes.
+
+## Phase 2
+
+### More to post
+
+A post has a kind. The composer picks it from one row of plain-word tabs: **Update, Poll,
+Event, Milestone, Hiring**.
+
+- **Update**: text, photos, or both ("Write something or add a photo"). Stored as PHOTO when
+  it has photos and UPDATE when it is text only.
+- **Poll**: a question, 2 to 4 different answers, open for 1 day, 3 days, 1 week or 2 weeks. No
+  photos. Members vote (one vote, movable until it closes); employers and admins only look.
+  The split of votes stays hidden from a member until they have voted or the poll has closed;
+  an owner of the company always sees it. Counts only: who voted is never exposed. A poll
+  cannot be reworded once posted, only deleted.
+- **Event**: a name, a date and time that is still ahead, an optional place and details.
+- **Milestone**: a headline ("10 years in business"), optional words and photos.
+- **Hiring**: one of the company's own live job postings, shown inside the post with a link to
+  the company's Job Postings tab. Once the ad is filled, expired or gone the post says the
+  position is no longer open.
+
+Every piece of text the company writes (caption, headline, place, each poll answer) goes
+through the same content rules as a caption.
+
+### Beaver reactions
+
+Three reactions, each the site's own beaver: **Like**, **Well done**, **Curious**. One per
+member per post: the same one again takes it off, another one replaces it. The like button
+still works with one click (a plain like); resting the pointer on it, or the small arrow
+beside it, opens the three beavers. Only positive and curious reactions: a "dislike" on a
+company's own post would invite pile-ons that the comment rules exist to prevent.
+
+### No waiting
+
+- A list this visit has already shown (a feed tab, a company's posts, the rail) comes back
+  from memory at once and is read again behind it. Signing in or out empties that memory.
+- A list seen for the first time shows post-shaped placeholders instead of "Loading...".
+- Each photo's proportions are stored with the post (`imageAspectRatios`), so its space is
+  held before it arrives and the feed never jumps. Photos below the first card load lazily.
+  `scripts/backfill-social-image-aspects.ts` fills the proportions for older posts.
+- The rail is one request instead of two, and its Trending and Hiring lists (the same for
+  everyone) are built once a minute on the server.
+- Publishing a post refreshes the lists on the page; the page itself is no longer reloaded.
+- The next page of a feed starts loading before the end of the list is reached.
+
+### API
+
+- `SocialPost` gains `kind`, `title`, `eventStartsAt`, `eventLocation`, `pollEndsAt`,
+  `jobPostingId`, `imageAspectRatios`. New: `SocialPollOption`, `SocialPollVote`.
+  `SocialPostLike` gains `reaction`.
+- `POST social/posts` takes the kind's fields; photos are optional except for a plain post
+  with no text.
+- `POST social/posts/:id/like` takes an optional `{ reaction }`.
+- `POST social/posts/:id/poll-vote` (members only) returns the post as the voter now sees it.
+- `GET social/rail` now carries `trending`; `GET social/trending` is gone.

@@ -291,3 +291,21 @@ progress {
     0 0 0 1px rgba(251, 191, 36, 0.25),
     0 0 18px rgba(251, 191, 36, 0.35);
 }
+
+/* The beaver reaction picker on an IWT Social post: it lifts into place from
+   the like button rather than appearing flat. */
+@keyframes reaction-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+  }
+}
+.reaction-pop {
+  transform-origin: bottom left;
+  animation: reaction-pop 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reaction-pop {
+    animation: none;
+  }
+}

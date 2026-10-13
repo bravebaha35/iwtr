@@ -17,19 +17,23 @@ import { Throttle } from "@nestjs/throttler";
 import {
   createSocialCommentInputSchema,
   createSocialPostInputSchema,
+  reactToSocialPostInputSchema,
   reportSocialCommentInputSchema,
   socialCompanySortSchema,
   updateSocialPostInputSchema,
   voteSocialCommentInputSchema,
+  voteSocialPollInputSchema,
   workplaceTypeSchema,
   SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES,
   MAX_SOCIAL_POST_IMAGES,
   type CreateSocialCommentInput,
   type CreateSocialPostInput,
+  type ReactToSocialPostInput,
   type ReportSocialCommentInput,
   type SocialCompanySort,
   type UpdateSocialPostInput,
   type VoteSocialCommentInput,
+  type VoteSocialPollInput,
   type WorkplaceType,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
@@ -84,10 +88,11 @@ function parseSocialCompanySort(raw: string | undefined): SocialCompanySort {
 export class SocialController {
   constructor(private readonly social: SocialService) {}
 
-  // Multipart: 1..MAX_SOCIAL_POST_IMAGES `files` + `companyId` + optional
-  // `caption` - an Instagram-style multi-photo carousel, not a single image
-  // (see SocialPost.imageUrls). Tighter throttle than the global 100/min -
-  // creating a post is expensive (decode + encode, now per image).
+  // Multipart: 0..MAX_SOCIAL_POST_IMAGES `files` + `companyId` + the fields
+  // of the post's kind (see createSocialPostInputSchema): a photo or text
+  // update, a poll, an event, a milestone or a "we're hiring" post. Tighter
+  // throttle than the global 100/min - creating a post is expensive (decode
+  // + encode, per image).
   @Post("posts")
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor("files", MAX_SOCIAL_POST_IMAGES, { limits: { fileSize: SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES } }))
@@ -186,14 +191,6 @@ export class SocialController {
     return this.social.companyFeed(user?.id, slug, { cursor, sort: parseSocialCompanySort(sort) });
   }
 
-  // The last 7 days' top posts across every company, split by like count
-  // and by comment count. Same optional-auth rule as `feed`/`companyPosts`.
-  @Get("trending")
-  @UseGuards(OptionalJwtAuthGuard)
-  trending(@OptionalCurrentUser() user: AuthenticatedUser | undefined) {
-    return this.social.trending(user?.id);
-  }
-
   // Add an anonymous comment to a post. Body is moderated - a violation is a
   // hard 400, never an admin queue. Tighter throttle than the global 100/min.
   @Post("posts/:id/comments")
@@ -289,11 +286,29 @@ export class SocialController {
     return this.social.voteComment(user.id, commentId, body.value);
   }
 
-  // Toggle the current user's like on a post. Returns the fresh like count.
+  // Leave, change or take back the current user's reaction on a post (no
+  // body = a plain like). Returns the fresh counts.
   @Post("posts/:id/like")
   @UseGuards(JwtAuthGuard)
-  toggleLike(@CurrentUser() user: AuthenticatedUser, @Param("id") postId: string) {
-    return this.social.toggleLike(user.id, postId);
+  toggleLike(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") postId: string,
+    @Body(new ZodValidationPipe(reactToSocialPostInputSchema)) body: ReactToSocialPostInput,
+  ) {
+    return this.social.toggleLike(user.id, postId, body.reaction);
+  }
+
+  // Vote on a poll, or move the vote to another answer. Employee-only
+  // (MEMBER): a poll asks the people who work there, not other employers.
+  @Post("posts/:id/poll-vote")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("MEMBER")
+  votePoll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) postId: string,
+    @Body(new ZodValidationPipe(voteSocialPollInputSchema)) body: VoteSocialPollInput,
+  ) {
+    return this.social.votePoll(user.id, postId, body.optionId);
   }
 
   // Toggle the current user's private bookmark on a post. Employee-only

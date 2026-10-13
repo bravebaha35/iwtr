@@ -40,18 +40,21 @@ describe("processSocialImage", () => {
     // sanity: the fixture really does carry EXIF going in
     expect((await sharp(input).metadata()).exif).toBeDefined();
 
-    const out = await processSocialImage(input, "image/jpeg");
+    const { webp: out, aspectRatio } = await processSocialImage(input, "image/jpeg");
     const meta = await sharp(out).metadata();
     expect(meta.format).toBe("webp");
     expect(meta.width).toBe(SOCIAL_IMAGE_OUTPUT_MAX_WIDTH_PX);
     expect(out.length).toBeLessThan(input.length);
+    // the stored image's own proportions (2000x1500 stays 4:3 after the downscale)
+    expect(aspectRatio).toBeCloseTo(4 / 3, 2);
     // anonymity-first: owner photos can carry EXIF GPS - it must not survive
     expect(meta.exif).toBeUndefined();
   });
 
   it("leaves a small image at its own size but still re-encodes to WebP", async () => {
     const input = await makePng(400, 400);
-    const out = await processSocialImage(input, "image/png");
+    const { webp: out, aspectRatio } = await processSocialImage(input, "image/png");
+    expect(aspectRatio).toBe(1);
     const meta = await sharp(out).metadata();
     expect(meta.format).toBe("webp");
     expect(meta.width).toBe(400);
@@ -68,7 +71,7 @@ describe("processSocialImage", () => {
     mockHeic.mockResolvedValue(converted);
     const input = Buffer.from("pretend-heic-bytes");
 
-    const out = await processSocialImage(input, "image/heic");
+    const { webp: out } = await processSocialImage(input, "image/heic");
 
     expect(mockHeic).toHaveBeenCalledWith({ buffer: input, format: "JPEG", quality: 0.9 });
     const meta = await sharp(out).metadata();
@@ -81,7 +84,7 @@ describe("processSocialImage", () => {
     const converted = await makeJpeg(800, 600);
     mockHeic.mockResolvedValue(converted);
 
-    const out = await processSocialImage(Buffer.from("pretend-heif-bytes"), "image/heif");
+    const { webp: out } = await processSocialImage(Buffer.from("pretend-heif-bytes"), "image/heif");
 
     expect(mockHeic).toHaveBeenCalledTimes(1);
     expect((await sharp(out).metadata()).format).toBe("webp");

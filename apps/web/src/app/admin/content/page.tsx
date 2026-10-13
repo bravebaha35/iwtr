@@ -327,12 +327,15 @@ function CompanyPostsPanel({
             {posts.map((post) => (
               <div key={post.id} className="rounded-lg border border-border bg-surface p-2.5">
                 <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- owner/user-submitted photo, not a static asset */}
-                  <img
-                    src={post.imageUrls[0]}
-                    alt=""
-                    className="h-14 w-14 shrink-0 rounded-md object-cover"
-                  />
+                  {post.imageUrls[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- owner/user-submitted photo, not a static asset
+                    <img src={post.imageUrls[0]} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
+                  ) : (
+                    // A post without a photo: say what kind it is instead.
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-surface-muted text-[10px] font-semibold text-muted-foreground">
+                      {post.kind}
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     {post.caption && (
                       <p className="truncate text-sm text-foreground" title={post.caption}>
