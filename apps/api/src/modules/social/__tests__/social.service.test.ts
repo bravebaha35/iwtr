@@ -161,8 +161,34 @@ describe("SocialService.feed", () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
       savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+      companyOwner: { findMany: jest.fn().mockResolvedValue([]) },
     } as never;
   }
+
+  it("marks a post manageable only for an approved owner of its company, and never for an anonymous viewer", async () => {
+    const prisma = feedPrisma();
+    (prisma as any).companyOwner.findMany.mockResolvedValue([{ companyId: "c1" }]);
+    const asOwner = await new SocialService(prisma, moderationPass).feed("owner-1", {});
+    expect(asOwner.posts.every((p) => p.canManage)).toBe(true);
+    expect((prisma as any).companyOwner.findMany).toHaveBeenCalledWith({
+      where: { userId: "owner-1", companyId: { in: ["c1"] }, claimStatus: "APPROVED" },
+      select: { companyId: true },
+    });
+
+    const anonymous = await new SocialService(feedPrisma(), moderationPass).feed(undefined, {});
+    expect(anonymous.posts.some((p) => p.canManage)).toBe(false);
+  });
+
+  it("the Following tab keeps only companies the caller follows, and is empty for a logged-out caller", async () => {
+    const prisma = feedPrisma();
+    await new SocialService(prisma, moderationPass).feed("viewer-1", { following: true });
+    expect((prisma as any).socialPost.findMany.mock.calls[0][0].where.company.followers).toEqual({ some: { userId: "viewer-1" } });
+
+    const anonPrisma = feedPrisma();
+    const page = await new SocialService(anonPrisma, moderationPass).feed(undefined, { following: true });
+    expect(page).toEqual({ posts: [], nextCursor: null });
+    expect((anonPrisma as any).socialPost.findMany).not.toHaveBeenCalled();
+  });
 
   it("returns posts newest-first with counts, nextCursor null on a short page, likedByMe null when anonymous", async () => {
     const page = await new SocialService(feedPrisma(), moderationPass).feed(undefined, {});
@@ -614,6 +640,7 @@ describe("SocialService.listSavedPosts", () => {
       savedPost: { findMany },
       socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
       socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      companyOwner: { findMany: jest.fn().mockResolvedValue([]) },
     } as never;
 
     const page = await new SocialService(prisma, moderationPass).listSavedPosts("u1", undefined);
@@ -1179,16 +1206,158 @@ describe("SocialService.companyFeed sort", () => {
     );
   });
 
-  it("defaults to newest-first when sort is omitted", async () => {
+  it("defaults to newest-first when sort is omitted, with the pinned post leading", async () => {
     const prisma = makeFeedPrisma();
     await new SocialService(prisma, moderationPass).companyFeed(undefined, "some-slug", {});
     expect((prisma as any).socialPost.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ orderBy: [{ createdAt: "desc" }, { id: "desc" }] }),
+      expect.objectContaining({
+        orderBy: [{ pinnedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }, { id: "desc" }],
+      }),
     );
   });
 });
 
-describe("SocialService.trendingToday", () => {
+describe("SocialService owner post tools (edit / delete / pin)", () => {
+  const owned = { id: "p1", companyId: "c1", imageUrls: ["http://x/uploads/social/a.webp"], pinnedAt: null };
+  const updatedRow = {
+    id: "p1", companyId: "c1", imageUrls: ["/u/1.webp"], caption: "new", createdAt: new Date(), pinnedAt: null, editedAt: new Date(),
+    company: { slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "FREE", workplaceTypes: ["OFFICE"] },
+  };
+
+  function toolsPrisma(post: Record<string, unknown> | null = owned, ownership: unknown = { claimStatus: "APPROVED" }) {
+    const prisma = {
+      companyOwner: { findUnique: jest.fn().mockResolvedValue(ownership), findMany: jest.fn().mockResolvedValue([{ companyId: "c1" }]) },
+      socialPost: {
+        findUnique: jest.fn().mockResolvedValue(post),
+        update: jest.fn().mockResolvedValue(updatedRow),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        delete: jest.fn().mockResolvedValue({}),
+      },
+      socialPostLike: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]) },
+      socialComment: { groupBy: jest.fn().mockResolvedValue([]) },
+      savedPost: { findMany: jest.fn().mockResolvedValue([]) },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+      $transaction: jest.fn().mockResolvedValue([]),
+    };
+    return prisma;
+  }
+
+  it("refuses all three to someone who isn't an approved owner of the post's company", async () => {
+    for (const ownership of [null, { claimStatus: "PENDING" }]) {
+      const prisma = toolsPrisma(owned, ownership);
+      const service = new SocialService(prisma as never, moderationPass);
+      await expect(service.updatePost("u2", "p1", { caption: "x" })).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.deletePost("u2", "p1")).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.togglePin("u2", "p1")).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.socialPost.update).not.toHaveBeenCalled();
+      expect(prisma.socialPost.delete).not.toHaveBeenCalled();
+      expect(prisma.companyOwner.findUnique).toHaveBeenCalledWith({ where: { userId_companyId: { userId: "u2", companyId: "c1" } } });
+    }
+  });
+
+  it("404s on a post that doesn't exist", async () => {
+    const service = new SocialService(toolsPrisma(null) as never, moderationPass);
+    await expect(service.deletePost("u1", "ghost")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("edits the caption only, marks the post edited, and returns the fresh post", async () => {
+    const prisma = toolsPrisma();
+    const post = await new SocialService(prisma as never, moderationPass).updatePost("u1", "p1", { caption: "new" });
+    const call = prisma.socialPost.update.mock.calls[0][0];
+    expect(call.where).toEqual({ id: "p1" });
+    expect(Object.keys(call.data as object).sort()).toEqual(["caption", "editedAt"]);
+    expect(call.data.caption).toBe("new");
+    expect(call.data.editedAt).toBeInstanceOf(Date);
+    expect(post).toMatchObject({ id: "p1", caption: "new", edited: true, canManage: true });
+  });
+
+  it("an empty caption removes it; a caption that breaks the rules is refused and nothing is saved", async () => {
+    const prisma = toolsPrisma();
+    await new SocialService(prisma as never, moderationPass).updatePost("u1", "p1", { caption: "" });
+    expect(prisma.socialPost.update.mock.calls[0][0].data.caption).toBeNull();
+
+    const blocked = toolsPrisma();
+    const moderationFail = { checkContent: jest.fn().mockReturnValue({ violates: true, violationTypes: ["PROFANITY"] }) } as never;
+    await expect(new SocialService(blocked as never, moderationFail).updatePost("u1", "p1", { caption: "bad" })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(blocked.socialPost.update).not.toHaveBeenCalled();
+  });
+
+  it("deletes the post, unlinks its photos and writes an audit entry", async () => {
+    mockUnlink.mockClear();
+    const prisma = toolsPrisma();
+    await expect(new SocialService(prisma as never, moderationPass).deletePost("u1", "p1")).resolves.toEqual({ success: true });
+    expect(prisma.socialPost.delete).toHaveBeenCalledWith({ where: { id: "p1" } });
+    expect(mockUnlink).toHaveBeenCalledWith(join(process.cwd(), "uploads", "social", "a.webp"));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ actorUserId: "u1", action: "SOCIAL_POST_DELETED_BY_OWNER", targetId: "p1" }),
+    });
+  });
+
+  it("pinning takes the pin off the company's other post in the same transaction", async () => {
+    const prisma = toolsPrisma();
+    await expect(new SocialService(prisma as never, moderationPass).togglePin("u1", "p1")).resolves.toEqual({ postId: "p1", pinned: true });
+    expect(prisma.socialPost.updateMany).toHaveBeenCalledWith({ where: { companyId: "c1", pinnedAt: { not: null } }, data: { pinnedAt: null } });
+    expect(prisma.socialPost.update.mock.calls[0][0].data.pinnedAt).toBeInstanceOf(Date);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("a second press on the pinned post unpins it", async () => {
+    const prisma = toolsPrisma({ ...owned, pinnedAt: new Date() });
+    await expect(new SocialService(prisma as never, moderationPass).togglePin("u1", "p1")).resolves.toEqual({ postId: "p1", pinned: false });
+    expect(prisma.socialPost.update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { pinnedAt: null } });
+    expect(prisma.socialPost.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("SocialService.getPost / rail / companySummary", () => {
+  it("getPost only finds a post whose company is public, and 404s otherwise", async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const prisma = { socialPost: { findFirst } } as never;
+    await expect(new SocialService(prisma, moderationPass).getPost(undefined, "p1")).rejects.toBeInstanceOf(NotFoundException);
+    expect(findFirst.mock.calls[0][0].where).toEqual({ id: "p1", company: expect.objectContaining({ hiddenAt: null }) });
+    expect(findFirst.mock.calls[0][0].select.authorUserId).toBeUndefined();
+  });
+
+  it("rail suggests companies that post and the viewer doesn't follow, and one fresh job ad per company", async () => {
+    const companyFindMany = jest.fn().mockResolvedValue([
+      { id: "c1", slug: "acme", name: "Acme", mainPhotoUrl: null, badgeTier: "PRO", workplaceTypes: ["OFFICE"] },
+    ]);
+    const job = (id: string, companyId: string) => ({
+      id, jobTitle: `Job ${id}`, companyId, company: { slug: companyId, name: companyId.toUpperCase(), mainPhotoUrl: null },
+    });
+    const jobFindMany = jest.fn().mockResolvedValue([job("j1", "c1"), job("j2", "c1"), job("j3", "c2")]);
+    const prisma = { company: { findMany: companyFindMany }, jobPosting: { findMany: jobFindMany } } as never;
+
+    const rail = await new SocialService(prisma, moderationPass).rail("viewer-1");
+
+    const where = companyFindMany.mock.calls[0][0].where;
+    expect(where).toMatchObject({ hiddenAt: null, socialPosts: { some: {} }, followers: { none: { userId: "viewer-1" } } });
+    expect(rail.suggestedCompanies).toEqual([
+      { companyId: "c1", companySlug: "acme", companyName: "Acme", companyLogoUrl: null, companyBadgeTier: "PRO", companyWorkplaceTypes: ["OFFICE"] },
+    ]);
+    const jobWhere = jobFindMany.mock.calls[0][0].where;
+    expect(jobWhere.status).toBe("PUBLISHED");
+    expect(Date.now() - jobWhere.createdAt.gte.getTime()).toBeGreaterThan(6.9 * 86_400_000);
+    expect(rail.hiringNow.map((j) => j.jobPostingId)).toEqual(["j1", "j3"]);
+  });
+
+  it("companySummary returns bare counts and 404s for a hidden company", async () => {
+    const prisma = {
+      company: { findUnique: jest.fn().mockResolvedValue({ id: "c1", hiddenAt: null }) },
+      companyFollow: { count: jest.fn().mockResolvedValue(12) },
+      socialPost: { count: jest.fn().mockResolvedValue(4) },
+    };
+    await expect(new SocialService(prisma as never, moderationPass).companySummary("acme")).resolves.toEqual({ followerCount: 12, postCount: 4 });
+    expect(prisma.companyFollow.count).toHaveBeenCalledWith({ where: { companyId: "c1" } });
+
+    prisma.company.findUnique.mockResolvedValue({ id: "c1", hiddenAt: new Date() });
+    await expect(new SocialService(prisma as never, moderationPass).companySummary("acme")).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe("SocialService.trending", () => {
   it("excludes a post that made the top-5 query but has zero of that metric", async () => {
     const zeroLikedPost = {
       id: "p1", companyId: "c1", imageUrls: ["x"], caption: null, createdAt: new Date(),
@@ -1201,7 +1370,7 @@ describe("SocialService.trendingToday", () => {
       savedPost: { findMany: jest.fn().mockResolvedValue([]) },
     });
 
-    const result = await new SocialService(prisma, moderationPass).trendingToday(undefined);
+    const result = await new SocialService(prisma, moderationPass).trending(undefined);
 
     expect(result.mostLiked).toEqual([]);
     expect(result.mostCommented).toEqual([]);

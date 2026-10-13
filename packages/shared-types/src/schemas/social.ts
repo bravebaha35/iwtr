@@ -53,6 +53,13 @@ export const createSocialPostInputSchema = z.object({
 });
 export type CreateSocialPostInput = z.infer<typeof createSocialPostInputSchema>;
 
+// The owner's Edit on a post (PATCH social/posts/:id): the caption only -
+// photos are fixed once posted. An empty caption removes it.
+export const updateSocialPostInputSchema = z.object({
+  caption: createSocialPostInputSchema.shape.caption.unwrap(),
+});
+export type UpdateSocialPostInput = z.infer<typeof updateSocialPostInputSchema>;
+
 // Which identity a comment is posted under. PERSONAL_CHOSEN/PERSONAL_RANDOM
 // are both anonymous - the only two an employee ever picks between.
 // OWNER_REAL_NAME is the only mode a company owner ever gets: no toggle, no
@@ -137,8 +144,21 @@ export const publicSocialPostSchema = z.object({
   // Same null-when-anonymous convention as likedByMe (see SocialService.
   // serializePosts) - a private bookmark flag, never a public save count.
   savedByMe: z.boolean().nullable(),
+  // The company's pinned post (at most one): it leads the company's own feed.
+  pinned: z.boolean(),
+  // The caption was changed after posting.
+  edited: z.boolean(),
+  // The viewer is an approved owner of this post's company, so the card
+  // offers Edit / Pin / Delete. Says nothing about who wrote the post.
+  canManage: z.boolean(),
 });
 export type PublicSocialPost = z.infer<typeof publicSocialPostSchema>;
+
+export const socialPostPinResultSchema = z.object({
+  postId: z.string(),
+  pinned: z.boolean(),
+});
+export type SocialPostPinResult = z.infer<typeof socialPostPinResultSchema>;
 
 export const publicSocialCommentSchema = z.object({
   id: z.string(),
@@ -255,12 +275,48 @@ export const socialPostLikeResultSchema = z.object({
 });
 export type SocialPostLikeResult = z.infer<typeof socialPostLikeResultSchema>;
 
-// GET /social/trending - today's top posts across all companies, split by
-// like count and comment count. Either array can be empty (e.g. nothing
-// posted yet today); the frontend renders nothing for an empty section
-// rather than an empty block.
-export const trendingTodaySchema = z.object({
+// GET /social/trending - the last 7 days' top posts across all companies,
+// split by like count and comment count. Either array can be empty; the
+// page shows no "Trending" panel when both are.
+export const socialTrendingSchema = z.object({
   mostLiked: z.array(publicSocialPostSchema),
   mostCommented: z.array(publicSocialPostSchema),
 });
-export type TrendingToday = z.infer<typeof trendingTodaySchema>;
+export type SocialTrending = z.infer<typeof socialTrendingSchema>;
+
+// GET /social/rail - the two lists beside the IWT Social feed. Either can be
+// empty; the page shows no panel for an empty one.
+export const socialRailCompanySchema = z.object({
+  companyId: z.string(),
+  companySlug: z.string(),
+  companyName: z.string(),
+  companyLogoUrl: z.string().nullable(),
+  companyBadgeTier: ownerTierSchema,
+  companyWorkplaceTypes: companyWorkplaceTypesSchema,
+});
+export type SocialRailCompany = z.infer<typeof socialRailCompanySchema>;
+
+export const socialRailJobSchema = z.object({
+  jobPostingId: z.string(),
+  jobTitle: z.string(),
+  companySlug: z.string(),
+  companyName: z.string(),
+  companyLogoUrl: z.string().nullable(),
+});
+export type SocialRailJob = z.infer<typeof socialRailJobSchema>;
+
+export const socialRailSchema = z.object({
+  // Public companies that have posted and that the viewer doesn't follow yet.
+  suggestedCompanies: z.array(socialRailCompanySchema),
+  // Job ads posted in the last 7 days, one per company.
+  hiringNow: z.array(socialRailJobSchema),
+});
+export type SocialRail = z.infer<typeof socialRailSchema>;
+
+// GET /social/companies/:slug/summary - bare counts for the company Social
+// tab. A count only: the follower list is never exposed (REVIEW.md).
+export const companySocialSummarySchema = z.object({
+  followerCount: z.number().int(),
+  postCount: z.number().int(),
+});
+export type CompanySocialSummary = z.infer<typeof companySocialSummarySchema>;

@@ -5,6 +5,8 @@ import type { Company, CompanyAggregateScore, SocialCompanySort } from "@iwtr/sh
 import { SocialFeed } from "@/components/social/SocialFeed";
 import { SocialSidebar } from "@/components/social/SocialSidebar";
 import { SocialComposerSlot } from "@/components/social/SocialComposerSlot";
+import { CompanySocialHeader, type CompanySocialView } from "@/components/social/CompanySocialHeader";
+import { CompanyPhotoGrid } from "@/components/social/CompanyPhotoGrid";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 
@@ -60,6 +62,8 @@ export function CompanyProfileTabs({
   // Social/Jobs panels (and therefore their network calls).
   const [visited, setVisited] = useState<Set<TabKey>>(() => new Set<TabKey>([active]));
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // The Social tab shows the posts themselves or just their photos.
+  const [socialView, setSocialView] = useState<CompanySocialView>("posts");
 
   // Sort choice for this company's own post list - client state only, no
   // ?sort= URL param (matches WorkplaceBrowser/JobsBrowser's existing
@@ -228,12 +232,17 @@ export function CompanyProfileTabs({
                 }}
               />
               <div className="flex min-w-0 flex-1 justify-center">
-                <div className="flex w-full max-w-xl flex-col gap-4">
+                <div className="flex w-full max-w-xl flex-col gap-5">
+                  <CompanySocialHeader company={company} view={socialView} onViewChange={setSocialView} />
                   {/* Posts as whichever of the owner's own approved companies
                       they pick - not automatically locked to this one (same
                       component/behavior the deleted /social/[slug] route had). */}
                   <SocialComposerSlot />
-                  <SocialFeed scope={{ kind: "company", slug }} sort={sort} />
+                  {socialView === "photos" ? (
+                    <CompanyPhotoGrid slug={slug} />
+                  ) : (
+                    <SocialFeed scope={{ kind: "company", slug }} sort={sort} />
+                  )}
                 </div>
               </div>
             </SidebarContentRow>

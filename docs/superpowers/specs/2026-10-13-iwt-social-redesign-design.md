@@ -35,8 +35,9 @@ Not planned: video (storage and moderation cost), member profiles or connections
   rather than "For you" because nothing is personalised yet. The sidebar's Saved Posts button
   goes away (it is a tab now); the Following list stays as a jump list.
 - Right-hand rail, three quiet panels, each hidden when empty:
-  - **Trending today**: the day's most liked and most commented posts as one short list
-    (replaces the full-size repeats above the feed).
+  - **Trending this week**: the last 7 days' most liked and most commented posts as one
+    short list (replaces the full-size repeats above the feed; a week because a single day
+    is usually empty).
   - **Companies to follow**: up to 5 public companies that have posted and that the viewer
     does not follow yet, most followed first.
   - **Hiring this week**: up to 5 job ads posted in the last 7 days, one per company.
@@ -60,8 +61,9 @@ the card's time link point here.
 
 ### Company Social tab
 
-- A line above the feed: follower count, post count, Follow (members), and two views as plain
-  words: **Posts** and **Photos**.
+- A line above the feed: follower count and post count, and two views as plain words:
+  **Posts** and **Photos**. Following stays the one button in the company page header; the
+  count is read again each time a follow has been saved.
 - Photos: a grid of every photo from the posts loaded so far; a click opens that post's page.
 - A pinned post leads the default (newest) order. One pinned post per company.
 

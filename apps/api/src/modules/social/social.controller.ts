@@ -1,4 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UploadedFiles,
+  UseGuards,
+  UseInterceptors,
+} from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { Throttle } from "@nestjs/throttler";
 import {
@@ -6,6 +19,7 @@ import {
   createSocialPostInputSchema,
   reportSocialCommentInputSchema,
   socialCompanySortSchema,
+  updateSocialPostInputSchema,
   voteSocialCommentInputSchema,
   workplaceTypeSchema,
   SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES,
@@ -14,6 +28,7 @@ import {
   type CreateSocialPostInput,
   type ReportSocialCommentInput,
   type SocialCompanySort,
+  type UpdateSocialPostInput,
   type VoteSocialCommentInput,
   type WorkplaceType,
 } from "@iwtr/shared-types";
@@ -100,13 +115,61 @@ export class SocialController {
     @Query("q") q?: string,
     @Query("workplaceTypes") workplaceTypes?: string,
     @Query("categoryGroup") categoryGroup?: string,
+    @Query("following") following?: string,
   ) {
     return this.social.feed(user?.id, {
       cursor,
       q,
       workplaceTypes: parseWorkplaceTypes(workplaceTypes),
       categoryGroup: parseCategoryGroup(categoryGroup),
+      // The "Following" tab: only companies the caller follows.
+      following: following === "1",
     });
+  }
+
+  // The two lists beside the feed: companies to follow and fresh job ads.
+  @Get("rail")
+  @UseGuards(OptionalJwtAuthGuard)
+  rail(@OptionalCurrentUser() user: AuthenticatedUser | undefined) {
+    return this.social.rail(user?.id);
+  }
+
+  // One post, for its own page (share links). Same optional-auth rule.
+  @Get("posts/:id")
+  @UseGuards(OptionalJwtAuthGuard)
+  getPost(@OptionalCurrentUser() user: AuthenticatedUser | undefined, @Param("id", new ParseUUIDPipe()) postId: string) {
+    return this.social.getPost(user?.id, postId);
+  }
+
+  // The owner's Edit: caption only. An approved owner of the post's company.
+  @Patch("posts/:id")
+  @UseGuards(JwtAuthGuard)
+  updatePost(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) postId: string,
+    @Body(new ZodValidationPipe(updateSocialPostInputSchema)) body: UpdateSocialPostInput,
+  ) {
+    return this.social.updatePost(user.id, postId, body);
+  }
+
+  // The owner's Delete: the post, its thread and its photos.
+  @Delete("posts/:id")
+  @UseGuards(JwtAuthGuard)
+  deletePost(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) postId: string) {
+    return this.social.deletePost(user.id, postId);
+  }
+
+  // Pin / unpin on the company's own feed (one pinned post per company).
+  @Post("posts/:id/pin")
+  @UseGuards(JwtAuthGuard)
+  togglePin(@CurrentUser() user: AuthenticatedUser, @Param("id", new ParseUUIDPipe()) postId: string) {
+    return this.social.togglePin(user.id, postId);
+  }
+
+  // Follower and post counts for the company Social tab - counts only.
+  @Get("companies/:slug/summary")
+  companySummary(@Param("slug") slug: string) {
+    return this.social.companySummary(slug);
   }
 
   // Public per-company feed, addressed by slug. Same optional-auth rule.
@@ -123,12 +186,12 @@ export class SocialController {
     return this.social.companyFeed(user?.id, slug, { cursor, sort: parseSocialCompanySort(sort) });
   }
 
-  // Today's top posts across every company, split by like count and by
-  // comment count. Same optional-auth rule as `feed`/`companyPosts`.
+  // The last 7 days' top posts across every company, split by like count
+  // and by comment count. Same optional-auth rule as `feed`/`companyPosts`.
   @Get("trending")
   @UseGuards(OptionalJwtAuthGuard)
   trending(@OptionalCurrentUser() user: AuthenticatedUser | undefined) {
-    return this.social.trendingToday(user?.id);
+    return this.social.trending(user?.id);
   }
 
   // Add an anonymous comment to a post. Body is moderated - a violation is a
