@@ -384,6 +384,8 @@ export class AdminCompaniesService {
       // Everything else with no uniqueness constraint to worry about.
       this.prisma.employmentHistory.updateMany({ where: { companyId: duplicateId }, data: { companyId: masterId } }),
       this.prisma.ownerContactMessage.updateMany({ where: { companyId: duplicateId }, data: { companyId: masterId } }),
+      // IWT Social questions put to the duplicate now belong to the master.
+      this.prisma.socialQuestion.updateMany({ where: { companyId: duplicateId }, data: { companyId: masterId } }),
 
       // The duplicate's own cached aggregate row — recomputed fresh for the
       // master below, this one is just gone.

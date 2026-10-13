@@ -35,11 +35,13 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
 import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "../companies/company-visibility";
-import { decryptField, unwrapDek } from "../employer-profile/crypto.util";
 import { pickRandomDisplayUsername } from "../reviews/randomized-identity.util";
 import { daysRemaining, shouldLazyReshare } from "../job-postings/job-postings.util";
 import { processSocialImage } from "./social-image.util";
 import { toUtcHour } from "../../common/time/day-precision.util";
+import { ownerDisplayFromProfile } from "./social-owner-display.util";
+import { loadOpenQuestionsForRail } from "./social-questions.rail";
+import { socialQuestionsEnabled } from "./social-questions.flag";
 
 // Local disk, dev-safe - same pattern as OwnerService.uploadLogo. Served at
 // /uploads/social/ by main.ts's existing useStaticAssets(cwd/uploads, prefix
@@ -103,6 +105,9 @@ const CAPTION_SKIPPED_CHECKS = {
 };
 const CAPTION_REJECTED_MESSAGE = "That text breaks our content rules (profanity or contact details) - please reword it.";
 
+// The rail lists that are the same for every visitor.
+type RailSharedLists = Pick<SocialRail, "trending" | "hiringNow" | "openQuestions">;
+
 const NO_REACTIONS: SocialReactionCounts = { LIKE: 0, WELL_DONE: 0, CURIOUS: 0 };
 
 // The Quick Select / "Industry Tags" bucket, identical set to apps/web's
@@ -127,7 +132,7 @@ export type CategoryGroup =
 // filter, hence the notIn branch below).
 const NARROW_CATEGORY_GROUP_VALUES = ["Supermarket", "Franchise", "Logistics", "Clothing Retail", "Telecom", "Fuel & Energy"];
 
-function categoryGroupWhere(group: CategoryGroup | undefined): Prisma.StringFilter | string | undefined {
+export function categoryGroupWhere(group: CategoryGroup | undefined): Prisma.StringFilter | string | undefined {
   switch (group) {
     case "SUPERMARKET":
       return "Supermarket";
@@ -161,7 +166,7 @@ export class SocialService {
     private readonly moderation: ModerationService,
   ) {}
 
-  private railShared: { at: number; lists: Promise<Pick<SocialRail, "trending" | "hiringNow">> } | null = null;
+  private railShared: { at: number; lists: Promise<RailSharedLists> } | null = null;
 
   async createPost(
     userId: string,
@@ -349,7 +354,7 @@ export class SocialService {
     };
   }
 
-  private railSharedLists(): Promise<Pick<SocialRail, "trending" | "hiringNow">> {
+  private railSharedLists(): Promise<RailSharedLists> {
     const hit = this.railShared;
     if (hit && Date.now() - hit.at < RAIL_SHARED_TTL_MS) return hit.lists;
     const lists = this.buildRailSharedLists();
@@ -361,7 +366,7 @@ export class SocialService {
     return lists;
   }
 
-  private async buildRailSharedLists(): Promise<Pick<SocialRail, "trending" | "hiringNow">> {
+  private async buildRailSharedLists(): Promise<RailSharedLists> {
     const trendingSince = new Date();
     trendingSince.setDate(trendingSince.getDate() - TRENDING_WINDOW_DAYS);
     const hiringSince = new Date();
@@ -380,7 +385,7 @@ export class SocialService {
           _count: { select: { likes: true, comments: true } },
         },
       });
-    const [mostLiked, mostCommented, jobs] = await Promise.all([
+    const [mostLiked, mostCommented, jobs, openQuestions] = await Promise.all([
       trendingQuery("likes"),
       trendingQuery("comments"),
       // A few more than shown, so several fresh ads from one company still
@@ -391,6 +396,8 @@ export class SocialService {
         take: RAIL_LIST_LIMIT * 6,
         select: { id: true, jobTitle: true, companyId: true, company: { select: { slug: true, name: true, mainPhotoUrl: true } } },
       }),
+      // Nothing while Questions is switched off.
+      socialQuestionsEnabled() ? loadOpenQuestionsForRail(this.prisma) : Promise.resolve([]),
     ]);
 
     // The week's most liked and most commented posts as one list, busiest
@@ -425,7 +432,7 @@ export class SocialService {
       });
       if (hiringNow.length === RAIL_LIST_LIMIT) break;
     }
-    return { trending, hiringNow };
+    return { trending, hiringNow, openQuestions };
   }
 
   // Bare counts for the company Social tab. SECURITY (REVIEW.md): a count
@@ -1364,12 +1371,7 @@ export class SocialService {
   private resolveOwnerDisplay(
     profile: { encFirstName: Buffer | null; encLastName: Buffer | null; profilePictureUrl: string | null; dekWrapped: Buffer } | null,
   ): { displayUsername: string | null; avatarPhotoUrl: string | null } {
-    if (!profile) return { displayUsername: null, avatarPhotoUrl: null };
-    const dek = unwrapDek(profile.dekWrapped);
-    const first = profile.encFirstName ? decryptField(profile.encFirstName, dek) : null;
-    const last = profile.encLastName ? decryptField(profile.encLastName, dek) : null;
-    const displayUsername = [first, last].filter(Boolean).join(" ") || null;
-    return { displayUsername, avatarPhotoUrl: profile.profilePictureUrl };
+    return ownerDisplayFromProfile(profile);
   }
 
   // REVIEW.md-adjacent: identical shape to ReviewsService.listForCompany's

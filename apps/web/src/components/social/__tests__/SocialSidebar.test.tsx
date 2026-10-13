@@ -74,3 +74,60 @@ it("uses the locked SidebarShell geometry (gap-6, not the old gap-5)", () => {
   const aside = screen.getByPlaceholderText(/search a company by name/i).closest("aside");
   expect(aside?.className).toBe("flex shrink-0 flex-col gap-6 sm:w-56");
 });
+
+it("shows how many filters are on and clears them all at once", () => {
+  const onQueryChange = jest.fn();
+  const onWorkplaceTypeChange = jest.fn();
+  const onCategoryGroupChange = jest.fn();
+  const { rerender } = render(<SocialSidebar {...baseProps} isMember={false} />);
+  expect(screen.queryByRole("button", { name: "Clear all" })).not.toBeInTheDocument();
+
+  rerender(
+    <SocialSidebar
+      {...baseProps}
+      isMember={false}
+      query="acme"
+      workplaceType="OFFICE"
+      onQueryChange={onQueryChange}
+      onWorkplaceTypeChange={onWorkplaceTypeChange}
+      onCategoryGroupChange={onCategoryGroupChange}
+    />,
+  );
+  expect(screen.getByText("2 filters on")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+  expect(onQueryChange).toHaveBeenCalledWith("");
+  expect(onWorkplaceTypeChange).toHaveBeenCalledWith(null);
+  expect(onCategoryGroupChange).toHaveBeenCalledWith(null);
+});
+
+it("the Following panel counts the companies and links each to its Social tab", () => {
+  mockFollowed = {
+    companies: [
+      { companyId: "c1", companySlug: "acme", companyName: "Acme", mainPhotoUrl: null },
+      { companyId: "c2", companySlug: "borusan", companyName: "Borusan", mainPhotoUrl: null },
+    ],
+    loading: false,
+  };
+  render(<SocialSidebar {...baseProps} isMember={true} />);
+  expect(screen.getByLabelText("2 companies")).toHaveTextContent("2");
+  expect(screen.getByRole("link", { name: /Acme/ })).toHaveAttribute("href", "/companies/acme?tab=social");
+});
+
+it("company page: Sort rows and named links; the Questions view has no Sort", () => {
+  const onSortChange = jest.fn();
+  const company = {
+    mode: "company" as const,
+    sort: "newest" as const,
+    onSortChange,
+    socialLinks: { facebookUrl: null, instagramUrl: "https://instagram.com/acme", whatsappUrl: null, xUrl: null, youtubeUrl: null },
+  };
+  const { rerender } = render(<SocialSidebar {...company} />);
+  expect(screen.getByRole("button", { name: "Newest to Oldest" })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Most Liked" }));
+  expect(onSortChange).toHaveBeenCalledWith("mostLiked");
+  expect(screen.getByRole("link", { name: /Instagram/ })).toHaveAttribute("href", "https://instagram.com/acme");
+
+  rerender(<SocialSidebar {...company} showSort={false} />);
+  expect(screen.queryByRole("heading", { name: "Sort" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /Instagram/ })).toBeInTheDocument();
+});

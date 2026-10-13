@@ -49,7 +49,7 @@ import { SocialService, type CategoryGroup } from "./social.service";
 // Unrecognized tokens are dropped rather than rejected - same rule as
 // CompaniesService.search's own workplaceTypes parsing - so a stale client
 // sending a since-removed job category doesn't 400 the whole feed request.
-function parseWorkplaceTypes(raw: string | undefined): WorkplaceType[] {
+export function parseWorkplaceTypes(raw: string | undefined): WorkplaceType[] {
   if (!raw) return [];
   return raw
     .split(",")
@@ -73,7 +73,7 @@ const CATEGORY_GROUP_VALUES = new Set<CategoryGroup>([
   "SERVICE_PROVIDERS",
   "OIL_ENERGY",
 ]);
-function parseCategoryGroup(raw: string | undefined): CategoryGroup | undefined {
+export function parseCategoryGroup(raw: string | undefined): CategoryGroup | undefined {
   return raw !== undefined && (CATEGORY_GROUP_VALUES as Set<string>).has(raw) ? (raw as CategoryGroup) : undefined;
 }
 

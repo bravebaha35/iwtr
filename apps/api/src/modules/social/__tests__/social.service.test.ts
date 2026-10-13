@@ -1361,10 +1361,16 @@ describe("SocialService.getPost / rail / companySummary", () => {
       company: { findMany: companyFindMany },
       jobPosting: { findMany: jobFindMany },
       socialPost: { findMany: postFindMany },
+      socialQuestion: {
+        findMany: jest.fn().mockResolvedValue([{ id: "q1", body: "Is overtime paid?", workType: null, company: { name: "Acme" } }]),
+      },
     } as never;
 
     const service = new SocialService(prisma, moderationPass);
     const rail = await service.rail("viewer-1");
+    // Waiting for an answer: only questions nobody has answered.
+    expect(rail.openQuestions).toEqual([{ questionId: "q1", body: "Is overtime paid?", companyName: "Acme", workType: null }]);
+    expect((prisma as any).socialQuestion.findMany.mock.calls[0][0].where.answers).toEqual({ none: {} });
 
     // Trending: each post once, busiest first, untouched posts left out.
     expect(rail.trending.map((p) => p.postId)).toEqual(["talked", "busy", "liked"]);

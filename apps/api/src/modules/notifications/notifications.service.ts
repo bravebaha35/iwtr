@@ -3,6 +3,7 @@ import type { Notification, NotificationType } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { daysRemaining } from "../job-postings/job-postings.util";
 import { toUtcHour } from "../../common/time/day-precision.util";
+import { socialQuestionsEnabled } from "../social/social-questions.flag";
 
 const MAX_NOTIFICATIONS = 30;
 
@@ -283,6 +284,7 @@ export class NotificationsService {
     ];
 
     events.push(...(await this.reviewClaimAndOwnerEvents(userId, myReviews, ownedCompanyIds)));
+    if (socialQuestionsEnabled()) events.push(...(await this.questionEvents(userId, ownedCompanyIds)));
 
     events.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     const latest = events.slice(0, MAX_NOTIFICATIONS);
@@ -309,6 +311,50 @@ export class NotificationsService {
       skipDuplicates: true,
     });
     return { ok: true };
+  }
+
+  /**
+   * IWT Social Questions, last 30 days: answers to the caller's own
+   * questions and - for an approved owner - questions put to their companies.
+   * Both open the question's own page. Hour precision, like the question.
+   */
+  private async questionEvents(userId: string, ownedCompanyIds: string[]): Promise<NotificationEvent[]> {
+    const since = new Date(Date.now() - RECENT_WINDOW_MS);
+    const [answers, asked] = await Promise.all([
+      this.prisma.socialAnswer.findMany({
+        where: { question: { authorUserId: userId }, authorUserId: { not: userId }, createdAt: { gte: since } },
+        select: { id: true, questionId: true, createdAt: true, question: { select: { company: { select: { name: true, slug: true } } } } },
+        orderBy: { createdAt: "desc" },
+        take: MAX_NOTIFICATIONS,
+      }),
+      ownedCompanyIds.length > 0
+        ? this.prisma.socialQuestion.findMany({
+            where: { companyId: { in: ownedCompanyIds }, createdAt: { gte: since } },
+            select: { id: true, createdAt: true, company: { select: { name: true, slug: true } } },
+            orderBy: { createdAt: "desc" },
+            take: MAX_NOTIFICATIONS,
+          })
+        : Promise.resolve([]),
+    ]);
+    return [
+      ...answers.map((a) => ({
+        id: `question-answer-${a.id}`,
+        type: "QUESTION_ANSWERED" as NotificationType,
+        // Empty for a question put to a kind of work rather than a company.
+        companyName: a.question.company?.name ?? "",
+        companySlug: a.question.company?.slug ?? null,
+        createdAt: toUtcHour(a.createdAt).toISOString(),
+        href: `/social/questions/${a.questionId}`,
+      })),
+      ...asked.map((q) => ({
+        id: `company-question-${q.id}`,
+        type: "COMPANY_QUESTION_ASKED" as NotificationType,
+        companyName: q.company?.name ?? "",
+        companySlug: q.company?.slug ?? null,
+        createdAt: toUtcHour(q.createdAt).toISOString(),
+        href: `/social/questions/${q.id}`,
+      })),
+    ];
   }
 
   /**

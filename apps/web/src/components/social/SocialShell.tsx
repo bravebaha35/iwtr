@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import type { CategoryGroup } from "@/lib/categoryGroups";
+import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { WordTabs } from "@/components/WordTabs";
 import { SocialSidebar } from "./SocialSidebar";
@@ -11,14 +12,16 @@ import { SocialComposerSlot } from "./SocialComposerSlot";
 import { SocialWelcomeDialog } from "./SocialWelcomeDialog";
 import { SocialFeed } from "./SocialFeed";
 import { SocialRail } from "./SocialRail";
+import { QuestionsFeed } from "./QuestionsFeed";
 
-type FeedTab = "explore" | "following" | "saved";
+type FeedTab = "explore" | "following" | "saved" | "questions";
 
-const FEED_TABS: { value: FeedTab; label: string }[] = [
-  { value: "explore", label: "Explore" },
-  { value: "following", label: "Following" },
-  { value: "saved", label: "Saved" },
-];
+const TAB_LABELS: Record<FeedTab, string> = {
+  explore: "Explore",
+  following: "Following",
+  saved: "Saved",
+  questions: "Questions",
+};
 
 // The IWT Social page: filter sidebar, the feed, and the right-hand rail.
 // Sidebar and feed share one set of filter/search state, so it's lifted up
@@ -27,15 +30,23 @@ const FEED_TABS: { value: FeedTab; label: string }[] = [
 export function SocialShell() {
   const { isAuthenticated, role } = useAuth();
   // Following and saving are member-only (the API refuses both to an owner
-  // or admin), so only a member gets the tab row; everyone else just sees
-  // Explore.
+  // or admin), so only a member gets those two tabs. Questions is for
+  // everyone: members ask and answer, an owner answers for their company.
   const isMember = isAuthenticated && role === "MEMBER";
+  const tabs: FeedTab[] = ["explore", ...(isMember ? (["following", "saved"] as const) : []), ...(SOCIAL_QUESTIONS_ENABLED ? (["questions"] as const) : [])];
 
   const [query, setQuery] = useState("");
   const [workplaceType, setWorkplaceType] = useState<WorkplaceType | null>(null);
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
   const [tab, setTab] = useState<FeedTab>("explore");
-  const openTab: FeedTab = isMember ? tab : "explore";
+  const openTab: FeedTab = tabs.includes(tab) ? tab : "explore";
+
+  // /social?tab=questions opens straight on that tab (the "back" link of a
+  // question's page, a notification without a question of its own).
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("tab");
+    if (wanted === "questions" || wanted === "following" || wanted === "saved") setTab(wanted);
+  }, []);
 
   return (
     <>
@@ -51,6 +62,7 @@ export function SocialShell() {
           categoryGroup={categoryGroup}
           onCategoryGroupChange={setCategoryGroup}
           isMember={isMember}
+          searchPlaceholder={openTab === "questions" ? "Search questions..." : undefined}
         />
 
         {/* The sidebar and the rail keep their own widths; the posts are a
@@ -58,9 +70,13 @@ export function SocialShell() {
             them, rather than stretching edge to edge. */}
         <div className="flex min-w-0 flex-1 justify-center">
           <div className="flex w-full max-w-xl flex-col gap-5">
-            <SocialComposerSlot />
-            {isMember && <WordTabs tabs={FEED_TABS} value={openTab} onChange={setTab} label="Which posts to show" />}
-            {openTab === "saved" ? (
+            {openTab !== "questions" && <SocialComposerSlot />}
+            {tabs.length > 1 && (
+              <WordTabs tabs={tabs.map((value) => ({ value, label: TAB_LABELS[value] }))} value={openTab} onChange={setTab} label="What to show" />
+            )}
+            {openTab === "questions" ? (
+              <QuestionsFeed scope={{ kind: "all" }} q={query} workplaceType={workplaceType} categoryGroup={categoryGroup} />
+            ) : openTab === "saved" ? (
               <SocialFeed scope={{ kind: "saved" }} />
             ) : (
               <SocialFeed
@@ -73,7 +89,12 @@ export function SocialShell() {
           </div>
         </div>
 
-        <SocialRail />
+        <SocialRail
+          onOpenQuestions={() => {
+            setTab("questions");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
       </SidebarContentRow>
     </>
   );

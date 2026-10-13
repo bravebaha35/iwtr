@@ -6,13 +6,22 @@ import { SocialController } from "./social.controller";
 import { AdminSocialController } from "./admin-social.controller";
 import { SavedPostsController } from "./saved-posts.controller";
 import { SocialService } from "./social.service";
+import { AdminSocialQuestionsController, SocialQuestionsController } from "./social-questions.controller";
+import { SocialQuestionsService } from "./social-questions.service";
+import { SocialQuestionsEnabledGuard } from "./social-questions.flag";
 
 @Module({
   // AuthModule provides TokenService, which JwtAuthGuard (and Task 5's
   // OptionalJwtAuthGuard) inject - every peer feature module that uses these
   // guards imports it too (owner.module.ts, companies.module.ts).
   imports: [PrismaModule, ModerationModule, AuthModule],
-  controllers: [SocialController, AdminSocialController, SavedPostsController],
-  providers: [SocialService],
+  controllers: [
+    SocialController,
+    AdminSocialController,
+    SavedPostsController,
+    SocialQuestionsController,
+    AdminSocialQuestionsController,
+  ],
+  providers: [SocialService, SocialQuestionsService, SocialQuestionsEnabledGuard],
 })
 export class SocialModule {}

@@ -44,6 +44,11 @@ export const notificationTypeSchema = z.enum([
   // (timestamp is day-precision so its timing can't single out a reviewer).
   "JOB_APPLICATION_RECEIVED",
   "COMPANY_REVIEWED",
+  // IWT Social Questions. The asker: someone answered their question
+  // (companyName is "" when it was put to a kind of work). The owner: a
+  // member asked their company something. Both carry `href`: the question.
+  "QUESTION_ANSWERED",
+  "COMPANY_QUESTION_ASKED",
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

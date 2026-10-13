@@ -146,7 +146,7 @@ export function CategoryGroupFilter({
       role="radiogroup"
       aria-label="Filter by category group"
       aria-orientation={orientation}
-      className={`flex gap-2 ${vertical ? "flex-col items-stretch rounded-xl" : "flex-row flex-wrap items-center rounded-full"} ${
+      className={`flex ${vertical ? "flex-col items-stretch gap-0.5 rounded-xl" : "flex-row flex-wrap items-center gap-2 rounded-full"} ${
         highlighted ? "highlight-pulse" : ""
       }`}
     >
@@ -160,15 +160,17 @@ export function CategoryGroupFilter({
             role="radio"
             aria-checked={checked}
             onClick={() => onChange(checked ? null : opt.value)}
-            className={`flex h-10 items-center gap-2 border px-3.5 text-sm font-medium transition active:scale-[0.98] ${
-              vertical ? "w-full rounded-xl text-left" : "rounded-full"
+            className={`flex items-center text-sm font-medium transition active:scale-[0.98] ${
+              vertical ? "h-9 w-full gap-2.5 rounded-lg px-2 text-left" : "h-10 gap-2 rounded-full border px-3.5"
             } ${
               checked
                 ? "border-brand-600 bg-brand-600 text-white"
-                : "border-transparent bg-surface-muted/70 text-foreground/80 hover:bg-surface-muted hover:text-foreground"
+                : vertical
+                  ? "text-foreground/80 hover:bg-surface-muted hover:text-foreground"
+                  : "border-transparent bg-surface-muted/70 text-foreground/80 hover:bg-surface-muted hover:text-foreground"
             }`}
           >
-            <Icon className="h-5 w-5 shrink-0" />
+            <Icon className={`shrink-0 ${vertical ? "h-[18px] w-[18px]" : "h-5 w-5"}`} />
             <span className="whitespace-nowrap">{opt.label}</span>
           </button>
         );

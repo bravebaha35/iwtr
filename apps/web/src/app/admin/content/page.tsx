@@ -5,6 +5,7 @@ import type {
   AdminCompanyReport,
   AdminCompanySummary,
   AdminReportedSocialComment,
+  AdminReportedSocialQuestionItem,
   AdminSocialComment,
   CompanyReportReason,
   PublicSocialPost,
@@ -158,6 +159,107 @@ function ReportedCommentsPanel() {
                 type="button"
                 onClick={() => removeComment(c.id)}
                 disabled={busyId === c.id}
+                className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Reported IWT Social questions and answers, the same queue as reported
+// comments: the text and its reports, never who wrote it. An answer shows
+// the question it answers.
+function ReportedQuestionsPanel() {
+  const [items, setItems] = useState<AdminReportedSocialQuestionItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      setItems(await apiGet<AdminReportedSocialQuestionItem[]>("/admin/social/reported-questions"));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't load reported questions.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const pathFor = (item: AdminReportedSocialQuestionItem) => `/admin/social/${item.kind === "QUESTION" ? "questions" : "answers"}/${item.id}`;
+
+  // Removing a question takes its answers with it, so their rows go too.
+  async function act(item: AdminReportedSocialQuestionItem, action: "dismiss" | "remove") {
+    setBusyId(item.id);
+    try {
+      if (action === "dismiss") await apiPost(`${pathFor(item)}/dismiss-report`, {});
+      else await apiDelete(pathFor(item));
+      setItems((prev) =>
+        prev
+          ? prev.filter((x) => x.id !== item.id && !(action === "remove" && item.kind === "QUESTION" && x.questionId === item.id))
+          : prev,
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't do that.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (items === null && !error) return <p className="text-sm text-muted-foreground">Loading reported questions...</p>;
+  if (items !== null && items.length === 0) return null;
+
+  return (
+    <div className="mb-8">
+      <h2 className="mb-2 text-lg font-semibold text-foreground">Reported questions and answers</h2>
+      {error && <p className="mb-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
+      <div className="flex flex-col gap-2">
+        {items?.map((item) => (
+          <div key={item.id} className="rounded-lg border border-border bg-surface p-3">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold text-foreground">
+                {item.kind === "QUESTION" ? "Question" : "Answer"}
+              </span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {item.reportCount} report{item.reportCount === 1 ? "" : "s"}
+              </span>
+              <time dateTime={item.createdAt} className="font-mono text-[11px] text-muted-foreground">
+                Written {formatExactTime(item.createdAt)}
+              </time>
+              {item.flaggedForReview && (
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-950 dark:text-red-300">
+                  Filter match{item.flaggedReviewReason ? `: ${item.flaggedReviewReason}` : ""}
+                </span>
+              )}
+            </div>
+            <div className="mb-1 flex flex-wrap gap-1">
+              {Object.entries(item.reportReasonCounts).map(([reason, count]) => (
+                <span key={reason} className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {reportReasonLabel(reason)} x{count}
+                </span>
+              ))}
+            </div>
+            {item.kind === "ANSWER" && <p className="mb-1 text-xs text-muted-foreground">Answering: {item.questionBody}</p>}
+            <p className="whitespace-pre-wrap text-sm text-foreground">{item.body}</p>
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => act(item, "dismiss")}
+                disabled={busyId === item.id}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
+              >
+                Dismiss
+              </button>
+              <button
+                type="button"
+                onClick={() => act(item, "remove")}
+                disabled={busyId === item.id}
                 className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
               >
                 Remove
@@ -504,6 +606,7 @@ export default function AdminContentPage() {
 
       <ReportedCompaniesPanel />
       <ReportedCommentsPanel />
+      <ReportedQuestionsPanel />
 
       <form
         onSubmit={(e) => {

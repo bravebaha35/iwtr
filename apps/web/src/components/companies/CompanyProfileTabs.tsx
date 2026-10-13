@@ -6,6 +6,7 @@ import { SocialFeed } from "@/components/social/SocialFeed";
 import { SocialSidebar } from "@/components/social/SocialSidebar";
 import { SocialComposerSlot } from "@/components/social/SocialComposerSlot";
 import { CompanySocialHeader, type CompanySocialView } from "@/components/social/CompanySocialHeader";
+import { QuestionsFeed } from "@/components/social/QuestionsFeed";
 import { CompanyPhotoGrid } from "@/components/social/CompanyPhotoGrid";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { CompanyJobPostings } from "./CompanyJobPostings";
@@ -223,6 +224,7 @@ export function CompanyProfileTabs({
                 mode="company"
                 sort={sort}
                 onSortChange={handleSortChange}
+                showSort={socialView !== "questions"}
                 socialLinks={{
                   facebookUrl: company.facebookUrl,
                   instagramUrl: company.instagramUrl,
@@ -237,8 +239,10 @@ export function CompanyProfileTabs({
                   {/* Posts as whichever of the owner's own approved companies
                       they pick - not automatically locked to this one (same
                       component/behavior the deleted /social/[slug] route had). */}
-                  <SocialComposerSlot />
-                  {socialView === "photos" ? (
+                  {socialView !== "questions" && <SocialComposerSlot />}
+                  {socialView === "questions" ? (
+                    <QuestionsFeed scope={{ kind: "company", slug, company: { id: company.id, name: company.name, mainPhotoUrl: company.mainPhotoUrl } }} />
+                  ) : socialView === "photos" ? (
                     <CompanyPhotoGrid slug={slug} />
                   ) : (
                     <SocialFeed scope={{ kind: "company", slug }} sort={sort} />
