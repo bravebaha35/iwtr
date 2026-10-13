@@ -30,12 +30,20 @@ it("renders the moved search box and all 7 Quick Select groups as a vertical lis
   }
 });
 
-it("renders 'Only Show Me' as straight pills (Office/Hybrid-Remote/Service/Manual-Labour), not a dropdown", () => {
-  render(<SocialSidebar {...baseProps} isMember={false} />);
+it("renders 'Only Show Me' as the four Work-Type tiles, with only the picked one pressed", () => {
+  render(<SocialSidebar {...baseProps} isMember={false} workplaceType="SERVICE" />);
   expect(screen.queryByRole("button", { name: "Only show me:" })).not.toBeInTheDocument();
   for (const label of ["Office", "Hybrid/Remote", "Service", "Manual-Labour"]) {
-    expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", String(label === "Service"));
   }
+});
+
+it("'Only Show Me' clears on a second click of the picked tile and on its reset button", () => {
+  const onWorkplaceTypeChange = jest.fn();
+  render(<SocialSidebar {...baseProps} isMember={false} workplaceType="SERVICE" onWorkplaceTypeChange={onWorkplaceTypeChange} />);
+  fireEvent.click(screen.getByRole("button", { name: "Service" }));
+  fireEvent.click(screen.getByTitle("Clear Only Show Me filter"));
+  expect(onWorkplaceTypeChange.mock.calls).toEqual([[null], [null]]);
 });
 
 it("'Only Show Me' is single-select: picking a second option replaces the first", () => {

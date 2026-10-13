@@ -86,3 +86,30 @@ it("Edit keeps the job title fixed and saves a new description and a free boost"
   });
   expect(await within(dialog).findByText(/now featured at the top of the Jobs page/)).toBeInTheDocument();
 });
+
+it("Edit changes the positions: shows the saved ones ticked and sends only the new set", async () => {
+  get.mockImplementation((path: string) =>
+    Promise.resolve(
+      path.endsWith("/boost-status")
+        ? { tierKey: "starter", freeBoostsRemaining: 2, pricing: [] }
+        : [posting({ id: "2", jobTitle: "Forklift Operatörü", positions: ["INTERN"] })],
+    ),
+  );
+  patch.mockResolvedValue({ status: "PUBLISHED", jobPosting: posting({ id: "2", positions: ["SPECIALIST"] }) });
+  const user = userEvent.setup();
+  render(<JobPostingsCategory companyId="c1" />);
+  await user.click(await screen.findByRole("button", { name: "Edit" }));
+  const dialog = screen.getByRole("dialog", { name: "Edit Forklift Operatörü" });
+  const save = within(dialog).getByRole("button", { name: "Save changes" });
+  expect(within(dialog).getByRole("checkbox", { name: "Intern" })).toBeChecked();
+  expect(save).toBeDisabled();
+
+  await user.click(within(dialog).getByRole("checkbox", { name: "Intern" }));
+  expect(within(dialog).getByText("Tick at least one position.")).toBeInTheDocument();
+  expect(save).toBeDisabled();
+
+  await user.click(within(dialog).getByRole("checkbox", { name: "Specialist" }));
+  await user.click(save);
+  expect(patch).toHaveBeenCalledWith("/my-companies/c1/job-postings/2", { positions: ["SPECIALIST"] });
+  expect(await within(dialog).findByText("Changes saved")).toBeInTheDocument();
+});

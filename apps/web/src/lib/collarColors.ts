@@ -48,26 +48,6 @@ export function collarBorderClass(type: WorkplaceType): string {
   return collarColorMap[type].borderLeft;
 }
 
-// Selected state of the stand-alone Work-Type buttons (homepage/Jobs
-// Work-Type filter, IWT Social's "Only Show Me"). Outline-only, per explicit
-// user request (a solid fill read as too heavy): the 1px border plus an
-// inset 1px ring in the collar color, so a picked option stands out from
-// the plain unselected outlines even for Office, whose slate-700 is close
-// to the default border color. Hues unchanged: Office slate-700,
-// Hybrid/Remote teal-600, Service orange-600, Manual-Labour blue-600.
-const collarSegmentActiveClass: Record<WorkplaceType, string> = {
-  OFFICE: "border border-slate-700 ring-1 ring-inset ring-slate-700 font-semibold text-foreground bg-surface",
-  HYBRID_REMOTE: "border border-teal-600 ring-1 ring-inset ring-teal-600 font-semibold text-foreground bg-surface",
-  SERVICE: "border border-orange-600 ring-1 ring-inset ring-orange-600 font-semibold text-foreground bg-surface",
-  MANUAL_LABOUR: "border border-blue-600 ring-1 ring-inset ring-blue-600 font-semibold text-foreground bg-surface",
-};
-
-// Unselected: a quiet tonal button (the transparent 1px border only holds
-// the size steady). The outline is reserved for the picked option, where it
-// carries the collar colour.
-const collarOutlinedInactiveClass =
-  "border border-transparent bg-surface-muted text-muted-foreground hover:text-foreground";
-
 // A picked Work-Type tile (WorkTypeTiles): the work type's own hue as a
 // soft wash over the tile, and the same hue at full strength for the short
 // bar under its name. Hues unchanged (Office slate, Hybrid/Remote teal,
@@ -79,7 +59,3 @@ export const collarTileTone: Record<WorkplaceType, { wash: string; bar: string }
   SERVICE: { wash: "bg-orange-600/15 dark:bg-orange-400/20", bar: "bg-orange-600 dark:bg-orange-400" },
   MANUAL_LABOUR: { wash: "bg-blue-600/15 dark:bg-blue-400/20", bar: "bg-blue-600 dark:bg-blue-400" },
 };
-
-export function collarOutlinedButtonClassName(type: WorkplaceType, active: boolean): string {
-  return active ? collarSegmentActiveClass[type] : collarOutlinedInactiveClass;
-}

@@ -3,7 +3,9 @@
 import { useState } from "react";
 import {
   JOB_DESCRIPTION_MAX_LENGTH,
+  MAX_JOB_POSITIONS,
   type BoostOption,
+  type JobPosition,
   type OwnerJobPosting,
   type UpdateJobPostingInput,
   type UpdateJobPostingResult,
@@ -13,6 +15,7 @@ import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { BoostPicker, boostInput, boostNeedsBilling, emptyBilling, useBoostStatus } from "@/components/jobs/BoostPicker";
 import { CloseButton } from "@/components/jobs/JobBoostModal";
+import { PositionPicker } from "@/components/jobs/PositionPicker";
 import { BulletTextarea } from "@/components/BulletTextarea";
 
 const DESCRIPTION_MAX = JOB_DESCRIPTION_MAX_LENGTH;
@@ -24,9 +27,9 @@ export function isBoostActive(posting: Pick<OwnerJobPosting, "boostExpiresAt">):
 /**
  * The dashboard's Edit on an active job posting. The job title (what the
  * company is looking for, e.g. "Forklift Operatörü") is fixed once posted;
- * only the description can change, and a boost can be added if the posting
- * isn't already boosted. Saving a changed description re-runs the same
- * checks as a new posting.
+ * the positions and the description can change, and a boost can be added if
+ * the posting isn't already boosted. Saving a changed description re-runs
+ * the same checks as a new posting.
  */
 export function EditJobPostingModal({
   companyId,
@@ -42,6 +45,7 @@ export function EditJobPostingModal({
   const boosted = isBoostActive(posting);
   const status = useBoostStatus(companyId);
   const [description, setDescription] = useState(posting.description);
+  const [positions, setPositions] = useState<JobPosition[]>(posting.positions);
   const [selected, setSelected] = useState<BoostOption | null>(null);
   const [billing, setBilling] = useState(emptyBilling);
   const [showPricing, setShowPricing] = useState(false);
@@ -50,8 +54,24 @@ export function EditJobPostingModal({
   const [result, setResult] = useState<UpdateJobPostingResult | null>(null);
 
   const descriptionChanged = description.trim() !== posting.description.trim();
+  const positionsChanged =
+    positions.length !== posting.positions.length || positions.some((p) => !posting.positions.includes(p));
+  // A posting from before positions existed has none; it can still be saved
+  // as long as they're left alone.
+  const positionsMissing = positionsChanged && positions.length === 0;
   const needsBilling = boostNeedsBilling(selected, status);
-  const canSave = !submitting && description.trim().length > 0 && (descriptionChanged || selected !== null);
+  const canSave =
+    !submitting &&
+    description.trim().length > 0 &&
+    !positionsMissing &&
+    (descriptionChanged || positionsChanged || selected !== null);
+
+  function togglePosition(value: JobPosition) {
+    setPositions((prev) => {
+      if (prev.includes(value)) return prev.filter((p) => p !== value);
+      return prev.length >= MAX_JOB_POSITIONS ? prev : [...prev, value];
+    });
+  }
 
   async function save() {
     setSubmitting(true);
@@ -59,6 +79,7 @@ export function EditJobPostingModal({
     try {
       const body: UpdateJobPostingInput = {
         ...(descriptionChanged ? { description: description.trim() } : {}),
+        ...(positionsChanged ? { positions } : {}),
         ...(selected ? { boost: boostInput(selected, needsBilling, billing) } : {}),
       };
       const data = await apiPatch<UpdateJobPostingResult>(`/my-companies/${companyId}/job-postings/${posting.id}`, body);
@@ -137,7 +158,16 @@ export function EditJobPostingModal({
               </span>
             </div>
 
-            <label htmlFor="edit-job-description" className="mb-1 block text-[13px] font-semibold text-foreground">
+            <div className="mb-1 flex items-baseline justify-between gap-3">
+              <p className="text-[13px] font-semibold text-foreground">Position</p>
+              <span className="text-xs text-muted-foreground" aria-live="polite">
+                {positions.length} of {MAX_JOB_POSITIONS} ticked
+              </span>
+            </div>
+            <PositionPicker selected={positions} onToggle={togglePosition} max={MAX_JOB_POSITIONS} columns={2} />
+            {positionsMissing && <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">Tick at least one position.</p>}
+
+            <label htmlFor="edit-job-description" className="mb-1 mt-4 block text-[13px] font-semibold text-foreground">
               Description
             </label>
             <BulletTextarea

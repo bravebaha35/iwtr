@@ -1,6 +1,7 @@
 import {
   jobPostingStatusSchema,
   createJobPostingInputSchema,
+  updateJobPostingInputSchema,
   publicJobPostingSchema,
   ownerJobPostingSchema,
 } from "../jobPosting";
@@ -48,6 +49,14 @@ describe("jobPosting schemas", () => {
       createJobPostingInputSchema.safeParse({ ...base, positions: ["INTERN"], description: "x".repeat(n) }).success;
     expect(withText(4000)).toBe(true);
     expect(withText(4001)).toBe(false);
+  });
+
+  it("updateJobPostingInputSchema takes new positions on their own, under the same 1 to 3 rule", () => {
+    const ok = (body: unknown) => updateJobPostingInputSchema.safeParse(body).success;
+    expect(ok({ positions: ["INTERN", "SPECIALIST"] })).toBe(true);
+    expect(ok({ positions: [] })).toBe(false);
+    expect(ok({ positions: ["INTERN", "SPECIALIST", "FREELANCER", "STAFF_MEMBER"] })).toBe(false);
+    expect(ok({})).toBe(false);
   });
 
   it("publicJobPostingSchema requires an id", () => {
