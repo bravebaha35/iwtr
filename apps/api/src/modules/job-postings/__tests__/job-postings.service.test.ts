@@ -401,6 +401,24 @@ describe("JobPostingsService.update (dashboard Edit)", () => {
     expect(result.jobPosting.jobTitle).toBe("Forklift Operatörü");
   });
 
+  it("changes the positions on their own, with no content check and no trip to admin review", async () => {
+    const { prisma, update } = editPrisma({ ...live, positions: ["INTERN"] });
+    const moderation = { checkContent: jest.fn() };
+    const result = await new JobPostingsService(prisma as any, moderation as never, {} as any).update("u1", "c1", "p1", {
+      positions: ["SPECIALIST", "STAFF_MEMBER"],
+    });
+    expect(update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { positions: ["SPECIALIST", "STAFF_MEMBER"] } });
+    expect(moderation.checkContent).not.toHaveBeenCalled();
+    expect(result.status).toBe("PUBLISHED");
+    expect(result.jobPosting.positions).toEqual(["SPECIALIST", "STAFF_MEMBER"]);
+  });
+
+  it("writes nothing when the positions sent are the ones already saved", async () => {
+    const { prisma, update } = editPrisma({ ...live, positions: ["INTERN", "SPECIALIST"] });
+    await service(prisma).update("u1", "c1", "p1", { positions: ["SPECIALIST", "INTERN"] });
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("sends a flagged new description back to admin review", async () => {
     const { prisma, update } = editPrisma(live);
     const flagging = { checkContent: jest.fn().mockReturnValue({ violates: true, violationTypes: ["PROFANITY"] }) } as never;

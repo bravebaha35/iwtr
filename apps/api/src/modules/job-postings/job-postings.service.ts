@@ -358,12 +358,13 @@ export class JobPostingsService {
   }
 
   /**
-   * The dashboard's Edit on an active posting: a new description and/or a
-   * boost. The job title and work type never change here (they're what the
-   * Risk Score matches on). A new description goes through the same checks
-   * as a new posting - if flagged, the posting leaves the Jobs page until
-   * an admin approves it. A boost can only be added while the posting isn't
-   * already boosted.
+   * The dashboard's Edit on an active posting: a new description, new
+   * positions and/or a boost. The job title and work type never change here
+   * (they're what the Risk Score matches on). A new description goes through
+   * the same checks as a new posting - if flagged, the posting leaves the
+   * Jobs page until an admin approves it. Positions come from a fixed list,
+   * so changing only them needs no check. A boost can only be added while
+   * the posting isn't already boosted.
    */
   async update(
     userId: string,
@@ -387,14 +388,23 @@ export class JobPostingsService {
 
     let posting = existing;
     let savedStatus: "PUBLISHED" | "PENDING_ADMIN" = "PUBLISHED";
-    if (input.description !== undefined && input.description !== existing.description) {
-      const contentCheck = this.moderation.checkContent([existing.jobTitle, input.description], JOB_AD_SKIPPED_CHECKS);
-      const hasCompetitorName = await this.mentionsCompetitorName(companyId, `${existing.jobTitle} ${input.description}`);
-      savedStatus = contentCheck.violates || hasCompetitorName ? "PENDING_ADMIN" : "PUBLISHED";
-      posting = await this.prisma.jobPosting.update({
-        where: { id: jobPostingId },
-        data: { description: input.description, status: savedStatus },
-      });
+    const descriptionChanged = input.description !== undefined && input.description !== existing.description;
+    const oldPositions: JobPosition[] = existing.positions ?? [];
+    const positionsChanged =
+      input.positions !== undefined &&
+      (input.positions.length !== oldPositions.length || input.positions.some((p) => !oldPositions.includes(p)));
+    if (descriptionChanged || positionsChanged) {
+      const data: { description?: string; status?: "PUBLISHED" | "PENDING_ADMIN"; positions?: JobPosition[] } = {};
+      if (descriptionChanged) {
+        const description = input.description!;
+        const contentCheck = this.moderation.checkContent([existing.jobTitle, description], JOB_AD_SKIPPED_CHECKS);
+        const hasCompetitorName = await this.mentionsCompetitorName(companyId, `${existing.jobTitle} ${description}`);
+        savedStatus = contentCheck.violates || hasCompetitorName ? "PENDING_ADMIN" : "PUBLISHED";
+        data.description = description;
+        data.status = savedStatus;
+      }
+      if (positionsChanged) data.positions = input.positions;
+      posting = await this.prisma.jobPosting.update({ where: { id: jobPostingId }, data });
     }
 
     if (!boost) {

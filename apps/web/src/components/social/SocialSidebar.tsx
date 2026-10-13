@@ -3,9 +3,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { Company, SocialCompanySort, WorkplaceType } from "@iwtr/shared-types";
-import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-import { collarOutlinedButtonClassName } from "@/lib/collarColors";
-import { MultiFilterPillGroup } from "@/components/FilterPillGroup";
+import { WorkTypeTiles } from "@/components/WorkTypeTiles";
+import { RewindButton } from "@/components/RewindButton";
 import { CategoryGroupFilter, type CategoryGroup } from "@/lib/categoryGroups";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
@@ -231,10 +230,9 @@ export function SocialSidebar(props: SocialSidebarProps) {
   const { query, onQueryChange, workplaceType, onWorkplaceTypeChange, categoryGroup, onCategoryGroupChange, savedView, onToggleSavedView, isMember } = props;
 
   // "Only show me:" is single-select (unlike the rating/jobs pages' up-to-2
-  // Work-Type filter), so this wraps MultiFilterPillGroup's onToggle contract
-  // (one value in/out at a time) into a plain replace-or-clear toggle -
-  // the same collar colors as those two pages, just one selection instead
-  // of two.
+  // Work-Type filter), so this wraps WorkTypeTiles' onToggle contract (one
+  // value in/out at a time) into a plain replace-or-clear toggle - the same
+  // tiles as those two pages, just one selection instead of two.
   function toggleWorkplaceType(value: WorkplaceType) {
     onWorkplaceTypeChange(workplaceType === value ? null : value);
   }
@@ -253,18 +251,18 @@ export function SocialSidebar(props: SocialSidebarProps) {
 
       {isMember && <FollowingList />}
 
-      {/* Four separate outlined buttons in a 2x2 grid (not one shared track
-          box) - the picked one takes its collar color, same hues as the
-          rating/jobs pages' Work-Type filter. */}
-      <MultiFilterPillGroup
-        heading="Only Show Me"
-        options={WORKPLACE_TYPES}
-        selected={workplaceType ? [workplaceType] : []}
-        onToggle={toggleWorkplaceType}
-        onReset={() => onWorkplaceTypeChange(null)}
-        direction="grid"
-        pillColorClassName={collarOutlinedButtonClassName}
-      />
+      {/* The same beaver tiles as the rating/jobs pages' Work-Type filter. */}
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-[13px] font-semibold text-foreground">Only Show Me</h2>
+          <RewindButton
+            onClick={() => onWorkplaceTypeChange(null)}
+            active={workplaceType !== null}
+            title="Clear Only Show Me filter"
+          />
+        </div>
+        <WorkTypeTiles selected={workplaceType ? [workplaceType] : []} onToggle={toggleWorkplaceType} />
+      </div>
 
       {isMember && (
         <button

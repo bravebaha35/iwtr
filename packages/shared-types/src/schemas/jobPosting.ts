@@ -175,16 +175,19 @@ export type OwnerJobPosting = z.infer<typeof ownerJobPostingSchema>;
 
 // The owner's "Edit" on a live posting (PATCH my-companies/:companyId/
 // job-postings/:jobPostingId). The job title and work type are fixed once
-// posted - only the description can change, and a boost can be added to a
-// posting that isn't boosted right now. Same boost/billing shape as create.
+// posted - the description and the positions can change, and a boost can be
+// added to a posting that isn't boosted right now. Same positions rule and
+// boost/billing shape as create.
 export const updateJobPostingInputSchema = z
   .object({
     description: z.string().min(1).max(JOB_DESCRIPTION_MAX_LENGTH).optional(),
+    positions: createJobPostingInputSchema.shape.positions.optional(),
     boost: createJobPostingInputSchema.shape.boost.optional(),
   })
-  .refine((v) => v.description !== undefined || (v.boost !== undefined && v.boost !== null), {
-    message: "Change the description or pick a boost",
-  });
+  .refine(
+    (v) => v.description !== undefined || v.positions !== undefined || (v.boost !== undefined && v.boost !== null),
+    { message: "Change the description or the positions, or pick a boost" },
+  );
 export type UpdateJobPostingInput = z.input<typeof updateJobPostingInputSchema>;
 
 // Same three outcomes as a create: saved (live, or back in review when the

@@ -166,7 +166,7 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   the Rating and Jobs pages, `GET companies/employer-ad`, `JobPosting.boostAdSpace`; such a posting is never in
   the Featured row; a sample test ad shows while none is running). Free 7-day boosts per company per month match Pricing (Starter 2, Pro 5, Enterprise 10,
   `decideBoostAccess.ts`, counted from `boostStartedAt`). Owners boost at creation or later via dashboard Job Postings > Edit
-  (`PATCH my-companies/:companyId/job-postings/:id`: description and/or boost; title/work type fixed). Job ads
+  (`PATCH my-companies/:companyId/job-postings/:id`: description, positions and/or boost; title/work type fixed). Job ads
   skip the review-only NAME_OR_SURNAME/JOB_TITLE checks (a title like "Kredi Analisti" looks like a name).
 - The Jobs page (`GET companies/browse?jobs=1`, `CompaniesService.browseJobs`) is paged by job card, not by company:
   4 across and 5 rows. Page 1 gives up to 2 rows to the Featured ads (8 featured -> 12 standard cards), later pages
@@ -175,7 +175,7 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   card list for one set of filters, with that view's Featured pick, is built from light reads and kept in memory for
   60 s (`jobsIndex`), so paging and repeat views don't list every hiring company again; a featured posting is left
   out of the standard cards on every page. Only the companies on the requested page are loaded in full.
-- Job positions (`JobPosition`, 11 fixed levels): an owner ticks 1 to 3 when posting (`JobPosting.positions`); the
+- Job positions (`JobPosition`, 11 fixed levels): an owner ticks 1 to 3 when posting and can change them later in Edit (`JobPosting.positions`); the
   Jobs sidebar's Position buttons filter on them (`positions=`, any-of; inferred job titles are left out while it is
   on); only the opened / full job card lists them, never the short grid card. "Tell us more" is plain text up to
   4000 characters (`JOB_DESCRIPTION_MAX_LENGTH`); `BulletTextarea` adds bullet / numbered lists as ordinary characters.
