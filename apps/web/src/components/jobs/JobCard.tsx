@@ -258,7 +258,7 @@ export function JobCard({
   // "expanded" only: closes the floating panel.
   onClose?: () => void;
   // A boosted ("featured") posting in the Jobs page's featured row: thicker
-  // gold outline with a soft gold glow and a "Featured" tag on the banner.
+  // gold outline with a soft gold glow. No "Featured" tag: the glow says it.
   boosted?: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
@@ -336,11 +336,6 @@ export function JobCard({
         <div className="absolute left-3 top-full -translate-y-1/2">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
         </div>
-        {boosted && (
-          <span className="absolute left-2 top-2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-sm">
-            Featured
-          </span>
-        )}
         {expandedView && onClose && (
           <button
             type="button"

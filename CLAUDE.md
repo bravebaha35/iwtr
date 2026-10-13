@@ -165,10 +165,19 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   company was in the member's employment history). Text goes through `checkContent` with the asked company's own
   name removed first; reports reuse the comment reasons and queue on `/admin/content`. A company can never delete
   a question put to it. Shown as a Questions tab on `/social`, a Questions view on the company Social tab, a page
-  per question (`/social/questions/:id`) and the rail's "Waiting for an answer". **Switched off in production
+  per question (`/social/questions/:id`) and the rail's "Waiting for an answer". **The asked company sees a
+  question first** (`SocialQuestion.visibility` PENDING / HIDDEN / PUBLIC): put to a claimed company it reaches only
+  its asker and that company's owner, who answers it in the dashboard's Questions section and picks "show to
+  everyone" or "keep hidden" (changeable later; showing always needs the company's answer on it). Put to a kind of
+  work or to an unclaimed company it is PUBLIC at once. Every read goes through `viewableBy` in
+  `social-questions.service.ts` - a new route that returns or acts on a question must too. The owner's only reply is
+  the answer: there is no message to the asker, on purpose; "Report to admin" on the card is how a company flags one. **Switched off in production
   until the lawyer has cleared the Terms**: `SOCIAL_QUESTIONS_ENABLED` (API) + `NEXT_PUBLIC_SOCIAL_QUESTIONS_ENABLED`
   (web), on by default everywhere else. The Social sidebar is soft panels now (`SidebarPanel` in
-  `SocialSidebar.tsx`), matching the rail. Still to come: phase 4, owner insights and scheduling.
+  `SocialSidebar.tsx`), matching the rail. `/social` is laid out by `SocialShell` as 1fr / feed / 1fr, so the feed
+  is in the exact middle of the page (left ad from 86rem, right ad in its own column from 100rem, under the rail
+  below that); the company Social tab centres the same way. Demo polls and questions for local viewing:
+  `scripts/seed-social-demo.ts`. Still to come: phase 4, owner insights and scheduling.
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
   matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").
@@ -187,7 +196,7 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   Plan tiers are `OwnerTier` FREE/STARTER/PRO/ENTERPRISE (renamed from BLUE/BLUE_PLUS on 2026-10-11 - "Blue"
   now only names the Starter tick colour).
 - Featured (boosted) job ads: a posting with `boostExpiresAt` in the future. Page 1 of /jobs shows up to 8 in a
-  gold "Featured jobs" row above the standard cards. `pickFeatured` (companies/featured-jobs.util.ts) orders
+  gold "Featured jobs" row above the standard cards (the gold outline marks them; no "Featured" tag on the card). `pickFeatured` (companies/featured-jobs.util.ts) orders
   them: the member's profile Sector, else work type (`forSector`/`forWorkType`, sent only while the sidebar has
   no work type/sector picked); then the chosen city/district, topped up from the same region (turkeyRegions)
   while fewer than 4; shuffled per tier. Boost options (`BoostOption`): FEATURED_7 (299,99), FEATURED_14
@@ -286,8 +295,11 @@ alone keeps DM Serif Display (`.cv-document`).
   coloured bar under the one in use, right next to the search field (`SearchSortBox`); no "Sort" label.
   Sidebar width and gaps are locked by tests (`SidebarShell`); its order is Work-Type (+ Sector), Location,
   (Jobs: Create job posting, Position), Rating, Risk Score.
-- Work-Type is four tiles (`WorkTypeTiles`): the name, and the beaver dressed for that work peeking from the bottom
-  edge - grey at rest; picked, the tile takes its collar colour as a soft wash plus a short bar (`collarTileTone`).
+- Work-Type is four tiles (`WorkTypeTiles`): the name, and an object for that work in the bottom corner (the
+  owner's own art in `public/`: "Office QS" pencil, "Hybrid QS" headset, "Service QS" hands, "Manual-Labour QS"
+  hammer) - grey at rest; picked, the tile takes its collar colour as a soft wash plus a short bar (`collarTileTone`).
+  The default banners are the owner's too ("Office Banner" etc., `DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE`); these
+  files keep the owner's names, so code writes the space as `%20`.
   Same tiles for "What kind of work?" on Edit Profile. Multi-choice lists (Position) are tick rows that turn Wood
   when ticked (`PositionPicker`), inside a soft panel in the sidebar.
 - A logged-out visitor sees `AnonGate`'s hero; the homepage adds `LandingSections` under it.

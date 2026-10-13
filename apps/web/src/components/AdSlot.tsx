@@ -25,16 +25,32 @@ export function AdLabel() {
   );
 }
 
+// From which window width a tall rail ad shows. "xl" is every page's rule.
+// IWT Social has two more columns than the other pages, so there the left ad
+// waits until the feed can keep a comfortable width beside it ("roomy",
+// 86rem), and the right-hand ad only gets a column of its own on a wide
+// window ("wide", 100rem); on a narrower one the same ad sits under the rail
+// instead ("xl-until-wide"). Written in rem so they sort after `xl`.
+const RAIL_SHOW = {
+  xl: "hidden xl:block",
+  roomy: "hidden min-[86rem]:block",
+  wide: "hidden min-[100rem]:block",
+  "xl-until-wide": "hidden xl:block min-[100rem]:hidden",
+} as const;
+
 export function AdSlot({
   orientation = "vertical",
   side = "left",
   variant = 0,
+  show = "xl",
 }: {
   orientation?: "vertical" | "horizontal";
   // vertical only: which rail this is, so each side gets its own ad.
   side?: "left" | "right";
   // horizontal only: which banner to show (alternates by index).
   variant?: number;
+  // vertical only: see RAIL_SHOW.
+  show?: keyof typeof RAIL_SHOW;
 }) {
   // "vertical": narrow tall rail, hidden below `xl` since there's no spare
   // width for it on smaller screens — used for the left/right page rails.
@@ -53,7 +69,7 @@ export function AdSlot({
   }
   const ad = RAIL_ADS[side];
   return (
-    <div data-testid="ad-slot" className="relative hidden w-40 shrink-0 self-start overflow-hidden border border-border xl:block">
+    <div data-testid="ad-slot" className={`relative w-40 shrink-0 self-start overflow-hidden border border-border ${RAIL_SHOW[show]}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={ad.src} alt={ad.alt} width={160} height={720} className="block h-auto w-full" />
       <AdLabel />

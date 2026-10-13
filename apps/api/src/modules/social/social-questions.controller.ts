@@ -1,13 +1,17 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import {
+  companyQuestionFilterSchema,
   createSocialAnswerInputSchema,
   createSocialQuestionInputSchema,
   reportSocialCommentInputSchema,
+  setSocialQuestionVisibilityInputSchema,
   socialQuestionFilterSchema,
+  type CompanyQuestionFilter,
   type CreateSocialAnswerInput,
   type CreateSocialQuestionInput,
   type ReportSocialCommentInput,
+  type SetSocialQuestionVisibilityInput,
   type SocialQuestionFilter,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
@@ -25,6 +29,11 @@ import { SocialQuestionsService } from "./social-questions.service";
 // An unrecognized value falls back to "all" rather than 400ing the list.
 function parseFilter(raw: string | undefined): SocialQuestionFilter {
   const result = socialQuestionFilterSchema.safeParse(raw);
+  return result.success ? result.data : "all";
+}
+
+function parseCompanyFilter(raw: string | undefined): CompanyQuestionFilter {
+  const result = companyQuestionFilterSchema.safeParse(raw);
   return result.success ? result.data : "all";
 }
 
@@ -105,6 +114,43 @@ export class SocialQuestionsController {
     @Body(new ZodValidationPipe(createSocialAnswerInputSchema)) body: CreateSocialAnswerInput,
   ) {
     return this.questions.answer(user.id, id, body);
+  }
+
+  // The asked company's approved owner: hide the question, or show it to
+  // everyone (which needs the company's answer on it first).
+  @Patch("questions/:id/visibility")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("COMPANY_OWNER")
+  setVisibility(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(setSocialQuestionVisibilityInputSchema)) body: SetSocialQuestionVisibilityInput,
+  ) {
+    return this.questions.setVisibility(user.id, id, body.visibility);
+  }
+
+  // How many of the company's questions are waiting, hidden and shown: the
+  // "N waiting for you" line in the dashboard's side list.
+  @Get("company-questions/:companyId/counts")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("COMPANY_OWNER")
+  countsForCompany(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
+    return this.questions.countsForCompany(user.id, companyId);
+  }
+
+  // The owner dashboard's Questions section: every question put to one of
+  // the caller's own companies - waiting, hidden and shown - with the count
+  // in each state. Owner's own account only, like the rest of this file.
+  @Get("company-questions/:companyId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("COMPANY_OWNER")
+  listForCompany(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("companyId", new ParseUUIDPipe()) companyId: string,
+    @Query("filter") filter?: string,
+    @Query("cursor") cursor?: string,
+  ) {
+    return this.questions.listForCompany(user.id, companyId, { filter: parseCompanyFilter(filter), cursor });
   }
 
   @Post("questions/:id/report")

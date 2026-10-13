@@ -5,21 +5,25 @@ import type { WorkplaceType } from "@iwtr/shared-types";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarTileTone } from "@/lib/collarColors";
 
-// The site's own beaver, dressed for each kind of work.
-const WORK_TYPE_ART: Record<WorkplaceType, string> = {
-  OFFICE: "/office1.png",
-  HYBRID_REMOTE: "/hybrid1.png",
-  SERVICE: "/service1.png",
-  MANUAL_LABOUR: "/manuallabour1.png",
+// One object per kind of work, drawn for these tiles: a pencil, a headset,
+// two hands reaching for each other, a hammer. Square art on a clear
+// background; the files keep the names the owner gave them (%20 = the space).
+// `place` sits each one in the tile's bottom-right corner - the hands are
+// drawn corner to corner, so they run off the tile's edges on purpose.
+const WORK_TYPE_ART: Record<WorkplaceType, { src: string; place: string }> = {
+  OFFICE: { src: "/Office%20QS.webp", place: "-bottom-5 -right-2 h-[5.25rem] w-[5.25rem]" },
+  HYBRID_REMOTE: { src: "/Hybrid%20QS.webp", place: "-bottom-3 -right-1 h-16 w-16" },
+  SERVICE: { src: "/Service%20QS.webp", place: "-bottom-3 -right-3 h-[4.5rem] w-[4.5rem]" },
+  MANUAL_LABOUR: { src: "/Manual-Labour%20QS.webp", place: "-bottom-3.5 -right-1.5 h-[4.5rem] w-[4.5rem]" },
 };
 
 /**
- * The Work-Type buttons: four tiles, each with its name and the beaver
- * dressed for that kind of work peeking up from the bottom edge. A tile at
- * rest is quiet - grey beaver, plain name. A picked tile takes its work
- * type's own colour as a soft wash with a short bar of that colour under
- * the name, and its beaver turns to full colour (the same "grey until it's
- * yours" idea as the mood beavers on the Rating slider).
+ * The Work-Type buttons: four tiles, each with its name and the object
+ * that stands for that kind of work in the bottom corner. A tile at rest is
+ * quiet - grey object, plain name. A picked tile takes its work type's own
+ * colour as a soft wash with a short bar of that colour under the name, and
+ * its object turns to full colour (the same "grey until it's yours" idea as
+ * the mood beavers on the Rating slider).
  *
  * `columns` 2 is the filter sidebar on the Rating and Jobs pages; 4 is the
  * wide "What kind of work?" row on Edit Profile. `tone` "surface" is for a
@@ -44,6 +48,7 @@ export function WorkTypeTiles({
       {WORKPLACE_TYPES.map((t) => {
         const on = selected.includes(t.value);
         const collar = collarTileTone[t.value];
+        const art = WORK_TYPE_ART[t.value];
         return (
           <button
             key={t.value}
@@ -69,12 +74,12 @@ export function WorkTypeTiles({
               }`}
             />
             <Image
-              src={WORK_TYPE_ART[t.value]}
+              src={art.src}
               alt=""
-              width={144}
-              height={192}
-              sizes="72px"
-              className={`pointer-events-none absolute -bottom-3.5 right-0.5 h-[4.5rem] w-auto select-none transition duration-200 ${
+              width={160}
+              height={160}
+              sizes="80px"
+              className={`pointer-events-none absolute select-none transition duration-200 ${art.place} ${
                 on ? "" : "opacity-50 grayscale group-hover:opacity-90 group-hover:grayscale-0"
               }`}
             />

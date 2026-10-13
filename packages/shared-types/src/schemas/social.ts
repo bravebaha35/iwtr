@@ -497,15 +497,36 @@ export const createSocialQuestionInputSchema = z
   });
 export type CreateSocialQuestionInput = z.infer<typeof createSocialQuestionInputSchema>;
 
+// Who can see a question put to a company (SocialQuestion.visibility).
+// PENDING: just asked - only the asker and the company's owner see it.
+// HIDDEN: the owner keeps it between the two of them. PUBLIC: everyone.
+export const socialQuestionVisibilitySchema = z.enum(["PENDING", "HIDDEN", "PUBLIC"]);
+export type SocialQuestionVisibility = z.infer<typeof socialQuestionVisibilitySchema>;
+
+// The two an owner picks between.
+export const companyQuestionVisibilityChoiceSchema = z.enum(["PUBLIC", "HIDDEN"]);
+export type CompanyQuestionVisibilityChoice = z.infer<typeof companyQuestionVisibilityChoiceSchema>;
+
 export const createSocialAnswerInputSchema = z.object({
   body: z.string().trim().min(1).max(SOCIAL_ANSWER_MAX),
   identityMode: memberIdentityModeSchema.optional(),
+  // The asked company's owner only (ignored from anyone else): show the
+  // question to everyone, or keep it hidden, once this answer is in.
+  visibility: companyQuestionVisibilityChoiceSchema.optional(),
 });
 export type CreateSocialAnswerInput = z.infer<typeof createSocialAnswerInputSchema>;
+
+// PATCH social/questions/:id/visibility - the asked company's owner only.
+export const setSocialQuestionVisibilityInputSchema = z.object({ visibility: companyQuestionVisibilityChoiceSchema });
+export type SetSocialQuestionVisibilityInput = z.infer<typeof setSocialQuestionVisibilityInputSchema>;
 
 // Which questions a list shows.
 export const socialQuestionFilterSchema = z.enum(["all", "unanswered", "mine"]);
 export type SocialQuestionFilter = z.infer<typeof socialQuestionFilterSchema>;
+
+// The owner dashboard's Questions section: which of the company's questions.
+export const companyQuestionFilterSchema = z.enum(["all", "waiting", "hidden", "shown"]);
+export type CompanyQuestionFilter = z.infer<typeof companyQuestionFilterSchema>;
 
 // No author id on either shape, same rule as a comment (REVIEW.md).
 export const publicSocialAnswerSchema = z.object({
@@ -561,6 +582,13 @@ export const publicSocialQuestionSchema = z.object({
   canAnswer: z.boolean(),
   // ...and would do so under their real name, as the company.
   answersAsCompany: z.boolean(),
+  // Anything but PUBLIC only ever reaches the asker and the asked company's
+  // owner; everyone else is never sent such a question at all.
+  visibility: socialQuestionVisibilitySchema,
+  // The viewer is the asked company's approved owner: may hide or show it.
+  canSetVisibility: z.boolean(),
+  // The company has answered - what showing it to everyone depends on.
+  companyAnswered: z.boolean(),
 });
 export type PublicSocialQuestion = z.infer<typeof publicSocialQuestionSchema>;
 
@@ -569,6 +597,18 @@ export const socialQuestionPageSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 export type SocialQuestionPage = z.infer<typeof socialQuestionPageSchema>;
+
+// How many of a company's questions are in each state (bare counts).
+export const companyQuestionCountsSchema = z.object({
+  waiting: z.number().int(),
+  hidden: z.number().int(),
+  shown: z.number().int(),
+});
+export type CompanyQuestionCounts = z.infer<typeof companyQuestionCountsSchema>;
+
+// GET social/company-questions/:companyId - the owner dashboard's list.
+export const companyQuestionPageSchema = socialQuestionPageSchema.extend({ counts: companyQuestionCountsSchema });
+export type CompanyQuestionPage = z.infer<typeof companyQuestionPageSchema>;
 
 export const socialAnswerHelpfulResultSchema = z.object({
   answerId: z.string(),
@@ -598,5 +638,7 @@ export const adminReportedSocialQuestionItemSchema = z.object({
   reportReasonCounts: z.record(z.string(), z.number().int()),
   flaggedForReview: z.boolean(),
   flaggedReviewReason: z.string().nullable(),
+  // One of the reports came from the company the question was put to.
+  reportedByCompany: z.boolean(),
 });
 export type AdminReportedSocialQuestionItem = z.infer<typeof adminReportedSocialQuestionItemSchema>;

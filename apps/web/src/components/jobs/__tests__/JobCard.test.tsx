@@ -89,11 +89,11 @@ describe("JobCard sizes", () => {
 });
 
 describe("JobCard boosted (featured row)", () => {
-  it("gets the gold outline and glow and a Featured tag - no sparkles", () => {
+  it("gets the gold outline and glow - no Featured tag, no sparkles", () => {
     const { container } = render(<JobCard company={company} posting={posting} variant="compact" boosted />);
     expect(container.firstChild).toHaveClass("boosted-card");
     expect(container.querySelector(".gold-sparkle")).toBeNull();
-    expect(screen.getByText("Featured")).toBeInTheDocument();
+    expect(screen.queryByText("Featured")).not.toBeInTheDocument();
   });
 
   it("a standard card has none of it", () => {

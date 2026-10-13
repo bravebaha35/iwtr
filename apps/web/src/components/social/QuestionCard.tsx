@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type {
+  CompanyQuestionVisibilityChoice,
   MemberIdentityMode,
   PublicSocialAnswer,
   PublicSocialQuestion,
@@ -10,7 +11,7 @@ import type {
   SocialCommentReportReason,
 } from "@iwtr/shared-types";
 import { SOCIAL_ANSWER_MAX, SOCIAL_COMMENT_REPORT_REASONS, SOCIAL_COMMENT_REPORT_REASON_LABELS } from "@iwtr/shared-types";
-import { apiDelete, apiPost, ApiError } from "@/lib/api-client";
+import { apiDelete, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { Avatar } from "@/components/Avatar";
@@ -48,6 +49,23 @@ function CheckIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} {...stroke} strokeWidth={2.4} aria-hidden="true">
       <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </svg>
+  );
+}
+function EyeIcon({ className, off }: IconProps & { off?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...stroke} aria-hidden="true">
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.8" />
+      {off && <path d="M4 4l16 16" />}
+    </svg>
+  );
+}
+function ClockIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...stroke} aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
     </svg>
   );
 }
@@ -206,7 +224,9 @@ function ReportDialog({ what, onClose, onSubmit }: { what: "question" | "answer"
 }
 
 // The answer box. A member picks which anonymous name to write under; the
-// asked company's owner has no choice (their real name) and is told so.
+// asked company's owner has no choice (their real name) and is told so. The
+// owner sends the answer with one of two buttons instead of one: the question
+// is then shown to everyone, or stays between the company and its asker.
 function AnswerComposer({
   questionId,
   asCompany,
@@ -217,7 +237,7 @@ function AnswerComposer({
   questionId: string;
   asCompany: boolean;
   companyName: string | null;
-  onPosted: (answer: PublicSocialAnswer) => void;
+  onPosted: (answer: PublicSocialAnswer, visibility: CompanyQuestionVisibilityChoice | null) => void;
   onCancel: () => void;
 }) {
   const identity = useQuestionIdentity(!asCompany);
@@ -227,14 +247,17 @@ function AnswerComposer({
   const [error, setError] = useState<string | null>(null);
   const fieldId = `answer-${questionId}`;
 
-  async function submit() {
+  async function submit(visibility: CompanyQuestionVisibilityChoice | null) {
     const body = draft.trim();
     if (!body) return;
     setBusy(true);
     setError(null);
     try {
-      const created = await apiPost<PublicSocialAnswer>(`/social/questions/${questionId}/answers`, asCompany ? { body } : { body, identityMode: mode });
-      onPosted(created);
+      const created = await apiPost<PublicSocialAnswer>(
+        `/social/questions/${questionId}/answers`,
+        asCompany ? { body, visibility: visibility ?? "HIDDEN" } : { body, identityMode: mode },
+      );
+      onPosted(created, asCompany ? (visibility ?? "HIDDEN") : null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't post that answer.");
       setBusy(false);
@@ -259,7 +282,8 @@ function AnswerComposer({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {asCompany ? (
           <p className="text-xs text-muted-foreground">
-            You answer for {companyName ?? "your company"}, under your own name.
+            You answer for {companyName ?? "your company"}, under your own name. Your answer is the only thing the person who
+            asked receives.
           </p>
         ) : (
           <QuestionIdentityPicker value={mode} onChange={setMode} identity={identity} verb="Answer" />
@@ -269,15 +293,36 @@ function AnswerComposer({
         </span>
       </div>
       {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => void submit()}
-          disabled={busy || draft.trim().length === 0}
-          className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50"
-        >
-          {busy ? "Posting..." : "Post answer"}
-        </button>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {asCompany ? (
+          <>
+            <button
+              type="button"
+              onClick={() => void submit("PUBLIC")}
+              disabled={busy || draft.trim().length === 0}
+              className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50"
+            >
+              {busy ? "Posting..." : "Answer and show to everyone"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void submit("HIDDEN")}
+              disabled={busy || draft.trim().length === 0}
+              className="rounded-full bg-surface-muted px-4 py-1.5 text-sm font-semibold text-foreground transition hover:bg-border/70 active:scale-[0.98] disabled:opacity-50"
+            >
+              Answer and keep hidden
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void submit(null)}
+            disabled={busy || draft.trim().length === 0}
+            className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50"
+          >
+            {busy ? "Posting..." : "Post answer"}
+          </button>
+        )}
         <button type="button" onClick={onCancel} className="text-sm text-muted-foreground hover:text-foreground">
           Cancel
         </button>
@@ -294,6 +339,12 @@ function AnswerComposer({
  * Everyone here is anonymous except a company's owner answering for their
  * own company. "Worked there" marks a member who had the asked company in
  * their employment history when they answered.
+ *
+ * A question put to a claimed company is seen by its asker and that company
+ * only until the company has answered and chosen to show it. Those two see a
+ * line saying where it stands; the company's owner also gets the buttons to
+ * show or hide it and to report it to the admins. Nobody else is ever sent
+ * such a question, so for them this line never renders.
  */
 export function QuestionCard({
   question,
@@ -353,6 +404,7 @@ export function QuestionCard({
         // Their one answer is gone, so they may write another.
         canAnswer: true,
         answersAsCompany: answer.fromCompany,
+        companyAnswered: answer.fromCompany ? false : q.companyAnswered,
       });
     }, "Couldn't delete the answer.");
   }
@@ -370,6 +422,14 @@ export function QuestionCard({
     } catch {
       patch({ helpfulByMe: answer.helpfulByMe, helpfulCount: answer.helpfulCount });
     }
+  }
+
+  function setVisibility(visibility: CompanyQuestionVisibilityChoice) {
+    return run(async () => {
+      const saved = await apiPatch<PublicSocialQuestion>(`/social/questions/${q.id}/visibility`, { visibility });
+      // Only the state: this card may hold more answers than the reply carries.
+      onChanged?.({ ...q, visibility: saved.visibility });
+    }, "Couldn't change who sees this question.");
   }
 
   async function sendReport(reason: SocialCommentReportReason) {
@@ -417,6 +477,24 @@ export function QuestionCard({
   const lit = "text-brand-600 dark:text-brand-400";
   const time = shortRelativeTime(q.createdAt);
 
+  // Where the question stands, in the reader's own terms (asker or company).
+  const askedCompany = companyName ?? "the company";
+  let standing: string | null = null;
+  if (q.canSetVisibility) {
+    standing =
+      q.visibility === "PENDING"
+        ? "Waiting for your answer. Only you and the person who asked can see it."
+        : q.visibility === "HIDDEN"
+          ? "Hidden. Only you and the person who asked can see it."
+          : "Shown to everyone.";
+  } else if (q.mine && q.visibility === "PENDING") {
+    standing = `Sent to ${askedCompany}. Only you and the company can see it until the company answers.`;
+  } else if (q.mine && q.visibility === "HIDDEN") {
+    standing = `${askedCompany} keeps this question hidden. Only you and the company can see it.`;
+  }
+  const tonalButton =
+    "rounded-full bg-surface px-3 py-1 text-xs font-semibold text-foreground shadow-xs transition hover:bg-border/70 active:scale-[0.98] disabled:opacity-50";
+
   return (
     <article className="rounded-2xl bg-surface shadow-xs">
       <header className="flex items-start gap-3 px-4 pt-3.5">
@@ -457,6 +535,42 @@ export function QuestionCard({
       </header>
 
       <p className="whitespace-pre-wrap px-4 pb-3 pt-2 text-[17px] font-semibold leading-snug text-foreground">{q.body}</p>
+
+      {standing && (
+        <div className="mx-4 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-surface-muted/70 px-3 py-2">
+          <p className="flex min-w-0 flex-1 basis-56 items-start gap-2 text-[13px] leading-snug text-foreground">
+            {q.visibility === "PENDING" ? (
+              <ClockIcon className="mt-px h-4 w-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <EyeIcon off={q.visibility === "HIDDEN"} className="mt-px h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
+            <span>{standing}</span>
+          </p>
+          {q.canSetVisibility && (
+            <div className="flex flex-wrap items-center gap-2">
+              {q.visibility === "PUBLIC" ? (
+                <button type="button" onClick={() => void setVisibility("HIDDEN")} disabled={busy} className={tonalButton}>
+                  Hide
+                </button>
+              ) : (
+                // Showing it needs the company's answer on it (the API says the same).
+                q.companyAnswered && (
+                  <button type="button" onClick={() => void setVisibility("PUBLIC")} disabled={busy} className={tonalButton}>
+                    Show to everyone
+                  </button>
+                )
+              )}
+              {reported.has(q.id) ? (
+                <span className="text-xs font-medium text-muted-foreground">Reported to admin</span>
+              ) : (
+                <button type="button" onClick={() => askToReport("question", q.id)} className="text-xs font-semibold text-muted-foreground transition hover:text-foreground">
+                  Report to admin
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {confirming === "question" && confirmBox("Delete this question? Its answers go with it.", "Delete question", () => void deleteQuestion())}
 
@@ -524,11 +638,19 @@ export function QuestionCard({
           asCompany={q.answersAsCompany}
           companyName={companyName}
           onCancel={() => setAnswering(false)}
-          onPosted={(created) => {
+          onPosted={(created, visibility) => {
             setAnswering(false);
             // The company's answer leads; a member's goes to the end.
             const answers = created.fromCompany ? [created, ...q.answers] : [...q.answers, created];
-            onChanged?.({ ...q, answers, answerCount: q.answerCount + 1, canAnswer: false, answersAsCompany: false });
+            onChanged?.({
+              ...q,
+              answers,
+              answerCount: q.answerCount + 1,
+              canAnswer: false,
+              answersAsCompany: false,
+              companyAnswered: q.companyAnswered || created.fromCompany,
+              visibility: visibility ?? q.visibility,
+            });
           }}
         />
       ) : (
@@ -537,12 +659,15 @@ export function QuestionCard({
             <AnswersIcon className="h-5 w-5" />
             {q.answerCount === 0 ? "No answers yet" : plural(q.answerCount, "answer")}
           </span>
-          <button type="button" onClick={() => void copyLink()} aria-label="Copy link" className={`flex items-center gap-1.5 font-medium transition ${copied ? lit : quiet}`}>
-            <LinkIcon className="h-5 w-5" />
-            <span aria-live="polite" className="text-xs">
-              {copied ? "Link copied" : ""}
-            </span>
-          </button>
+          {/* A question only two people can open has no link worth copying. */}
+          {q.visibility === "PUBLIC" && (
+            <button type="button" onClick={() => void copyLink()} aria-label="Copy link" className={`flex items-center gap-1.5 font-medium transition ${copied ? lit : quiet}`}>
+              <LinkIcon className="h-5 w-5" />
+              <span aria-live="polite" className="text-xs">
+                {copied ? "Link copied" : ""}
+              </span>
+            </button>
+          )}
           {q.canAnswer && (
             <button
               type="button"

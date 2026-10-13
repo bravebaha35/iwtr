@@ -1498,6 +1498,19 @@ model SocialPostLike {
 //
 // No onDelete on company: AdminCompaniesService.merge moves a duplicate's
 // questions to the master instead of losing them.
+// Who can see a question put to a company. PENDING: just asked, only its
+// author and the company's owner see it. The owner answers and then picks
+// HIDDEN (stays between the two of them) or PUBLIC (everyone, on the company's
+// Social tab and on IWT Social), and can change that later. A question put to
+// a kind of work, or to a company nobody has claimed, is PUBLIC from the start.
+enum SocialQuestionVisibility {
+  PENDING
+  HIDDEN
+  PUBLIC
+
+  @@schema("public")
+}
+
 model SocialQuestion {
   id             String              @id @default(uuid())
   companyId      String?
@@ -1508,6 +1521,7 @@ model SocialQuestion {
   body           String
   identityMode   CommentIdentityMode @default(PERSONAL_CHOSEN)
   randomUsername String?
+  visibility     SocialQuestionVisibility @default(PUBLIC)
   createdAt      DateTime            @default(now())
   // Same report path as a comment (SocialQuestionsService.report): crossing
   // 3 reports plus a content-filter match queues it for an admin; nothing is
@@ -1518,7 +1532,7 @@ model SocialQuestion {
   answers SocialAnswer[]
   reports SocialQuestionReport[]
 
-  @@index([companyId])
+  @@index([companyId, visibility])
   @@index([workType])
   @@index([authorUserId])
   @@index([createdAt])

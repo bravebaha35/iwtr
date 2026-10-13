@@ -32,12 +32,13 @@ export function secondaryWorkplaceType(company: { workplaceTypes: WorkplaceType[
 // served by the company read endpoints as Company.defaultBannerUrl and
 // rendered whenever a company has no custom bannerImageUrl. Paths are
 // root-relative to the web app, which serves these files from its public/
-// directory (committed alongside this repo).
+// directory (committed alongside this repo). The files keep the names the
+// owner gave them, so the space is written as %20.
 export const DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE: Record<WorkplaceType, string> = {
-  OFFICE: "/office-default-banner.webp",
-  HYBRID_REMOTE: "/hybrid-remote-default-banner.webp",
-  SERVICE: "/service-default-banner.webp",
-  MANUAL_LABOUR: "/manual-labour-default-banner.webp",
+  OFFICE: "/Office%20Banner.webp",
+  HYBRID_REMOTE: "/Hybrid%20Banner.webp",
+  SERVICE: "/Service%20Banner.webp",
+  MANUAL_LABOUR: "/Labour%20Banner.webp",
 };
 
 export function defaultBannerUrlForWorkplaceType(primary: WorkplaceType): string {

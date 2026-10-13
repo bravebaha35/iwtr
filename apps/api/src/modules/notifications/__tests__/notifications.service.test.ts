@@ -429,12 +429,18 @@ describe("NotificationsService.list - IWT Social questions", () => {
   });
 
   it("tells an approved owner about a question put to their company", async () => {
-    const questionFindMany = jest.fn().mockResolvedValue([{ id: "q9", createdAt: at, company: { name: "Acme", slug: "acme" } }]);
+    const questionFindMany = jest.fn().mockResolvedValue([{ id: "q9", companyId: "c1", createdAt: at, company: { name: "Acme", slug: "acme" } }]);
     const prisma = basePrisma({ companyOwner: { findMany: ownsC1 }, socialQuestion: { findMany: questionFindMany } });
     const events = await new NotificationsService(prisma).list("owner-1");
 
     expect(events).toContainEqual(
-      expect.objectContaining({ id: "company-question-q9", type: "COMPANY_QUESTION_ASKED", companyName: "Acme", href: "/social/questions/q9" }),
+      // Opens the dashboard's Questions section, where it is answered and then hidden or shown.
+      expect.objectContaining({
+        id: "company-question-q9",
+        type: "COMPANY_QUESTION_ASKED",
+        companyName: "Acme",
+        href: "/my/companies?company=c1&category=questions",
+      }),
     );
     expect(questionFindMany.mock.calls[0][0].where.companyId).toEqual({ in: ["c1"] });
   });

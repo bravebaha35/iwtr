@@ -44,6 +44,9 @@ function question(over: Partial<PublicSocialQuestion> = {}): PublicSocialQuestio
     answers: [],
     canAnswer: false,
     answersAsCompany: false,
+    visibility: "PUBLIC",
+    canSetVisibility: false,
+    companyAnswered: false,
     ...over,
   };
 }
@@ -108,26 +111,92 @@ it("a member answers under the name they pick, and the card then offers no secon
   await waitFor(() => expect(onChanged).toHaveBeenCalledWith(expect.objectContaining({ answers: [created], answerCount: 1, canAnswer: false })));
 });
 
-it("the asked company's owner answers as the company: no name to pick, and the answer leads the list", async () => {
+it("the asked company's owner answers as the company: no name to pick, the answer leads the list, and the question is shown or kept hidden", async () => {
   mockAuth = { isAuthenticated: true, role: "COMPANY_OWNER", openAuthModal };
   const onChanged = jest.fn();
   const existing = answer();
   const created = answer({ id: "a-co", fromCompany: true, mine: true, displayUsername: "Deniz Kara" });
   jest.mocked(apiClient.apiPost).mockResolvedValue(created as never);
-  render(<QuestionCard question={question({ canAnswer: true, answersAsCompany: true, answers: [existing], answerCount: 1 })} onChanged={onChanged} />);
+  render(
+    <QuestionCard
+      question={question({ canAnswer: true, answersAsCompany: true, canSetVisibility: true, answers: [existing], answerCount: 1 })}
+      onChanged={onChanged}
+    />,
+  );
 
   // "Helpful" is the members' verdict: an owner only sees it.
   expect(screen.getByRole("button", { name: /Helpful/ })).toBeDisabled();
 
   fireEvent.click(screen.getByRole("button", { name: "Answer as company" }));
   expect(screen.queryByRole("radiogroup", { name: "Answer as" })).not.toBeInTheDocument();
-  expect(screen.getByText("You answer for Acme, under your own name.")).toBeInTheDocument();
+  expect(screen.getByText(/You answer for Acme, under your own name\./)).toBeInTheDocument();
   expect(apiClient.apiGet).not.toHaveBeenCalled();
 
   fireEvent.change(screen.getByLabelText("Your answer"), { target: { value: "We pay on the 5th." } });
-  fireEvent.click(screen.getByRole("button", { name: "Post answer" }));
-  await waitFor(() => expect(apiClient.apiPost).toHaveBeenCalledWith("/social/questions/q1/answers", { body: "We pay on the 5th." }));
-  await waitFor(() => expect(onChanged).toHaveBeenCalledWith(expect.objectContaining({ answers: [created, existing], answerCount: 2 })));
+  // Two ways to send it instead of one "Post answer".
+  expect(screen.queryByRole("button", { name: "Post answer" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Answer and show to everyone" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Answer and keep hidden" }));
+  await waitFor(() =>
+    expect(apiClient.apiPost).toHaveBeenCalledWith("/social/questions/q1/answers", { body: "We pay on the 5th.", visibility: "HIDDEN" }),
+  );
+  await waitFor(() =>
+    expect(onChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ answers: [created, existing], answerCount: 2, visibility: "HIDDEN", companyAnswered: true }),
+    ),
+  );
+});
+
+it("the asker is told where a question to a company stands; nobody else sees that line", () => {
+  const { rerender } = render(<QuestionCard question={question({ mine: true, visibility: "PENDING" })} />);
+  expect(screen.getByText("Sent to Acme. Only you and the company can see it until the company answers.")).toBeInTheDocument();
+  // Only two people can open it: no link to copy, and nothing to hide or show.
+  expect(screen.queryByRole("button", { name: "Copy link" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Show to everyone" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Report to admin" })).not.toBeInTheDocument();
+
+  rerender(<QuestionCard question={question({ mine: true, visibility: "HIDDEN", companyAnswered: true })} />);
+  expect(screen.getByText("Acme keeps this question hidden. Only you and the company can see it.")).toBeInTheDocument();
+
+  rerender(<QuestionCard question={question()} />);
+  expect(screen.queryByText(/Only you and/)).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Copy link" })).toBeInTheDocument();
+});
+
+it("the company's owner shows an answered question to everyone and can hide it again; unanswered, there is nothing to show yet", async () => {
+  mockAuth = { isAuthenticated: true, role: "COMPANY_OWNER", openAuthModal };
+  const onChanged = jest.fn();
+  const waiting = question({ visibility: "PENDING", canSetVisibility: true, canAnswer: true, answersAsCompany: true });
+  const { rerender } = render(<QuestionCard question={waiting} onChanged={onChanged} />);
+  expect(screen.getByText("Waiting for your answer. Only you and the person who asked can see it.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Show to everyone" })).not.toBeInTheDocument();
+
+  const hidden = question({ visibility: "HIDDEN", canSetVisibility: true, companyAnswered: true });
+  jest.mocked(apiClient.apiPatch).mockResolvedValue({ ...hidden, visibility: "PUBLIC" } as never);
+  rerender(<QuestionCard question={hidden} onChanged={onChanged} />);
+  expect(screen.getByText("Hidden. Only you and the person who asked can see it.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Show to everyone" }));
+  await waitFor(() => expect(apiClient.apiPatch).toHaveBeenCalledWith("/social/questions/q1/visibility", { visibility: "PUBLIC" }));
+  await waitFor(() => expect(onChanged).toHaveBeenCalledWith(expect.objectContaining({ visibility: "PUBLIC" })));
+
+  jest.mocked(apiClient.apiPatch).mockResolvedValue({ ...hidden, visibility: "HIDDEN" } as never);
+  rerender(<QuestionCard question={{ ...hidden, visibility: "PUBLIC" }} onChanged={onChanged} />);
+  expect(screen.getByText("Shown to everyone.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Hide" }));
+  await waitFor(() => expect(apiClient.apiPatch).toHaveBeenLastCalledWith("/social/questions/q1/visibility", { visibility: "HIDDEN" }));
+});
+
+it("the company's owner reports a question to the admins from the card itself", async () => {
+  mockAuth = { isAuthenticated: true, role: "COMPANY_OWNER", openAuthModal };
+  jest.mocked(apiClient.apiPost).mockResolvedValue({ commentId: "q1", reportCount: 1 } as never);
+  render(<QuestionCard question={question({ visibility: "PENDING", canSetVisibility: true })} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Report to admin" }));
+  const dialog = screen.getByRole("dialog", { name: "Report this question" });
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Threat and abuse." }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Send report" }));
+  await waitFor(() => expect(apiClient.apiPost).toHaveBeenCalledWith("/social/questions/q1/report", { reason: "THREAT_ABUSE" }));
+  expect(await screen.findByText("Reported to admin")).toBeInTheDocument();
 });
 
 it("Helpful shows at once, then takes the API's count; your own answer can't be marked", async () => {
