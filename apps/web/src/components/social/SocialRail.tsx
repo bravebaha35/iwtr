@@ -10,6 +10,8 @@ import { AdSlot } from "@/components/AdSlot";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
+import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
 import { readRail, writeRail } from "./socialFeedCache";
 
 function plural(n: number, word: string): string {
@@ -27,13 +29,14 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 
 /**
  * The column to the right of the IWT Social feed: what's busy this week,
- * companies worth following and fresh job ads, each a quiet panel that isn't
+ * questions still waiting for an answer, companies worth following and
+ * fresh job ads, each a quiet panel that isn't
  * shown at all while it has nothing in it. The page's right-hand ad sits
  * under them. Hidden below `lg`, where there's no room beside the feed.
- * One request fills all three; what it last answered is shown straight away
+ * One request fills them all; what it last answered is shown straight away
  * on a return visit and read again behind it.
  */
-export function SocialRail() {
+export function SocialRail({ onOpenQuestions }: { onOpenQuestions?: () => void }) {
   const { isAuthenticated, openAuthModal } = useAuth();
   const { followedIds, canFollow, toggleFollow } = useFollowedCompanies();
   const [rail, setRail] = useState<SocialRailData | null>(readRail);
@@ -48,6 +51,7 @@ export function SocialRail() {
   }, []);
 
   const trending = rail?.trending ?? [];
+  const openQuestions = SOCIAL_QUESTIONS_ENABLED ? (rail?.openQuestions ?? []) : [];
   const suggested = rail?.suggestedCompanies ?? [];
   const hiring = rail?.hiringNow ?? [];
   // Same rule as the post card: a member can follow, a logged-out visitor is
@@ -89,6 +93,39 @@ export function SocialRail() {
               </li>
             ))}
           </ol>
+        </Panel>
+      )}
+
+      {openQuestions.length > 0 && (
+        <Panel title="Waiting for an answer">
+          <ul className="flex flex-col gap-3">
+            {openQuestions.map((question) => (
+              <li key={question.questionId}>
+                <Link href={`/social/questions/${question.questionId}`} className="group block">
+                  <span className="line-clamp-2 text-sm font-semibold leading-snug text-foreground group-hover:underline">{question.body}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {question.companyName
+                      ? `Asked to ${question.companyName}`
+                      : question.workType
+                        ? `Asked in ${workplaceTypeLabel(question.workType)} work`
+                        : "Open question"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {/* On IWT Social itself this just switches the tab; anywhere else it is a plain link. */}
+          <Link
+            href="/social?tab=questions"
+            onClick={(e) => {
+              if (!onOpenQuestions) return;
+              e.preventDefault();
+              onOpenQuestions();
+            }}
+            className="mt-3 inline-block text-[13px] font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+          >
+            See all questions
+          </Link>
         </Panel>
       )}
 

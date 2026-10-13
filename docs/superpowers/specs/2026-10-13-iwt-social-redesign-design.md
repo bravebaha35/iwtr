@@ -146,3 +146,81 @@ company's own post would invite pile-ons that the comment rules exist to prevent
 - `POST social/posts/:id/like` takes an optional `{ reaction }`.
 - `POST social/posts/:id/poll-vote` (members only) returns the post as the voter now sees it.
 - `GET social/rail` now carries `trending`; `GET social/trending` is gone.
+
+## Phase 3
+
+Go-ahead from the owner on 2026-10-13 ("You can continue Phase 3"), with one more wish: the
+sidebar gets the new design too.
+
+### Questions
+
+A member asks a question, anonymously, to **one company** or to **everyone in a kind of work**
+(Office, Hybrid/Remote, Service, Manual-Labour). 10 to 300 characters, at most 5 questions a
+member a day. Members answer; the asked company's approved owner answers too.
+
+- **Who is who.** A member appears under their usual review name or a one-off name made up for
+  that question or answer alone (the same choice as a comment). The asked company's owner
+  answers under their real name (EmployerProfile, never the PII vault), marked with the
+  company's name, and that answer leads the thread. Another company's owner cannot answer, and
+  nobody answers for a company on a kind-of-work question.
+- **Worked there.** A member's answer carries this mark when the asked company was in their
+  employment history at the moment they answered. It is stored with the answer and is the only
+  thing it reveals.
+- **One answer per account per question**, and never on your own question: a thread is a set
+  of answers, not a conversation.
+- **Helpful.** Members mark an answer helpful (one each, a second click takes it off); the most
+  helpful answers come first after the company's. Employers see the count only.
+- **Rules for the text.** The same content rules as a review or a comment, refused on the spot.
+  The asked company's own name is taken out before the check, so "Does Demo Finans pay on
+  time?" is not read as a person's name. After that: Report (the comment's fixed reasons);
+  three reports plus a content match queue the item on `/admin/content`; nothing is removed
+  without a person looking.
+- **Who can remove what.** The author deletes their own question (its answers go with it) or
+  answer; an admin removes either (audit-logged). A company can never delete a question put to
+  it.
+
+Where it shows:
+
+- `/social` gains a **Questions** tab for everyone (an owner or admin now gets a tab row:
+  Explore / Questions). The sidebar's search, Work-Type and Quick Select apply; the search box
+  also matches the question text. Inside the tab: Newest / Unanswered / My questions.
+- A company's Social tab gains a **Questions** view beside Posts and Photos, with the ask box
+  already pointed at that company.
+- Every question has its own page (`/social/questions/:id`) with every answer; lists carry the
+  company's answer plus the two most helpful.
+- The rail gains **Waiting for an answer**: the five newest questions nobody has answered.
+- Notifications: the asker hears about a new answer; an owner hears about a question put to
+  their company. Both open the question's page.
+
+### The switch
+
+Questions put member-written public text on the site, so the Terms need the lawyer first.
+One switch on each side: `SOCIAL_QUESTIONS_ENABLED` (API) and
+`NEXT_PUBLIC_SOCIAL_QUESTIONS_ENABLED` (web). Left unset the feature is on everywhere except
+production, so it can be tried locally and stays dark on the live site until both are set to
+`true` there. Off means the routes answer 404, the tab, the view and the rail panel are not
+shown, and no question notifications are derived.
+
+### Sidebar
+
+The IWT Social sidebar now speaks the rail's language: soft white panels instead of grey pills
+on the page. Search field with an icon and a "N filters on / Clear all" line; **Following** as a
+panel with a count that grows with its list up to a limit; **Only Show Me** as four white beaver
+tiles (no panel: they need the column's full width); **Quick Select** as quiet rows in a panel.
+On a company's Social tab: **Sort** as rows in a panel, **See Them On** as named rows, and on the
+Questions view a short "How questions work" panel in place of Sort. Width and gaps are still
+`SidebarShell`'s.
+
+### API
+
+- New: `SocialQuestion`, `SocialAnswer`, `SocialAnswerVote`, `SocialQuestionReport`.
+- `GET social/questions` (`cursor`, `q`, `workplaceTypes`, `categoryGroup`, `company`,
+  `filter`), `GET social/questions/:id`, `GET social/questions/identity`,
+  `POST social/questions` (members), `POST social/questions/:id/answers`,
+  `POST social/answers/:id/helpful` (members), `POST social/questions/:id/report`,
+  `POST social/answers/:id/report`, `DELETE social/questions/:id`, `DELETE social/answers/:id`.
+- Admin: `GET admin/social/reported-questions`, `POST admin/social/{questions|answers}/:id/dismiss-report`,
+  `DELETE admin/social/{questions|answers}/:id`.
+- `GET social/rail` carries `openQuestions`.
+- None of the new routes is opened to the shared company login. Company merge moves a
+  duplicate's questions to the master.

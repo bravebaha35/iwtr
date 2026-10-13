@@ -64,7 +64,11 @@ type NotificationKind =
   // Real: company claim decisions, and (owners) new CV applications.
   | "CLAIM_APPROVED"
   | "CLAIM_REJECTED"
-  | "JOB_APPLICATION_RECEIVED";
+  | "JOB_APPLICATION_RECEIVED"
+  // Real: IWT Social Questions (an answer to your question; a question put
+  // to your company). Both carry their own href: the question's page.
+  | "QUESTION_ANSWERED"
+  | "COMPANY_QUESTION_ASKED";
 
 const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   VOTE_HELPFUL: "SOCIAL",
@@ -89,6 +93,8 @@ const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   CLAIM_APPROVED: "SYSTEM",
   CLAIM_REJECTED: "SYSTEM",
   JOB_APPLICATION_RECEIVED: "EMPLOYER",
+  QUESTION_ANSWERED: "SOCIAL",
+  COMPANY_QUESTION_ASKED: "EMPLOYER",
 };
 
 interface AppNotification {
@@ -158,6 +164,10 @@ function describeNotification(n: AppNotification): string {
       return `Your claim for ${company} wasn't approved.`;
     case "JOB_APPLICATION_RECEIVED":
       return n.jobTitle ? `New application for ${n.jobTitle} at ${company}.` : `New application at ${company}.`;
+    case "QUESTION_ANSWERED":
+      return n.companyName ? `Your question to ${n.companyName} has a new answer.` : "Your question has a new answer.";
+    case "COMPANY_QUESTION_ASKED":
+      return n.companyName ? `Someone asked ${n.companyName} a question. Answer it here!` : "Someone asked your company a question.";
   }
 }
 
@@ -217,12 +227,15 @@ function hrefForNotification(n: AppNotification): string {
       return n.href ?? "/social";
     case "CONVERSATION_MESSAGE_FROM_REVIEWER":
       return n.href ?? "/social";
+    case "QUESTION_ANSWERED":
+    case "COMPANY_QUESTION_ASKED":
+      return n.href ?? "/social?tab=questions";
   }
 }
 
 // Social-post times come from the API rounded to the hour (see the API's
 // toUtcHour), so they never read finer than "1 hour ago".
-const HOUR_PRECISION_KINDS: ReadonlySet<NotificationKind> = new Set(["COMPANY_NEW_SOCIAL_POST"]);
+const HOUR_PRECISION_KINDS: ReadonlySet<NotificationKind> = new Set(["COMPANY_NEW_SOCIAL_POST", "QUESTION_ANSWERED", "COMPANY_QUESTION_ASKED"]);
 
 function timeAgo(iso: string, hourPrecision = false): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));

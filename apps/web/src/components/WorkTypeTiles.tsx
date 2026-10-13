@@ -22,24 +22,28 @@ const WORK_TYPE_ART: Record<WorkplaceType, string> = {
  * yours" idea as the mood beavers on the Rating slider).
  *
  * `columns` 2 is the filter sidebar on the Rating and Jobs pages; 4 is the
- * wide "What kind of work?" row on Edit Profile.
+ * wide "What kind of work?" row on Edit Profile. `tone` "surface" is for a
+ * column whose other sections are white panels (IWT Social's sidebar): a
+ * tile at rest is then a small white panel itself instead of a grey one.
  */
 export function WorkTypeTiles({
   selected,
   onToggle,
   columns = 2,
   disabled = false,
+  tone = "muted",
 }: {
   selected: WorkplaceType[];
   onToggle: (value: WorkplaceType) => void;
   columns?: 2 | 4;
   disabled?: boolean;
+  tone?: "muted" | "surface";
 }) {
   return (
     <div className={`grid gap-1.5 ${columns === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
       {WORKPLACE_TYPES.map((t) => {
         const on = selected.includes(t.value);
-        const tone = collarTileTone[t.value];
+        const collar = collarTileTone[t.value];
         return (
           <button
             key={t.value}
@@ -48,7 +52,7 @@ export function WorkTypeTiles({
             disabled={disabled}
             onClick={() => onToggle(t.value)}
             className={`group relative flex h-[5.25rem] flex-col items-start overflow-hidden rounded-xl text-left transition duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
-              on ? tone.wash : "bg-surface-muted/70 hover:bg-surface-muted"
+              on ? collar.wash : tone === "surface" ? "bg-surface shadow-xs hover:bg-surface-muted/40" : "bg-surface-muted/70 hover:bg-surface-muted"
             }`}
           >
             <span
@@ -61,7 +65,7 @@ export function WorkTypeTiles({
             <span
               aria-hidden="true"
               className={`ml-2.5 mt-1.5 block h-[3px] w-5 shrink-0 rounded-full transition-all duration-200 ${
-                on ? tone.bar : "w-0 bg-transparent"
+                on ? collar.bar : "w-0 bg-transparent"
               }`}
             />
             <Image

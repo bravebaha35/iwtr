@@ -437,9 +437,21 @@ export const socialRailTrendingPostSchema = z.object({
 });
 export type SocialRailTrendingPost = z.infer<typeof socialRailTrendingPostSchema>;
 
+// One row of the rail's "Waiting for an answer": a question nobody has
+// answered yet. companyName is null for a question put to a kind of work.
+export const socialRailQuestionSchema = z.object({
+  questionId: z.string(),
+  body: z.string(),
+  companyName: z.string().nullable(),
+  workType: workplaceTypeSchema.nullable(),
+});
+export type SocialRailQuestion = z.infer<typeof socialRailQuestionSchema>;
+
 export const socialRailSchema = z.object({
   // The last 7 days' busiest posts (likes + comments), busiest first.
   trending: z.array(socialRailTrendingPostSchema),
+  // The newest questions without an answer (empty while Questions is off).
+  openQuestions: z.array(socialRailQuestionSchema),
   // Public companies that have posted and that the viewer doesn't follow yet.
   suggestedCompanies: z.array(socialRailCompanySchema),
   // Job ads posted in the last 7 days, one per company.
@@ -454,3 +466,137 @@ export const companySocialSummarySchema = z.object({
   postCount: z.number().int(),
 });
 export type CompanySocialSummary = z.infer<typeof companySocialSummarySchema>;
+
+// --- Questions (IWT Social phase 3). A member asks one company, or everyone
+// in a kind of work, anonymously; members answer anonymously and the asked
+// company's owner answers under their real name.
+export const SOCIAL_QUESTION_MIN = 10;
+export const SOCIAL_QUESTION_MAX = 300;
+export const SOCIAL_ANSWER_MAX = 1250;
+// How many questions one member may ask in 24 hours.
+export const SOCIAL_QUESTIONS_PER_DAY = 5;
+// How many answers a question carries in a list (its own page has them all).
+export const SOCIAL_QUESTION_PREVIEW_ANSWERS = 2;
+
+// The two anonymous identities a member picks between (never OWNER_REAL_NAME:
+// that one is settled by the server for an owner, whatever is sent).
+export const memberIdentityModeSchema = z.enum(["PERSONAL_CHOSEN", "PERSONAL_RANDOM"]);
+export type MemberIdentityMode = z.infer<typeof memberIdentityModeSchema>;
+
+export const createSocialQuestionInputSchema = z
+  .object({
+    // Exactly one of the two: the company asked, or the kind of work.
+    companyId: z.string().uuid().optional(),
+    workType: workplaceTypeSchema.optional(),
+    body: z.string().trim().min(SOCIAL_QUESTION_MIN, "Write a little more so people can answer").max(SOCIAL_QUESTION_MAX),
+    identityMode: memberIdentityModeSchema.optional(),
+  })
+  .refine((v) => (v.companyId === undefined) !== (v.workType === undefined), {
+    path: ["companyId"],
+    message: "Pick a company or a kind of work to ask",
+  });
+export type CreateSocialQuestionInput = z.infer<typeof createSocialQuestionInputSchema>;
+
+export const createSocialAnswerInputSchema = z.object({
+  body: z.string().trim().min(1).max(SOCIAL_ANSWER_MAX),
+  identityMode: memberIdentityModeSchema.optional(),
+});
+export type CreateSocialAnswerInput = z.infer<typeof createSocialAnswerInputSchema>;
+
+// Which questions a list shows.
+export const socialQuestionFilterSchema = z.enum(["all", "unanswered", "mine"]);
+export type SocialQuestionFilter = z.infer<typeof socialQuestionFilterSchema>;
+
+// No author id on either shape, same rule as a comment (REVIEW.md).
+export const publicSocialAnswerSchema = z.object({
+  id: z.string(),
+  questionId: z.string(),
+  body: z.string(),
+  createdAt: z.string().datetime(),
+  // The asked company's owner, under their real name.
+  fromCompany: z.boolean(),
+  // A member who had this company in their employment history when they
+  // answered. Always false on a kind-of-work question.
+  workedThere: z.boolean(),
+  displayUsername: z.string().nullable(),
+  avatarKey: z.string().nullable(),
+  avatarGradient: z.string().nullable(),
+  avatarPhotoUrl: z.string().nullable(),
+  mine: z.boolean(),
+  helpfulCount: z.number().int(),
+  // null when the viewer is anonymous.
+  helpfulByMe: z.boolean().nullable(),
+});
+export type PublicSocialAnswer = z.infer<typeof publicSocialAnswerSchema>;
+
+export const socialQuestionTargetSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("company"),
+    companyId: z.string(),
+    companySlug: z.string(),
+    companyName: z.string(),
+    companyLogoUrl: z.string().nullable(),
+    companyBadgeTier: ownerTierSchema,
+  }),
+  z.object({ kind: z.literal("workType"), workType: workplaceTypeSchema }),
+]);
+export type SocialQuestionTarget = z.infer<typeof socialQuestionTargetSchema>;
+
+export const publicSocialQuestionSchema = z.object({
+  id: z.string(),
+  body: z.string(),
+  createdAt: z.string().datetime(),
+  target: socialQuestionTargetSchema,
+  displayUsername: z.string().nullable(),
+  avatarKey: z.string().nullable(),
+  avatarGradient: z.string().nullable(),
+  mine: z.boolean(),
+  answerCount: z.number().int(),
+  // The company's own answer comes first, then the most helpful ones. A list
+  // carries the first SOCIAL_QUESTION_PREVIEW_ANSWERS; the question's own
+  // page carries every answer.
+  answers: z.array(publicSocialAnswerSchema),
+  // The viewer may answer: a member who didn't ask it and hasn't answered
+  // yet, or the asked company's owner who hasn't answered yet.
+  canAnswer: z.boolean(),
+  // ...and would do so under their real name, as the company.
+  answersAsCompany: z.boolean(),
+});
+export type PublicSocialQuestion = z.infer<typeof publicSocialQuestionSchema>;
+
+export const socialQuestionPageSchema = z.object({
+  questions: z.array(publicSocialQuestionSchema),
+  nextCursor: z.string().nullable(),
+});
+export type SocialQuestionPage = z.infer<typeof socialQuestionPageSchema>;
+
+export const socialAnswerHelpfulResultSchema = z.object({
+  answerId: z.string(),
+  helpfulCount: z.number().int(),
+  helpfulByMe: z.boolean(),
+});
+export type SocialAnswerHelpfulResult = z.infer<typeof socialAnswerHelpfulResultSchema>;
+
+// The name a member would ask or answer under, for the composer's preview.
+export const socialQuestionIdentitySchema = z.object({
+  displayUsername: z.string().nullable(),
+  avatarKey: z.string().nullable(),
+  avatarGradient: z.string().nullable(),
+});
+export type SocialQuestionIdentity = z.infer<typeof socialQuestionIdentitySchema>;
+
+// ADMIN-only: a reported question or answer. The content and its reports,
+// never who wrote it. An answer carries the question it answers for context.
+export const adminReportedSocialQuestionItemSchema = z.object({
+  kind: z.enum(["QUESTION", "ANSWER"]),
+  id: z.string(),
+  questionId: z.string(),
+  body: z.string(),
+  questionBody: z.string(),
+  createdAt: z.string().datetime(),
+  reportCount: z.number().int(),
+  reportReasonCounts: z.record(z.string(), z.number().int()),
+  flaggedForReview: z.boolean(),
+  flaggedReviewReason: z.string().nullable(),
+});
+export type AdminReportedSocialQuestionItem = z.infer<typeof adminReportedSocialQuestionItemSchema>;

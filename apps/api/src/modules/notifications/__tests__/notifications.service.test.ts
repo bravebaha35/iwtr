@@ -19,6 +19,8 @@ function basePrisma(overrides: Record<string, unknown> = {}) {
     companyOwner: { findMany: jest.fn().mockResolvedValue([]) },
     reviewConversation: { findMany: jest.fn().mockResolvedValue([]) },
     jobApplication: { findMany: jest.fn().mockResolvedValue([]) },
+    socialAnswer: { findMany: jest.fn().mockResolvedValue([]) },
+    socialQuestion: { findMany: jest.fn().mockResolvedValue([]) },
     notificationRead: { findMany: jest.fn().mockResolvedValue([]), createMany: jest.fn().mockResolvedValue({ count: 0 }) },
     ...overrides,
   } as never;
@@ -399,5 +401,52 @@ describe("NotificationsService - read state", () => {
       ],
       skipDuplicates: true,
     });
+  });
+});
+
+describe("NotificationsService.list - IWT Social questions", () => {
+  const at = new Date("2026-10-13T09:41:00Z");
+
+  it("tells the asker about an answer, to the hour, and links to the question", async () => {
+    const answerFindMany = jest.fn().mockResolvedValue([
+      { id: "a1", questionId: "q1", createdAt: at, question: { company: { name: "Acme", slug: "acme" } } },
+      // Put to a kind of work: no company to name.
+      { id: "a2", questionId: "q2", createdAt: at, question: { company: null } },
+    ]);
+    const prisma = basePrisma({ socialAnswer: { findMany: answerFindMany } });
+    const events = await new NotificationsService(prisma).list("u1");
+
+    expect(events).toHaveLength(2);
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "question-answer-a1", type: "QUESTION_ANSWERED", companyName: "Acme", href: "/social/questions/q1" }),
+      expect.objectContaining({ id: "question-answer-a2", type: "QUESTION_ANSWERED", companyName: "", companySlug: null, href: "/social/questions/q2" }),
+    ]));
+    expect(events[0].createdAt).toBe("2026-10-13T09:00:00.000Z");
+    // Only answers to the caller's own questions, never the caller's own answer.
+    expect(answerFindMany.mock.calls[0][0].where).toMatchObject({ question: { authorUserId: "u1" }, authorUserId: { not: "u1" } });
+    // Not an owner: no "someone asked your company" lookup at all.
+    expect((prisma as any).socialQuestion.findMany).not.toHaveBeenCalled();
+  });
+
+  it("tells an approved owner about a question put to their company", async () => {
+    const questionFindMany = jest.fn().mockResolvedValue([{ id: "q9", createdAt: at, company: { name: "Acme", slug: "acme" } }]);
+    const prisma = basePrisma({ companyOwner: { findMany: ownsC1 }, socialQuestion: { findMany: questionFindMany } });
+    const events = await new NotificationsService(prisma).list("owner-1");
+
+    expect(events).toContainEqual(
+      expect.objectContaining({ id: "company-question-q9", type: "COMPANY_QUESTION_ASKED", companyName: "Acme", href: "/social/questions/q9" }),
+    );
+    expect(questionFindMany.mock.calls[0][0].where.companyId).toEqual({ in: ["c1"] });
+  });
+
+  it("says nothing about questions while the feature is switched off", async () => {
+    process.env.SOCIAL_QUESTIONS_ENABLED = "false";
+    try {
+      const prisma = basePrisma();
+      await new NotificationsService(prisma).list("u1");
+      expect((prisma as any).socialAnswer.findMany).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.SOCIAL_QUESTIONS_ENABLED;
+    }
   });
 });

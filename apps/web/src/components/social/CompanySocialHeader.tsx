@@ -5,12 +5,15 @@ import type { Company, CompanySocialSummary } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { WordTabs } from "@/components/WordTabs";
+import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
 
-export type CompanySocialView = "posts" | "photos";
+export type CompanySocialView = "posts" | "photos" | "questions";
 
 const VIEWS: { value: CompanySocialView; label: string }[] = [
   { value: "posts", label: "Posts" },
   { value: "photos", label: "Photos" },
+  // What members have asked this company, and its answers.
+  ...(SOCIAL_QUESTIONS_ENABLED ? [{ value: "questions" as const, label: "Questions" }] : []),
 ];
 
 function plural(n: number, word: string): string {
@@ -19,7 +22,7 @@ function plural(n: number, word: string): string {
 
 /**
  * The line above a company's own posts: how many follow it and how much it
- * has posted, and the Posts / Photos switch. The counts are bare numbers -
+ * has posted, and the Posts / Photos / Questions switch. The counts are bare numbers -
  * who follows a company is never shown to anyone. Following itself is the
  * button in the company page's header; the count here is read again each
  * time a follow or unfollow has been saved.
@@ -58,7 +61,7 @@ export function CompanySocialHeader({
           <span aria-hidden="true">&nbsp;</span>
         )}
       </p>
-      <WordTabs tabs={VIEWS} value={view} onChange={onViewChange} label="Posts or photos" />
+      <WordTabs tabs={VIEWS} value={view} onChange={onViewChange} label="Posts, photos or questions" />
     </div>
   );
 }

@@ -10,89 +10,137 @@ import { CompanyLogo } from "@/components/CompanyLogo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { SidebarShell } from "@/components/layout/SidebarShell";
 
-// The caller's own followed companies - scrollable, fixed-height so it
-// can't push the rest of the sidebar down as the list grows. Same
-// data/toggle source (useFollowedCompanies) the post-card Follow button
-// uses, so unfollowing a company from a post immediately drops it here too.
-// Links into that company's own profile Social tab - there is no more
-// standalone /social/[slug] route to point at.
+// One section of the sidebar: a soft panel, the same family as the panels of
+// the right-hand rail, so the two columns either side of the feed match.
+function SidebarPanel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl bg-surface p-2.5 shadow-xs">
+      <div className="mb-2 flex min-h-5 items-center justify-between gap-2 px-0.5">
+        <h2 className="text-[13px] font-semibold text-foreground">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </svg>
+  );
+}
+
+// The caller's own followed companies. As tall as the list up to a limit,
+// then it scrolls, so a long list can't push the filters off the screen.
+// Same data source (useFollowedCompanies) as the post card's Follow button,
+// so unfollowing from a post drops the company here at once. Each row opens
+// that company's own Social tab.
 function FollowingList() {
   const { companies, loading } = useFollowedCompanies();
 
   return (
-    <div>
-      <h2 className="mb-2 text-[13px] font-semibold text-foreground">Following</h2>
-      <div className="thin-scrollbar flex h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-surface-muted/60 p-1.5">
-        {loading && <p className="p-1.5 text-xs text-muted-foreground">Loading...</p>}
-        {!loading && companies.length === 0 && (
-          <p className="p-1.5 text-xs text-muted-foreground">You&apos;re not following any companies yet.</p>
-        )}
-        {companies.map((c) => (
-          <Link
-            key={c.companyId}
-            href={`/companies/${c.companySlug}?tab=social`}
-            className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 transition hover:bg-surface-muted"
-          >
-            <CompanyLogo name={c.companyName} mainPhotoUrl={c.mainPhotoUrl} size="sm" />
-            <span className="min-w-0 truncate text-sm text-foreground">{c.companyName}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
+    <SidebarPanel
+      title="Following"
+      action={
+        companies.length > 0 ? (
+          <span aria-label={`${companies.length} companies`} className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+            {companies.length}
+          </span>
+        ) : undefined
+      }
+    >
+      {loading && companies.length === 0 ? (
+        <div aria-hidden="true" className="flex animate-pulse flex-col gap-2.5 motion-reduce:animate-none">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-[0.5rem] bg-surface-muted" />
+              <div className="h-3 w-28 rounded-full bg-surface-muted" />
+            </div>
+          ))}
+        </div>
+      ) : companies.length === 0 ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">Companies you follow show up here, one click from their posts.</p>
+      ) : (
+        <div className="thin-scrollbar -mx-1 flex max-h-52 flex-col gap-0.5 overflow-y-auto">
+          {companies.map((c) => (
+            <Link
+              key={c.companyId}
+              href={`/companies/${c.companySlug}?tab=social`}
+              className="flex min-w-0 items-center gap-2.5 rounded-lg px-1 py-1 transition hover:bg-surface-muted"
+            >
+              <CompanyLogo name={c.companyName} mainPhotoUrl={c.mainPhotoUrl} size="sm" />
+              <span className="min-w-0 truncate text-sm font-medium text-foreground">{c.companyName}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </SidebarPanel>
   );
 }
 
-// Vertical, full-width stack (fits the narrow sidebar column at any
-// viewport width) rather than a wrapping row of pills. Newest/Oldest are one
-// toggle button, not two separate pills - its label always names the
-// CURRENTLY active direction ("Newest to Oldest" while sort is "newest",
-// flipping to "Oldest to Newest" once pressed and sort becomes "oldest"),
-// so pressing it again flips back. Most Liked / Most Commented stay as
-// separate buttons below it.
+// The company feed's order, as rows in a panel. Newest/Oldest are one row,
+// not two: its label always names the direction in use ("Newest to Oldest"
+// while sort is "newest") and pressing it again flips it. Most Liked / Most
+// Commented are rows of their own. The row in use takes the site's one
+// "selected" colour.
 function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v: SocialCompanySort) => void }) {
   const isOldest = value === "oldest";
   const directionActive = value === "newest" || value === "oldest";
+  const row = (active: boolean) =>
+    `flex h-9 w-full items-center justify-between gap-2 rounded-lg px-2.5 text-left text-sm font-medium transition active:scale-[0.98] ${
+      active ? "bg-brand-600 text-white" : "text-foreground/80 hover:bg-surface-muted hover:text-foreground"
+    }`;
 
   return (
-    <div>
-      <h2 className="mb-2 text-[13px] font-semibold text-foreground">Sort</h2>
-      <div className="flex w-full flex-col gap-1 rounded-xl bg-surface-muted p-1">
-        <button
-          type="button"
-          onClick={() => onChange(isOldest ? "newest" : "oldest")}
-          aria-pressed={directionActive}
-          className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
-            directionActive ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
+    <SidebarPanel title="Sort">
+      <div className="flex flex-col gap-0.5">
+        <button type="button" onClick={() => onChange(isOldest ? "newest" : "oldest")} aria-pressed={directionActive} className={row(directionActive)}>
           {isOldest ? "Oldest to Newest" : "Newest to Oldest"}
+          {/* Two arrows: this row flips its direction when pressed again. */}
+          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M8 4v16M8 4 4.5 7.5M8 4l3.5 3.5" />
+            <path d="M16 20V4m0 16-3.5-3.5M16 20l3.5-3.5" />
+          </svg>
         </button>
-        <button
-          type="button"
-          onClick={() => onChange("mostLiked")}
-          aria-pressed={value === "mostLiked"}
-          className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
-            value === "mostLiked" ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
+        <button type="button" onClick={() => onChange("mostLiked")} aria-pressed={value === "mostLiked"} className={row(value === "mostLiked")}>
           Most Liked
         </button>
-        <button
-          type="button"
-          onClick={() => onChange("mostCommented")}
-          aria-pressed={value === "mostCommented"}
-          className={`w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-200 ${
-            value === "mostCommented" ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
+        <button type="button" onClick={() => onChange("mostCommented")} aria-pressed={value === "mostCommented"} className={row(value === "mostCommented")}>
           Most Commented
         </button>
       </div>
-    </div>
+    </SidebarPanel>
   );
 }
 
-// Small monochrome glyphs for the 7 possible social links - deliberately
+// Beside a company's Questions: the three rules a reader needs, in place of
+// the Sort panel (questions are always newest first).
+function QuestionsNote() {
+  const points = [
+    "Everyone asks and answers anonymously.",
+    "\"Worked there\" marks people who had this company in their work history.",
+    "The company answers under its owner's real name.",
+  ];
+  return (
+    <SidebarPanel title="How questions work">
+      <ul className="flex flex-col gap-2 px-0.5 pb-0.5">
+        {points.map((point) => (
+          <li key={point} className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+            <svg viewBox="0 0 24 24" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m5 12.5 4.5 4.5L19 7.5" />
+            </svg>
+            {point}
+          </li>
+        ))}
+      </ul>
+    </SidebarPanel>
+  );
+}
+
+// Small monochrome glyphs for the 5 possible social links - deliberately
 // simple line/shape icons rather than exact brand marks, since the goal is
 // "distinct and recognizable at a glance", not logo-accurate reproduction.
 function FacebookIcon({ className }: { className?: string }) {
@@ -162,27 +210,25 @@ function SeeThemOn({ links }: { links: CompanySocialLinks }) {
   if (entries.length === 0) return null;
 
   return (
-    <div>
-      <h2 className="mb-2 text-[13px] font-semibold text-foreground">See Them On</h2>
-      {/* Tight, asymmetrical wrap - not a fixed grid - so a company with 2
-          links doesn't leave a row of empty cells and one with 5 wraps
-          naturally. */}
-      <div className="flex flex-wrap gap-2">
+    <SidebarPanel title="See Them On">
+      <div className="flex flex-col gap-0.5">
         {entries.map(({ label, href, icon }) => (
           <a
             key={label}
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            title={label}
-            aria-label={label}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-muted text-muted-foreground transition hover:bg-border/70 hover:text-foreground"
+            className="group flex h-9 items-center gap-2.5 rounded-lg px-1 text-sm font-medium text-foreground/80 transition hover:bg-surface-muted hover:text-foreground"
           >
-            {icon}
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground transition group-hover:text-foreground">
+              {icon}
+            </span>
+            {label}
+            <span className="sr-only"> (opens in a new tab)</span>
           </a>
         ))}
       </div>
-    </div>
+    </SidebarPanel>
   );
 }
 
@@ -196,12 +242,16 @@ type SocialSidebarProps =
       categoryGroup: CategoryGroup | null;
       onCategoryGroupChange: (v: CategoryGroup | null) => void;
       isMember: boolean;
+      // The Questions tab searches question text as well as company names.
+      searchPlaceholder?: string;
     }
   | {
       mode: "company";
       sort: SocialCompanySort;
       onSortChange: (v: SocialCompanySort) => void;
       socialLinks: CompanySocialLinks;
+      // False on the Questions view, which is always newest first.
+      showSort?: boolean;
     };
 
 export function SocialSidebar(props: SocialSidebarProps) {
@@ -211,13 +261,21 @@ export function SocialSidebar(props: SocialSidebarProps) {
     // where it's actually useful for jumping between companies.
     return (
       <SidebarShell>
-        <SortPills value={props.sort} onChange={props.onSortChange} />
+        {props.showSort !== false ? <SortPills value={props.sort} onChange={props.onSortChange} /> : <QuestionsNote />}
         <SeeThemOn links={props.socialLinks} />
       </SidebarShell>
     );
   }
 
   const { query, onQueryChange, workplaceType, onWorkplaceTypeChange, categoryGroup, onCategoryGroupChange, isMember } = props;
+  const placeholder = props.searchPlaceholder ?? "Search a company by name...";
+  const filtersOn = (query.trim() ? 1 : 0) + (workplaceType ? 1 : 0) + (categoryGroup ? 1 : 0);
+
+  function clearAll() {
+    onQueryChange("");
+    onWorkplaceTypeChange(null);
+    onCategoryGroupChange(null);
+  }
 
   // "Only show me:" is single-select (unlike the rating/jobs pages' up-to-2
   // Work-Type filter), so this wraps WorkTypeTiles' onToggle contract (one
@@ -229,36 +287,51 @@ export function SocialSidebar(props: SocialSidebarProps) {
 
   return (
     <SidebarShell>
-      {/* Same search-a-company-by-name box the feed used to render inline -
-          moved here, sized down to fit the panel. */}
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-        placeholder="Search a company by name..."
-        className="w-full rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-foreground"
-      />
+      <div className="flex flex-col gap-2">
+        <div className="relative">
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <label htmlFor="social-search" className="sr-only">
+            Search IWT Social
+          </label>
+          <input
+            id="social-search"
+            type="search"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder={placeholder}
+            className="h-10 w-full rounded-xl border border-border bg-surface pl-9 pr-3 text-[13px] text-foreground shadow-xs"
+          />
+        </div>
+        {/* One way back to "everything" once any filter is on. */}
+        {filtersOn > 0 && (
+          <p className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+            <span className="tabular-nums">
+              {filtersOn} filter{filtersOn === 1 ? "" : "s"} on
+            </span>
+            <button type="button" onClick={clearAll} className="font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
+              Clear all
+            </button>
+          </p>
+        )}
+      </div>
 
       {isMember && <FollowingList />}
 
-      {/* The same beaver tiles as the rating/jobs pages' Work-Type filter. */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
+      {/* The same beaver tiles as the rating/jobs pages' Work-Type filter. No
+          panel around them: each tile is a small white panel of its own, and
+          they need the column's full width for their names. */}
+      <section>
+        <div className="mb-2 flex min-h-5 items-center justify-between gap-2 px-0.5">
           <h2 className="text-[13px] font-semibold text-foreground">Only Show Me</h2>
-          <RewindButton
-            onClick={() => onWorkplaceTypeChange(null)}
-            active={workplaceType !== null}
-            title="Clear Only Show Me filter"
-          />
+          <RewindButton onClick={() => onWorkplaceTypeChange(null)} active={workplaceType !== null} title="Clear Only Show Me filter" />
         </div>
-        <WorkTypeTiles selected={workplaceType ? [workplaceType] : []} onToggle={toggleWorkplaceType} />
-      </div>
+        <WorkTypeTiles selected={workplaceType ? [workplaceType] : []} onToggle={toggleWorkplaceType} tone="surface" />
+      </section>
 
-      <div>
-        <h2 className="mb-2 text-[13px] font-semibold text-foreground">Quick Select</h2>
-        {/* Same 7 groups as the rating/jobs pages, stacked vertically here. */}
+      {/* Same 7 groups as the rating/jobs pages, as a list of rows here. */}
+      <SidebarPanel title="Quick Select">
         <CategoryGroupFilter value={categoryGroup} onChange={onCategoryGroupChange} orientation="vertical" />
-      </div>
+      </SidebarPanel>
     </SidebarShell>
   );
 }

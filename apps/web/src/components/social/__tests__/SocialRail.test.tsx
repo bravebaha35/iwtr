@@ -21,8 +21,12 @@ const rail: SocialRailData = {
     { companyId: "c1", companySlug: "acme", companyName: "Acme", companyLogoUrl: null, companyBadgeTier: "PRO", companyWorkplaceTypes: ["SERVICE"] },
   ],
   hiringNow: [{ jobPostingId: "j1", jobTitle: "Forklift Operator", companySlug: "acme", companyName: "Acme", companyLogoUrl: null }],
+  openQuestions: [
+    { questionId: "q1", body: "Is overtime paid on time?", companyName: "Acme", workType: null },
+    { questionId: "q2", body: "How are the night shifts?", companyName: null, workType: "SERVICE" },
+  ],
 };
-const empty: SocialRailData = { trending: [], suggestedCompanies: [], hiringNow: [] };
+const empty: SocialRailData = { trending: [], suggestedCompanies: [], hiringNow: [], openQuestions: [] };
 
 beforeEach(() => {
   clearSocialCache();
@@ -51,6 +55,20 @@ it("fills all three panels from one request, with links, and Follow follows the 
   expect(toggleFollow).toHaveBeenCalledWith("c1", expect.objectContaining({ companySlug: "acme" }));
   expect(apiClient.apiGet).toHaveBeenCalledTimes(1);
   expect(apiClient.apiGet).toHaveBeenCalledWith("/social/rail");
+});
+
+it("lists the questions still waiting for an answer, each linking to its own page, and 'See all' switches the tab", async () => {
+  jest.mocked(apiClient.apiGet).mockResolvedValue(rail);
+  const onOpenQuestions = jest.fn();
+  render(<SocialRail onOpenQuestions={onOpenQuestions} />);
+
+  const waiting = (await screen.findByRole("heading", { name: "Waiting for an answer" })).closest("section")!;
+  expect(within(waiting).getByRole("link", { name: /Is overtime paid on time\?/ })).toHaveAttribute("href", "/social/questions/q1");
+  expect(within(waiting).getByText("Asked to Acme")).toBeInTheDocument();
+  expect(within(waiting).getByText("Asked in Service work")).toBeInTheDocument();
+
+  fireEvent.click(within(waiting).getByRole("link", { name: "See all questions" }));
+  expect(onOpenQuestions).toHaveBeenCalledTimes(1);
 });
 
 it("shows no panel at all for an empty list", async () => {

@@ -158,7 +158,17 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   WebP cuts in `public/reactions/`). No visible waits: lists come back from memory first (`socialFeedCache`),
   first loads show `SocialPostSkeleton`, photos reserve their space from `SocialPost.imageAspectRatios` and load
   lazily, the rail is one request whose shared lists the API caches for a minute, and posting refreshes the lists
-  instead of reloading the page. Still to come: member Questions with a "Worked there" badge, owner insights.
+  instead of reloading the page. Phase 3 is in as well: **Questions** (`social-questions.service.ts`, its own
+  controller). A member asks one company or everyone in a kind of work (max 5 a day); members answer anonymously
+  (review name or a one-off name), the asked company's approved owner answers under their real name; one answer per
+  account per question, never on your own. `SocialAnswer.workedThere` is settled when the answer is written (the
+  company was in the member's employment history). Text goes through `checkContent` with the asked company's own
+  name removed first; reports reuse the comment reasons and queue on `/admin/content`. A company can never delete
+  a question put to it. Shown as a Questions tab on `/social`, a Questions view on the company Social tab, a page
+  per question (`/social/questions/:id`) and the rail's "Waiting for an answer". **Switched off in production
+  until the lawyer has cleared the Terms**: `SOCIAL_QUESTIONS_ENABLED` (API) + `NEXT_PUBLIC_SOCIAL_QUESTIONS_ENABLED`
+  (web), on by default everywhere else. The Social sidebar is soft panels now (`SidebarPanel` in
+  `SocialSidebar.tsx`), matching the rail. Still to come: phase 4, owner insights and scheduling.
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
   matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").

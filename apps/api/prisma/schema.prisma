@@ -316,7 +316,11 @@ model User {
   jobPostings                JobPosting[]
   socialPosts                SocialPost[]                @relation("SocialPostAuthor")
   socialPollVotes            SocialPollVote[]            @relation("SocialPollVoter")
-  socialComments             SocialComment[]             @relation("SocialCommentAuthor")
+  socialQuestions            SocialQuestion[]            @relation("SocialQuestionAuthor")
+  socialAnswers              SocialAnswer[]              @relation("SocialAnswerAuthor")
+  socialAnswerVotes          SocialAnswerVote[]          @relation("SocialAnswerVoter")
+  socialQuestionReports      SocialQuestionReport[]      @relation("SocialQuestionReporter")
+  socialComments            SocialComment[]             @relation("SocialCommentAuthor")
   socialPostLikes            SocialPostLike[]            @relation("SocialPostLiker")
   socialCommentVotes         SocialCommentVote[]         @relation("SocialCommentVoter")
   companyFollows             CompanyFollow[]
@@ -595,6 +599,7 @@ model Company {
   jobPostings          JobPosting[]
   jobApplications      JobApplication[]
   socialPosts          SocialPost[]
+  socialQuestions      SocialQuestion[]
   followers            CompanyFollow[]
   benchmarkReportJobs  BenchmarkReportJob[]
   hrAnalyticsReportJobs HrAnalyticsReportJob[]
@@ -1481,6 +1486,108 @@ model SocialPostLike {
 
   @@unique([postId, userId])
   @@index([userId])
+  @@schema("public")
+}
+
+// IWT Social Questions: a member asks, anonymously, either one company or
+// everyone in a kind of work (exactly one of companyId / workType is set -
+// createSocialQuestionInputSchema enforces it). Same anonymity model as
+// SocialComment: authorUserId is audit-only and never on a public shape; the
+// shown name is the member's reviewUsername (PERSONAL_CHOSEN) or this row's
+// own one-off randomUsername (PERSONAL_RANDOM). Only a MEMBER can ask.
+//
+// No onDelete on company: AdminCompaniesService.merge moves a duplicate's
+// questions to the master instead of losing them.
+model SocialQuestion {
+  id             String              @id @default(uuid())
+  companyId      String?
+  company        Company?            @relation(fields: [companyId], references: [id])
+  workType       WorkplaceType?
+  authorUserId   String?
+  authorUser     User?               @relation("SocialQuestionAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  body           String
+  identityMode   CommentIdentityMode @default(PERSONAL_CHOSEN)
+  randomUsername String?
+  createdAt      DateTime            @default(now())
+  // Same report path as a comment (SocialQuestionsService.report): crossing
+  // 3 reports plus a content-filter match queues it for an admin; nothing is
+  // ever removed without a person looking.
+  flaggedForReview    Boolean @default(false)
+  flaggedReviewReason String?
+
+  answers SocialAnswer[]
+  reports SocialQuestionReport[]
+
+  @@index([companyId])
+  @@index([workType])
+  @@index([authorUserId])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+// An answer to a question. One per account per question (the asker cannot
+// answer their own), so a thread is a set of answers, not a conversation.
+// A member answers anonymously, exactly like a comment; the approved owner of
+// the asked company answers as OWNER_REAL_NAME (their EmployerProfile name,
+// decrypted at read time, never stored here). workedThere is settled when
+// the answer is written: the member had that company in their employment
+// history. It is the only thing the badge reveals.
+model SocialAnswer {
+  id             String              @id @default(uuid())
+  questionId     String
+  question       SocialQuestion      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorUserId   String?
+  authorUser     User?               @relation("SocialAnswerAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  body           String
+  identityMode   CommentIdentityMode @default(PERSONAL_CHOSEN)
+  randomUsername String?
+  workedThere    Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+  flaggedForReview    Boolean @default(false)
+  flaggedReviewReason String?
+
+  votes   SocialAnswerVote[]
+  reports SocialQuestionReport[]
+
+  @@unique([questionId, authorUserId])
+  @@index([questionId])
+  @@index([authorUserId])
+  @@schema("public")
+}
+
+// "Helpful" on an answer: one per member per answer, a second click takes it
+// off. Counts only ever leave the API. userId nullable + SetNull so a deleted
+// account's vote still counts (same as SocialPostLike).
+model SocialAnswerVote {
+  id        String       @id @default(uuid())
+  answerId  String
+  answer    SocialAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?        @relation("SocialAnswerVoter", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime     @default(now())
+
+  @@unique([answerId, userId])
+  @@index([userId])
+  @@schema("public")
+}
+
+// A report on a question or on an answer (exactly one of the two ids is
+// set). One per reporter per item; reasons are the comment report's fixed set.
+model SocialQuestionReport {
+  id         String          @id @default(uuid())
+  questionId String?
+  question   SocialQuestion? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerId   String?
+  answer     SocialAnswer?   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  reporterId String?
+  reporter   User?           @relation("SocialQuestionReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  reason     String
+  createdAt  DateTime        @default(now())
+
+  @@unique([questionId, reporterId])
+  @@unique([answerId, reporterId])
+  @@index([questionId])
+  @@index([answerId])
   @@schema("public")
 }
 
