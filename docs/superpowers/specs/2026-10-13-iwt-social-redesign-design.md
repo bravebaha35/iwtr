@@ -268,3 +268,65 @@ optional `visibility` on the answer input (owner only; ignored from a member). N
 - Dashboard: "Posting Featured Job Ads" is gone as a section; "N free ads left this month" sits in bold under Job
   Postings in the side list and at the top of that section.
 - `scripts/seed-social-demo.ts` writes demo polls, questions and answers in every state (dev only, re-runnable).
+
+## Phase 4 (2026-10-14): owner tools
+
+Go-ahead from the owner: "Continue on Phase 4". The roadmap line was "post views, follower growth, scheduling, tied
+to plans"; everything below that line is my own design, to be confirmed.
+
+### Post views
+
+- A post counts as seen when a signed-in **member** has had at least 40% of its card on screen for a second. The page
+  reports seen posts a few at a time (`POST social/views`, nothing comes back). An owner's or admin's look does not
+  count, nor does anyone signed out.
+- What is stored is a number: `SocialPost.viewCount` and the company's count for the day. **No row anywhere says which
+  member saw which post.** So that scrolling past twice, or a script calling the route, does not inflate the number,
+  the API remembers "this member, this post" for 12 hours in the server's memory only; it is never written down.
+- Only an owner of the post's company is sent the number (`PublicSocialPost.viewCount`, null for everyone else). It
+  shows on the owner's own cards as "128 views".
+
+### Insights (dashboard > IWT Social)
+
+- A new dashboard section, **IWT Social**, for the owner's own account (not the shared company login - IWT Social as a
+  whole is closed to it).
+- For a chosen period: followers now, with how many came and left; post views; reactions; comments; a line of followers
+  over time; bars of views per day (per week over a year); the period's ten most seen posts.
+- The section says in plain words that these are counts only and that nobody can see who is behind them.
+- `CompanySocialDay` (company, day, postViews, followersGained, followersLost) is the one new table behind it. An
+  unfollow deletes its row, so each follow and unfollow also adds one to the day's count; the followers line is worked
+  back from today's count. Days are counted on Turkey's clock. `scripts/backfill-social-days.ts` fills the days before
+  the table existed from the follows that are still there.
+- **Plans:** how far back the period reaches - Free 7 days, Starter 30, Pro 90, Enterprise 12 months. Asking for more
+  gives the plan's own reach; a longer period's button opens the plans.
+
+### Posting later
+
+- The composer has **When: Now / Later**. Later takes a date and time (5 minutes to 60 days ahead) and the button reads
+  Schedule. The dashboard section lists what is waiting: change the time, post now, or delete.
+- A waiting post is a `ScheduledSocialPost`, **not** a `SocialPost`: nothing that reads posts can show it early. Its
+  text has already passed the content rules and its photos are already processed. Every 30 seconds a worker publishes
+  what is due - creating the post and removing the waiting row in one transaction, so it can never go out twice.
+- A poll's clock starts when it is published. An event must start after the post goes out.
+- If it can no longer go out when its time comes (the job ad was filled, the event date has passed, the company has
+  no approved owner), it stays in the list marked "Did not go out" with the reason, and the owner gets a notification.
+- **Plans:** Free cannot schedule; Starter keeps 3 waiting at a time, Pro 10, Enterprise 30. A lapsed paid plan counts
+  as Free, but posts already waiting can still be published or deleted.
+
+### Pricing table
+
+Two new rows: "IWT Social Insights" and "Scheduled IWT Social Posts", with the numbers above.
+
+### API
+
+- `POST social/views`, `GET social/company-insights/:companyId?days=`, `POST social/scheduled-posts` (the post form
+  plus `publishAt`), `GET social/company-scheduled/:companyId`, `PATCH social/scheduled-posts/:id`,
+  `POST social/scheduled-posts/:id/publish-now`, `DELETE social/scheduled-posts/:id`. The owner routes check approved
+  ownership of that company; none is opened to the company login.
+- The web proxy now passes a "no content" answer on correctly (it used to turn it into an error).
+
+### Not done, on purpose
+
+- No "who viewed" or "who follows" of any kind, and no per-post breakdown by day (small numbers on one post on one day
+  say more about individuals than a company needs).
+- No editing of a waiting post's text: delete it and write it again.
+- Company merge does not carry the duplicate's daily counts or waiting posts over (they go with the duplicate).

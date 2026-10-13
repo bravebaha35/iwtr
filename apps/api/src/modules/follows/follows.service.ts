@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { CompanyFollowToggleResult, CompanyFollowerCount, FollowedCompanySummary, UserFollowToggleResult } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "../companies/company-visibility";
+import { bumpSocialDay, type SocialDayCounter } from "../social/social-day.util";
 
 @Injectable()
 export class FollowsService {
@@ -26,6 +27,7 @@ export class FollowsService {
     if (existing) {
       try {
         await this.prisma.companyFollow.delete({ where: { id: existing.id } });
+        await this.countForInsights(companyId, "followersLost");
       } catch (err) {
         // Parallel unfollow (double-click) already removed the row -> P2025.
         // Idempotent "now not following" rather than a 500.
@@ -36,6 +38,7 @@ export class FollowsService {
     } else {
       try {
         await this.prisma.companyFollow.create({ data: { userId, companyId } });
+        await this.countForInsights(companyId, "followersGained");
       } catch (err) {
         // Concurrent double-follow: a parallel request won the create and
         // this one hit @@unique([userId, companyId]). Row exists either
@@ -46,6 +49,18 @@ export class FollowsService {
       }
     }
     return { companyId, following: !existing };
+  }
+
+  // The owner's Insights chart followers over time, and an unfollow deletes
+  // its row, so each follow and unfollow is also added to the company's count
+  // for the day (CompanySocialDay) - a number, never who. A follow must not
+  // fail because that count could not be written.
+  private async countForInsights(companyId: string, counter: SocialDayCounter): Promise<void> {
+    try {
+      await bumpSocialDay(this.prisma, companyId, counter);
+    } catch {
+      // The follow itself is saved; only the day's tally misses one.
+    }
   }
 
   // The caller's own list — never anyone else's. Excludes companies that

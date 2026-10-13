@@ -9,6 +9,7 @@ const STANDARD_SECTIONS = [
   { key: "contact-social", label: "Contact & Social Media" },
   { key: "reviews-ratings", label: "Reviews & Ratings" },
   { key: "questions", label: "Questions" },
+  { key: "social", label: "IWT Social" },
   { key: "applications", label: "Applications" },
   { key: "job-postings", label: "Job Postings" },
   { key: "customer-support", label: "Customer Support & Service Level (SLA)" },
@@ -50,7 +51,8 @@ export function OwnerDashboardSidePanel({
   onChange: (category: OwnerDashboardCategory) => void;
   // Signed in with the company's shared login: it can't manage that login,
   // and Questions belong to the owner's own account (an answer is the owner
-  // speaking under their own name).
+  // speaking under their own name). IWT Social as a whole is closed to it,
+  // so its section (insights, scheduled posts) is too.
   isCompanyLogin?: boolean;
   // null while not known yet.
   freeAdsLeft?: number | null;
@@ -61,7 +63,7 @@ export function OwnerDashboardSidePanel({
     questions: questionsWaiting ? `${questionsWaiting} waiting for you` : null,
   };
   const items = [...STANDARD_SECTIONS, ...PREMIUM_SECTIONS]
-    .filter((s) => !isCompanyLogin || (s.key !== "company-login" && s.key !== "questions"))
+    .filter((s) => !isCompanyLogin || (s.key !== "company-login" && s.key !== "questions" && s.key !== "social"))
     .filter((s) => SOCIAL_QUESTIONS_ENABLED || s.key !== "questions")
     .map((s) => ({ ...s, note: notes[s.key] ?? null }));
   return (

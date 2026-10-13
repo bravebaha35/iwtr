@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import type { OwnedCompany, OwnerJobPosting } from "@iwtr/shared-types";
+import type { OwnedCompany, OwnerJobPosting, ScheduledSocialPost } from "@iwtr/shared-types";
 import {
   validateSocialImageUpload,
   MAX_SOCIAL_POST_IMAGES,
+  SOCIAL_SCHEDULED_POST_LIMITS,
+  SOCIAL_SCHEDULE_MAX_DAYS_AHEAD,
+  SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD,
   SOCIAL_EVENT_LOCATION_MAX,
   SOCIAL_POLL_DAYS,
   SOCIAL_POLL_MAX_OPTIONS,
@@ -42,6 +45,20 @@ const TEXT_LABEL: Record<ComposerKind, string> = {
 
 const POLL_DAYS_LABEL: Record<number, string> = { 1: "1 day", 3: "3 days", 7: "1 week", 14: "2 weeks" };
 
+// A Date as the value of a datetime-local field: the viewer's own clock.
+export function localInputValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// Tomorrow at nine: a sensible first guess for "later".
+function tomorrowMorning(from: number): string {
+  const d = new Date(from);
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  return localInputValue(d);
+}
+
 const inputClass = "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground";
 
 // Label above the field, the problem (if any) below it.
@@ -62,15 +79,24 @@ function Field({ label, htmlFor, error, children }: { label: string; htmlFor: st
  * post it is; the fields below follow. Photos can go on everything except a
  * poll. Nothing is checked until Post is pressed, then each missing piece is
  * named under its own field.
+ *
+ * "When" is Now or Later: later keeps the post waiting and publishes it at
+ * the chosen moment (a paid-plan feature; the dashboard's IWT Social section
+ * lists what is waiting). `alwaysLater` is that section's own form.
  */
 export function SocialComposer({
   companies,
   onPosted,
+  onScheduled,
   onCancel,
+  alwaysLater = false,
 }: {
   companies: OwnedCompany[];
   onPosted: () => void;
+  // The post was set to go out later instead of being published.
+  onScheduled?: (post: ScheduledSocialPost) => void;
   onCancel: () => void;
+  alwaysLater?: boolean;
 }) {
   const [companyId, setCompanyId] = useState(companies[0]?.companyId ?? "");
   const [kind, setKind] = useState<ComposerKind>("UPDATE");
@@ -89,6 +115,8 @@ export function SocialComposer({
   // "Now" as of when the form opened; the API has the final say on whether
   // an event's time is still ahead.
   const [openedAt] = useState(() => Date.now());
+  const [when, setWhen] = useState<"now" | "later">(alwaysLater ? "later" : "now");
+  const [publishAt, setPublishAt] = useState(() => tomorrowMorning(openedAt));
   // The picked company's live job ads, read the first time Hiring is opened
   // for it. null = not read yet.
   const [jobs, setJobs] = useState<{ companyId: string; list: OwnerJobPosting[] } | null>(null);
@@ -144,7 +172,21 @@ export function SocialComposer({
   const answers = pollOptions.map((o) => o.trim()).filter(Boolean);
   const photosAllowed = kind !== "POLL";
   const eventDate = eventStartsAt ? new Date(eventStartsAt) : null;
+  const later = when === "later";
+  const publishDate = later && publishAt ? new Date(publishAt) : null;
+  // What the picked company's plan allows (a lapsed paid plan counts as Free).
+  const company = companies.find((c) => c.companyId === companyId);
+  const canSchedule = SOCIAL_SCHEDULED_POST_LIMITS[company && company.planStatus === "ACTIVE" ? company.tier : "FREE"] > 0;
   const missing = {
+    publishAt:
+      later &&
+      (!publishDate || Number.isNaN(publishDate.getTime())
+        ? "Pick the date and time."
+        : publishDate.getTime() < openedAt + SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD * 60_000
+          ? `Pick a time at least ${SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD} minutes from now.`
+          : publishDate.getTime() > openedAt + SOCIAL_SCHEDULE_MAX_DAYS_AHEAD * 86_400_000
+            ? `A post can be scheduled up to ${SOCIAL_SCHEDULE_MAX_DAYS_AHEAD} days ahead.`
+            : kind === "EVENT" && eventDate && eventDate.getTime() <= publishDate.getTime() && "The event has to start after the post goes out."),
     text:
       kind === "UPDATE" ? text.length === 0 && picked.length === 0 && "Write something or add a photo." : kind === "POLL" && text.length === 0 && "Write the question.",
     title: (kind === "EVENT" || kind === "MILESTONE") && title.trim().length === 0 && (kind === "EVENT" ? "Give the event a name." : "Say what you are celebrating."),
@@ -182,11 +224,18 @@ export function SocialComposer({
       }
       if (kind === "HIRING") fd.set("jobPostingId", jobPostingId);
       if (photosAllowed) for (const p of picked) fd.append("files", p.file);
+      if (later) {
+        fd.set("publishAt", publishDate!.toISOString());
+        const scheduled = await apiUpload<ScheduledSocialPost>("/social/scheduled-posts", fd);
+        picked.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+        onScheduled?.(scheduled);
+        return;
+      }
       await apiUpload<{ id: string }>("/social/posts", fd);
       picked.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       onPosted();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't post that.");
+      setError(e instanceof ApiError ? e.message : later ? "Couldn't schedule that." : "Couldn't post that.");
     } finally {
       setBusy(false);
     }
@@ -370,16 +419,59 @@ export function SocialComposer({
         </div>
       )}
 
+      <div className="flex flex-col gap-1.5">
+        <span id="composer-when" className="text-[13px] font-semibold text-foreground">
+          {alwaysLater ? "Goes out on" : "When"}
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {!alwaysLater && (
+            <div role="radiogroup" aria-labelledby="composer-when" className="flex gap-1.5">
+              {(["now", "later"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={when === option}
+                  onClick={() => setWhen(option)}
+                  className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition active:scale-[0.98] ${
+                    when === option ? "bg-brand-600 text-white" : "bg-surface-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {option === "now" ? "Now" : "Later"}
+                </button>
+              ))}
+            </div>
+          )}
+          {later && canSchedule && (
+            <input
+              type="datetime-local"
+              aria-label="Date and time to post"
+              value={publishAt}
+              min={localInputValue(new Date(openedAt + SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD * 60_000))}
+              max={localInputValue(new Date(openedAt + SOCIAL_SCHEDULE_MAX_DAYS_AHEAD * 86_400_000))}
+              onChange={(e) => setPublishAt(e.target.value)}
+              className={`${inputClass} sm:w-60`}
+            />
+          )}
+        </div>
+        {later && !canSchedule && (
+          <p className="text-[13px] text-muted-foreground">
+            Posting later is part of the Starter plan and above. You can change your plan in the Dashboard.
+          </p>
+        )}
+        {later && canSchedule && shown("publishAt") && <p className="text-xs text-red-600 dark:text-red-300">{shown("publishAt")}</p>}
+      </div>
+
       {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={() => void submit()}
-          disabled={busy}
+          disabled={busy || (later && !canSchedule)}
           className="rounded-full bg-brand-600 px-5 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50"
         >
-          {busy ? "Posting..." : "Post"}
+          {later ? (busy ? "Scheduling..." : "Schedule") : busy ? "Posting..." : "Post"}
         </button>
         <button type="button" onClick={onCancel} className="text-sm text-muted-foreground hover:text-foreground">
           Cancel

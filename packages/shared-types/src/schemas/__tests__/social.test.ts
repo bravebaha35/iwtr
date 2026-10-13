@@ -3,6 +3,12 @@ import {
   createSocialPostInputSchema,
   reactToSocialPostInputSchema,
   validateSocialImageUpload,
+  scheduleSocialPostInputSchema,
+  recordSocialViewsInputSchema,
+  SOCIAL_VIEW_BATCH_MAX,
+  SOCIAL_SCHEDULED_POST_LIMITS,
+  SOCIAL_INSIGHTS_DAYS,
+  SOCIAL_INSIGHTS_PERIODS,
   SOCIAL_IMAGE_MAX_FILE_SIZE_BYTES,
 } from "../social";
 
@@ -77,5 +83,41 @@ describe("reactToSocialPostInputSchema", () => {
     expect(reactToSocialPostInputSchema.parse({})).toEqual({});
     expect(reactToSocialPostInputSchema.safeParse({ reaction: "WELL_DONE" }).success).toBe(true);
     expect(reactToSocialPostInputSchema.safeParse({ reaction: "ANGRY" }).success).toBe(false);
+  });
+});
+
+describe("phase 4: posting later, views, insights", () => {
+  const COMPANY = "11111111-1111-4111-8111-111111111111";
+  const at = "2026-10-20T07:30:00.000Z";
+
+  it("a scheduled post is the same form as a post, plus the moment it goes out", () => {
+    expect(scheduleSocialPostInputSchema.parse({ companyId: COMPANY, caption: "hello", publishAt: at })).toMatchObject({ kind: "PHOTO", publishAt: at });
+    // The moment is required and must be a real one.
+    expect(scheduleSocialPostInputSchema.safeParse({ companyId: COMPANY, caption: "hello" }).success).toBe(false);
+    expect(scheduleSocialPostInputSchema.safeParse({ companyId: COMPANY, caption: "hello", publishAt: "tomorrow" }).success).toBe(false);
+    // Each kind still needs its own fields.
+    expect(scheduleSocialPostInputSchema.safeParse({ companyId: COMPANY, kind: "POLL", caption: "Q?", publishAt: at }).success).toBe(false);
+    expect(
+      scheduleSocialPostInputSchema.safeParse({ companyId: COMPANY, kind: "POLL", caption: "Q?", pollOptions: '["A","B"]', pollDays: "3", publishAt: at }).success,
+    ).toBe(true);
+  });
+
+  it("a views report is a short list of post ids", () => {
+    expect(recordSocialViewsInputSchema.safeParse({ postIds: [COMPANY] }).success).toBe(true);
+    expect(recordSocialViewsInputSchema.safeParse({ postIds: [] }).success).toBe(false);
+    expect(recordSocialViewsInputSchema.safeParse({ postIds: ["not-an-id"] }).success).toBe(false);
+    expect(recordSocialViewsInputSchema.safeParse({ postIds: Array(SOCIAL_VIEW_BATCH_MAX + 1).fill(COMPANY) }).success).toBe(false);
+  });
+
+  it("each plan gets more than the one below it", () => {
+    const order = ["FREE", "STARTER", "PRO", "ENTERPRISE"] as const;
+    for (const table of [SOCIAL_SCHEDULED_POST_LIMITS, SOCIAL_INSIGHTS_DAYS]) {
+      const values = order.map((tier) => table[tier]);
+      expect([...values].sort((a, b) => a - b)).toEqual(values);
+      expect(new Set(values).size).toBe(4);
+    }
+    // Free cannot schedule; every plan's reach is one of the offered periods.
+    expect(SOCIAL_SCHEDULED_POST_LIMITS.FREE).toBe(0);
+    expect(order.map((tier) => SOCIAL_INSIGHTS_DAYS[tier])).toEqual([...SOCIAL_INSIGHTS_PERIODS]);
   });
 });

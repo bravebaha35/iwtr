@@ -315,6 +315,7 @@ model User {
   employerProfile            EmployerProfile?
   jobPostings                JobPosting[]
   socialPosts                SocialPost[]                @relation("SocialPostAuthor")
+  scheduledSocialPosts       ScheduledSocialPost[]       @relation("ScheduledSocialPostAuthor")
   socialPollVotes            SocialPollVote[]            @relation("SocialPollVoter")
   socialQuestions            SocialQuestion[]            @relation("SocialQuestionAuthor")
   socialAnswers              SocialAnswer[]              @relation("SocialAnswerAuthor")
@@ -599,6 +600,8 @@ model Company {
   jobPostings          JobPosting[]
   jobApplications      JobApplication[]
   socialPosts          SocialPost[]
+  socialDays           CompanySocialDay[]
+  scheduledSocialPosts ScheduledSocialPost[]
   socialQuestions      SocialQuestion[]
   followers            CompanyFollow[]
   benchmarkReportJobs  BenchmarkReportJob[]
@@ -1253,6 +1256,9 @@ model SocialPost {
   // Width / height of each image in imageUrls, same order, so the page can
   // hold the right space before a photo arrives. Empty on older posts.
   imageAspectRatios Float[] @default([])
+  // How many times members have had this post on their screen. A bare
+  // counter: who looked is never stored (see SocialInsightsService.recordViews).
+  viewCount         Int     @default(0)
 
   comments             SocialComment[]
   likes                SocialPostLike[]
@@ -1276,6 +1282,59 @@ enum SocialPostKind {
   MILESTONE
   HIRING
 
+  @@schema("public")
+}
+
+// One company's IWT Social numbers for one day (UTC): how often its posts
+// were seen and how many followers came and went. Bare counters, the only
+// thing an owner's Insights are built from - there is no row anywhere saying
+// which member looked at or followed what on which day (REVIEW.md: a company
+// may only ever learn counts).
+model CompanySocialDay {
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  day             DateTime @db.Date
+  postViews       Int      @default(0)
+  followersGained Int      @default(0)
+  followersLost   Int      @default(0)
+
+  @@id([companyId, day])
+  @@schema("public")
+}
+
+enum ScheduledSocialPostStatus {
+  SCHEDULED
+  FAILED
+
+  @@schema("public")
+}
+
+// A post an owner wrote now to go out later. It is NOT a SocialPost until
+// its time comes: SocialScheduleWorker then creates the real post and removes
+// this row in one transaction, so nothing that reads posts can ever show one
+// early. The text has already passed the content rules and the photos are
+// already processed files; `payload` holds the rest of what the composer
+// sent (kind, caption, title, event fields, poll answers and length, job ad).
+// A row that could not be published stays as FAILED with the reason, for the
+// owner to fix or delete.
+model ScheduledSocialPost {
+  id                String                    @id @default(uuid())
+  companyId         String
+  company           Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Audit-only, like SocialPost.authorUserId: never on an API response.
+  authorUserId      String?
+  authorUser        User?                     @relation("ScheduledSocialPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  publishAt         DateTime
+  status            ScheduledSocialPostStatus @default(SCHEDULED)
+  payload           Json
+  imageUrls         String[]                  @default([])
+  imageAspectRatios Float[]                   @default([])
+  failureReason     String?
+  createdAt         DateTime                  @default(now())
+
+  @@index([status, publishAt])
+  @@index([companyId])
+  @@index([authorUserId])
   @@schema("public")
 }
 

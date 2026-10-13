@@ -24,6 +24,35 @@ describe("FollowsService.toggleCompanyFollow", () => {
     expect(r2).toEqual({ companyId: "c1", following: false });
   });
 
+  it("adds each follow and unfollow to the company's count for the day, never who", async () => {
+    const upsert = jest.fn().mockResolvedValue({});
+    const prisma = {
+      company: { findUnique: jest.fn().mockResolvedValue(visibleCompany) },
+      companyFollow: {
+        findUnique: jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "f1" }),
+        create: jest.fn().mockResolvedValue({ id: "f1" }),
+        delete: jest.fn().mockResolvedValue({ id: "f1" }),
+      },
+      companySocialDay: { upsert },
+    } as never;
+    const service = new FollowsService(prisma);
+
+    await service.toggleCompanyFollow("u1", "c1");
+    expect(upsert.mock.calls[0][0].update).toEqual({ followersGained: { increment: 1 } });
+    await service.toggleCompanyFollow("u1", "c1");
+    expect(upsert.mock.calls[1][0].update).toEqual({ followersLost: { increment: 1 } });
+    expect(JSON.stringify(upsert.mock.calls)).not.toContain("u1");
+  });
+
+  it("a follow is still saved when the day's count cannot be written", async () => {
+    const prisma = {
+      company: { findUnique: jest.fn().mockResolvedValue(visibleCompany) },
+      companyFollow: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: "f1" }) },
+      companySocialDay: { upsert: jest.fn().mockRejectedValue(new Error("db")) },
+    } as never;
+    await expect(new FollowsService(prisma).toggleCompanyFollow("u1", "c1")).resolves.toEqual({ companyId: "c1", following: true });
+  });
+
   it("404s on an unknown company", async () => {
     const prisma = { company: { findUnique: jest.fn().mockResolvedValue(null) } } as never;
     await expect(new FollowsService(prisma).toggleCompanyFollow("u1", "ghost")).rejects.toBeInstanceOf(

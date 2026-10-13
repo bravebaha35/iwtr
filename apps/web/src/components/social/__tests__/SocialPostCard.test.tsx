@@ -336,3 +336,15 @@ describe("post kinds", () => {
     expect(screen.getByText("This position is no longer open.")).toBeInTheDocument();
   });
 });
+
+it("shows the view count to the company's owner only", () => {
+  mockAuth = { isAuthenticated: true, role: "COMPANY_OWNER", openAuthModal: jest.fn() };
+  const { unmount } = render(<SocialPostCard post={{ ...makePost(), canManage: true, viewCount: 1284 }} />);
+  expect(screen.getByText("1,284 views")).toBeInTheDocument();
+  unmount();
+
+  // Everyone else is sent null, and the card says nothing.
+  mockAuth = { isAuthenticated: true, role: "MEMBER", openAuthModal: jest.fn() };
+  render(<SocialPostCard post={makePost()} />);
+  expect(screen.queryByText(/views?$/)).not.toBeInTheDocument();
+});

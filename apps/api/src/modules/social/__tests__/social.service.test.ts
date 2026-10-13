@@ -179,6 +179,22 @@ describe("SocialService.feed", () => {
     expect(anonymous.posts.some((p) => p.canManage)).toBe(false);
   });
 
+  it("sends a post's view count to an owner of its company and to nobody else", async () => {
+    const withViews = rows.map((r, i) => ({ ...r, viewCount: 40 + i }));
+    const owned = feedPrisma();
+    (owned as any).socialPost.findMany.mockResolvedValue(withViews);
+    (owned as any).companyOwner.findMany.mockResolvedValue([{ companyId: "c1" }]);
+    const asOwner = await new SocialService(owned, moderationPass).feed("owner-1", {});
+    expect(asOwner.posts.map((p) => p.viewCount)).toEqual([40, 41]);
+
+    const other = feedPrisma();
+    (other as any).socialPost.findMany.mockResolvedValue(withViews);
+    const asMember = await new SocialService(other, moderationPass).feed("member-1", {});
+    expect(asMember.posts.map((p) => p.viewCount)).toEqual([null, null]);
+    const anonymous = await new SocialService(other, moderationPass).feed(undefined, {});
+    expect(anonymous.posts.map((p) => p.viewCount)).toEqual([null, null]);
+  });
+
   it("the Following tab keeps only companies the caller follows, and is empty for a logged-out caller", async () => {
     const prisma = feedPrisma();
     await new SocialService(prisma, moderationPass).feed("viewer-1", { following: true });
@@ -1515,6 +1531,35 @@ describe("SocialService post kinds (2026-10-13)", () => {
         [jpegFile],
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("a post written for later is checked against the moment it goes out, and written only when published", async () => {
+    const prisma = kindPrisma();
+    const service = new SocialService(prisma as never, moderationPass);
+    const inDays = (n: number) => new Date(Date.now() + n * 86_400_000);
+
+    // An event announced after it has started is refused.
+    await expect(
+      service.prepareNewPost("u1", { companyId: CID, kind: "EVENT", title: "Open day", eventStartsAt: inDays(2).toISOString() }, [], inDays(3)),
+    ).rejects.toThrow(/has to start after/);
+
+    const prepared = await service.prepareNewPost(
+      "u1",
+      { companyId: CID, kind: "POLL", caption: "Best shift?", pollOptions: ["Morning", "Night"], pollDays: 7 },
+      [],
+      inDays(3),
+    );
+    expect(prepared).toMatchObject({ kind: "POLL", pollOptions: ["Morning", "Night"], pollDays: 7 });
+    // Preparing writes no post.
+    expect(prisma.socialPost.create).not.toHaveBeenCalled();
+
+    // The poll's clock starts when it is published, not when it was written.
+    await service.publishPrepared(prepared, null);
+    const data = created(prisma);
+    const days = (data.pollEndsAt.getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThan(7.1);
+    expect(data.authorUserId).toBeNull();
   });
 
   it("runs every piece of the company's text through the content rules - a bad poll answer stops the post", async () => {

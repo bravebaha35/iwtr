@@ -177,7 +177,19 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `SocialSidebar.tsx`), matching the rail. `/social` is laid out by `SocialShell` as 1fr / feed / 1fr, so the feed
   is in the exact middle of the page (left ad from 86rem, right ad in its own column from 100rem, under the rail
   below that); the company Social tab centres the same way. Demo polls and questions for local viewing:
-  `scripts/seed-social-demo.ts`. Still to come: phase 4, owner insights and scheduling.
+  `scripts/seed-social-demo.ts`. Phase 4 is in too: **owner tools** (`social-insights.service.ts`,
+  `social-schedule.service.ts`, `social-owner-tools.controller.ts`). *Post views*: the page reports posts a member has
+  had on screen (`lib/socialViews.ts`, `POST social/views`); only counters are written (`SocialPost.viewCount`,
+  `CompanySocialDay`) - never who looked; the "once per member per post in 12 hours" memory lives in the process only.
+  Only the post's own company is sent `viewCount`. *Insights* (dashboard > IWT Social, `GET social/company-insights/:companyId`):
+  followers, views, reactions, comments, a followers line and views bars, most seen posts; how far back depends on the
+  plan (`SOCIAL_INSIGHTS_DAYS`: 7 / 30 / 90 / 365). Follows and unfollows are also counted per day because an unfollow
+  deletes its row; days are Turkey's (`socialDay`). *Posting later*: a waiting post is a `ScheduledSocialPost`, not a
+  `SocialPost`, so no read path can show it early; `SocialScheduleWorker` publishes what is due every 30 s by deleting
+  the waiting row and creating the post in one transaction (`SOCIAL_SCHEDULE_WORKER_DISABLED=1` stops a process
+  polling). Waiting posts per plan: `SOCIAL_SCHEDULED_POST_LIMITS` (Free 0, 3 / 10 / 30). A new way to create a post must go
+  through `prepareNewPost` + `publishPrepared`. None of these routes is opened to the company login. Demo numbers:
+  `scripts/seed-social-insights-demo.ts`; real history: `scripts/backfill-social-days.ts`.
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
   matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").

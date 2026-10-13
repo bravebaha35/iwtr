@@ -16,3 +16,10 @@ export function shortRelativeTime(iso: string): string {
   const year = Math.floor(day / 365);
   return `${year}y ago`;
 }
+
+// "Thu 16 Oct, 09:00" - when a scheduled post goes out, on the viewer's own
+// clock. Exact on purpose: it is the owner's own plan, not a record of what a
+// member did.
+export function formatScheduledTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}

@@ -21,6 +21,7 @@ function basePrisma(overrides: Record<string, unknown> = {}) {
     jobApplication: { findMany: jest.fn().mockResolvedValue([]) },
     socialAnswer: { findMany: jest.fn().mockResolvedValue([]) },
     socialQuestion: { findMany: jest.fn().mockResolvedValue([]) },
+    scheduledSocialPost: { findMany: jest.fn().mockResolvedValue([]) },
     notificationRead: { findMany: jest.fn().mockResolvedValue([]), createMany: jest.fn().mockResolvedValue({ count: 0 }) },
     ...overrides,
   } as never;
@@ -443,6 +444,31 @@ describe("NotificationsService.list - IWT Social questions", () => {
       }),
     );
     expect(questionFindMany.mock.calls[0][0].where.companyId).toEqual({ in: ["c1"] });
+  });
+
+  it("tells an approved owner when a scheduled post could not go out, and nobody else", async () => {
+    const failedFindMany = jest
+      .fn()
+      .mockResolvedValue([{ id: "s1", companyId: "c1", publishAt: new Date("2026-10-12T06:00:00Z"), company: { name: "Acme", slug: "acme" } }]);
+    const prisma = basePrisma({ companyOwner: { findMany: ownsC1 }, scheduledSocialPost: { findMany: failedFindMany } });
+    const events = await new NotificationsService(prisma).list("owner-1");
+
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        id: "scheduled-post-failed-s1",
+        type: "SCHEDULED_POST_FAILED",
+        companyName: "Acme",
+        createdAt: "2026-10-12T06:00:00.000Z",
+        href: "/my/companies?company=c1&category=social",
+      }),
+    );
+    expect(failedFindMany.mock.calls[0][0].where).toEqual({ companyId: { in: ["c1"] }, status: "FAILED" });
+
+    // Someone who owns no company is never asked about.
+    const member = basePrisma({ scheduledSocialPost: { findMany: failedFindMany } });
+    failedFindMany.mockClear();
+    await new NotificationsService(member).list("u1");
+    expect(failedFindMany).not.toHaveBeenCalled();
   });
 
   it("says nothing about questions while the feature is switched off", async () => {

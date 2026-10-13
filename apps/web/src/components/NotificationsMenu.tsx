@@ -69,7 +69,9 @@ type NotificationKind =
   // to your company). Both carry their own href: the question's page for the
   // asker, the dashboard's Questions section for the owner.
   | "QUESTION_ANSWERED"
-  | "COMPANY_QUESTION_ASKED";
+  | "COMPANY_QUESTION_ASKED"
+  // Real: a scheduled IWT Social post that could not go out.
+  | "SCHEDULED_POST_FAILED";
 
 const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   VOTE_HELPFUL: "SOCIAL",
@@ -96,6 +98,7 @@ const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   JOB_APPLICATION_RECEIVED: "EMPLOYER",
   QUESTION_ANSWERED: "SOCIAL",
   COMPANY_QUESTION_ASKED: "EMPLOYER",
+  SCHEDULED_POST_FAILED: "EMPLOYER",
 };
 
 interface AppNotification {
@@ -171,6 +174,8 @@ function describeNotification(n: AppNotification): string {
       return n.companyName
         ? `Someone asked ${n.companyName} a question. Answer it, then choose who sees it.`
         : "Someone asked your company a question.";
+    case "SCHEDULED_POST_FAILED":
+      return `A scheduled post for ${company} could not go out. See why, then pick a new time or delete it.`;
   }
 }
 
@@ -233,6 +238,8 @@ function hrefForNotification(n: AppNotification): string {
     case "QUESTION_ANSWERED":
     case "COMPANY_QUESTION_ASKED":
       return n.href ?? "/social?tab=questions";
+    case "SCHEDULED_POST_FAILED":
+      return n.href ?? "/my/companies";
   }
 }
 

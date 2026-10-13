@@ -9,6 +9,10 @@ import { SocialService } from "./social.service";
 import { AdminSocialQuestionsController, SocialQuestionsController } from "./social-questions.controller";
 import { SocialQuestionsService } from "./social-questions.service";
 import { SocialQuestionsEnabledGuard } from "./social-questions.flag";
+import { SocialOwnerToolsController } from "./social-owner-tools.controller";
+import { SocialInsightsService } from "./social-insights.service";
+import { SocialScheduleService } from "./social-schedule.service";
+import { SocialScheduleWorker } from "./social-schedule.worker";
 
 @Module({
   // AuthModule provides TokenService, which JwtAuthGuard (and Task 5's
@@ -21,7 +25,15 @@ import { SocialQuestionsEnabledGuard } from "./social-questions.flag";
     SavedPostsController,
     SocialQuestionsController,
     AdminSocialQuestionsController,
+    SocialOwnerToolsController,
   ],
-  providers: [SocialService, SocialQuestionsService, SocialQuestionsEnabledGuard],
+  providers: [
+    SocialService,
+    SocialQuestionsService,
+    SocialQuestionsEnabledGuard,
+    SocialInsightsService,
+    SocialScheduleService,
+    SocialScheduleWorker,
+  ],
 })
 export class SocialModule {}

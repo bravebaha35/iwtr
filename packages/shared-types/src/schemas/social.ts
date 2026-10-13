@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ownerTierSchema, companyWorkplaceTypesSchema, workplaceTypeSchema } from "./company";
+import { ownerTierSchema, companyWorkplaceTypesSchema, workplaceTypeSchema, type OwnerTier } from "./company";
 import { voteValueSchema } from "./review";
 import { jobPositionSchema } from "./jobPosting";
 
@@ -69,8 +69,7 @@ export const SOCIAL_REACTIONS: SocialReaction[] = socialReactionSchema.options;
 // --- Create inputs. Sent as multipart form fields, so every value arrives
 // as text: the poll's options come as one JSON array string, its length in
 // days as a number in text.
-export const createSocialPostInputSchema = z
-  .object({
+const socialPostFields = z.object({
     companyId: z.string().uuid(),
     caption: z.string().trim().max(1000).optional(),
     kind: socialPostKindSchema.default("PHOTO"),
@@ -95,8 +94,10 @@ export const createSocialPostInputSchema = z
       .refine((n) => (SOCIAL_POLL_DAYS as readonly number[]).includes(n), "Pick how long the poll runs")
       .optional(),
     jobPostingId: z.string().uuid().optional(),
-  })
-  .superRefine((v, ctx) => {
+});
+
+// What each kind of post must carry, shared by "post now" and "post later".
+function refineSocialPostFields(v: z.infer<typeof socialPostFields>, ctx: z.RefinementCtx): void {
     const need = (ok: boolean, path: string, message: string) => {
       if (!ok) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
     };
@@ -115,9 +116,119 @@ export const createSocialPostInputSchema = z
     }
     if (v.kind === "MILESTONE") need(Boolean(v.title), "title", "Say what you are celebrating");
     if (v.kind === "HIRING") need(v.jobPostingId !== undefined, "jobPostingId", "Pick the job posting");
-  });
+}
+
+export const createSocialPostInputSchema = socialPostFields.superRefine(refineSocialPostFields);
 // `kind` may be left out by a caller: the schema fills in PHOTO.
 export type CreateSocialPostInput = Omit<z.infer<typeof createSocialPostInputSchema>, "kind"> & { kind?: SocialPostKind };
+
+// --- Posting later (phase 4). The same form as a post, plus the moment it
+// should go out. How many posts a company can have waiting depends on its
+// plan; the API also holds the time to a window (see the two constants).
+export const SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD = 5;
+export const SOCIAL_SCHEDULE_MAX_DAYS_AHEAD = 60;
+export const SOCIAL_SCHEDULED_POST_LIMITS: Record<OwnerTier, number> = {
+  FREE: 0,
+  STARTER: 3,
+  PRO: 10,
+  ENTERPRISE: 30,
+};
+
+export const scheduleSocialPostInputSchema = socialPostFields
+  .extend({ publishAt: z.string().datetime() })
+  .superRefine(refineSocialPostFields);
+export type ScheduleSocialPostInput = Omit<z.infer<typeof scheduleSocialPostInputSchema>, "kind"> & { kind?: SocialPostKind };
+
+export const rescheduleSocialPostInputSchema = z.object({ publishAt: z.string().datetime() });
+export type RescheduleSocialPostInput = z.infer<typeof rescheduleSocialPostInputSchema>;
+
+export const scheduledSocialPostStatusSchema = z.enum(["SCHEDULED", "FAILED"]);
+export type ScheduledSocialPostStatus = z.infer<typeof scheduledSocialPostStatusSchema>;
+
+// A post waiting to go out, as its company's owner sees it. No author id.
+export const scheduledSocialPostSchema = z.object({
+  id: z.string(),
+  companyId: z.string(),
+  kind: socialPostKindSchema,
+  publishAt: z.string().datetime(),
+  status: scheduledSocialPostStatusSchema,
+  // Why it could not go out (FAILED only).
+  failureReason: z.string().nullable(),
+  caption: z.string().nullable(),
+  title: z.string().nullable(),
+  imageUrls: z.array(z.string()),
+  pollOptions: z.array(z.string()),
+});
+export type ScheduledSocialPost = z.infer<typeof scheduledSocialPostSchema>;
+
+export const scheduledSocialPostListSchema = z.object({
+  posts: z.array(scheduledSocialPostSchema),
+  // The plan in force (a lapsed paid plan counts as Free) and how many posts
+  // it lets a company keep waiting; `waiting` is how many it has now.
+  tier: ownerTierSchema,
+  limit: z.number().int(),
+  waiting: z.number().int(),
+});
+export type ScheduledSocialPostList = z.infer<typeof scheduledSocialPostListSchema>;
+
+// --- Post views (phase 4). The page reports which posts a member has had on
+// screen, a handful at a time.
+export const SOCIAL_VIEW_BATCH_MAX = 30;
+export const recordSocialViewsInputSchema = z.object({
+  postIds: z.array(z.string().uuid()).min(1).max(SOCIAL_VIEW_BATCH_MAX),
+});
+export type RecordSocialViewsInput = z.infer<typeof recordSocialViewsInputSchema>;
+
+// --- Insights (phase 4): a company's own IWT Social numbers. Counts only.
+// How far back each plan can look, in days.
+export const SOCIAL_INSIGHTS_DAYS: Record<OwnerTier, number> = {
+  FREE: 7,
+  STARTER: 30,
+  PRO: 90,
+  ENTERPRISE: 365,
+};
+// The periods the dashboard offers.
+export const SOCIAL_INSIGHTS_PERIODS = [7, 30, 90, 365] as const;
+
+export const socialInsightsDaySchema = z.object({
+  // "2026-10-14" (UTC day).
+  day: z.string(),
+  // Followers at the end of that day.
+  followers: z.number().int(),
+  views: z.number().int(),
+});
+export type SocialInsightsDay = z.infer<typeof socialInsightsDaySchema>;
+
+export const socialInsightsPostSchema = z.object({
+  postId: z.string(),
+  kind: socialPostKindSchema,
+  // The caption, or the headline when there is no caption.
+  text: z.string().nullable(),
+  thumbUrl: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  views: z.number().int(),
+  reactions: z.number().int(),
+  comments: z.number().int(),
+});
+export type SocialInsightsPost = z.infer<typeof socialInsightsPostSchema>;
+
+export const socialInsightsSchema = z.object({
+  tier: ownerTierSchema,
+  // The period served (the one asked for, cut to what the plan reaches).
+  days: z.number().int(),
+  maxDays: z.number().int(),
+  followers: z.object({ now: z.number().int(), gained: z.number().int(), lost: z.number().int() }),
+  // Totals inside the period.
+  views: z.number().int(),
+  reactions: z.number().int(),
+  comments: z.number().int(),
+  posts: z.number().int(),
+  // One entry per day of the period, oldest first.
+  series: z.array(socialInsightsDaySchema),
+  // The period's posts, most seen first.
+  topPosts: z.array(socialInsightsPostSchema),
+});
+export type SocialInsights = z.infer<typeof socialInsightsSchema>;
 
 // The owner's Edit on a post (PATCH social/posts/:id): the caption only -
 // photos are fixed once posted. An empty caption removes it.
@@ -277,6 +388,9 @@ export const publicSocialPostSchema = z.object({
   // The viewer is an approved owner of this post's company, so the card
   // offers Edit / Pin / Delete. Says nothing about who wrote the post.
   canManage: z.boolean(),
+  // How many times members have seen the post. Only an owner of its company
+  // is sent the number (canManage); null for everyone else.
+  viewCount: z.number().int().nullable(),
 });
 export type PublicSocialPost = z.infer<typeof publicSocialPostSchema>;
 
