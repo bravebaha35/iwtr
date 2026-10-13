@@ -26,7 +26,8 @@ import {
   type SocialPostLikeResult,
   type SocialPostPinResult,
   type SocialRail,
-  type SocialTrending,
+  type SocialReaction,
+  type SocialReactionCounts,
   type UpdateSocialPostInput,
   type VoteValue,
   type WorkplaceType,
@@ -36,6 +37,7 @@ import { ModerationService } from "../moderation/moderation.service";
 import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "../companies/company-visibility";
 import { decryptField, unwrapDek } from "../employer-profile/crypto.util";
 import { pickRandomDisplayUsername } from "../reviews/randomized-identity.util";
+import { daysRemaining, shouldLazyReshare } from "../job-postings/job-postings.util";
 import { processSocialImage } from "./social-image.util";
 import { toUtcHour } from "../../common/time/day-precision.util";
 
@@ -51,6 +53,9 @@ const TRENDING_POST_LIMIT = 5;
 const TRENDING_WINDOW_DAYS = 7;
 const RAIL_LIST_LIMIT = 5;
 const HIRING_NOW_WINDOW_DAYS = 7;
+// The rail's Trending and Hiring lists are the same for every visitor, so
+// they are built once and reused for a minute instead of on every page view.
+const RAIL_SHARED_TTL_MS = 60_000;
 
 // The company fields every post shape carries. An explicit select, like the
 // rest of this file (REVIEW.md): a post query never pulls a whole row.
@@ -64,8 +69,29 @@ const POST_ROW_SELECT = {
   createdAt: true,
   pinnedAt: true,
   editedAt: true,
+  kind: true,
+  title: true,
+  eventStartsAt: true,
+  eventLocation: true,
+  pollEndsAt: true,
+  imageAspectRatios: true,
+  pollOptions: { select: { id: true, text: true }, orderBy: { position: "asc" } },
+  jobPosting: {
+    select: {
+      id: true,
+      jobTitle: true,
+      workType: true,
+      positions: true,
+      status: true,
+      createdAt: true,
+      lastResharedAt: true,
+      filledAt: true,
+      autoReshareEnabled: true,
+    },
+  },
   company: { select: POST_COMPANY_SELECT },
 } as const;
+type PostRow = Prisma.SocialPostGetPayload<{ select: typeof POST_ROW_SELECT }>;
 
 // Same caption rules for a new post and an edited one. An employer captioning
 // its own post may name its own staff and job roles and write an all-caps
@@ -75,7 +101,9 @@ const POST_ROW_SELECT = {
 const CAPTION_SKIPPED_CHECKS = {
   skipViolationTypes: ["NAME_OR_SURNAME", "JOB_TITLE", "ABUSE_OR_INSULT"] as ("NAME_OR_SURNAME" | "JOB_TITLE" | "ABUSE_OR_INSULT")[],
 };
-const CAPTION_REJECTED_MESSAGE = "That caption breaks our content rules (profanity or contact details) - please reword it.";
+const CAPTION_REJECTED_MESSAGE = "That text breaks our content rules (profanity or contact details) - please reword it.";
+
+const NO_REACTIONS: SocialReactionCounts = { LIKE: 0, WELL_DONE: 0, CURIOUS: 0 };
 
 // The Quick Select / "Industry Tags" bucket, identical set to apps/web's
 // lib/categoryGroups.tsx CategoryGroup - kept here as a manually-synced
@@ -120,6 +148,12 @@ function categoryGroupWhere(group: CategoryGroup | undefined): Prisma.StringFilt
   }
 }
 
+// Is this job ad on the Jobs page right now? (An ad that renews itself
+// counts: it is refreshed the next time it is listed.)
+function isLiveJob(job: Parameters<typeof daysRemaining>[0]): boolean {
+  return job.status === "PUBLISHED" && (daysRemaining(job) > 0 || shouldLazyReshare(job));
+}
+
 @Injectable()
 export class SocialService {
   constructor(
@@ -127,15 +161,25 @@ export class SocialService {
     private readonly moderation: ModerationService,
   ) {}
 
+  private railShared: { at: number; lists: Promise<Pick<SocialRail, "trending" | "hiringNow">> } | null = null;
+
   async createPost(
     userId: string,
     input: CreateSocialPostInput,
     files: Express.Multer.File[] | undefined,
   ): Promise<{ id: string }> {
     await this.requireApprovedOwnership(userId, input.companyId);
+    files = files ?? [];
 
-    if (!files || files.length === 0) {
-      throw new BadRequestException("Attach at least one photo to post.");
+    // A plain post is a PHOTO when it carries photos and an UPDATE when it
+    // is text only, whichever of the two the client named.
+    const asked = input.kind ?? "PHOTO";
+    const kind = asked === "PHOTO" || asked === "UPDATE" ? (files.length > 0 ? "PHOTO" : "UPDATE") : asked;
+    if (kind === "UPDATE" && !input.caption) {
+      throw new BadRequestException("Write something or add a photo to post.");
+    }
+    if (kind === "POLL" && files.length > 0) {
+      throw new BadRequestException("A poll can't carry photos.");
     }
     for (const file of files) {
       const check = validateSocialImageUpload({ mimeType: file.mimetype, sizeBytes: file.buffer.length });
@@ -144,8 +188,40 @@ export class SocialService {
       }
     }
 
+    // Every piece of text the company wrote goes through the caption rules.
     // addComment below keeps the full ruleset for comment bodies.
-    this.assertCaptionAllowed(input.caption);
+    const pollOptions = kind === "POLL" ? (input.pollOptions ?? []) : [];
+    const title = kind === "EVENT" || kind === "MILESTONE" ? input.title || null : null;
+    const eventLocation = kind === "EVENT" ? input.eventLocation || null : null;
+    for (const text of [input.caption, title, eventLocation, ...pollOptions]) {
+      this.assertCaptionAllowed(text ?? undefined);
+    }
+
+    let eventStartsAt: Date | null = null;
+    if (kind === "EVENT") {
+      eventStartsAt = new Date(input.eventStartsAt!);
+      if (eventStartsAt <= new Date()) {
+        throw new BadRequestException("Pick a date and time that is still ahead.");
+      }
+    }
+    let pollEndsAt: Date | null = null;
+    if (kind === "POLL") {
+      pollEndsAt = new Date();
+      pollEndsAt.setDate(pollEndsAt.getDate() + input.pollDays!);
+    }
+    let jobPostingId: string | null = null;
+    if (kind === "HIRING") {
+      // Never trust the id alone: it has to be this company's own ad, and one
+      // that is on the Jobs page right now.
+      const job = await this.prisma.jobPosting.findUnique({
+        where: { id: input.jobPostingId! },
+        select: { id: true, companyId: true, status: true, createdAt: true, lastResharedAt: true, filledAt: true, autoReshareEnabled: true },
+      });
+      if (!job || job.companyId !== input.companyId || !isLiveJob(job)) {
+        throw new BadRequestException("Pick one of this company's live job postings.");
+      }
+      jobPostingId = job.id;
+    }
 
     await mkdir(SOCIAL_UPLOADS_DIR, { recursive: true });
     const origin = process.env.API_PUBLIC_ORIGIN ?? `http://localhost:${process.env.PORT ?? 3001}`;
@@ -153,15 +229,30 @@ export class SocialService {
     // every image in a multi-photo post concurrently would just contend for
     // the same cores instead of finishing any of them sooner.
     const imageUrls: string[] = [];
+    const imageAspectRatios: number[] = [];
     for (const file of files) {
-      const webp = await processSocialImage(file.buffer, file.mimetype);
+      const { webp, aspectRatio } = await processSocialImage(file.buffer, file.mimetype);
       const filename = `${randomUUID()}.webp`;
       await writeFile(join(SOCIAL_UPLOADS_DIR, filename), webp);
       imageUrls.push(`${origin}/uploads/social/${filename}`);
+      imageAspectRatios.push(aspectRatio);
     }
 
     const post = await this.prisma.socialPost.create({
-      data: { companyId: input.companyId, authorUserId: userId, imageUrls, caption: input.caption || null },
+      data: {
+        companyId: input.companyId,
+        authorUserId: userId,
+        kind,
+        imageUrls,
+        imageAspectRatios,
+        caption: input.caption || null,
+        title,
+        eventStartsAt,
+        eventLocation,
+        pollEndsAt,
+        jobPostingId,
+        ...(pollOptions.length > 0 ? { pollOptions: { create: pollOptions.map((text, position) => ({ text, position })) } } : {}),
+      },
       select: { id: true },
     });
     return { id: post.id };
@@ -228,11 +319,11 @@ export class SocialService {
     return post;
   }
 
-  // The two lists beside the IWT Social feed.
+  // The lists beside the IWT Social feed, in one answer. Only "companies to
+  // follow" depends on who is asking; the other two are shared (see
+  // railSharedLists).
   async rail(viewerUserId: string | undefined): Promise<SocialRail> {
-    const since = new Date();
-    since.setDate(since.getDate() - HIRING_NOW_WINDOW_DAYS);
-    const [companies, jobs] = await Promise.all([
+    const [companies, shared] = await Promise.all([
       this.prisma.company.findMany({
         where: {
           ...PUBLIC_COMPANY_WHERE,
@@ -243,15 +334,82 @@ export class SocialService {
         take: RAIL_LIST_LIMIT,
         select: { id: true, ...POST_COMPANY_SELECT },
       }),
+      this.railSharedLists(),
+    ]);
+    return {
+      ...shared,
+      suggestedCompanies: companies.map((c) => ({
+        companyId: c.id,
+        companySlug: c.slug,
+        companyName: c.name,
+        companyLogoUrl: c.mainPhotoUrl,
+        companyBadgeTier: c.badgeTier as PublicSocialPost["companyBadgeTier"],
+        companyWorkplaceTypes: c.workplaceTypes as PublicSocialPost["companyWorkplaceTypes"],
+      })),
+    };
+  }
+
+  private railSharedLists(): Promise<Pick<SocialRail, "trending" | "hiringNow">> {
+    const hit = this.railShared;
+    if (hit && Date.now() - hit.at < RAIL_SHARED_TTL_MS) return hit.lists;
+    const lists = this.buildRailSharedLists();
+    this.railShared = { at: Date.now(), lists };
+    // A failed build must not be served for the next minute.
+    lists.catch(() => {
+      if (this.railShared?.lists === lists) this.railShared = null;
+    });
+    return lists;
+  }
+
+  private async buildRailSharedLists(): Promise<Pick<SocialRail, "trending" | "hiringNow">> {
+    const trendingSince = new Date();
+    trendingSince.setDate(trendingSince.getDate() - TRENDING_WINDOW_DAYS);
+    const hiringSince = new Date();
+    hiringSince.setDate(hiringSince.getDate() - HIRING_NOW_WINDOW_DAYS);
+    const trendingQuery = (by: "likes" | "comments") =>
+      this.prisma.socialPost.findMany({
+        where: { createdAt: { gte: trendingSince }, company: PUBLIC_COMPANY_WHERE },
+        orderBy: [{ [by]: { _count: "desc" } }, { id: "desc" }],
+        take: TRENDING_POST_LIMIT,
+        select: {
+          id: true,
+          caption: true,
+          title: true,
+          imageUrls: true,
+          company: { select: { name: true, mainPhotoUrl: true } },
+          _count: { select: { likes: true, comments: true } },
+        },
+      });
+    const [mostLiked, mostCommented, jobs] = await Promise.all([
+      trendingQuery("likes"),
+      trendingQuery("comments"),
       // A few more than shown, so several fresh ads from one company still
       // leave room for others once cut down to one per company.
       this.prisma.jobPosting.findMany({
-        where: { status: "PUBLISHED", createdAt: { gte: since }, company: PUBLIC_COMPANY_WHERE },
+        where: { status: "PUBLISHED", createdAt: { gte: hiringSince }, company: PUBLIC_COMPANY_WHERE },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: RAIL_LIST_LIMIT * 6,
         select: { id: true, jobTitle: true, companyId: true, company: { select: { slug: true, name: true, mainPhotoUrl: true } } },
       }),
     ]);
+
+    // The week's most liked and most commented posts as one list, busiest
+    // first. A post nobody has reacted to or commented on isn't "trending",
+    // even if it filled an empty slot in a top-5 query.
+    const byId = new Map([...mostLiked, ...mostCommented].map((p) => [p.id, p]));
+    const trending = [...byId.values()]
+      .filter((p) => p._count.likes + p._count.comments > 0)
+      .sort((a, b) => b._count.likes + b._count.comments - (a._count.likes + a._count.comments))
+      .slice(0, TRENDING_POST_LIMIT)
+      .map((p) => ({
+        postId: p.id,
+        companyName: p.company.name,
+        companyLogoUrl: p.company.mainPhotoUrl,
+        thumbUrl: p.imageUrls[0] ?? null,
+        caption: p.caption ?? p.title,
+        likeCount: p._count.likes,
+        commentCount: p._count.comments,
+      }));
 
     const hiringNow: SocialRail["hiringNow"] = [];
     const seenCompanies = new Set<string>();
@@ -267,18 +425,7 @@ export class SocialService {
       });
       if (hiringNow.length === RAIL_LIST_LIMIT) break;
     }
-
-    return {
-      suggestedCompanies: companies.map((c) => ({
-        companyId: c.id,
-        companySlug: c.slug,
-        companyName: c.name,
-        companyLogoUrl: c.mainPhotoUrl,
-        companyBadgeTier: c.badgeTier as PublicSocialPost["companyBadgeTier"],
-        companyWorkplaceTypes: c.workplaceTypes as PublicSocialPost["companyWorkplaceTypes"],
-      })),
-      hiringNow,
-    };
+    return { trending, hiringNow };
   }
 
   // Bare counts for the company Social tab. SECURITY (REVIEW.md): a count
@@ -299,7 +446,15 @@ export class SocialService {
 
   // Caption only; photos are fixed once posted. An empty caption removes it.
   async updatePost(userId: string, postId: string, input: UpdateSocialPostInput): Promise<PublicSocialPost> {
-    await this.requireOwnedPost(userId, postId);
+    const owned = await this.requireOwnedPost(userId, postId);
+    if (owned.kind === "POLL") {
+      // Rewording a question people have already answered would misreport
+      // what they voted for.
+      throw new BadRequestException("A poll can't be edited once it's posted. Delete it and post a new one.");
+    }
+    if (owned.kind === "UPDATE" && !input.caption) {
+      throw new BadRequestException("A text post can't be left empty.");
+    }
     this.assertCaptionAllowed(input.caption);
     const row = await this.prisma.socialPost.update({
       where: { id: postId },
@@ -346,7 +501,7 @@ export class SocialService {
   private async requireOwnedPost(userId: string, postId: string) {
     const post = await this.prisma.socialPost.findUnique({
       where: { id: postId },
-      select: { id: true, companyId: true, imageUrls: true, pinnedAt: true },
+      select: { id: true, companyId: true, imageUrls: true, pinnedAt: true, kind: true },
     });
     if (!post) throw new NotFoundException("Post not found");
     await this.requireApprovedOwnership(userId, post.companyId);
@@ -358,47 +513,6 @@ export class SocialService {
     if (this.moderation.checkContent([caption], CAPTION_SKIPPED_CHECKS).violates) {
       throw new BadRequestException(CAPTION_REJECTED_MESSAGE);
     }
-  }
-
-  // Top 5 posts of the last 7 days, split by like count and by comment
-  // count, across every publicly-visible company. A week, not a day: on a
-  // quiet day "today" is simply empty. Computed live on each request - no caching
-  // layer, matching this app's current scale. A post with zero of the
-  // relevant metric is filtered out even if it filled an empty slot in the
-  // top-5 query (e.g. only 2 posts exist this week and neither has been liked
-  // yet) - the frontend renders nothing for an empty section, not an error.
-  async trending(viewerUserId: string | undefined): Promise<SocialTrending> {
-    const since = new Date();
-    since.setDate(since.getDate() - TRENDING_WINDOW_DAYS);
-    const where: Prisma.SocialPostWhereInput = {
-      createdAt: { gte: since },
-      company: PUBLIC_COMPANY_WHERE,
-    };
-
-    const [mostLikedRows, mostCommentedRows] = await Promise.all([
-      this.prisma.socialPost.findMany({
-        where,
-        orderBy: [{ likes: { _count: "desc" } }, { id: "desc" }],
-        take: TRENDING_POST_LIMIT,
-        select: POST_ROW_SELECT,
-      }),
-      this.prisma.socialPost.findMany({
-        where,
-        orderBy: [{ comments: { _count: "desc" } }, { id: "desc" }],
-        take: TRENDING_POST_LIMIT,
-        select: POST_ROW_SELECT,
-      }),
-    ]);
-
-    const [mostLiked, mostCommented] = await Promise.all([
-      this.serializePosts(mostLikedRows, viewerUserId),
-      this.serializePosts(mostCommentedRows, viewerUserId),
-    ]);
-
-    return {
-      mostLiked: mostLiked.filter((p) => p.likeCount > 0),
-      mostCommented: mostCommented.filter((p) => p.commentCount > 0),
-    };
   }
 
   // ADMIN-only: one company's feed by id, bypassing the hidden-company gate.
@@ -625,23 +739,20 @@ export class SocialService {
   // N+1 per post. NOTE (REVIEW.md-adjacent): never selects authorUserId; the
   // viewer's-own-likes/saves queries stay select: { postId: true }.
   private async serializePosts(
-    rows: Array<{
-      id: string; companyId: string; imageUrls: string[]; caption: string | null; createdAt: Date;
-      pinnedAt: Date | null; editedAt: Date | null;
-      company: { slug: string; name: string; mainPhotoUrl: string | null; badgeTier: string; workplaceTypes: PublicSocialPost["companyWorkplaceTypes"] };
-    }>,
+    rows: PostRow[],
     viewerUserId: string | undefined,
     options: { exactTimes?: boolean } = {},
   ): Promise<PublicSocialPost[]> {
     const ids = rows.map((r) => r.id);
+    const pollIds = rows.filter((r) => r.kind === "POLL").map((r) => r.id);
     const companyIds = [...new Set(rows.map((r) => r.companyId))];
-    const [likeCounts, commentCounts, myLikes, mySaves, myCompanies] = await Promise.all([
-      this.prisma.socialPostLike.groupBy({ by: ["postId"], where: { postId: { in: ids } }, _count: { _all: true } }),
+    const [reactionGroups, commentCounts, myLikes, mySaves, myCompanies, pollVoteGroups, myPollVotes] = await Promise.all([
+      this.prisma.socialPostLike.groupBy({ by: ["postId", "reaction"], where: { postId: { in: ids } }, _count: { _all: true } }),
       this.prisma.socialComment.groupBy({ by: ["postId"], where: { postId: { in: ids } }, _count: { _all: true } }),
       viewerUserId
         ? this.prisma.socialPostLike.findMany({
             where: { postId: { in: ids }, userId: viewerUserId },
-            select: { postId: true },
+            select: { postId: true, reaction: true },
           })
         : Promise.resolve([]),
       viewerUserId
@@ -657,14 +768,54 @@ export class SocialService {
             select: { companyId: true },
           })
         : Promise.resolve([]),
+      // Polls: votes per answer, and the viewer's own pick. Counts only -
+      // never who voted (REVIEW.md, same rule as likes).
+      pollIds.length > 0
+        ? this.prisma.socialPollVote.groupBy({ by: ["optionId"], where: { postId: { in: pollIds } }, _count: { _all: true } })
+        : Promise.resolve([]),
+      viewerUserId && pollIds.length > 0
+        ? this.prisma.socialPollVote.findMany({
+            where: { postId: { in: pollIds }, userId: viewerUserId },
+            select: { postId: true, optionId: true },
+          })
+        : Promise.resolve([]),
     ]);
-    const likeByPost = new Map(likeCounts.map((r) => [r.postId, r._count._all]));
+    const reactionsByPost = new Map<string, SocialReactionCounts>();
+    for (const g of reactionGroups) {
+      const counts = reactionsByPost.get(g.postId) ?? { ...NO_REACTIONS };
+      counts[(g.reaction ?? "LIKE") as SocialReaction] = g._count._all;
+      reactionsByPost.set(g.postId, counts);
+    }
+    const votesByOption = new Map(pollVoteGroups.map((g) => [g.optionId, g._count._all]));
+    const myOptionByPost = new Map(myPollVotes.map((v) => [v.postId, v.optionId]));
+    const now = new Date();
     const commentByPost = new Map(commentCounts.map((r) => [r.postId, r._count._all]));
-    const likedByMe = new Set(myLikes.map((r) => r.postId));
+    const myReactionByPost = new Map(myLikes.map((r) => [r.postId, (r.reaction ?? "LIKE") as SocialReaction]));
     const savedByMe = new Set(mySaves.map((r) => r.postId));
     const managedCompanies = new Set(myCompanies.map((r) => r.companyId));
 
-    return rows.map((r) => ({
+    return rows.map((r) => {
+      const reactionCounts = reactionsByPost.get(r.id) ?? NO_REACTIONS;
+      const canManage = managedCompanies.has(r.companyId);
+      const myReaction = myReactionByPost.get(r.id) ?? null;
+
+      let poll: PublicSocialPost["poll"] = null;
+      if (r.kind === "POLL" && r.pollEndsAt) {
+        const closed = r.pollEndsAt <= now;
+        const myOptionId = myOptionByPost.get(r.id) ?? null;
+        // The result shows once it can no longer sway the viewer's own answer.
+        const showResults = closed || myOptionId !== null || canManage;
+        const counts = r.pollOptions.map((o) => votesByOption.get(o.id) ?? 0);
+        poll = {
+          endsAt: r.pollEndsAt.toISOString(),
+          closed,
+          totalVotes: counts.reduce((sum, n) => sum + n, 0),
+          myOptionId,
+          options: r.pollOptions.map((o, i) => ({ id: o.id, text: o.text, votes: showResults ? counts[i] : null })),
+        };
+      }
+
+      return {
       id: r.id,
       companyId: r.companyId,
       companySlug: r.company.slug,
@@ -672,18 +823,40 @@ export class SocialService {
       companyLogoUrl: r.company.mainPhotoUrl,
       companyBadgeTier: r.company.badgeTier as PublicSocialPost["companyBadgeTier"],
       companyWorkplaceTypes: r.company.workplaceTypes,
+      kind: r.kind,
       imageUrls: r.imageUrls,
+      imageAspectRatios: r.imageAspectRatios,
       caption: r.caption,
+      title: r.title,
+      eventStartsAt: r.eventStartsAt ? r.eventStartsAt.toISOString() : null,
+      eventLocation: r.eventLocation,
+      poll,
+      // The ad's row can be gone (SetNull): the post then just says so.
+      job:
+        r.kind === "HIRING"
+          ? r.jobPosting
+            ? {
+                jobPostingId: r.jobPosting.id,
+                jobTitle: r.jobPosting.jobTitle,
+                workType: r.jobPosting.workType,
+                positions: r.jobPosting.positions,
+                live: isLiveJob(r.jobPosting),
+              }
+            : { jobPostingId: null, jobTitle: "", workType: null, positions: [], live: false }
+          : null,
       // Hour precision for everyone but an admin (see toUtcHour).
       createdAt: (options.exactTimes ? r.createdAt : toUtcHour(r.createdAt)).toISOString(),
-      likeCount: likeByPost.get(r.id) ?? 0,
+      likeCount: reactionCounts.LIKE + reactionCounts.WELL_DONE + reactionCounts.CURIOUS,
+      reactionCounts,
       commentCount: commentByPost.get(r.id) ?? 0,
-      likedByMe: viewerUserId ? likedByMe.has(r.id) : null,
+      likedByMe: viewerUserId ? myReaction !== null : null,
+      myReaction,
       savedByMe: viewerUserId ? savedByMe.has(r.id) : null,
       pinned: Boolean(r.pinnedAt),
       edited: Boolean(r.editedAt),
-      canManage: managedCompanies.has(r.companyId),
-    }));
+      canManage,
+      };
+    });
   }
 
   // Copy of OwnerService's check (not imported - a 6-line guard is not worth
@@ -1008,33 +1181,65 @@ export class SocialService {
     return { success: true };
   }
 
-  // --- Likes. Post-level only (there is deliberately no CommentLike). One
-  // call toggles: like if not liked, unlike if already liked. Returns the
-  // fresh count so the caller never has to re-fetch the post.
-  async toggleLike(userId: string, postId: string): Promise<SocialPostLikeResult> {
+  // --- Reactions. Post-level only (there is deliberately no CommentLike).
+  // One reaction per member per post: the same one again takes it off, a
+  // different one replaces it. Returns the fresh counts so the caller never
+  // has to re-fetch the post. LIKE is the old single "like".
+  async toggleLike(userId: string, postId: string, reaction: SocialReaction = "LIKE"): Promise<SocialPostLikeResult> {
     await this.requirePost(postId);
     const existing = await this.prisma.socialPostLike.findUnique({
       where: { postId_userId: { postId, userId } },
     });
-    if (existing) {
-      try {
+    let myReaction: SocialReaction | null = reaction;
+    try {
+      if (existing && existing.reaction === reaction) {
         await this.prisma.socialPostLike.delete({ where: { id: existing.id } });
-      } catch (err) {
-        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025")) {
-          throw err;
-        }
+        myReaction = null;
+      } else if (existing) {
+        await this.prisma.socialPostLike.update({ where: { id: existing.id }, data: { reaction } });
+      } else {
+        await this.prisma.socialPostLike.create({ data: { postId, userId, reaction } });
       }
-    } else {
-      try {
-        await this.prisma.socialPostLike.create({ data: { postId, userId } });
-      } catch (err) {
-        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {
-          throw err;
-        }
-      }
+    } catch (err) {
+      // A double click can lose the create / delete race; the state is
+      // already whatever the winner left, so this is not an error.
+      const isBenignRace =
+        err instanceof Prisma.PrismaClientKnownRequestError && (err.code === "P2002" || err.code === "P2025");
+      if (!isBenignRace) throw err;
     }
-    const likeCount = await this.prisma.socialPostLike.count({ where: { postId } });
-    return { postId, likeCount, likedByMe: !existing };
+    const groups = await this.prisma.socialPostLike.groupBy({ by: ["reaction"], where: { postId }, _count: { _all: true } });
+    const reactionCounts = { ...NO_REACTIONS };
+    for (const g of groups) reactionCounts[g.reaction as SocialReaction] = g._count._all;
+    return {
+      postId,
+      likeCount: reactionCounts.LIKE + reactionCounts.WELL_DONE + reactionCounts.CURIOUS,
+      likedByMe: myReaction !== null,
+      myReaction,
+      reactionCounts,
+    };
+  }
+
+  // --- Poll votes. One per member per poll; picking another answer moves
+  // the vote, until the poll closes. Returns the post as the voter now sees
+  // it (the result opens up once they have voted).
+  async votePoll(userId: string, postId: string, optionId: string): Promise<PublicSocialPost> {
+    const poll = await this.prisma.socialPost.findFirst({
+      where: { id: postId, kind: "POLL", company: PUBLIC_COMPANY_WHERE },
+      select: { id: true, pollEndsAt: true, pollOptions: { select: { id: true } } },
+    });
+    if (!poll) throw new NotFoundException("Poll not found");
+    if (!poll.pollEndsAt || poll.pollEndsAt <= new Date()) {
+      throw new BadRequestException("This poll has closed.");
+    }
+    if (!poll.pollOptions.some((o) => o.id === optionId)) {
+      throw new BadRequestException("That answer isn't part of this poll.");
+    }
+    await this.prisma.socialPollVote.upsert({
+      where: { postId_userId: { postId, userId } },
+      create: { postId, optionId, userId },
+      update: { optionId },
+    });
+    return this.getPost(userId, postId);
   }
 
   // --- Saves. Post-level, private bookmark - no public save count or "who

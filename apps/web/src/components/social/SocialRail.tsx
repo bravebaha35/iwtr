@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import type { PublicSocialPost, SocialRail as SocialRailData, SocialTrending } from "@iwtr/shared-types";
+import type { SocialRail as SocialRailData } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
@@ -10,17 +10,7 @@ import { AdSlot } from "@/components/AdSlot";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
-
-const TRENDING_ROWS = 5;
-
-// The week's most liked and most commented posts as one list, busiest first.
-export function mergeTrending(data: SocialTrending): PublicSocialPost[] {
-  const byId = new Map<string, PublicSocialPost>();
-  for (const post of [...data.mostLiked, ...data.mostCommented]) byId.set(post.id, post);
-  return [...byId.values()]
-    .sort((a, b) => b.likeCount + b.commentCount - (a.likeCount + a.commentCount))
-    .slice(0, TRENDING_ROWS);
-}
+import { readRail, writeRail } from "./socialFeedCache";
 
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -40,22 +30,24 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
  * companies worth following and fresh job ads, each a quiet panel that isn't
  * shown at all while it has nothing in it. The page's right-hand ad sits
  * under them. Hidden below `lg`, where there's no room beside the feed.
+ * One request fills all three; what it last answered is shown straight away
+ * on a return visit and read again behind it.
  */
 export function SocialRail() {
   const { isAuthenticated, openAuthModal } = useAuth();
   const { followedIds, canFollow, toggleFollow } = useFollowedCompanies();
-  const [rail, setRail] = useState<SocialRailData | null>(null);
-  const [trending, setTrending] = useState<PublicSocialPost[]>([]);
+  const [rail, setRail] = useState<SocialRailData | null>(readRail);
 
   useEffect(() => {
     apiGet<SocialRailData>("/social/rail")
-      .then(setRail)
-      .catch(() => setRail({ suggestedCompanies: [], hiringNow: [] }));
-    apiGet<SocialTrending>("/social/trending")
-      .then((data) => setTrending(mergeTrending(data)))
-      .catch(() => setTrending([]));
+      .then((data) => {
+        writeRail(data);
+        setRail(data);
+      })
+      .catch(() => undefined);
   }, []);
 
+  const trending = rail?.trending ?? [];
   const suggested = rail?.suggestedCompanies ?? [];
   const hiring = rail?.hiringNow ?? [];
   // Same rule as the post card: a member can follow, a logged-out visitor is
@@ -69,13 +61,26 @@ export function SocialRail() {
         <Panel title="Trending this week">
           <ol className="flex flex-col gap-3">
             {trending.map((post) => (
-              <li key={post.id}>
-                <Link href={`/social/posts/${post.id}`} className="group flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- server-produced WebP under our own /uploads */}
-                  <img src={post.imageUrls[0]} alt="" className="h-11 w-11 shrink-0 rounded-lg bg-surface-muted object-cover" />
+              <li key={post.postId}>
+                <Link href={`/social/posts/${post.postId}`} className="group flex items-center gap-3">
+                  {post.thumbUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- server-produced WebP under our own /uploads
+                    <img
+                      src={post.thumbUrl}
+                      alt=""
+                      width={44}
+                      height={44}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-11 w-11 shrink-0 rounded-lg bg-surface-muted object-cover"
+                    />
+                  ) : (
+                    // A post without a photo (a text update, a poll) shows its company instead.
+                    <CompanyLogo name={post.companyName} mainPhotoUrl={post.companyLogoUrl} size="sm" />
+                  )}
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-foreground group-hover:underline">{post.companyName}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{post.caption ?? "Photo post"}</span>
+                    {post.caption && <span className="block truncate text-xs text-muted-foreground">{post.caption}</span>}
                     <span className="block text-xs tabular-nums text-muted-foreground">
                       {plural(post.likeCount, "like")} &middot; {plural(post.commentCount, "comment")}
                     </span>

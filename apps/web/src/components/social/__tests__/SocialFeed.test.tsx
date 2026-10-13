@@ -1,19 +1,20 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { SocialFeed } from "../SocialFeed";
+import { clearSocialCache, notifySocialPosted } from "../socialFeedCache";
 import * as apiClient from "@/lib/api-client";
 import type { PublicSocialPost } from "@iwtr/shared-types";
+import { makePost } from "./fixtures";
 
 jest.mock("@/lib/api-client");
 jest.mock("@/lib/auth-context", () => ({ useAuth: () => ({ isAuthenticated: false, openAuthModal: jest.fn() }) }));
 jest.mock("@/lib/useIsCompanyOwner", () => ({ useIsCompanyOwner: () => false }));
 
-function post(id: string, name = "Acme"): PublicSocialPost {
-  return {
-    id, companyId: "c1", companySlug: "acme", companyName: name, companyLogoUrl: null, companyBadgeTier: "FREE", companyWorkplaceTypes: ["OFFICE"],
-    imageUrls: [`/u/${id}.webp`], caption: null, createdAt: new Date().toISOString(),
-    likeCount: 0, commentCount: 0, likedByMe: null, savedByMe: false, pinned: false, edited: false, canManage: false,
-  };
-}
+const post = (id: string): PublicSocialPost => makePost({ id, imageUrls: [`/u/${id}.webp`], caption: null, likedByMe: null });
+
+beforeEach(() => {
+  clearSocialCache();
+  jest.mocked(apiClient.apiGet).mockReset();
+});
 
 describe("SocialFeed (all)", () => {
   it("renders the first page and injects an AdSlot after every 7th post", async () => {
@@ -74,5 +75,50 @@ describe("SocialFeed (saved)", () => {
     render(<SocialFeed scope={{ kind: "saved" }} />);
     await waitFor(() => expect(apiClient.apiGet).toHaveBeenCalledWith("/me/saved-posts"));
     expect(await screen.findByText(/haven't saved any posts yet/i)).toBeInTheDocument();
+  });
+});
+
+describe("SocialFeed without waits", () => {
+  it("shows post-shaped placeholders, not a Loading line, while a list is read for the first time", async () => {
+    (apiClient.apiGet as jest.Mock).mockReturnValue(new Promise(() => undefined));
+    render(<SocialFeed scope={{ kind: "all" }} />);
+    expect(screen.getByRole("status", { name: "Loading posts" })).toBeInTheDocument();
+    expect(screen.queryByText(/^Loading/)).not.toBeInTheDocument();
+  });
+
+  it("shows a list it has already read at once on coming back, and still reads it again", async () => {
+    (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [post("p1"), post("p2")], nextCursor: null });
+    const first = render(<SocialFeed scope={{ kind: "all" }} />);
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2));
+    first.unmount();
+
+    (apiClient.apiGet as jest.Mock).mockClear();
+    (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [post("p3"), post("p1"), post("p2")], nextCursor: null });
+    render(<SocialFeed scope={{ kind: "all" }} />);
+    // straight from memory: no placeholders, both posts there before any answer
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    // ...and the fresh answer replaces it
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(3));
+    expect(apiClient.apiGet).toHaveBeenCalledWith("/social/feed");
+  });
+
+  it("only the first card's photo loads eagerly; the rest wait until they are near", async () => {
+    (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [post("p1"), post("p2")], nextCursor: null });
+    render(<SocialFeed scope={{ kind: "all" }} />);
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2));
+    const photos = screen.getAllByRole("img").filter((img) => img.getAttribute("src")?.startsWith("/u/"));
+    expect(photos.map((img) => img.getAttribute("loading"))).toEqual(["eager", "lazy"]);
+    // the photo's own proportions hold its place before it arrives
+    expect(photos[0].style.aspectRatio).toBe("1.5");
+  });
+
+  it("reads the list again when a post has just been published, without a page reload", async () => {
+    (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [post("p1")], nextCursor: null });
+    render(<SocialFeed scope={{ kind: "all" }} />);
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(1));
+    (apiClient.apiGet as jest.Mock).mockResolvedValue({ posts: [post("new"), post("p1")], nextCursor: null });
+    notifySocialPosted();
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2));
   });
 });

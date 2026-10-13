@@ -5,6 +5,7 @@ import type { OwnedCompany } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { SocialComposer } from "./SocialComposer";
+import { notifySocialPosted } from "./socialFeedCache";
 
 export function SocialComposerSlot() {
   const isOwner = useIsCompanyOwner();
@@ -35,8 +36,8 @@ export function SocialComposerSlot() {
         companies={companies}
         onPosted={() => {
           setExpanded(false);
-          // simplest reliable refresh of the feed below
-          window.location.reload();
+          // The lists on the page read themselves again - no page reload.
+          notifySocialPosted();
         }}
         onCancel={() => setExpanded(false)}
       />

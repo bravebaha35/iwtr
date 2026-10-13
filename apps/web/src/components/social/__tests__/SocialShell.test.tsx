@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SocialShell } from "../SocialShell";
+import { clearSocialCache } from "../socialFeedCache";
 import * as apiClient from "@/lib/api-client";
 
 let mockAuth: { isAuthenticated: boolean; role: string | null; openAuthModal: jest.Mock };
@@ -17,14 +18,11 @@ const feedCalls = () =>
     .filter((path) => path.startsWith("/social/feed") || path.startsWith("/me/saved-posts"));
 
 beforeEach(() => {
+  clearSocialCache();
   jest.mocked(apiClient.apiGet).mockReset();
   jest.mocked(apiClient.apiGet).mockImplementation((path: string) =>
     Promise.resolve(
-      path === "/social/rail"
-        ? { suggestedCompanies: [], hiringNow: [] }
-        : path === "/social/trending"
-          ? { mostLiked: [], mostCommented: [] }
-          : { posts: [], nextCursor: null },
+      path === "/social/rail" ? { trending: [], suggestedCompanies: [], hiringNow: [] } : { posts: [], nextCursor: null },
     ) as never,
   );
 });

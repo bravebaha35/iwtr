@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { PublicSocialPost } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { SocialPostCard } from "./SocialPostCard";
+import { SocialPostSkeleton } from "./SocialPostSkeleton";
 
 /**
  * One post on its own page (/social/posts/:id) - where a copied link and a
@@ -28,7 +29,11 @@ export function SocialPostView({ postId }: { postId: string }) {
         <span aria-hidden="true">&larr;</span> IWT Social
       </Link>
 
-      {post === undefined && <p className="text-sm text-muted-foreground">Loading...</p>}
+      {post === undefined && (
+        <div role="status" aria-label="Loading the post">
+          <SocialPostSkeleton />
+        </div>
+      )}
       {post === null && (
         <p className="py-6 text-sm text-muted-foreground">This post isn&apos;t available any more.</p>
       )}
@@ -37,6 +42,7 @@ export function SocialPostView({ postId }: { postId: string }) {
           post={post}
           showPinned
           defaultCommentsOpen
+          priority
           onChanged={setPost}
           onDeleted={() => router.push(`/companies/${post.companySlug}?tab=social`)}
         />
