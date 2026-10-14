@@ -95,12 +95,12 @@ const ROWS: PricingRow[] = [
     },
   },
   {
-    label: pricingFeature("social-insights").label,
-    values: pricingFeature("social-insights").values,
-  },
-  {
     label: pricingFeature("social-scheduling").label,
     values: pricingFeature("social-scheduling").values,
+  },
+  {
+    label: pricingFeature("social-insights").label,
+    values: pricingFeature("social-insights").values,
   },
   {
     label: pricingFeature("support").label,

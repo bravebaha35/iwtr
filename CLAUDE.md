@@ -93,7 +93,9 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   out). Routes without `:companyId` must scope themselves via `user.companyScope` (conversations, review
   replies, owned-companies lists). `OptionalJwtAuthGuard` treats it as logged out. The full list of opened
   routes is pinned in `auth/__tests__/company-login.test.ts` - opening a new one means updating that list
-  on purpose. Never open a personal route (profile, CV, reviews, PII, notifications, IWT Social) to it. A company
+  on purpose. Never open a personal route (profile, CV, reviews, PII, notifications, IWT Social posting) to it. It sees
+  everything about its company except the owner's own profile (decided 2026-10-15): the dashboard's Questions and Post
+  Scheduling sections are read-only for it (their GET routes are opened; answering, hiding, scheduling stay owner-only). A company
   login can buy boosts, ad space and reports, but NOT a membership plan: `plus/checkout` is owner-only (decided
   2026-10-12).
 - `pii-vault/` — the **only** module allowed to read/write the `PiiVault` Prisma model. Encrypts PII
@@ -154,8 +156,8 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   composer's tab row; `createSocialPostInputSchema`). Polls: members vote once (`POST social/posts/:id/poll-vote`,
   movable until `pollEndsAt`), the split stays hidden until the viewer has voted, the poll has closed or the viewer
   owns the company, and only counts ever leave the API. A HIRING post points at the company's own live job ad.
-  Reactions are three beavers (LIKE / WELL_DONE / CURIOUS, `SocialPostLike.reaction`, one per member per post, small
-  WebP cuts in `public/reactions/`). No visible waits: lists come back from memory first (`socialFeedCache`),
+  Reactions are three standard emoji - thumbs up, clapping hands, thinking face (LIKE / WELL_DONE / CURIOUS,
+  `SocialPostLike.reaction`, one per member per post; Microsoft Fluent Emoji SVGs, MIT, in `public/reactions/`). No visible waits: lists come back from memory first (`socialFeedCache`),
   first loads show `SocialPostSkeleton`, photos reserve their space from `SocialPost.imageAspectRatios` and load
   lazily, the rail is one request whose shared lists the API caches for a minute, and posting refreshes the lists
   instead of reloading the page. Phase 3 is in as well: **Questions** (`social-questions.service.ts`, its own
@@ -181,13 +183,13 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `social-schedule.service.ts`, `social-owner-tools.controller.ts`). *Post views*: the page reports posts a member has
   had on screen (`lib/socialViews.ts`, `POST social/views`); only counters are written (`SocialPost.viewCount`,
   `CompanySocialDay`) - never who looked; the "once per member per post in 12 hours" memory lives in the process only.
-  Only the post's own company is sent `viewCount`. *Insights* (dashboard > IWT Social, `GET social/company-insights/:companyId`):
+  Only the post's own company is sent `viewCount`. *Insights* (dashboard > Post Scheduling, Starter and up only, `GET social/company-insights/:companyId`):
   followers, views, reactions, comments, a followers line and views bars, most seen posts; how far back depends on the
-  plan (`SOCIAL_INSIGHTS_DAYS`: 7 / 30 / 90 / 365). Follows and unfollows are also counted per day because an unfollow
+  plan (`SOCIAL_INSIGHTS_DAYS`: Free none / 30 / 60 / 90; day rows older than 92 days are deleted by the schedule worker). Follows and unfollows are also counted per day because an unfollow
   deletes its row; days are Turkey's (`socialDay`). *Posting later*: a waiting post is a `ScheduledSocialPost`, not a
   `SocialPost`, so no read path can show it early; `SocialScheduleWorker` publishes what is due every 30 s by deleting
   the waiting row and creating the post in one transaction (`SOCIAL_SCHEDULE_WORKER_DISABLED=1` stops a process
-  polling). Waiting posts per plan: `SOCIAL_SCHEDULED_POST_LIMITS` (Free 0, 3 / 10 / 30). A new way to create a post must go
+  polling). Waiting posts per plan: `SOCIAL_SCHEDULED_POST_LIMITS` (Free 0, 3 / 10 / 15). A new way to create a post must go
   through `prepareNewPost` + `publishPrepared`. None of these routes is opened to the company login. Demo numbers:
   `scripts/seed-social-insights-demo.ts`; real history: `scripts/backfill-social-days.ts`.
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the

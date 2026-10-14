@@ -247,6 +247,13 @@ describe("routes opened to company logins", () => {
         "GET my-companies/:companyId/reply-allowance",
         "POST reviews/:id/reply",
         "PATCH reviews/:id/reply",
+        // Read-only views of the company's IWT Social side (decided 2026-10-15:
+        // the company login sees everything about the company except the
+        // owner's own profile). Answering, scheduling and posting stay owner-only.
+        "GET social/company-insights/:companyId",
+        "GET social/company-scheduled/:companyId",
+        "GET social/company-questions/:companyId/counts",
+        "GET social/company-questions/:companyId",
       ].sort(),
     );
   }, 60_000);

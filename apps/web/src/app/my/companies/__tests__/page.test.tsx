@@ -122,7 +122,7 @@ test("side panel is one list: the standard sections, then the paid features at t
     "Contact & Social Media",
     "Reviews & Ratings",
     "Questions3 waiting for you",
-    "IWT Social",
+    "Post Scheduling",
     "Applications",
     "Job Postings2 free ads left this month",
     "Customer Support & Service Level (SLA)",

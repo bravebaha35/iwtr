@@ -202,7 +202,7 @@ describe("owner's post options", () => {
   });
 });
 
-describe("beaver reactions", () => {
+describe("reactions", () => {
   beforeEach(() => {
     mockAuth = { isAuthenticated: true, role: "MEMBER", openAuthModal };
     jest.mocked(apiClient.apiPost).mockReset();
@@ -211,7 +211,7 @@ describe("beaver reactions", () => {
     });
   });
 
-  it("More reactions opens the three beavers; picking one sends that reaction", async () => {
+  it("More reactions opens the three reactions; picking one sends that reaction", async () => {
     const onChanged = jest.fn();
     render(<SocialPostCard post={basePost} onChanged={onChanged} />);
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();

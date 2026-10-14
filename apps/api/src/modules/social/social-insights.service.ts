@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import {
+  SOCIAL_DAY_KEEP_DAYS,
   SOCIAL_INSIGHTS_DAYS,
   SOCIAL_INSIGHTS_PERIODS,
   type OwnerTier,
@@ -80,10 +81,22 @@ export class SocialInsightsService {
   }
 
   /**
+   * Drops the per-day counters no Insights period can reach any more
+   * (SOCIAL_DAY_KEEP_DAYS), so the table stays one short window per company.
+   * Run now and then by SocialScheduleWorker. Returns how many rows went.
+   */
+  async pruneOldDays(): Promise<number> {
+    const cutoff = new Date(socialDay().getTime() - SOCIAL_DAY_KEEP_DAYS * DAY_MS);
+    const { count } = await this.prisma.companySocialDay.deleteMany({ where: { day: { lt: cutoff } } });
+    return count;
+  }
+
+  /**
    * A company's IWT Social numbers for the last `daysAsked` days, for an
-   * approved owner of it. How far back it reaches depends on the plan
-   * (SOCIAL_INSIGHTS_DAYS); asking for more gives the plan's own reach, and
-   * the answer says which period it is.
+   * approved owner of it (or its shared company login). How far back it
+   * reaches depends on the plan (SOCIAL_INSIGHTS_DAYS); asking for more gives
+   * the plan's own reach, and the answer says which period it is. Free has no
+   * Insights: Post Scheduling is a Starter-and-up section.
    */
   async insights(userId: string, companyId: string, daysAsked: number | undefined): Promise<SocialInsights> {
     const ownership = await this.prisma.companyOwner.findUnique({
@@ -96,6 +109,9 @@ export class SocialInsightsService {
     // A lapsed paid plan counts as Free, as everywhere else.
     const tier: OwnerTier = ownership.planStatus === "ACTIVE" ? ownership.tier : "FREE";
     const maxDays = SOCIAL_INSIGHTS_DAYS[tier];
+    if (maxDays === 0) {
+      throw new ForbiddenException("Insights come with the Starter, Pro and Enterprise plans.");
+    }
     const wanted = (SOCIAL_INSIGHTS_PERIODS as readonly number[]).includes(daysAsked ?? NaN) ? daysAsked! : 30;
     const days = Math.min(wanted, maxDays);
 

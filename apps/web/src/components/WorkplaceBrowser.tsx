@@ -17,7 +17,7 @@ import { MultiSelectDropdown } from "@/components/Dropdown";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
 import { CompanyWorkCard } from "@/components/company/CompanyWorkCard";
-import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
+import { RISK_SCORE_ANY, RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
 import { HOME_FILTERS_STORAGE_KEY } from "@/lib/homeFilters";
 import { distanceKm, TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { RATING_TICKS, activeMoodIndex } from "@/lib/beaverRating";
@@ -198,9 +198,10 @@ export function WorkplaceBrowser() {
         : [],
   );
   const [minRating, setMinRating] = useState(() => (typeof initialFilters.minRating === "number" ? initialFilters.minRating : 0));
-  // 3 = "Any" (Risk Score's own maximum), same as the Jobs page.
+  // RISK_SCORE_ANY = no limit, same as the Jobs page; a saved 3 from before
+  // "Any" moved to the slider's first stop also means no limit.
   const [maxRiskScore, setMaxRiskScore] = useState(() =>
-    typeof initialFilters.maxRiskScore === "number" ? initialFilters.maxRiskScore : 3,
+    typeof initialFilters.maxRiskScore === "number" && initialFilters.maxRiskScore < 3 ? initialFilters.maxRiskScore : RISK_SCORE_ANY,
   );
   const [selectedCities, setSelectedCities] = useState<string[]>(() =>
     Array.isArray(initialFilters.selectedCities) ? initialFilters.selectedCities : [],

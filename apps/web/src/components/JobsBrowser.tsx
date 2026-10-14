@@ -33,7 +33,7 @@ import { distanceKm, TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
-import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
+import { RISK_SCORE_ANY, RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
 import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
@@ -250,7 +250,7 @@ export function JobsBrowser() {
   // 3 = "Any" (no filter) — riskScore's own max is 3, so "3 and below"
   // trivially matches every company, same reasoning minRating's top end
   // (5) already uses for its own "Any" state.
-  const [maxRiskScore, setMaxRiskScore] = useState(3);
+  const [maxRiskScore, setMaxRiskScore] = useState(RISK_SCORE_ANY);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -626,13 +626,6 @@ export function JobsBrowser() {
                     style={{ background: "linear-gradient(to right, #ef4444, #22c55e)" }}
                     title="Click and drag along the slider, or scroll, to fine-tune"
                   >
-                    {RATING_TICKS.map((tick) => (
-                      <span
-                        key={tick.value}
-                        className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-white/70"
-                        style={{ left: `${(tick.value / 5) * 100}%` }}
-                      />
-                    ))}
                     <span
                       className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
                       style={{ left: `${(minRating / 5) * 100}%` }}

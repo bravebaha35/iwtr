@@ -5,6 +5,7 @@ import type { WorkplaceType } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import type { CategoryGroup } from "@/lib/categoryGroups";
 import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
+import { useStickyTop } from "@/lib/useStickyTop";
 import { AdSlot } from "@/components/AdSlot";
 import { WordTabs } from "@/components/WordTabs";
 import { SocialSidebar } from "./SocialSidebar";
@@ -42,6 +43,10 @@ const TAB_LABELS: Record<FeedTab, string> = {
 // 100rem the right ad has its own column too = 25.5rem | 29.5rem. The left
 // ad waits for 86rem (not `xl`, as on other pages) so the feed is never
 // squeezed below about 30rem to make room for it.
+//
+// Both side columns follow the page as it scrolls (sticky, see useStickyTop):
+// a column taller than the window scrolls until its end is in view, then
+// stays.
 const SIDE_MIN = "lg:min-w-72 min-[86rem]:min-w-[25.5rem] min-[100rem]:min-w-[29.5rem]";
 
 export function SocialShell() {
@@ -57,6 +62,8 @@ export function SocialShell() {
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
   const [tab, setTab] = useState<FeedTab>("explore");
   const openTab: FeedTab = tabs.includes(tab) ? tab : "explore";
+  const { ref: leftRef, top: leftTop } = useStickyTop<HTMLDivElement>();
+  const { ref: rightRef, top: rightTop } = useStickyTop<HTMLDivElement>();
 
   // /social?tab=questions opens straight on that tab (the "back" link of a
   // question's page, a notification without a question of its own).
@@ -69,8 +76,8 @@ export function SocialShell() {
     <>
       <SocialWelcomeDialog />
 
-      <div className="flex flex-col gap-6 sm:flex-row lg:grid lg:grid-cols-[1fr_minmax(0,36rem)_1fr] lg:items-start">
-        <div className={`flex shrink-0 flex-col gap-6 sm:flex-row sm:items-start lg:justify-end ${SIDE_MIN}`}>
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start lg:grid lg:grid-cols-[1fr_minmax(0,36rem)_1fr] lg:items-start">
+        <div ref={leftRef} style={{ top: leftTop }} className={`flex shrink-0 flex-col gap-6 sm:sticky sm:flex-row sm:items-start lg:justify-end ${SIDE_MIN}`}>
           <AdSlot show="roomy" />
           <SocialSidebar
             mode="global"
@@ -106,7 +113,7 @@ export function SocialShell() {
           </div>
         </div>
 
-        <div className={`hidden items-start gap-6 lg:flex ${SIDE_MIN}`}>
+        <div ref={rightRef} style={{ top: rightTop }} className={`hidden items-start gap-6 lg:sticky lg:flex ${SIDE_MIN}`}>
           <SocialRail
             onOpenQuestions={() => {
               setTab("questions");

@@ -9,7 +9,7 @@ import { planNameForOwnerTier } from "@/lib/pricingTiers";
 
 type Period = (typeof SOCIAL_INSIGHTS_PERIODS)[number];
 
-const PERIOD_LABEL: Record<Period, string> = { 7: "7 days", 30: "30 days", 90: "90 days", 365: "12 months" };
+const PERIOD_LABEL: Record<Period, string> = { 7: "7 days", 30: "30 days", 60: "60 days", 90: "90 days" };
 
 const KIND_LABEL: Record<SocialPostKind, string> = {
   PHOTO: "Photo",
@@ -233,7 +233,7 @@ export function SocialInsightsPanel({
           );
         })}
       </div>
-      {data && data.maxDays < 365 && (
+      {data && data.maxDays < Math.max(...SOCIAL_INSIGHTS_PERIODS) && (
         <p className="mt-2 text-[13px] text-muted-foreground">
           Your {planNameForOwnerTier(data.tier)} plan looks back {PERIOD_LABEL[data.maxDays as Period]}.{" "}
           <button type="button" onClick={onOpenPricing} className="font-semibold text-brand-600 hover:underline dark:text-brand-400">

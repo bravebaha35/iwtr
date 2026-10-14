@@ -352,11 +352,16 @@ export function QuestionCard({
   onDeleted,
   // On the question's own page the time is not a link to itself.
   linkToPage = true,
+  // The company's shared login reads its company's questions in the
+  // dashboard but cannot answer, hide, show, delete or report (those stay
+  // with the owner's own account): no buttons for any of it.
+  readOnly = false,
 }: {
   question: PublicSocialQuestion;
   onChanged?: (question: PublicSocialQuestion) => void;
   onDeleted?: (questionId: string) => void;
   linkToPage?: boolean;
+  readOnly?: boolean;
 }) {
   const { isAuthenticated, role, openAuthModal } = useAuth();
   const isMember = isAuthenticated && role === "MEMBER";
@@ -369,7 +374,9 @@ export function QuestionCard({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const q = question;
+  const q: PublicSocialQuestion = readOnly
+    ? { ...question, canAnswer: false, canSetVisibility: false, answers: question.answers.map((a) => ({ ...a, mine: false })) }
+    : question;
   const pageHref = `/social/questions/${q.id}`;
   const companyName = q.target.kind === "company" ? q.target.companyName : null;
   const hiddenAnswers = q.answerCount - q.answers.length;
@@ -523,7 +530,7 @@ export function QuestionCard({
             )}
           </p>
         </div>
-        {(q.mine || isAuthenticated) && (
+        {!readOnly && (q.mine || isAuthenticated) && (
           <ItemMenu
             label="Question options"
             mine={q.mine}
@@ -608,7 +615,7 @@ export function QuestionCard({
                     {a.helpfulCount > 0 && <span className="tabular-nums">{a.helpfulCount}</span>}
                   </button>
                 </div>
-                {(a.mine || isAuthenticated) && (
+                {!readOnly && (a.mine || isAuthenticated) && (
                   <ItemMenu
                     label="Answer options"
                     mine={a.mine}
