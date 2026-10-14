@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import type { OwnedCompany, ScheduledSocialPost, ScheduledSocialPostList, SocialInsights } from "@iwtr/shared-types";
 import { SocialInsightsPanel, forgetSocialInsights } from "../SocialInsightsPanel";
 import { ScheduledPostsPanel } from "../ScheduledPostsPanel";
+import { SocialToolsCategory } from "../SocialToolsCategory";
 import * as apiClient from "@/lib/api-client";
 
 jest.mock("@/lib/api-client");
@@ -65,13 +66,13 @@ describe("SocialInsightsPanel", () => {
   });
 
   it("marks the period the plan gave, and a longer one opens the plans instead of asking for it", async () => {
-    // A Free company asking for 30 days is given its 7.
-    api.apiGet.mockResolvedValue(insights({ tier: "FREE", days: 7, maxDays: 7 }) as never);
+    // A Starter company reaches 30 days; 60 and 90 are for higher plans.
+    api.apiGet.mockResolvedValue(insights() as never);
     const onOpenPricing = jest.fn();
     render(<SocialInsightsPanel companyId="c1" companyName="Acme" onOpenPricing={onOpenPricing} />);
 
-    expect(await screen.findByText(/Your Free plan looks back 7 days/)).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "7 days" })).toHaveAttribute("aria-checked", "true");
+    expect(await screen.findByText(/Your Starter plan looks back 30 days/)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "30 days" })).toHaveAttribute("aria-checked", "true");
 
     fireEvent.click(screen.getByRole("radio", { name: "90 days" }));
     expect(onOpenPricing).toHaveBeenCalledTimes(1);
@@ -197,5 +198,34 @@ describe("ScheduledPostsPanel", () => {
     await screen.findByText("We moved offices.");
     fireEvent.click(screen.getByRole("button", { name: "Post now" }));
     expect(await screen.findByText("Couldn't post that.")).toBeInTheDocument();
+  });
+});
+
+describe("SocialToolsCategory", () => {
+  it("on Free it is one note about the plans, and reads nothing", () => {
+    const onOpenPricing = jest.fn();
+    render(<SocialToolsCategory company={{ ...company, tier: "FREE", planStatus: "NONE" }} onOpenPricing={onOpenPricing} />);
+    expect(screen.getByText(/comes with the Starter, Pro and Enterprise plans/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Compare plans" }));
+    expect(onOpenPricing).toHaveBeenCalled();
+    expect(api.apiGet).not.toHaveBeenCalled();
+  });
+
+  it("a lapsed paid plan counts as Free", () => {
+    render(<SocialToolsCategory company={{ ...company, tier: "PRO", planStatus: "CANCELED" }} onOpenPricing={jest.fn()} />);
+    expect(screen.getByText(/comes with the Starter, Pro and Enterprise plans/)).toBeInTheDocument();
+    expect(api.apiGet).not.toHaveBeenCalled();
+  });
+
+  it("the company login sees Insights and the waiting posts, with no buttons to change them", async () => {
+    api.apiGet.mockImplementation((path: string) =>
+      Promise.resolve((path.startsWith("/social/company-insights") ? insights() : list([waitingPost()])) as never),
+    );
+    render(<SocialToolsCategory company={company} onOpenPricing={jest.fn()} readOnly />);
+    expect(await screen.findByText("We moved offices.")).toBeInTheDocument();
+    expect(await screen.findByText("1,310")).toBeInTheDocument();
+    for (const name of ["Schedule a post", "Post now", "Change time", "Delete"]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
   });
 });

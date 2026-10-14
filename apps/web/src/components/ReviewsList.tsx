@@ -207,23 +207,27 @@ export function ReviewsList({
         <div
           key={review.id}
           id={`review-${review.id}`}
-          // The featured review drops its work-type colour edge and gets a
-          // plain gold outline instead (same gold as the boosted job cards).
+          // The featured review drops its work-type colour edge and gets the
+          // boosted job cards' gold outline and glow; a pin marks it.
           className={`scroll-mt-24 ${
             review === featured
-              ? "rounded-xl border border-amber-400 p-6 compact:p-3"
+              ? "boosted-card rounded-xl border p-6 compact:p-3"
               : `border-l-2 py-1.5 pl-6 compact:pl-3 ${collarBorderClass(review.workplaceType)}`
           } ${pulsingId === review.id ? "highlight-pulse" : ""}`}
         >
-          {review === featured && (
-            <p className="mb-4 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
+          <div className="mb-5 compact:mb-2 flex items-center gap-2.5">
+            {review === featured && (
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400"
+                fill="currentColor"
+                role="img"
+                aria-label={`Featured by ${companyName ?? "the company"}`}
+              >
+                <title>{`Featured by ${companyName ?? "the company"}`}</title>
                 <path d="M16 3a1 1 0 0 1 .7 1.7L15 6.4V10l3.3 3.3a1 1 0 0 1-.7 1.7H13v6a1 1 0 0 1-2 0v-6H6.4a1 1 0 0 1-.7-1.7L9 10V6.4L7.3 4.7A1 1 0 0 1 8 3h8Z" />
               </svg>
-              Featured by {companyName ?? "the company"}
-            </p>
-          )}
-          <div className="mb-5 compact:mb-2 flex items-center gap-2.5">
+            )}
             <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />
             {review.displayUsername && (
               <span className="shrink-0 text-base font-semibold text-foreground">{review.displayUsername}</span>

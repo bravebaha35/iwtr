@@ -288,7 +288,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   // answer. Both are read again when the section they belong to changes.
   const [freeAdsLeft, setFreeAdsLeft] = useState<number | null>(null);
   const [questionCounts, setQuestionCounts] = useState<CompanyQuestionCounts | null>(null);
-  const questionsOn = SOCIAL_QUESTIONS_ENABLED && !companyAccount;
+  const questionsOn = SOCIAL_QUESTIONS_ENABLED;
   const loadFreeAds = useCallback(() => {
     apiGet<JobPostingBoostStatus>(`/my-companies/${claim.companyId}/job-postings/boost-status`)
       .then((s) => setFreeAdsLeft(s.freeBoostsRemaining))
@@ -654,11 +654,17 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             {activeCategory === "applications" && <ApplicationsCategory companyId={claim.companyId} />}
 
             {activeCategory === "questions" && questionsOn && (
-              <QuestionsCategory companyId={claim.companyId} companyName={claim.companyName} onCounts={setQuestionCounts} />
+              <QuestionsCategory
+                companyId={claim.companyId}
+                companyName={claim.companyName}
+                onCounts={setQuestionCounts}
+                readOnly={!!companyAccount}
+              />
             )}
 
-            {activeCategory === "social" && !companyAccount && (
+            {activeCategory === "social" && (
               <SocialToolsCategory
+                readOnly={!!companyAccount}
                 company={{
                   companyId: claim.companyId,
                   companyName: detail?.company.name ?? claim.companyName,

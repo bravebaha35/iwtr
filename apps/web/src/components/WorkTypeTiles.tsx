@@ -6,15 +6,18 @@ import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarTileTone } from "@/lib/collarColors";
 
 // One object per kind of work, drawn for these tiles: a pencil, a headset,
-// two hands reaching for each other, a hammer. Square art on a clear
+// two hands reaching for each other, a hard hat. Square art on a clear
 // background; the files keep the names the owner gave them (%20 = the space).
-// `place` sits each one in the tile's bottom-right corner - the hands are
-// drawn corner to corner, so they run off the tile's edges on purpose.
+// `place` sits each one in the tile's bottom-right corner. The square files
+// have empty margins of their own, so the negative offsets only cancel those:
+// the drawn object itself stays about 6px inside the tile's edge. The hands
+// are the one exception - drawn corner to corner, they run off the bottom-left
+// and right edges on purpose, with the fingertips near the tile's middle.
 const WORK_TYPE_ART: Record<WorkplaceType, { src: string; place: string }> = {
-  OFFICE: { src: "/Office%20QS.webp", place: "-bottom-5 -right-2 h-[5.25rem] w-[5.25rem]" },
-  HYBRID_REMOTE: { src: "/Hybrid%20QS.webp", place: "-bottom-3 -right-1 h-16 w-16" },
-  SERVICE: { src: "/Service%20QS.webp", place: "-bottom-3 -right-3 h-[4.5rem] w-[4.5rem]" },
-  MANUAL_LABOUR: { src: "/Manual-Labour%20QS.webp", place: "-bottom-3.5 -right-1.5 h-[4.5rem] w-[4.5rem]" },
+  OFFICE: { src: "/Office%20QS.webp", place: "-bottom-[14px] -right-px h-20 w-20" },
+  HYBRID_REMOTE: { src: "/Hybrid%20QS.webp", place: "-bottom-[9px] -right-[2px] h-16 w-16" },
+  SERVICE: { src: "/Service%20QS.webp", place: "-bottom-[10px] -right-[6px] h-24 w-24" },
+  MANUAL_LABOUR: { src: "/Manual-Labour%20QS.webp", place: "-bottom-[23px] -right-[4px] h-[5.25rem] w-[5.25rem]" },
 };
 
 /**

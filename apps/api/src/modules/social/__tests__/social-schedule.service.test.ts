@@ -261,7 +261,7 @@ describe("SocialScheduleWorker", () => {
   it("runs one pass at a time", async () => {
     let release: () => void = () => undefined;
     const publishDue = jest.fn().mockImplementation(() => new Promise<number>((resolve) => (release = () => resolve(0))));
-    const worker = new SocialScheduleWorker({ publishDue } as never);
+    const worker = new SocialScheduleWorker({ publishDue } as never, { pruneOldDays: jest.fn() } as never);
     const first = worker.tick();
     await worker.tick();
     expect(publishDue).toHaveBeenCalledTimes(1);
@@ -273,10 +273,18 @@ describe("SocialScheduleWorker", () => {
     await next;
   });
 
+  it("clears old Insights days on its first pass, then only every few hours", async () => {
+    const pruneOldDays = jest.fn().mockResolvedValue(0);
+    const worker = new SocialScheduleWorker({ publishDue: jest.fn().mockResolvedValue(0) } as never, { pruneOldDays } as never);
+    await worker.tick();
+    await worker.tick();
+    expect(pruneOldDays).toHaveBeenCalledTimes(1);
+  });
+
   it("does not poll when switched off", () => {
     const spy = jest.spyOn(global, "setInterval");
     process.env.SOCIAL_SCHEDULE_WORKER_DISABLED = "1";
-    new SocialScheduleWorker({ publishDue: jest.fn() } as never).onModuleInit();
+    new SocialScheduleWorker({ publishDue: jest.fn() } as never, { pruneOldDays: jest.fn() } as never).onModuleInit();
     expect(spy).not.toHaveBeenCalled();
     delete process.env.SOCIAL_SCHEDULE_WORKER_DISABLED;
     spy.mockRestore();

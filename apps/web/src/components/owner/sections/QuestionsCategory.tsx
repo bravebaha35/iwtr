@@ -34,9 +34,13 @@ export function QuestionsCategory({
   companyId,
   companyName,
   onCounts,
+  readOnly = false,
 }: {
   companyId: string;
   companyName: string;
+  // The shared company login: it sees every question and answer, but
+  // answering and hiding / showing stay with the owner's own account.
+  readOnly?: boolean;
   // Each read hands the fresh counts up, for the "N waiting" line in the side list.
   onCounts?: (counts: CompanyQuestionCounts) => void;
 }) {
@@ -128,14 +132,23 @@ export function QuestionsCategory({
     <div className="flex flex-col gap-5">
       <div className="rounded-2xl bg-surface p-7 shadow-xs">
         <h3 className="font-semibold text-foreground">Questions</h3>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Questions people asked {companyName} on IWT Social. A new question is seen only by you and the person who asked.
-          Answer it, then choose: show it to everyone on your Social tab, or keep it hidden. You can change that later.
-        </p>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Your answer is the only way to reply. The person who asked stays anonymous and cannot be messaged. If a question
-          breaks the rules, use &quot;Report to admin&quot; on it.
-        </p>
+        {readOnly ? (
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Questions people asked {companyName} on IWT Social, and the answers. Answering, and choosing whether a question is
+            shown to everyone, is done from the company owner&apos;s own account.
+          </p>
+        ) : (
+          <>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Questions people asked {companyName} on IWT Social. A new question is seen only by you and the person who asked.
+              Answer it, then choose: show it to everyone on your Social tab, or keep it hidden. You can change that later.
+            </p>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Your answer is the only way to reply. The person who asked stays anonymous and cannot be messaged. If a question
+              breaks the rules, use &quot;Report to admin&quot; on it.
+            </p>
+          </>
+        )}
 
         <div role="radiogroup" aria-label="Which questions to show" className="mt-4 flex flex-wrap gap-1.5">
           {FILTERS.map((f) => {
@@ -166,7 +179,7 @@ export function QuestionsCategory({
         {questions === null && !error && <QuestionListSkeleton count={2} />}
         {questions !== null && questions.length === 0 && <p className="px-1 text-sm text-muted-foreground">{EMPTY[filter ?? "all"]}</p>}
         {questions?.map((question) => (
-          <QuestionCard key={question.id} question={question} onChanged={changed} />
+          <QuestionCard key={question.id} question={question} onChanged={changed} readOnly={readOnly} />
         ))}
         {cursor && (
           <button

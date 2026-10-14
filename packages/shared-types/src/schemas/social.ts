@@ -124,14 +124,15 @@ export type CreateSocialPostInput = Omit<z.infer<typeof createSocialPostInputSch
 
 // --- Posting later (phase 4). The same form as a post, plus the moment it
 // should go out. How many posts a company can have waiting depends on its
-// plan; the API also holds the time to a window (see the two constants).
+// plan (Free: none - the whole Post Scheduling section is Starter and up);
+// the API also holds the time to a window (see the two constants).
 export const SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD = 5;
 export const SOCIAL_SCHEDULE_MAX_DAYS_AHEAD = 60;
 export const SOCIAL_SCHEDULED_POST_LIMITS: Record<OwnerTier, number> = {
   FREE: 0,
   STARTER: 3,
   PRO: 10,
-  ENTERPRISE: 30,
+  ENTERPRISE: 15,
 };
 
 export const scheduleSocialPostInputSchema = socialPostFields
@@ -180,15 +181,20 @@ export const recordSocialViewsInputSchema = z.object({
 export type RecordSocialViewsInput = z.infer<typeof recordSocialViewsInputSchema>;
 
 // --- Insights (phase 4): a company's own IWT Social numbers. Counts only.
-// How far back each plan can look, in days.
+// How far back each plan can look, in days. Free has no Insights at all, and
+// nothing reaches past 90 days, so the API never reads (or keeps) older day
+// rows - see SOCIAL_DAY_KEEP_DAYS.
 export const SOCIAL_INSIGHTS_DAYS: Record<OwnerTier, number> = {
-  FREE: 7,
+  FREE: 0,
   STARTER: 30,
-  PRO: 90,
-  ENTERPRISE: 365,
+  PRO: 60,
+  ENTERPRISE: 90,
 };
 // The periods the dashboard offers.
-export const SOCIAL_INSIGHTS_PERIODS = [7, 30, 90, 365] as const;
+export const SOCIAL_INSIGHTS_PERIODS = [7, 30, 60, 90] as const;
+// How long the per-day counters (CompanySocialDay) are kept: the longest
+// Insights period plus a little slack for Turkey's day boundary.
+export const SOCIAL_DAY_KEEP_DAYS = 92;
 
 export const socialInsightsDaySchema = z.object({
   // "2026-10-14" (UTC day).

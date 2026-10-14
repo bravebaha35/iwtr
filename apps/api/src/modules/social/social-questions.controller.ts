@@ -19,6 +19,7 @@ import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guar
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { OptionalCurrentUser } from "../../common/decorators/optional-current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
@@ -134,6 +135,7 @@ export class SocialQuestionsController {
   @Get("company-questions/:companyId/counts")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("COMPANY_OWNER")
+  @CompanyAccountAllowed()
   countsForCompany(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
     return this.questions.countsForCompany(user.id, companyId);
   }
@@ -144,6 +146,7 @@ export class SocialQuestionsController {
   @Get("company-questions/:companyId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("COMPANY_OWNER")
+  @CompanyAccountAllowed()
   listForCompany(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,

@@ -116,8 +116,13 @@ describe("phase 4: posting later, views, insights", () => {
       expect([...values].sort((a, b) => a - b)).toEqual(values);
       expect(new Set(values).size).toBe(4);
     }
-    // Free cannot schedule; every plan's reach is one of the offered periods.
+    // Free has neither; every paid plan's reach is one of the offered
+    // periods, and none looks back past 90 days.
     expect(SOCIAL_SCHEDULED_POST_LIMITS.FREE).toBe(0);
-    expect(order.map((tier) => SOCIAL_INSIGHTS_DAYS[tier])).toEqual([...SOCIAL_INSIGHTS_PERIODS]);
+    expect(SOCIAL_INSIGHTS_DAYS.FREE).toBe(0);
+    for (const tier of ["STARTER", "PRO", "ENTERPRISE"] as const) {
+      expect(SOCIAL_INSIGHTS_PERIODS).toContain(SOCIAL_INSIGHTS_DAYS[tier]);
+    }
+    expect(Math.max(...SOCIAL_INSIGHTS_PERIODS)).toBe(90);
   });
 });

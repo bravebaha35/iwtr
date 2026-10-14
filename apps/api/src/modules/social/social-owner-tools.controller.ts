@@ -29,6 +29,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { CompanyAccountAllowed } from "../../common/decorators/company-account-allowed.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { SocialInsightsService } from "./social-insights.service";
@@ -37,7 +38,8 @@ import { SocialScheduleService } from "./social-schedule.service";
 /**
  * Phase 4 of IWT Social: post views, the owner's Insights and posting later.
  * The owner routes are for an approved owner of the company (checked in the
- * services); none of them is opened to the shared company login.
+ * services). The shared company login may read the two dashboard lists
+ * (Insights, the waiting posts) but not schedule, move, publish or delete.
  */
 @Controller("social")
 export class SocialOwnerToolsController {
@@ -60,10 +62,11 @@ export class SocialOwnerToolsController {
   }
 
   // A company's own numbers: followers, views, reactions, comments, its
-  // most seen posts. `days` is one of 7 / 30 / 90 / 365, cut to the plan.
+  // most seen posts. `days` is one of 7 / 30 / 60 / 90, cut to the plan.
   @Get("company-insights/:companyId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("COMPANY_OWNER")
+  @CompanyAccountAllowed()
   companyInsights(
     @CurrentUser() user: AuthenticatedUser,
     @Param("companyId", new ParseUUIDPipe()) companyId: string,
@@ -90,6 +93,7 @@ export class SocialOwnerToolsController {
   @Get("company-scheduled/:companyId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("COMPANY_OWNER")
+  @CompanyAccountAllowed()
   listScheduled(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
     return this.schedule.list(user.id, companyId);
   }

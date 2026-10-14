@@ -22,7 +22,7 @@ const REFRESH_MS = 30_000;
 
 const quietButton = "rounded-full bg-surface-muted px-3 py-1 text-[13px] font-semibold text-foreground transition hover:bg-border/70 active:scale-[0.98] disabled:opacity-50";
 
-function Row({ post, onChanged }: { post: ScheduledSocialPost; onChanged: () => void }) {
+function Row({ post, onChanged, readOnly }: { post: ScheduledSocialPost; onChanged: () => void; readOnly: boolean }) {
   const [mode, setMode] = useState<"idle" | "time" | "delete">("idle");
   const [time, setTime] = useState(() => localInputValue(new Date(post.publishAt)));
   const [busy, setBusy] = useState(false);
@@ -64,7 +64,7 @@ function Row({ post, onChanged }: { post: ScheduledSocialPost; onChanged: () => 
         </div>
       </div>
 
-      {mode === "idle" && (
+      {mode === "idle" && !readOnly && (
         <div className="flex flex-wrap gap-1.5 pl-[3.75rem]">
           <button type="button" onClick={() => setMode("time")} disabled={busy} className={quietButton}>
             {failed ? "Pick a new time" : "Change time"}
@@ -133,9 +133,18 @@ function Row({ post, onChanged }: { post: ScheduledSocialPost; onChanged: () => 
  * form as a post, and can move its time, publish it at once or delete it
  * while it waits. A post that could not go out (its job ad closed, say)
  * stays in the list with the reason. How many may wait at a time comes from
- * the plan; Free has none.
+ * the plan; Free has none. `readOnly` (the shared company login) lists the
+ * waiting posts without any of the buttons.
  */
-export function ScheduledPostsPanel({ company, onOpenPricing }: { company: OwnedCompany; onOpenPricing: () => void }) {
+export function ScheduledPostsPanel({
+  company,
+  onOpenPricing,
+  readOnly = false,
+}: {
+  company: OwnedCompany;
+  onOpenPricing: () => void;
+  readOnly?: boolean;
+}) {
   const [list, setList] = useState<ScheduledSocialPostList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
@@ -167,7 +176,9 @@ export function ScheduledPostsPanel({ company, onOpenPricing }: { company: Owned
     <div className="rounded-2xl bg-surface p-7 shadow-xs">
       <h3 className="font-semibold text-foreground">Scheduled posts</h3>
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-        Write a post now and pick when it goes out. Until then nobody sees it.
+        {readOnly
+          ? "Posts written to go out later, and when. Scheduling them is done from the company owner's own account."
+          : "Write a post now and pick when it goes out. Until then nobody sees it."}
         {onPlan && (
           <>
             {" "}
@@ -188,7 +199,7 @@ export function ScheduledPostsPanel({ company, onOpenPricing }: { company: Owned
         </p>
       )}
 
-      {onPlan && !writing && (
+      {onPlan && !writing && !readOnly && (
         <div className="mt-4">
           <button
             type="button"
@@ -202,7 +213,7 @@ export function ScheduledPostsPanel({ company, onOpenPricing }: { company: Owned
         </div>
       )}
 
-      {onPlan && writing && (
+      {onPlan && writing && !readOnly && (
         <div className="mt-4 max-w-xl rounded-2xl bg-surface-muted/50 p-1">
           <SocialComposer
             companies={[company]}
@@ -220,7 +231,7 @@ export function ScheduledPostsPanel({ company, onOpenPricing }: { company: Owned
       {list && list.posts.length > 0 && (
         <ul className="mt-6 border-t border-border pt-4">
           {list.posts.map((post) => (
-            <Row key={`${post.id}:${post.publishAt}:${post.status}`} post={post} onChanged={load} />
+            <Row key={`${post.id}:${post.publishAt}:${post.status}`} post={post} onChanged={load} readOnly={readOnly} />
           ))}
         </ul>
       )}

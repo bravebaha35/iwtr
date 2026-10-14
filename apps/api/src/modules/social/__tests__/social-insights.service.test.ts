@@ -114,16 +114,27 @@ describe("SocialInsightsService.insights", () => {
     }
   });
 
-  it("reaches as far back as the plan allows, and a lapsed plan counts as Free", async () => {
+  it("is not on the Free plan, and a lapsed paid plan counts as Free", async () => {
+    for (const ownership of [
+      { claimStatus: "APPROVED", tier: "FREE", planStatus: "ACTIVE" },
+      { claimStatus: "APPROVED", tier: "ENTERPRISE", planStatus: "CANCELED" },
+    ]) {
+      const prisma = insightsPrisma({ ownership });
+      await expect(new SocialInsightsService(prisma as never).insights("u1", "c1", 30)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.companyFollow.count).not.toHaveBeenCalled();
+    }
+  });
+
+  it("reaches as far back as the plan allows", async () => {
     const cases: [unknown, number | undefined, number, number][] = [
-      [{ claimStatus: "APPROVED", tier: "FREE", planStatus: "ACTIVE" }, 365, 7, 7],
       [{ claimStatus: "APPROVED", tier: "STARTER", planStatus: "ACTIVE" }, 90, 30, 30],
-      [{ claimStatus: "APPROVED", tier: "PRO", planStatus: "ACTIVE" }, 7, 7, 90],
-      [{ claimStatus: "APPROVED", tier: "ENTERPRISE", planStatus: "ACTIVE" }, 365, 365, 365],
-      [{ claimStatus: "APPROVED", tier: "ENTERPRISE", planStatus: "CANCELED" }, 365, 7, 7],
+      [{ claimStatus: "APPROVED", tier: "PRO", planStatus: "ACTIVE" }, 7, 7, 60],
+      [{ claimStatus: "APPROVED", tier: "PRO", planStatus: "ACTIVE" }, 90, 60, 60],
+      [{ claimStatus: "APPROVED", tier: "ENTERPRISE", planStatus: "ACTIVE" }, 90, 90, 90],
       // Not one of the offered periods: 30 days, cut to the plan.
-      [{ claimStatus: "APPROVED", tier: "PRO", planStatus: "ACTIVE" }, 12, 30, 90],
-      [{ claimStatus: "APPROVED", tier: "PRO", planStatus: "ACTIVE" }, undefined, 30, 90],
+      [{ claimStatus: "APPROVED", tier: "ENTERPRISE", planStatus: "ACTIVE" }, 365, 30, 90],
+      [{ claimStatus: "APPROVED", tier: "PRO", planStatus: "ACTIVE" }, 12, 30, 60],
+      [{ claimStatus: "APPROVED", tier: "PRO", planStatus: "ACTIVE" }, undefined, 30, 60],
     ];
     for (const [ownership, asked, days, maxDays] of cases) {
       const result = await new SocialInsightsService(insightsPrisma({ ownership }) as never).insights("u1", "c1", asked);
@@ -187,5 +198,16 @@ describe("SocialInsightsService.insights", () => {
     // Counts only: nothing asks for a member's id.
     const reads = [prisma.socialPostLike.count, prisma.socialComment.count, prisma.companyFollow.count, prisma.socialPost.findMany];
     expect(JSON.stringify(reads.map((r) => r.mock.calls))).not.toMatch(/userId|authorUserId/);
+  });
+});
+
+describe("SocialInsightsService.pruneOldDays", () => {
+  it("drops the day counters older than any plan can look back", async () => {
+    const deleteMany = jest.fn().mockResolvedValue({ count: 4 });
+    const removed = await new SocialInsightsService({ companySocialDay: { deleteMany } } as never).pruneOldDays();
+    expect(removed).toBe(4);
+    const cutoff: Date = deleteMany.mock.calls[0][0].where.day.lt;
+    const daysBack = Math.round((socialDay().getTime() - cutoff.getTime()) / DAY_MS);
+    expect(daysBack).toBe(92);
   });
 });

@@ -14,4 +14,6 @@ it("the owner sees the Company Login section", () => {
 it("someone signed in with the company login doesn't (they can't change it)", () => {
   render(<OwnerDashboardSidePanel active="general-info" onChange={jest.fn()} isCompanyLogin />);
   expect(sections()).not.toContain("Company Login");
+  // It sees everything else about the company, Questions and Post Scheduling included (read-only).
+  expect(sections()).toEqual(expect.arrayContaining(["Post Scheduling", "Job Postings"]));
 });
