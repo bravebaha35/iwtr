@@ -18,6 +18,7 @@ import {
 } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
+import { useAuth } from "@/lib/auth-context";
 import { fetchBrowsePage, hasBrowsePage, prefetchBrowsePage } from "@/lib/companyBrowse";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
@@ -33,7 +34,8 @@ import { distanceKm, TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
-import { RISK_SCORE_ANY, RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
+import { CardGridSkeleton } from "@/components/CardGridSkeleton";
+import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
 import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
@@ -91,10 +93,14 @@ function PaginationBar({
   page,
   totalPages,
   onChange,
+  onIntent,
 }: {
   page: number;
   totalPages: number;
   onChange: (page: number) => void;
+  // The pointer or keyboard is on a page button: fetch that page now, so the
+  // click shows it at once. Only pages someone is about to open are fetched.
+  onIntent?: (page: number) => void;
 }) {
   if (totalPages <= 1) return null;
   return (
@@ -102,6 +108,8 @@ function PaginationBar({
       <button
         type="button"
         onClick={() => onChange(Math.max(1, page - 1))}
+        onPointerEnter={() => page > 1 && onIntent?.(page - 1)}
+        onFocus={() => page > 1 && onIntent?.(page - 1)}
         disabled={page === 1}
         aria-label="Previous page"
         className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
@@ -118,6 +126,8 @@ function PaginationBar({
             key={p}
             type="button"
             onClick={() => onChange(p)}
+            onPointerEnter={() => p !== page && onIntent?.(p)}
+            onFocus={() => p !== page && onIntent?.(p)}
             aria-current={p === page ? "page" : undefined}
             className={`min-w-9 rounded-lg px-2.5 py-1.5 font-medium transition ${
               p === page ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
@@ -130,6 +140,8 @@ function PaginationBar({
       <button
         type="button"
         onClick={() => onChange(Math.min(totalPages, page + 1))}
+        onPointerEnter={() => page < totalPages && onIntent?.(page + 1)}
+        onFocus={() => page < totalPages && onIntent?.(page + 1)}
         disabled={page === totalPages}
         aria-label="Next page"
         className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
@@ -145,6 +157,26 @@ function PaginationBar({
 // featured ads come first; the job grid itself always starts unfiltered.
 type MemberField = { sector: { value: string; label: string } | null; workType: WorkplaceType | null };
 const NO_FIELD: MemberField = { sector: null, workType: null };
+
+// The member's field, read once and kept while the tab is open (it changes
+// only when they edit their profile), so coming back to Jobs asks nothing.
+const FIELD_KEEP_MS = 10 * 60_000;
+let rememberedField: { at: number; read: Promise<MemberField> } | null = null;
+
+function readMemberField(): Promise<MemberField> {
+  if (rememberedField && Date.now() - rememberedField.at < FIELD_KEEP_MS) return rememberedField.read;
+  const read = apiGet<MyProfile>("/me/profile").then(
+    (p): MemberField => ({ sector: p.sector ?? null, workType: p.workType ?? null }),
+    () => NO_FIELD,
+  );
+  rememberedField = { at: Date.now(), read };
+  return read;
+}
+
+/** Test hook: forget the remembered field. */
+export function forgetMemberField(): void {
+  rememberedField = null;
+}
 
 function nearestProvince(lat: number, lng: number): string {
   let best = TURKEY_PROVINCES[0];
@@ -224,7 +256,7 @@ function FollowingFilterList({
             type="button"
             onClick={() => onSelect(selectedCompanyId === c.companyId ? null : c.companyId)}
             aria-pressed={selectedCompanyId === c.companyId}
-            className={`truncate rounded-md px-1.5 py-1 text-left text-sm transition ${
+            className={`shrink-0 truncate rounded-md px-1.5 py-1 text-left text-sm transition ${
               selectedCompanyId === c.companyId
                 ? "bg-brand-600 font-semibold text-white"
                 : "text-foreground hover:bg-surface-muted"
@@ -250,7 +282,7 @@ export function JobsBrowser() {
   // 3 = "Any" (no filter) — riskScore's own max is 3, so "3 and below"
   // trivially matches every company, same reasoning minRating's top end
   // (5) already uses for its own "Any" state.
-  const [maxRiskScore, setMaxRiskScore] = useState(RISK_SCORE_ANY);
+  const [maxRiskScore, setMaxRiskScore] = useState(3);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -323,26 +355,29 @@ export function JobsBrowser() {
   }
 
   // Reads the member's Sector / kind of work once, for the featured row. A
-  // visitor, owner or company login simply has none.
+  // visitor, owner or company login simply has none - and is not asked.
+  const { isAuthenticated, isLoading: authLoading, role } = useAuth();
   useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated || role !== "MEMBER") {
+      setField(NO_FIELD);
+      return;
+    }
     let cancelled = false;
-    apiGet<MyProfile>("/me/profile")
-      .then((p) => {
-        if (!cancelled) setField({ sector: p.sector ?? null, workType: p.workType ?? null });
-      })
-      .catch(() => {
-        if (!cancelled) setField(NO_FIELD);
-      });
+    void readMemberField().then((next) => {
+      if (!cancelled) setField(next);
+    });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authLoading, isAuthenticated, role]);
 
   // Every filter, the sort, Quick Select, Near Me, the Following pick and
   // the page go to the server, which sends back only the job cards on
   // screen. Filter changes wait 250ms (one request per
   // slider drag, not one per step); page clicks go at once; a page already
-  // fetched or fetched ahead shows with no request at all.
+  // fetched (or fetched when the pointer reached its button) shows with no
+  // request at all. Nothing is fetched ahead that nobody asked for.
   const filterParams = useMemo(
     () =>
       jobsParams({
@@ -379,8 +414,6 @@ export function JobsBrowser() {
           setResult(data);
           setLoading(false);
           if (data.page !== page) setPage(data.page);
-          const pages = data.totalPages ?? Math.ceil(data.total / data.pageSize);
-          if (data.page < pages) prefetchBrowsePage(filterParams, data.page + 1);
         })
         .catch(() => {
           if (cancelled) return;
@@ -683,7 +716,7 @@ export function JobsBrowser() {
               </>
             ) : (
               <>
-                {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
+                {pageCompanies === null && <CardGridSkeleton />}
                 {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
                   <p className="text-sm text-red-600 dark:text-red-300">
                     Couldn&apos;t load workplaces right now — check your connection and try again.
@@ -755,7 +788,7 @@ export function JobsBrowser() {
                       Page {page} of {totalPages} — {total} job listing
                       {total === 1 ? "" : "s"}
                     </p>
-                    <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
+                    <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} onIntent={(p) => prefetchBrowsePage(filterParams, p)} />
                   </>
                 )}
               </>

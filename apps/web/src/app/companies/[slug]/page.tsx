@@ -192,6 +192,10 @@ export default async function CompanyPage({
   // From a notification link: the review to scroll to and pulse.
   const highlightReviewId = Array.isArray(review) ? review[0] : review;
 
+  // Both reads go out together. The narrative (for RatingNarrativeBox) is
+  // always 200 for a valid slug; a failure just leaves the box without text,
+  // same as the 0-review state.
+  const narrativeRead = apiGetPublic<CompanyNarrative>(`/companies/${slug}/narrative`).catch(() => null);
   let detail: CompanyDetail;
   try {
     detail = await apiGetPublic<CompanyDetail>(`/companies/${slug}`);
@@ -211,16 +215,7 @@ export default async function CompanyPage({
   // once it has an owner (any tier) it shows in full colour.
   const bannerIsGreyscale = !hasCustomBanner && !company.hasApprovedOwner;
 
-  // Server-side fetch purely for RatingNarrativeBox. The endpoint always
-  // returns 200 with { workplaceType, reviewCount, description } for a valid
-  // slug; a network error just falls back to null (box shows the illustration
-  // + nothing, same as the 0-review state).
-  let narrative: CompanyNarrative | null = null;
-  try {
-    narrative = await apiGetPublic<CompanyNarrative>(`/companies/${slug}/narrative`);
-  } catch {
-    narrative = null;
-  }
+  const narrative = await narrativeRead;
 
   return (
     // Same 3-column shell as the homepage (ad rail / content / ad rail) —

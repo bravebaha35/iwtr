@@ -56,6 +56,26 @@ interface JobsIndex {
 // instead of making the database list every hiring company again.
 const JOBS_INDEX_TTL_MS = 60_000;
 const JOBS_INDEX_MAX_ENTRIES = 200;
+
+// The homepage grid's sorted list for one set of filters: only ids, kept for
+// a minute like the Jobs list. Without it every page view (and every page
+// click) made the database list and sort the whole directory again.
+interface BrowseIndex {
+  ids: string[];
+  hiddenUnratedCount: number;
+}
+const BROWSE_INDEX_TTL_MS = 60_000;
+// Fewer than the Jobs list: an unfiltered view holds every company's id.
+const BROWSE_INDEX_MAX_ENTRIES = 50;
+
+/** One cache key per set of filters; the page number is not part of it. */
+function filterKey(query: CompanyBrowseQuery): string {
+  return JSON.stringify(
+    Object.entries({ ...query, page: undefined })
+      .filter(([, v]) => v !== undefined && v !== "")
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
+}
 // How many company ids one inferred-job-title read takes at a time.
 const JOB_TITLE_CHUNK = 2000;
 
@@ -69,6 +89,7 @@ function parsePositions(raw: string | undefined): JobPosition[] {
 @Injectable()
 export class CompaniesService {
   private readonly jobsIndexCache = new Map<string, { at: number; index: Promise<JobsIndex> }>();
+  private readonly browseIndexCache = new Map<string, { at: number; index: Promise<BrowseIndex> }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -291,6 +312,37 @@ export class CompaniesService {
    */
   async browse(query: CompanyBrowseQuery): Promise<CompanyBrowseResult> {
     if (query.jobs === "1") return this.browseJobs(query);
+    const { ids, hiddenUnratedCount } = await this.browseIndex(query);
+
+    const pageSize = COMPANY_BROWSE_PAGE_SIZE;
+    // A page past the end (the list shrank since the visitor last looked)
+    // lands on the last page rather than an empty one.
+    const page = Math.min(query.page ?? 1, Math.max(1, Math.ceil(ids.length / pageSize)));
+    const pageIds = ids.slice((page - 1) * pageSize, page * pageSize);
+
+    const items = await this.browseCards(pageIds, false);
+    return { items, total: ids.length, page, pageSize, hiddenUnratedCount, featured: [] };
+  }
+
+  // The sorted id list for one set of homepage filters, kept for a minute
+  // (BROWSE_INDEX_TTL_MS) and shared by everyone looking at the same view.
+  private browseIndex(query: CompanyBrowseQuery): Promise<BrowseIndex> {
+    const key = filterKey(query);
+    const hit = this.browseIndexCache.get(key);
+    if (hit && Date.now() - hit.at < BROWSE_INDEX_TTL_MS) return hit.index;
+
+    const index = this.buildBrowseIndex(query);
+    this.browseIndexCache.delete(key);
+    this.browseIndexCache.set(key, { at: Date.now(), index });
+    // A failed build mustn't stay cached.
+    index.catch(() => this.browseIndexCache.delete(key));
+    while (this.browseIndexCache.size > BROWSE_INDEX_MAX_ENTRIES) {
+      this.browseIndexCache.delete(this.browseIndexCache.keys().next().value!);
+    }
+    return index;
+  }
+
+  private async buildBrowseIndex(query: CompanyBrowseQuery): Promise<BrowseIndex> {
     const sort = query.sort ?? "default";
     const matches = await this.prisma.company.findMany({
       where: {
@@ -322,15 +374,7 @@ export class CompaniesService {
       query.nearCity,
     );
     const { visible, hiddenUnratedCount } = visibleBrowseRows(rows, { sort, categoryGroup: query.categoryGroup, q: query.q });
-
-    const pageSize = COMPANY_BROWSE_PAGE_SIZE;
-    // A page past the end (the list shrank since the visitor last looked)
-    // lands on the last page rather than an empty one.
-    const page = Math.min(query.page ?? 1, Math.max(1, Math.ceil(visible.length / pageSize)));
-    const pageIds = visible.slice((page - 1) * pageSize, page * pageSize).map((r) => r.id);
-
-    const items = await this.browseCards(pageIds, false);
-    return { items, total: visible.length, page, pageSize, hiddenUnratedCount, featured: [] };
+    return { ids: visible.map((r) => r.id), hiddenUnratedCount };
   }
 
   /**
@@ -385,11 +429,7 @@ export class CompaniesService {
   // shown in that row are the same ones left out of the standard cards on
   // every page - no job shows twice, and none goes missing between pages.
   private jobsIndex(query: CompanyBrowseQuery): Promise<JobsIndex> {
-    const key = JSON.stringify(
-      Object.entries({ ...query, page: undefined })
-        .filter(([, v]) => v !== undefined && v !== "")
-        .sort(([a], [b]) => a.localeCompare(b)),
-    );
+    const key = filterKey(query);
     const hit = this.jobsIndexCache.get(key);
     if (hit && Date.now() - hit.at < JOBS_INDEX_TTL_MS) return hit.index;
 

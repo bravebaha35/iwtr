@@ -2,26 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { RewindButton } from "@/components/RewindButton";
-import { riskScoreColorClass, RiskTriangleIcon } from "@/components/jobs/RiskScoreBadge";
-
-// The filter's "no limit" value. Kept above 3 (the highest Risk Score) so the
-// pages' "send maxRiskScore only below 3" rule leaves it out of the request.
-export const RISK_SCORE_ANY = 4;
-
-// The slider's four stops, left to right: "Any", then "1 and below",
-// "2 and below", "3 and below".
-const STOPS = [RISK_SCORE_ANY, 1, 2, 3];
-
-function stopIndex(value: number): number {
-  const i = STOPS.indexOf(value);
-  return i === -1 ? 0 : i;
-}
+import { riskScoreColorClass, RISK_SCORE_NOTES, RiskTriangleIcon } from "@/components/jobs/RiskScoreBadge";
 
 /**
- * The sidebar "Risk Score" slider, shared by the rating homepage
- * (WorkplaceBrowser) and the Jobs page (JobsBrowser). "Any" is the first
- * stop; click, drag or scroll along the track to pick the highest Risk Score
- * to show.
+ * The sidebar "Risk Score" slider (0-3, 3 = "Any"), shared by the rating
+ * homepage (WorkplaceBrowser) and the Jobs page (JobsBrowser). Click, drag
+ * or scroll along the track to pick the highest Risk Score to show.
  */
 export function RiskScoreFilter({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -38,7 +24,7 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      onChange(STOPS[Math.min(3, Math.max(0, stopIndex(valueRef.current) + (e.deltaY < 0 ? 1 : -1)))]);
+      onChange(Math.min(3, Math.max(0, valueRef.current + (e.deltaY < 0 ? 1 : -1))));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -47,7 +33,7 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
   function applyFromClientX(el: HTMLDivElement, clientX: number) {
     const rect = el.getBoundingClientRect();
     const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    onChange(STOPS[Math.round(fraction * 3)]);
+    onChange(Math.round(fraction * 3));
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -60,18 +46,16 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
     applyFromClientX(e.currentTarget, e.clientX);
   }
 
-  const index = stopIndex(value);
-
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-foreground">Risk Score</h2>
-        <RewindButton onClick={() => onChange(RISK_SCORE_ANY)} active={index !== 0} title="Reset Risk Score filter" />
+        <RewindButton onClick={() => onChange(3)} active={value !== 3} title="Reset Risk Score filter" />
       </div>
       <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
         <div className="relative pt-8">
           {[0, 1, 2, 3].map((tickValue) => {
-            const active = index === tickValue;
+            const active = value === tickValue;
             // Grows from 14px (tick 0) to 26px (tick 3) — "exclamation
             // mark gets bigger and bigger until 3" per the design.
             const sizePx = 14 + tickValue * 4;
@@ -98,17 +82,15 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
           >
             <span
               className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
-              style={{ left: `${(index / 3) * 100}%` }}
+              style={{ left: `${(value / 3) * 100}%` }}
             />
           </div>
         </div>
 
         <span className="text-center text-xs font-normal text-muted-foreground">
-          {index === 0 ? "Any" : `${value} and below`}
+          {value === 3 ? "Any" : `${value} and Below`}
         </span>
-        <p className="text-xs text-muted-foreground">
-          {index === 0 ? "Every company, whatever its Risk Score." : `Companies with a Risk Score of ${value} or lower.`}
-        </p>
+        <p className="text-xs text-muted-foreground">{RISK_SCORE_NOTES[value]}</p>
       </div>
     </div>
   );
