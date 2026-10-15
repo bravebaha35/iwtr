@@ -23,6 +23,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { EmployerProfileService } from "../employer-profile/employer-profile.service";
 import { resolveLocation } from "../companies/resolve-location.util";
+import { removeReplacedUpload } from "../../common/uploads/remove-replaced-upload";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads", "company-logos");
 const BANNER_UPLOADS_DIR = join(process.cwd(), "uploads", "company-banners");
@@ -192,6 +193,12 @@ export class OwnerService {
       }
     }
 
+    // The logo and banner being replaced, so their files can go afterwards.
+    const before =
+      input.mainPhotoUrl !== undefined || input.bannerImageUrl !== undefined
+        ? await this.prisma.company.findUnique({ where: { id: companyId }, select: { mainPhotoUrl: true, bannerImageUrl: true } })
+        : null;
+
     // Slug intentionally stays stable across a rename — it's the durable
     // identifier used in bookmarked/shared URLs and in review lookups.
     await this.prisma.company.update({
@@ -221,6 +228,19 @@ export class OwnerService {
         featuredReviewId: input.featuredReviewId,
       },
     });
+
+    if (before) {
+      if (input.mainPhotoUrl !== undefined) {
+        await removeReplacedUpload(before.mainPhotoUrl, input.mainPhotoUrl, "company-logos", async (url) =>
+          (await this.prisma.company.count({ where: { mainPhotoUrl: url } })) > 0,
+        );
+      }
+      if (input.bannerImageUrl !== undefined) {
+        await removeReplacedUpload(before.bannerImageUrl, input.bannerImageUrl, "company-banners", async (url) =>
+          (await this.prisma.company.count({ where: { bannerImageUrl: url } })) > 0,
+        );
+      }
+    }
   }
 
   // Local disk, dev-safe default — see main.ts's useStaticAssets comment.
