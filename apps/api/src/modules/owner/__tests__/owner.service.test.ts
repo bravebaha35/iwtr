@@ -53,6 +53,8 @@ describe("OwnerService — banner membership gate (server-side, do not trust the
       },
       company: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ workplaceTypes: ["OFFICE"] }),
+        findUnique: jest.fn().mockResolvedValue({ mainPhotoUrl: null, bannerImageUrl: null }),
+        count: jest.fn().mockResolvedValue(0),
         findFirst: jest.fn().mockResolvedValue(null),
         update: jest.fn().mockResolvedValue({}),
       },

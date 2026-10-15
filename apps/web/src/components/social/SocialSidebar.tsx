@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { Company, SocialCompanySort, WorkplaceType } from "@iwtr/shared-types";
 import { WorkTypeTiles } from "@/components/WorkTypeTiles";
@@ -21,6 +21,36 @@ function SidebarPanel({ title, action, children }: { title: string; action?: Rea
       </div>
       {children}
     </section>
+  );
+}
+
+// How far down the page the reader must be before "Back to first post" shows.
+const BACK_TO_TOP_AFTER_PX = 400;
+
+// The sidebar follows the page down (SocialShell), so once the reader has
+// scrolled into the feed this is always one click away. At the top of the
+// page it is not shown at all.
+function BackToFirstPost() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const check = () => setShown(window.scrollY > BACK_TO_TOP_AFTER_PX);
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    return () => window.removeEventListener("scroll", check);
+  }, []);
+  if (!shown) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      className="reaction-pop flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-surface-muted text-[13px] font-semibold text-foreground/80 transition hover:bg-surface-muted/70 hover:text-foreground active:scale-[0.98]"
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 19V5" />
+        <path d="m5 12 7-7 7 7" />
+      </svg>
+      Back to first post
+    </button>
   );
 }
 
@@ -333,19 +363,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
         <CategoryGroupFilter value={categoryGroup} onChange={onCategoryGroupChange} orientation="vertical" />
       </SidebarPanel>
 
-      {/* The sidebar follows the page down (SocialShell), so this is always
-          one click away, however far down the feed the reader is. */}
-      <button
-        type="button"
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-surface-muted text-[13px] font-semibold text-foreground/80 transition hover:bg-surface-muted/70 hover:text-foreground active:scale-[0.98]"
-      >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12 19V5" />
-          <path d="m5 12 7-7 7 7" />
-        </svg>
-        Back to first post
-      </button>
+      <BackToFirstPost />
     </SidebarShell>
   );
 }

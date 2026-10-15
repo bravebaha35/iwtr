@@ -17,7 +17,8 @@ import { MultiSelectDropdown } from "@/components/Dropdown";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
 import { AdSlot } from "@/components/AdSlot";
 import { CompanyWorkCard } from "@/components/company/CompanyWorkCard";
-import { RISK_SCORE_ANY, RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
+import { CardGridSkeleton } from "@/components/CardGridSkeleton";
+import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
 import { HOME_FILTERS_STORAGE_KEY } from "@/lib/homeFilters";
 import { distanceKm, TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { RATING_TICKS, activeMoodIndex } from "@/lib/beaverRating";
@@ -47,10 +48,14 @@ function PaginationBar({
   page,
   totalPages,
   onChange,
+  onIntent,
 }: {
   page: number;
   totalPages: number;
   onChange: (page: number) => void;
+  // The pointer or keyboard is on a page button: fetch that page now, so the
+  // click shows it at once. Only pages someone is about to open are fetched.
+  onIntent?: (page: number) => void;
 }) {
   if (totalPages <= 1) return null;
   return (
@@ -58,6 +63,8 @@ function PaginationBar({
       <button
         type="button"
         onClick={() => onChange(Math.max(1, page - 1))}
+        onPointerEnter={() => page > 1 && onIntent?.(page - 1)}
+        onFocus={() => page > 1 && onIntent?.(page - 1)}
         disabled={page === 1}
         aria-label="Previous page"
         className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
@@ -74,6 +81,8 @@ function PaginationBar({
             key={p}
             type="button"
             onClick={() => onChange(p)}
+            onPointerEnter={() => p !== page && onIntent?.(p)}
+            onFocus={() => p !== page && onIntent?.(p)}
             aria-current={p === page ? "page" : undefined}
             className={`min-w-9 rounded-lg px-2.5 py-1.5 font-medium transition ${
               p === page ? "bg-brand-600 text-white" : "text-foreground hover:bg-surface-muted"
@@ -86,6 +95,8 @@ function PaginationBar({
       <button
         type="button"
         onClick={() => onChange(Math.min(totalPages, page + 1))}
+        onPointerEnter={() => page < totalPages && onIntent?.(page + 1)}
+        onFocus={() => page < totalPages && onIntent?.(page + 1)}
         disabled={page === totalPages}
         aria-label="Next page"
         className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
@@ -198,10 +209,12 @@ export function WorkplaceBrowser() {
         : [],
   );
   const [minRating, setMinRating] = useState(() => (typeof initialFilters.minRating === "number" ? initialFilters.minRating : 0));
-  // RISK_SCORE_ANY = no limit, same as the Jobs page; a saved 3 from before
-  // "Any" moved to the slider's first stop also means no limit.
+  // 3 = "Any" (Risk Score's own maximum), same as the Jobs page. Anything
+  // outside 0-3 (a value saved by a short-lived slider of 2026-10-15) is "Any".
   const [maxRiskScore, setMaxRiskScore] = useState(() =>
-    typeof initialFilters.maxRiskScore === "number" && initialFilters.maxRiskScore < 3 ? initialFilters.maxRiskScore : RISK_SCORE_ANY,
+    typeof initialFilters.maxRiskScore === "number" && initialFilters.maxRiskScore >= 0 && initialFilters.maxRiskScore <= 3
+      ? initialFilters.maxRiskScore
+      : 3,
   );
   const [selectedCities, setSelectedCities] = useState<string[]>(() =>
     Array.isArray(initialFilters.selectedCities) ? initialFilters.selectedCities : [],
@@ -353,7 +366,6 @@ export function WorkplaceBrowser() {
           // The list shrank since this page number was saved: follow the
           // server to the last page that exists.
           if (data.page !== page) setPage(data.page);
-          if (data.page * data.pageSize < data.total) prefetchBrowsePage(filterParams, data.page + 1);
         })
         .catch(() => {
           if (cancelled) return;
@@ -626,7 +638,7 @@ export function WorkplaceBrowser() {
               </p>
             )}
 
-            {pageCompanies === null && <p className="text-sm text-muted-foreground">Loading...</p>}
+            {pageCompanies === null && <CardGridSkeleton />}
             {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
               <p className="text-sm text-red-600 dark:text-red-300">
                 Couldn&apos;t load workplaces right now — check your connection and try again.
@@ -667,7 +679,7 @@ export function WorkplaceBrowser() {
                   Page {page} of {totalPages} — {total} workplace
                   {total === 1 ? "" : "s"}
                 </p>
-                <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} />
+                <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} onIntent={(p) => prefetchBrowsePage(filterParams, p)} />
               </>
             )}
           </div>

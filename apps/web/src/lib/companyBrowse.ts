@@ -1,12 +1,12 @@
 import type { CompanyBrowseResult } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 
-// The homepage grid's pages (GET /companies/browse), kept for a minute so
-// going back to a page you just saw, or forward to one fetched ahead of
-// time, shows instantly with no request. Small on purpose: at most 40 pages
-// of 20 cards each.
+// The Home and Jobs grids' pages (GET /companies/browse), kept for two
+// minutes so going back to a page you just saw, or to one fetched when the
+// pointer reached its button, shows instantly with no request. Small on
+// purpose: at most 40 pages of 20 cards each.
 const MAX_ENTRIES = 40;
-const TTL_MS = 60_000;
+const TTL_MS = 120_000;
 
 const cache = new Map<string, { at: number; result: Promise<CompanyBrowseResult> }>();
 
@@ -40,7 +40,7 @@ export function hasBrowsePage(params: string, page: number): boolean {
   return fresh(keyFor(params, page)) !== null;
 }
 
-/** Fetch a page ahead of time, quietly, so clicking to it is instant. */
+/** Fetch a page someone is about to open, quietly, so the click is instant. */
 export function prefetchBrowsePage(params: string, page: number): void {
   fetchBrowsePage(params, page).catch(() => {});
 }

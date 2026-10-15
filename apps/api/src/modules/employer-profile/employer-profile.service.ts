@@ -11,6 +11,7 @@ import {
   type EmployerProfileView,
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
+import { removeReplacedUpload } from "../../common/uploads/remove-replaced-upload";
 import {
   decryptField,
   encryptField,
@@ -198,6 +199,12 @@ export class EmployerProfileService {
     await this.prisma.auditLog.create({
       data: { actorUserId: userId, action: "EMPLOYER_PROFILE_WRITE", targetType: "EmployerProfile", targetId: userId },
     });
+    // A replaced profile photo leaves no file behind.
+    if (input.profilePictureUrl !== undefined) {
+      await removeReplacedUpload(existing?.profilePictureUrl, row.profilePictureUrl, "employer-avatars", async (url) =>
+        (await this.prisma.employerProfile.count({ where: { profilePictureUrl: url } })) > 0,
+      );
+    }
 
     const fields = this.decryptRow(row);
     return { ...fields, profilePictureUrl: row.profilePictureUrl, isComplete: this.isComplete(fields) };

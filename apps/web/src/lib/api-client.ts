@@ -108,9 +108,16 @@ export async function apiGetBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
+// How long the website keeps a public answer (a company page's details)
+// before asking apps/api again. Shared by every visitor: a busy company page
+// costs the API one read per half minute, not one per view. An owner's edit
+// shows on the public page within this long.
+export const PUBLIC_REVALIDATE_SECONDS = 30;
+
 // Server Components only (e.g. app/companies/[slug]/page.tsx) — calls
-// apps/api directly since there's no browser session to proxy.
+// apps/api directly since there's no browser session to proxy. Never sends a
+// session, so the answer is the same for everyone and safe to keep.
 export async function apiGetPublic<T>(path: string): Promise<T> {
-  const res = await fetch(`${DIRECT_API_BASE_URL}${path}`, { cache: "no-store" });
+  const res = await fetch(`${DIRECT_API_BASE_URL}${path}`, { next: { revalidate: PUBLIC_REVALIDATE_SECONDS } });
   return handle<T>(res);
 }

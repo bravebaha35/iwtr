@@ -1,5 +1,5 @@
 import { render, waitFor } from "@testing-library/react";
-import { JobsBrowser } from "../JobsBrowser";
+import { JobsBrowser, forgetMemberField } from "../JobsBrowser";
 import { apiGet } from "@/lib/api-client";
 import { clearBrowseCache } from "@/lib/companyBrowse";
 
@@ -24,6 +24,7 @@ const browsePaths = () => get.mock.calls.map(([p]) => String(p)).filter((p) => p
 beforeEach(() => {
   get.mockReset();
   clearBrowseCache();
+  forgetMemberField();
 });
 
 it("opens on every job - the profile never filters the job grid", async () => {
@@ -46,4 +47,14 @@ it("sends no field for a visitor without a profile", async () => {
   render(<JobsBrowser />);
   await waitFor(() => expect(browsePaths().length).toBeGreaterThan(0));
   expect(browsePaths()[0]).not.toContain("forSector");
+});
+
+it("asks a signed-in member's profile once, then remembers it", async () => {
+  serve({ sector: { value: "IT", label: "Information Technology (IT)" }, workType: "OFFICE" });
+  const first = render(<JobsBrowser />);
+  await waitFor(() => expect(browsePaths().length).toBeGreaterThan(0));
+  first.unmount();
+  render(<JobsBrowser />);
+  await new Promise((r) => setTimeout(r, 50));
+  expect(get.mock.calls.filter(([p]) => p === "/me/profile")).toHaveLength(1);
 });

@@ -763,3 +763,20 @@ describe("CompaniesService.search — several sectors at once", () => {
     expect(prisma.company.findMany.mock.calls[0][0].where.category).toBe("Software");
   });
 });
+
+describe("CompaniesService.browse — the homepage list is kept for a minute", () => {
+  it("lists and sorts the directory once per set of filters, then only loads each page's cards", async () => {
+    const prisma = makePrisma();
+    const service = new CompaniesService(prisma as any, {} as any);
+    await service.browse({ page: 1 } as any);
+    await service.browse({ page: 2 } as any);
+    await service.browse({ page: 1 } as any);
+    // The light "every match" read ran once; the other two answers reused it.
+    const listReads = prisma.company.findMany.mock.calls.filter(([a]: any[]) => a.orderBy && a.select?.riskScore);
+    expect(listReads).toHaveLength(1);
+
+    // Different filters are a list of their own.
+    await service.browse({ page: 1, q: "acme" } as any);
+    expect(prisma.company.findMany.mock.calls.filter(([a]: any[]) => a.orderBy && a.select?.riskScore)).toHaveLength(2);
+  });
+});
