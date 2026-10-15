@@ -116,20 +116,19 @@ describe("ProfileService.deleteAccount", () => {
   });
 });
 
-describe("ProfileService.updateProfile - company owners (2026-09-11)", () => {
-  it("rejects a COMPANY_OWNER trying to change their reviewUsername", async () => {
+describe("ProfileService.updateProfile - company owners", () => {
+  it("lets a COMPANY_OWNER pick a username from the pool (2026-10-15)", async () => {
     const prisma = {
       user: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "owner-1", status: "ACTIVE", role: "COMPANY_OWNER" }),
-        update: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
       },
     };
     const service = new ProfileService(prisma as any, {} as any, {} as any, {} as any);
 
-    await expect(
-      service.updateProfile("owner-1", { reviewUsername: "Chief Happiness Officer" }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    await service.updateProfile("owner-1", { reviewUsername: "Chief Happiness Officer" });
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "owner-1" }, data: { reviewUsername: "Chief Happiness Officer" } });
+    await expect(service.updateProfile("owner-1", { reviewUsername: "Made Up Name" })).rejects.toThrow("isn't one of the available choices");
   });
 
   it("still lets a COMPANY_OWNER change just their avatar (no reviewUsername in the request)", async () => {

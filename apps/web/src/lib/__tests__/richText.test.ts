@@ -1,8 +1,8 @@
-import { continueList, toggleList } from "../BulletTextarea";
+import { continueList, parseMarkup, stripMarkup, toMarkup, toggleList } from "../richText";
 
 const B = "• ";
 
-describe("BulletTextarea list helpers", () => {
+describe("list helpers", () => {
   it("turns the selected lines into bullets, and back", () => {
     const text = "Shift work\nMeal card\nTransport";
     const on = toggleList(text, 0, text.length, "bullet");
@@ -39,5 +39,28 @@ describe("BulletTextarea list helpers", () => {
 
   it("leaves Enter alone on a plain line", () => {
     expect(continueList("Just text", 9)).toBeNull();
+  });
+});
+
+describe("bold and italic text", () => {
+  it("reads **bold** and __italic__, and writes the same text back", () => {
+    const stored = "We offer **a meal card** and __flexible__ hours. **__Both__** here.";
+    const doc = parseMarkup(stored);
+    expect(doc.text).toBe("We offer a meal card and flexible hours. Both here.");
+    expect(doc.styles[doc.text.indexOf("meal")]).toEqual({ b: true, i: false });
+    expect(doc.styles[doc.text.indexOf("flexible")]).toEqual({ b: false, i: true });
+    expect(doc.styles[doc.text.indexOf("Both")]).toEqual({ b: true, i: true });
+    expect(parseMarkup(toMarkup(doc))).toEqual(doc);
+  });
+
+  it("keeps a marker with no partner as plain text", () => {
+    expect(stripMarkup("Price ** per hour")).toBe("Price ** per hour");
+    expect(stripMarkup("a__b")).toBe("a__b");
+  });
+
+  it("closes styles at the end of each line, so lists stay intact", () => {
+    const doc = parseMarkup("• **Shift**\n2. __Night__ work");
+    expect(doc.text).toBe("• Shift\n2. Night work");
+    expect(toMarkup(doc)).toBe("• **Shift**\n2. __Night__ work");
   });
 });

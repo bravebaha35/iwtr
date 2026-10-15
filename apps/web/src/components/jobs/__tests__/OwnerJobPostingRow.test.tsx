@@ -75,7 +75,7 @@ it("Edit keeps the job title fixed and saves a new description and a free boost"
   const dialog = screen.getByRole("dialog", { name: "Edit Forklift Operatörü" });
   expect(within(dialog).queryByRole("textbox", { name: /looking for/i })).not.toBeInTheDocument();
   expect(within(dialog).getByText("Can't be changed")).toBeInTheDocument();
-  const description = within(dialog).getByLabelText("Description");
+  const description = within(dialog).getByRole("textbox", { name: "Description" });
   await user.clear(description);
   await user.type(description, "new description");
   await user.click(await within(dialog).findByRole("button", { name: /Boost your job posting for 7 days/ }));

@@ -21,6 +21,19 @@ function readImageDimensions(file: File): Promise<{ width: number; height: numbe
   });
 }
 
+// Resolves once the image is in the browser's cache (or after 3 s at most -
+// a slow network must never hold the upload back).
+function preloadImage(url: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const done = () => resolve();
+    img.onload = done;
+    img.onerror = done;
+    setTimeout(done, 3000);
+    img.src = url;
+  });
+}
+
 /**
  * Circular employer photo — click anywhere on it (or the pen that appears on
  * hover) to replace it. Upload path: pick -> validate -> crop+compress to a
@@ -67,6 +80,9 @@ export function AvatarPhotoUploader({
       formData.append("file", blob, "avatar.jpg");
       const result = await apiUpload<AvatarPhotoUploadResult>("/me/employer-profile/photo", formData);
       await apiPatch("/me/employer-profile", { profilePictureUrl: result.url });
+      // Have the browser fetch it first, so every place showing it (this box,
+      // the header) swaps to the new photo at the same moment, with no gap.
+      await preloadImage(result.url);
       onChange(result.url);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't upload that photo.");

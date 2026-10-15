@@ -98,17 +98,23 @@ it("keeps the feed in the middle of the page: equal side columns, an ad at each 
 
   // Left column: the ad first (outer edge), then the sidebar, pushed against the feed.
   expect(left).toHaveClass("lg:justify-end");
-  expect(left.firstElementChild).toHaveAttribute("data-testid", "ad-slot");
+  // Each side item sits in its own wrapper that follows the page on its own.
+  const leftAd = left.firstElementChild!.firstElementChild as HTMLElement;
+  expect(leftAd).toHaveAttribute("data-testid", "ad-slot");
   // ...from the width where the feed keeps a comfortable size beside it.
-  expect(left.firstElementChild).toHaveClass("hidden", "min-[86rem]:block");
+  expect(leftAd).toHaveClass("hidden", "min-[86rem]:block");
+  expect(left.firstElementChild).toHaveClass("hidden", "min-[86rem]:block", "sm:sticky");
   expect(left).toContainElement(screen.getByLabelText("Search IWT Social"));
 
   // Right column: the rail, then the ad in a column of its own at the outer
   // edge on a wide window. The copy under the rail only shows where that
   // column does not fit, so the two are never on screen together.
   const rail = screen.getByRole("complementary", { name: "More on IWT Social" });
-  expect(right.firstElementChild).toBe(rail);
-  const outerAd = right.lastElementChild as HTMLElement;
+  expect(right.firstElementChild).toContainElement(rail);
+  expect(right.firstElementChild).toHaveClass("sticky");
+  // The ad follows the page on its own, so a tall rail never carries it away.
+  expect(right.lastElementChild).toHaveClass("sticky");
+  const outerAd = right.lastElementChild!.firstElementChild as HTMLElement;
   expect(outerAd).toHaveAttribute("data-testid", "ad-slot");
   expect(outerAd).toHaveClass("hidden", "min-[100rem]:block");
   const underRail = rail.querySelector('[data-testid="ad-slot"]') as HTMLElement;

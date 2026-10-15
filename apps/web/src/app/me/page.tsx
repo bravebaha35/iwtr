@@ -80,7 +80,7 @@ export default function ProfilePage() {
 }
 
 function ProfilePageContent() {
-  const { isAuthenticated, isLoading: authLoading, refreshOnboardingStatus, role } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, refreshOnboardingStatus, patchOnboardingStatus, role } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   // Only a claimed+APPROVED owner has this at all (GET 403s otherwise, see
   // EmployerProfileService.requireVerifiedEmployer) — null here means
@@ -306,14 +306,14 @@ function ProfilePageContent() {
       // button is reachable (onboarding assigns a starting reviewUsername
       // automatically), so there's no reason to make "did the value happen
       // to be falsy" a factor in whether a field gets saved at all.
-      // reviewUsername is only ever included for a non-owner: the API
-      // rejects any attempt to change it from a COMPANY_OWNER (2026-09-11),
-      // including a harmless resend of the same value, so omitting the key
-      // entirely here is what lets an owner save their avatar at all.
+      // Owners pick a username too (2026-10-15); the "show it in the
+      // corner" choice is a member's only - an owner's corner always shows
+      // their real name.
       await apiPatch("/me/profile", {
         avatarKey,
         avatarGradient,
-        ...(role === "COMPANY_OWNER" ? {} : { reviewUsername, showUsernameInHeader: showUsernameDraft }),
+        reviewUsername,
+        ...(role === "COMPANY_OWNER" ? {} : { showUsernameInHeader: showUsernameDraft }),
       });
       await load();
       // The homepage header reads avatar/name from AuthContext's
@@ -689,14 +689,13 @@ function ProfilePageContent() {
               showWorkTypePicker={false}
             />
 
-            {/* Company owners keep whatever anonymous username they already
-                have - restricted to avatar (above) and their real employer
-                photo (below) only, per 2026-09-11 product decision. */}
-            {role !== "COMPANY_OWNER" && (
-              <>
-                <p className="mb-1 mt-4 text-[13px] font-semibold text-foreground">Username</p>
+            {/* One box, in this order: avatar (above), username, and for a
+                company owner their own picture in place of the avatar. */}
+                <p className="mb-1 mt-6 text-[13px] font-semibold text-foreground">Username</p>
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Shown on your own reviews instead of your real name — pick whichever one you like.
+                  {role === "COMPANY_OWNER"
+                    ? "Your anonymous name on the site - pick whichever one you like. As a company owner, the top of the site always shows your real name."
+                    : "Shown on your own reviews instead of your real name — pick whichever one you like."}
                 </p>
                 <SingleSelectDropdown
                   value={reviewUsername}
@@ -707,6 +706,8 @@ function ProfilePageContent() {
                   maxHeightClassName="max-h-none"
                   options={usernameOptions}
                 />
+            {role !== "COMPANY_OWNER" && (
+              <>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Want a one-off random name instead, for a single review? You can turn that on at the end of the review
                   itself, when you submit or edit it.
@@ -730,6 +731,25 @@ function ProfilePageContent() {
               </>
             )}
 
+            {role === "COMPANY_OWNER" && employerProfile && (
+              <div className="mt-6 border-t border-border pt-5">
+                <p className="mb-1 text-[13px] font-semibold text-foreground">Use your own picture instead of avatar</p>
+                <p className="mb-4 text-xs text-muted-foreground">
+                  Shown instead of your avatar wherever you appear under your real name as a verified company owner, until
+                  you remove it with the X. It is saved as soon as you pick it. Your anonymous avatar and username stay on
+                  anything you post anonymously.
+                </p>
+                <AvatarPhotoUploader
+                  value={employerProfile.profilePictureUrl}
+                  onChange={(url) => {
+                    setEmployerProfile((prev) => (prev ? { ...prev, profilePictureUrl: url } : prev));
+                    // The header shows the photo in place of the avatar: show it there now.
+                    patchOnboardingStatus({ ownerPhotoUrl: url });
+                  }}
+                />
+              </div>
+            )}
+
             <button
               onClick={saveCustomization}
               disabled={avatarSaving}
@@ -741,23 +761,6 @@ function ProfilePageContent() {
             {avatarError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{avatarError}</p>}
           </div>
 
-          {role === "COMPANY_OWNER" && employerProfile && (
-            <div className="rounded-2xl bg-surface shadow-xs p-5">
-              <h2 className="mb-1 font-semibold text-foreground">Employer Photo</h2>
-              <p className="mb-4 text-xs text-muted-foreground">
-                Shown instead of your avatar wherever you appear under your real name as a verified company owner, until
-                you remove it with the X. Your anonymous avatar/username above stays on any review you write.
-              </p>
-              <AvatarPhotoUploader
-                value={employerProfile.profilePictureUrl}
-                onChange={(url) => {
-                  setEmployerProfile((prev) => (prev ? { ...prev, profilePictureUrl: url } : prev));
-                  // The header shows the photo in place of the avatar.
-                  void refreshOnboardingStatus();
-                }}
-              />
-            </div>
-          )}
           </>
           )}
 

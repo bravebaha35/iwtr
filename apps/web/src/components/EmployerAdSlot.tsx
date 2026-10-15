@@ -6,6 +6,7 @@ import type { EmployerAd } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { AdLabel } from "@/components/AdSlot";
+import { stripMarkup } from "@/lib/richText";
 
 /**
  * The employer ad space beside the search bar on the Rating and Jobs pages.
@@ -52,7 +53,7 @@ export function EmployerAdSlot() {
               {ad.company.city ? ` · ${ad.company.city}` : ""}
             </span>
             <span className="block truncate text-lg font-bold text-foreground">{ad.posting.jobTitle}</span>
-            <span className="block truncate text-xs text-muted-foreground">{ad.posting.description}</span>
+            <span className="block truncate text-xs text-muted-foreground">{stripMarkup(ad.posting.description)}</span>
           </span>
           <span className="shrink-0 bg-brand-600 px-3 py-2 text-sm font-semibold text-white">See the job</span>
         </Link>
