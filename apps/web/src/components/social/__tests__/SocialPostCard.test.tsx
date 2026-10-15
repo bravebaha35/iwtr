@@ -217,9 +217,9 @@ describe("reactions", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "More reactions" }));
     const menu = screen.getByRole("menu", { name: "Reactions" });
-    expect(within(menu).getAllByRole("menuitemradio").map((b) => b.getAttribute("aria-label"))).toEqual(["Like", "Well done", "Curious"]);
+    expect(within(menu).getAllByRole("menuitemradio").map((b) => b.getAttribute("aria-label"))).toEqual(["Like", "Praise", "Curious"]);
 
-    fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Well done" }));
+    fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Praise" }));
     await waitFor(() => expect(apiClient.apiPost).toHaveBeenCalledWith("/social/posts/p1/like", { reaction: "WELL_DONE" }));
     expect(onChanged.mock.calls[0][0]).toMatchObject({ myReaction: "WELL_DONE", likeCount: 3, reactionCounts: { LIKE: 2, WELL_DONE: 1 } });
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
@@ -230,7 +230,7 @@ describe("reactions", () => {
     const onChanged = jest.fn();
     render(<SocialPostCard post={reacted} onChanged={onChanged} />);
     fireEvent.click(screen.getByRole("button", { name: "More reactions" }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Well done" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Praise" }));
     await waitFor(() => expect(apiClient.apiPost).toHaveBeenCalledTimes(1));
     expect(onChanged.mock.calls[0][0]).toMatchObject({ likeCount: 3, reactionCounts: { LIKE: 2, WELL_DONE: 1, CURIOUS: 0 } });
 

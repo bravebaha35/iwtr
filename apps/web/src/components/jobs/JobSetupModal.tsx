@@ -11,7 +11,7 @@ import {
 } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { SingleSelectDropdown } from "@/components/Dropdown";
-import { BulletTextarea } from "@/components/BulletTextarea";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { PositionPicker } from "@/components/jobs/PositionPicker";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
@@ -227,7 +227,7 @@ export function JobSetupModal({
             >
               Tell us more
             </FieldLabel>
-            <BulletTextarea
+            <RichTextEditor
               value={description}
               onChange={setDescription}
               maxLength={JOB_DESCRIPTION_MAX_LENGTH}

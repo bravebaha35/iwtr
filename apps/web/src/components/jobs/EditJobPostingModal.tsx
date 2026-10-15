@@ -16,7 +16,7 @@ import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { BoostPicker, boostInput, boostNeedsBilling, emptyBilling, useBoostStatus } from "@/components/jobs/BoostPicker";
 import { CloseButton } from "@/components/jobs/JobBoostModal";
 import { PositionPicker } from "@/components/jobs/PositionPicker";
-import { BulletTextarea } from "@/components/BulletTextarea";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 const DESCRIPTION_MAX = JOB_DESCRIPTION_MAX_LENGTH;
 
@@ -170,8 +170,9 @@ export function EditJobPostingModal({
             <label htmlFor="edit-job-description" className="mb-1 mt-4 block text-[13px] font-semibold text-foreground">
               Description
             </label>
-            <BulletTextarea
+            <RichTextEditor
               id="edit-job-description"
+              ariaLabel="Description"
               value={description}
               maxLength={DESCRIPTION_MAX}
               onChange={setDescription}

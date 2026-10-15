@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { AdminJobPosting } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
+import { RichText } from "@/components/RichText";
 
 export default function AdminJobPostingsPage() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -70,7 +71,7 @@ export default function AdminJobPostingsPage() {
               <span className="text-xs text-muted-foreground">{posting.createdByUserEmail}</span>
             </div>
             <p className="mb-1 text-sm font-medium text-foreground">{posting.jobTitle}</p>
-            <p className="mb-3 rounded-md bg-surface-muted p-2 text-sm text-muted-foreground">{posting.description}</p>
+            <RichText as="p" text={posting.description} className="mb-3 whitespace-pre-wrap rounded-md bg-surface-muted p-2 text-sm text-muted-foreground" />
             <div className="flex gap-2">
               <button
                 onClick={() => actOn(posting.id, "approve")}

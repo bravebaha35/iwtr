@@ -15,6 +15,9 @@ interface AuthContextValue {
   isLoading: boolean;
   onboardingStatus: OnboardingStatus | null;
   refreshOnboardingStatus: () => Promise<void>;
+  // Changes the cached status at once, without asking the server (a change
+  // just saved, e.g. a new owner photo, so the header shows it immediately).
+  patchOnboardingStatus: (patch: Partial<OnboardingStatus>) => void;
   register: (email: string, password: string) => Promise<void>;
   // Resolves to { otpRequired: true } for the one hardcoded ADMIN account
   // instead of completing the session — AuthModal shows a 6-digit code step
@@ -240,6 +243,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isAuthenticated) await loadStatus();
   }, [isAuthenticated, loadStatus]);
 
+  const patchOnboardingStatus = useCallback((patch: Partial<OnboardingStatus>) => {
+    setOnboardingStatus((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -248,6 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         onboardingStatus,
         refreshOnboardingStatus,
+        patchOnboardingStatus,
         register,
         login,
         verifyAdminOtp,

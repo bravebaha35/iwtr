@@ -25,6 +25,7 @@ import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 import { ApplyButton } from "@/components/jobs/ApplyButton";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
+import { RichText } from "@/components/RichText";
 
 // The standard job card, shared by the /jobs browse grid (JobsBrowser) and
 // a company's own "Job Postings" profile tab (CompanyJobPostings). One card
@@ -467,7 +468,7 @@ export function JobCard({
                 title="Click to read the full job posting"
                 className="mt-3 h-20 cursor-pointer rounded text-left text-sm text-muted-foreground transition hover:text-foreground"
               >
-                <span className="line-clamp-4 whitespace-pre-wrap">{posting.description}</span>
+                <RichText text={posting.description} className="line-clamp-4 whitespace-pre-wrap" />
                 <span className="sr-only"> (open the full job posting)</span>
               </button>
             ) : (
@@ -480,7 +481,7 @@ export function JobCard({
                   expandedView ? "max-h-[55vh] overflow-y-auto text-sm" : "flex-1 overflow-y-auto text-xs"
                 }`}
               >
-                {posting.description}
+                <RichText text={posting.description} />
               </p>
             )
           )}

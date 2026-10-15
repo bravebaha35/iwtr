@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { OwnerJobPosting } from "@iwtr/shared-types";
 import { RemoveJobPostingModal } from "@/components/jobs/RemoveJobPostingModal";
 import { EditJobPostingModal, isBoostActive } from "@/components/jobs/EditJobPostingModal";
+import { RichText } from "@/components/RichText";
 
 // Plain words for the owner - no internal status names.
 const STATUS_LABEL: Record<OwnerJobPosting["status"], string> = {
@@ -81,7 +82,7 @@ export function OwnerJobPostingRow({
           />
         </div>
       </div>
-      {posting.description && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{posting.description}</p>}
+      {posting.description && <RichText as="p" text={posting.description} className="whitespace-pre-wrap text-sm text-muted-foreground" />}
       {removing && (
         <RemoveJobPostingModal
           companyId={companyId}

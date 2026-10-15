@@ -3,31 +3,55 @@
 import { useEffect, useRef, useState } from "react";
 import { SOCIAL_REACTIONS, type SocialReaction, type SocialReactionCounts } from "@iwtr/shared-types";
 
-// A standard emoji for each reaction: thumbs up, clapping hands, thinking
-// face - Microsoft's Fluent Emoji (flat), MIT licence beside them in
-// public/reactions/.
-export const REACTION_META: Record<SocialReaction, { label: string; src: string }> = {
-  LIKE: { label: "Like", src: "/reactions/like.svg" },
-  WELL_DONE: { label: "Well done", src: "/reactions/well-done.svg" },
-  CURIOUS: { label: "Curious", src: "/reactions/curious.svg" },
+// The three reactions as one family of plain line icons (the like is
+// Lucide's thumbs up, ISC licence; praise and the question mark are drawn to
+// match it). At rest they are outlines; the one a member picked fills with
+// its own colour.
+export const REACTION_META: Record<SocialReaction, { label: string; color: string }> = {
+  LIKE: { label: "Like", color: "text-blue-600 dark:text-blue-400" },
+  WELL_DONE: { label: "Praise", color: "text-amber-600 dark:text-amber-400" },
+  CURIOUS: { label: "Curious", color: "text-violet-600 dark:text-violet-400" },
 };
 
 const OPEN_DELAY_MS = 350;
 const CLOSE_DELAY_MS = 250;
 
-function ReactionIcon({ reaction, size }: { reaction: SocialReaction; size: number }) {
+export function ReactionGlyph({ reaction, filled = false, className = "h-5 w-5" }: { reaction: SocialReaction; filled?: boolean; className?: string }) {
+  const common = {
+    viewBox: "0 0 24 24",
+    className: `shrink-0 ${className}`,
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+  if (reaction === "LIKE") {
+    return (
+      <svg {...common} fill="none">
+        <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" fill={filled ? "currentColor" : "none"} />
+        <path d="M7 10v12" stroke={filled ? "var(--surface)" : "currentColor"} />
+      </svg>
+    );
+  }
+  if (reaction === "WELL_DONE") {
+    // Two hands pressed together, fingers up: a thumb inside each palm, the
+    // wrists turning out at the bottom.
+    const thumb = filled ? "var(--surface)" : "currentColor";
+    return (
+      <svg {...common} fill="none">
+        <path d="M12 2.8c-1.3.9-2.2 2.4-2.6 4.2l-1 4.6c-1.1.7-1.8 1.9-1.9 3.2l-.2 2.6-2.6 2.9 2.7 2.4 3.6-3.6c1.3-1.2 2-2.9 2-4.6V2.8Z" fill={filled ? "currentColor" : "none"} />
+        <path d="M12 2.8c1.3.9 2.2 2.4 2.6 4.2l1 4.6c1.1.7 1.8 1.9 1.9 3.2l.2 2.6 2.6 2.9-2.7 2.4-3.6-3.6c-1.3-1.2-2-2.9-2-4.6V2.8Z" fill={filled ? "currentColor" : "none"} />
+        <path d="M8.6 11.6c.8.6 1.3 1.6 1.4 2.7M15.4 11.6c-.8.6-1.3 1.6-1.4 2.7" stroke={thumb} />
+      </svg>
+    );
+  }
+  // A question mark in a circle.
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- a few KB static SVG at a fixed size
-    <img src={REACTION_META[reaction].src} alt="" width={size} height={size} loading="lazy" decoding="async" className="shrink-0" style={{ width: size, height: size }} />
-  );
-}
-
-// The resting like button: an outlined thumbs up (Lucide's, ISC licence).
-function ThumbsUpOutline({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7 10v12" />
-      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+    <svg {...common} fill="none">
+      <circle cx="12" cy="12" r="9.5" fill={filled ? "currentColor" : "none"} />
+      <path d="M9.4 9.2a2.7 2.7 0 1 1 3.9 2.4c-.8.4-1.3 1-1.3 1.9v.6" stroke={filled ? "var(--surface)" : "currentColor"} strokeWidth={2} />
+      <circle cx="12" cy="17.2" r="1.05" fill={filled ? "var(--surface)" : "currentColor"} stroke="none" />
     </svg>
   );
 }
@@ -94,10 +118,10 @@ export function ReactionButton({
         aria-pressed={mine !== null}
         title={breakdown || undefined}
         className={`flex items-center gap-1.5 font-medium transition active:scale-95 ${
-          mine ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:text-foreground"
+          mine ? REACTION_META[mine].color : "text-muted-foreground hover:text-foreground"
         }`}
       >
-        {mine ? <ReactionIcon reaction={mine} size={20} /> : <ThumbsUpOutline className="h-5 w-5" />}
+        <ReactionGlyph reaction={mine ?? "LIKE"} filled={mine !== null} />
         <span className="tabular-nums">{total}</span>
       </button>
 
@@ -107,7 +131,9 @@ export function ReactionButton({
       {present.some((r) => r !== "LIKE") && !(present.length === 1 && present[0] === mine) && (
         <span aria-hidden="true" className="ml-1.5 flex -space-x-1">
           {present.map((r) => (
-            <ReactionIcon key={r} reaction={r} size={16} />
+            <span key={r} className={`flex h-[18px] w-[18px] items-center justify-center rounded-full bg-surface ring-2 ring-surface ${REACTION_META[r].color}`}>
+              <ReactionGlyph reaction={r} filled className="h-3.5 w-3.5" />
+            </span>
           ))}
         </span>
       )}
@@ -145,11 +171,11 @@ export function ReactionButton({
                 setOpen(false);
                 onReact(r);
               }}
-              className={`shrink-0 rounded-full p-1 transition duration-150 hover:-translate-y-1 hover:scale-110 active:scale-95 motion-reduce:transform-none ${
-                mine === r ? "bg-brand-600/15 dark:bg-brand-400/20" : ""
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition duration-150 hover:-translate-y-0.5 hover:bg-surface-muted active:scale-95 motion-reduce:transform-none ${REACTION_META[r].color} ${
+                mine === r ? "bg-surface-muted" : ""
               }`}
             >
-              <ReactionIcon reaction={r} size={32} />
+              <ReactionGlyph reaction={r} filled={mine === r} className="h-6 w-6" />
             </button>
           ))}
         </div>

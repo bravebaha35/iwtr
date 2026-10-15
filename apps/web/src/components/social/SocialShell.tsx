@@ -44,9 +44,12 @@ const TAB_LABELS: Record<FeedTab, string> = {
 // ad waits for 86rem (not `xl`, as on other pages) so the feed is never
 // squeezed below about 30rem to make room for it.
 //
-// Both side columns follow the page as it scrolls (sticky, see useStickyTop):
-// a column taller than the window scrolls until its end is in view, then
-// stays.
+// The side columns stretch the full height of the feed, and each thing in
+// them - the left ad, the filter sidebar, the rail, the right ad - follows
+// the page on its own (sticky, see useStickyTop): a short one stays just
+// under the header, a taller one scrolls until its end is in view, then
+// stays. Each moves on its own so a tall rail (a member's has "Companies to
+// follow") never carries the ad beside it off the screen.
 const SIDE_MIN = "lg:min-w-72 min-[86rem]:min-w-[25.5rem] min-[100rem]:min-w-[29.5rem]";
 
 export function SocialShell() {
@@ -62,8 +65,14 @@ export function SocialShell() {
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup | null>(null);
   const [tab, setTab] = useState<FeedTab>("explore");
   const openTab: FeedTab = tabs.includes(tab) ? tab : "explore";
-  const { ref: leftRef, top: leftTop } = useStickyTop<HTMLDivElement>();
-  const { ref: rightRef, top: rightTop } = useStickyTop<HTMLDivElement>();
+  const leftAd = useStickyTop<HTMLDivElement>();
+  const sidebar = useStickyTop<HTMLDivElement>();
+  const rail = useStickyTop<HTMLDivElement>();
+  const rightAd = useStickyTop<HTMLDivElement>();
+  const { ref: leftAdRef, top: leftAdTop } = leftAd;
+  const { ref: sidebarRef, top: sidebarTop } = sidebar;
+  const { ref: railRef, top: railTop } = rail;
+  const { ref: rightAdRef, top: rightAdTop } = rightAd;
 
   // /social?tab=questions opens straight on that tab (the "back" link of a
   // question's page, a notification without a question of its own).
@@ -77,8 +86,11 @@ export function SocialShell() {
       <SocialWelcomeDialog />
 
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start lg:grid lg:grid-cols-[1fr_minmax(0,36rem)_1fr] lg:items-start">
-        <div ref={leftRef} style={{ top: leftTop }} className={`flex shrink-0 flex-col gap-6 sm:sticky sm:flex-row sm:items-start lg:justify-end ${SIDE_MIN}`}>
-          <AdSlot show="roomy" />
+        <div className={`flex shrink-0 flex-col gap-6 sm:flex-row sm:items-start sm:self-stretch lg:justify-end ${SIDE_MIN}`}>
+          <div ref={leftAdRef} style={{ top: leftAdTop }} className="hidden shrink-0 sm:sticky min-[86rem]:block">
+            <AdSlot show="roomy" />
+          </div>
+          <div ref={sidebarRef} style={{ top: sidebarTop }} className="shrink-0 sm:sticky">
           <SocialSidebar
             mode="global"
             query={query}
@@ -90,6 +102,7 @@ export function SocialShell() {
             isMember={isMember}
             searchPlaceholder={openTab === "questions" ? "Search questions..." : undefined}
           />
+          </div>
         </div>
 
         <div className="flex min-w-0 flex-1 justify-center">
@@ -113,14 +126,18 @@ export function SocialShell() {
           </div>
         </div>
 
-        <div ref={rightRef} style={{ top: rightTop }} className={`hidden items-start gap-6 lg:sticky lg:flex ${SIDE_MIN}`}>
-          <SocialRail
-            onOpenQuestions={() => {
-              setTab("questions");
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
-          <AdSlot side="right" show="wide" />
+        <div className={`hidden items-start gap-6 lg:flex lg:self-stretch ${SIDE_MIN}`}>
+          <div ref={railRef} style={{ top: railTop }} className="sticky">
+            <SocialRail
+              onOpenQuestions={() => {
+                setTab("questions");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          </div>
+          <div ref={rightAdRef} style={{ top: rightAdTop }} className="sticky hidden shrink-0 min-[100rem]:block">
+            <AdSlot side="right" show="wide" />
+          </div>
         </div>
       </div>
     </>
