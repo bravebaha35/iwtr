@@ -156,8 +156,9 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   composer's tab row; `createSocialPostInputSchema`). Polls: members vote once (`POST social/posts/:id/poll-vote`,
   movable until `pollEndsAt`), the split stays hidden until the viewer has voted, the poll has closed or the viewer
   owns the company, and only counts ever leave the API. A HIRING post points at the company's own live job ad.
-  Reactions are three standard emoji - thumbs up, clapping hands, thinking face (LIKE / WELL_DONE / CURIOUS,
-  `SocialPostLike.reaction`, one per member per post; Microsoft Fluent Emoji SVGs, MIT, in `public/reactions/`). No visible waits: lists come back from memory first (`socialFeedCache`),
+  Reactions are three line icons in one family - thumbs up / folded hands "Praise" / question mark "Curious" (LIKE /
+  WELL_DONE / CURIOUS, `SocialPostLike.reaction`, one per member per post; `ReactionGlyph` in ReactionButton.tsx,
+  outline at rest, filled in its colour when picked - the like fills blue). No visible waits: lists come back from memory first (`socialFeedCache`),
   first loads show `SocialPostSkeleton`, photos reserve their space from `SocialPost.imageAspectRatios` and load
   lazily, the rail is one request whose shared lists the API caches for a minute, and posting refreshes the lists
   instead of reloading the page. Phase 3 is in as well: **Questions** (`social-questions.service.ts`, its own
@@ -230,13 +231,16 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - Job positions (`JobPosition`, 11 fixed levels): an owner ticks 1 to 3 when posting and can change them later in Edit (`JobPosting.positions`); the
   Jobs sidebar's Position buttons filter on them (`positions=`, any-of; inferred job titles are left out while it is
   on); only the opened / full job card lists them, never the short grid card. "Tell us more" is plain text up to
-  4000 characters (`JOB_DESCRIPTION_MAX_LENGTH`); `BulletTextarea` adds bullet / numbered lists as ordinary characters.
+  4000 characters (`JOB_DESCRIPTION_MAX_LENGTH`) with three conventions (`lib/richText.ts`): `**bold**`, `__italic__`,
+  and "• " / "1. " list lines. `RichTextEditor` (contentEditable, built from text nodes, never innerHTML) edits it with
+  Bold / Italic / list buttons; every place a posting shows renders it through `RichText` (React elements only).
 - The sidebar Sector filter is a tick list: `categories=A|B` (pipe-separated, any-of) on search and browse.
 - Member profile: `User.languages` (codes from shared-types `LANGUAGES`, max 8, saved the moment one is added or
   removed, always printed on the CV) - languages are no longer rows in `Skill`. Verified skills are picked through a
   search box (the list is fetched once, searched in the browser; max 10); `scripts/seed-skills.ts` is additive and
   safe to re-run. `User.showUsernameInHeader` (Edit Profile > Customize, members only) makes the header show
-  `reviewUsername` instead of the CV display name (`headerDisplayName`); an owner is always shown by real name.
+  `reviewUsername` instead of the CV display name (`headerDisplayName`); an owner is always shown by real name, but
+  may pick a username again (2026-10-15). Owner Customize is one box: avatar, username, own picture instead of avatar.
 - `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per
   company) and the admin queue on `/admin/content`.
 
