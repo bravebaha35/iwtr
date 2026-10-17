@@ -8,6 +8,8 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
 import { HeartIcon } from "@/components/icons/HeartIcon";
+import { useT } from "@/lib/i18n/client";
+import type { TFn } from "@/lib/i18n/core";
 
 // ---------------------------------------------------------------------------
 // Notification model
@@ -118,56 +120,60 @@ interface AppNotification {
   jobTitle?: string;
 }
 
-function describeNotification(n: AppNotification): string {
-  const actor = n.actorName ?? "Someone";
-  const company = n.companyName ?? "the company";
+function describeNotification(n: AppNotification, t: TFn): string {
+  const actor = n.actorName ?? t("Someone");
+  const company = n.companyName ?? t("the company");
   switch (n.kind) {
     case "VOTE_HELPFUL":
-      return `${actor} found your review 'Helpful'.`;
+      return t("{actor} found your review 'Helpful'.", { actor });
     case "VOTE_NOT_HELPFUL":
-      return `${actor} found your review 'Not Helpful'.`;
+      return t("{actor} found your review 'Not Helpful'.", { actor });
     case "COMPANY_REPLY":
-      return `${company} replied to your review.`;
+      return t("{company} replied to your review.", { company });
     case "SAME_COMPANY_REVIEWED":
-      return "Someone reviewed the same company as you. Find out here!";
+      return t("Someone reviewed the same company as you. Find out here!");
     case "REVIEW_PUBLISHED":
-      return n.companyName ? `Your review of ${n.companyName} is published!` : "Your review is published!";
+      return n.companyName ? t("Your review of {company} is published!", { company: n.companyName }) : t("Your review is published!");
     case "REVIEW_NOT_PUBLISHED":
       return n.companyName
-        ? `Your review of ${n.companyName} wasn't published. Read the details here.`
-        : "Your review is not published, read the details here.";
+        ? t("Your review of {company} wasn't published. Read the details here.", { company: n.companyName })
+        : t("Your review is not published, read the details here.");
     case "VERIFY_ACCOUNT":
-      return "Verify your number and mail address to get started.";
+      return t("Verify your number and mail address to get started.");
     case "REVIEW_REMOVED":
-      return "Your review is removed.";
+      return t("Your review is removed.");
     case "IWT_SOCIAL_UPDATE":
-      return "Check out new updates on 'IWT Social'!";
+      return t("Check out new updates on 'IWT Social'!");
     case "COMPANY_STATUS_UPDATE":
-      return `See how ${company} doing!`;
+      return t("See how {company} doing!", { company });
     case "COMPANY_NEW_SOCIAL_POST":
-      return `${company} just posted a new post !`;
+      return t("{company} just posted a new post !", { company });
     case "COMPANY_HIRING":
-      return `${company} hiring now check it out !`;
+      return t("{company} hiring now check it out !", { company });
     case "JOB_POSTING_PUBLISHED":
-      return "Your job posting is up!";
+      return t("Your job posting is up!");
     case "COMPANY_REVIEWED":
-      return n.companyName ? `Someone reviewed ${n.companyName}. Find out here!` : "Someone reviewed your company. Find out here!";
+      return n.companyName
+        ? t("Someone reviewed {company}. Find out here!", { company: n.companyName })
+        : t("Someone reviewed your company. Find out here!");
     case "JOB_POSTING_NEEDS_INFO":
-      return "Your job posting has missing/incorrect information.";
+      return t("Your job posting has missing/incorrect information.");
     case "BENCHMARK_REPORT_READY":
-      return `Your report is ready! Download the Sector Benchmark Report for ${company}.`;
+      return t("Your report is ready! Download the Sector Benchmark Report for {company}.", { company });
     case "HR_REPORT_READY":
-      return `Your report is ready! Download the HR Analytics Report for ${company}.`;
+      return t("Your report is ready! Download the HR Analytics Report for {company}.", { company });
     case "CONVERSATION_MESSAGE_FROM_COMPANY":
-      return `${company} sent you a message.`;
+      return t("{company} sent you a message.", { company });
     case "CONVERSATION_MESSAGE_FROM_REVIEWER":
-      return `New message about a review of ${company}.`;
+      return t("New message about a review of {company}.", { company });
     case "CLAIM_APPROVED":
-      return `Your claim for ${company} was approved. Your company dashboard is ready!`;
+      return t("Your claim for {company} was approved. Your company dashboard is ready!", { company });
     case "CLAIM_REJECTED":
-      return `Your claim for ${company} wasn't approved.`;
+      return t("Your claim for {company} wasn't approved.", { company });
     case "JOB_APPLICATION_RECEIVED":
-      return n.jobTitle ? `New application for ${n.jobTitle} at ${company}.` : `New application at ${company}.`;
+      return n.jobTitle
+        ? t("New application for {job} at {company}.", { job: n.jobTitle, company })
+        : t("New application at {company}.", { company });
     case "QUESTION_ANSWERED":
       return n.companyName ? `Your question to ${n.companyName} has a new answer.` : "Your question has a new answer.";
     case "COMPANY_QUESTION_ASKED":
@@ -175,7 +181,7 @@ function describeNotification(n: AppNotification): string {
         ? `Someone asked ${n.companyName} a question. Answer it, then choose who sees it.`
         : "Someone asked your company a question.";
     case "SCHEDULED_POST_FAILED":
-      return `A scheduled post for ${company} could not go out. See why, then pick a new time or delete it.`;
+      return t("A scheduled post for {company} could not go out. See why, then pick a new time or delete it.", { company });
   }
 }
 
@@ -247,18 +253,18 @@ function hrefForNotification(n: AppNotification): string {
 // toUtcHour), so they never read finer than "1 hour ago".
 const HOUR_PRECISION_KINDS: ReadonlySet<NotificationKind> = new Set(["COMPANY_NEW_SOCIAL_POST", "QUESTION_ANSWERED", "COMPANY_QUESTION_ASKED"]);
 
-function timeAgo(iso: string, hourPrecision = false): string {
+function timeAgo(iso: string, t: TFn, hourPrecision = false): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
   const diffMin = Math.floor(diffSec / 60);
-  if (hourPrecision && diffMin < 60) return "1 hour ago";
-  if (diffSec < 60) return "Just now";
-  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
+  if (hourPrecision && diffMin < 60) return t("{n} hour ago", { n: 1 });
+  if (diffSec < 60) return t("Just now");
+  if (diffMin < 60) return t(diffMin === 1 ? "{n} minute ago" : "{n} minutes ago", { n: diffMin });
   const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour} hour${diffHour === 1 ? "" : "s"} ago`;
+  if (diffHour < 24) return t(diffHour === 1 ? "{n} hour ago" : "{n} hours ago", { n: diffHour });
   const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 7) return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
+  if (diffDay < 7) return t(diffDay === 1 ? "{n} day ago" : "{n} days ago", { n: diffDay });
   const diffWeek = Math.floor(diffDay / 7);
-  return `${diffWeek} week${diffWeek === 1 ? "" : "s"} ago`;
+  return t(diffWeek === 1 ? "{n} week ago" : "{n} weeks ago", { n: diffWeek });
 }
 
 
@@ -371,6 +377,7 @@ const KIND_ICON_OVERRIDE: Partial<
 // one-tap read on a phone with tired hands, not a dense desktop table.
 function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: string) => void }) {
   const category = CATEGORY_BY_KIND[n.kind];
+  const t = useT();
   const override = KIND_ICON_OVERRIDE[n.kind];
   const Icon = override?.Icon ?? CATEGORY_ICON[category];
   const ringClass = override?.ringClass ?? CATEGORY_RING_CLASS[category];
@@ -404,18 +411,18 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
           <span className="flex items-start gap-2">
             {/* Unread dot — the brief's explicit "colored dot" indicator. */}
             {n.unread && (
-              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label="Unread" title="Unread" />
+              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label={t("Unread")} title={t("Unread")} />
             )}
             <span className={`text-sm leading-snug text-foreground ${n.unread ? "font-bold" : "font-medium"}`}>
-              {describeNotification(n)}
+              {describeNotification(n, t)}
               {isVerifyAccount && (
                 <span className="ml-2 inline-block rounded-full bg-brand-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
-                  Verify now
+                  {t("Verify now")}
                 </span>
               )}
             </span>
           </span>
-          <span className="mt-1 block text-xs text-muted-foreground">{timeAgo(n.createdAt, HOUR_PRECISION_KINDS.has(n.kind))}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{timeAgo(n.createdAt, t, HOUR_PRECISION_KINDS.has(n.kind))}</span>
         </span>
       </RowLink>
     </li>
@@ -448,6 +455,7 @@ export function NotificationsMenu() {
   const { role } = useAuth();
   const isEmployer = role === "COMPANY_OWNER";
   const [open, setOpen] = useState(false);
+  const t = useT();
   const [notifications, setNotifications] = useState<AppNotification[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   // New when the panel was last opened: already saved as read, still shown
@@ -578,9 +586,9 @@ export function NotificationsMenu() {
         ref={buttonRef}
         type="button"
         onClick={toggleOpen}
-        aria-label="Notifications"
+        aria-label={t("Notifications")}
         aria-expanded={open}
-        title="Notifications"
+        title={t("Notifications")}
         className="relative flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
       >
         <BellIcon className="h-[22px] w-[22px]" />
@@ -600,32 +608,32 @@ export function NotificationsMenu() {
         <div
           ref={panelRef}
           role="dialog"
-          aria-label="Notifications"
+          aria-label={t("Notifications")}
           style={{ top: panelPos?.top ?? 72, right: panelPos?.right ?? 12 }}
           className="fixed z-50 w-96 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-surface p-3 font-sans shadow-xl"
         >
           <div className="flex items-center justify-between gap-2 px-1 pb-2">
-            <h2 className="text-base font-bold text-foreground">Notifications</h2>
+            <h2 className="text-base font-bold text-foreground">{t("Notifications")}</h2>
             <button
               type="button"
               onClick={markAllRead}
               disabled={unreadCount === 0 && freshIds.size === 0}
               className="rounded-lg border border-border px-3 py-2 text-sm font-bold text-foreground transition hover:border-brand-600 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-foreground dark:hover:border-brand-400 dark:hover:text-brand-400"
             >
-              Mark all as read
+              {t("Mark all as read")}
             </button>
           </div>
 
           {visible === null && loadFailed ? (
             <p className="p-4 text-center text-sm text-muted-foreground">
-              Couldn&apos;t load your notifications. Please try again in a moment.
+              {t("Couldn't load your notifications. Please try again in a moment.")}
             </p>
           ) : visible === null ? (
-            <p className="p-4 text-center text-sm text-muted-foreground">Loading…</p>
+            <p className="p-4 text-center text-sm text-muted-foreground">{t("Loading...")}</p>
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-2 p-6 text-center">
               <BellIcon className="h-8 w-8 text-muted-foreground" />
-              <p className="text-sm font-medium text-muted-foreground">You have no new notifications.</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("You have no new notifications.")}</p>
             </div>
           ) : (
             <ul className="flex max-h-[28rem] flex-col gap-1 overflow-y-auto">

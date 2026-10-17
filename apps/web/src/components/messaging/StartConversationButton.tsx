@@ -6,6 +6,7 @@ import type { ConversationThread } from "@iwtr/shared-types";
 import { sendMessageInputSchema } from "@iwtr/shared-types";
 import { ApiError, apiPost } from "@/lib/api-client";
 import { formProblem } from "@/lib/validateForm";
+import { useT } from "@/lib/i18n/client";
 
 interface Props {
   reviewId: string;
@@ -25,6 +26,7 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   if (existingId) {
     return (
@@ -32,7 +34,7 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
         href={`/social?openChat=${existingId}`}
         className="mt-2 inline-block rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-muted"
       >
-        Open conversation
+        {t("Open conversation")}
       </Link>
     );
   }
@@ -50,7 +52,7 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
   }
 
   async function send() {
-    const problem = formProblem(sendMessageInputSchema, { content: draft });
+    const problem = formProblem(sendMessageInputSchema, { content: draft }, {}, t);
     if (problem) {
       setError(problem);
       return;
@@ -61,7 +63,7 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
       const thread = await apiPost<ConversationThread>(`/reviews/${reviewId}/conversation`, { content: draft });
       setExistingId(thread.id);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't send that message. Please try again.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't send that message. Please try again."));
     } finally {
       setSending(false);
     }
@@ -70,8 +72,7 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
   return (
     <div className="mt-2 flex flex-col gap-2">
       <p className="text-xs text-muted-foreground">
-        Your name and account stay hidden. {companyName} only sees the name shown on your review. You can send one
-        message; once they answer, you can keep talking. Either of you can end the conversation at any time.
+        {t("Your name and account stay hidden. {name} only sees the name shown on your review. You can send one message; once they answer, you can keep talking. Either of you can end the conversation at any time.", { name: companyName })}
       </p>
       <label htmlFor={`start-${reviewId}`} className="sr-only">
         Your message to {companyName}
@@ -82,7 +83,7 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
         onChange={(e) => setDraft(e.target.value)}
         maxLength={2000}
         rows={3}
-        placeholder="Don't include names or contact details."
+        placeholder={t("Don't include names or contact details.")}
         className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
       />
       {error && (
@@ -97,14 +98,14 @@ export function StartConversationButton({ reviewId, companyName, conversationId 
           disabled={sending || !draft.trim()}
           className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
         >
-          Send
+          {t("Send")}
         </button>
         <button
           type="button"
           onClick={() => setOpen(false)}
           className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
         >
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </div>

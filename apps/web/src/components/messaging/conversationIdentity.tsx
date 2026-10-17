@@ -3,6 +3,7 @@
 import type { ConversationSummary } from "@iwtr/shared-types";
 import { Avatar } from "@/components/Avatar";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { useT } from "@/lib/i18n/client";
 
 type Mode = "reviewer" | "company";
 
@@ -34,9 +35,10 @@ export function CounterpartPicture({ conversation, mode }: { conversation: Conve
  * (the owner's choice); for the company, the review's public name.
  */
 export function ConversationStatus({ conversation, mode }: { conversation: ConversationSummary; mode: Mode }) {
+  const t = useT();
   const name =
     mode === "reviewer"
-      ? (conversation.ownerName ?? (conversation.companyReplied ? OWNER_NAME_FALLBACK : null))
+      ? (conversation.ownerName ?? (conversation.companyReplied ? t(OWNER_NAME_FALLBACK) : null))
       : conversation.reviewerName;
   return (
     <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
@@ -44,7 +46,7 @@ export function ConversationStatus({ conversation, mode }: { conversation: Conve
         aria-hidden="true"
         className={`h-2 w-2 shrink-0 rounded-full ${conversation.ended ? "bg-red-500" : "bg-green-500"}`}
       />
-      <span className="shrink-0 font-medium">{conversation.ended ? "Ended" : "Active"}</span>
+      <span className="shrink-0 font-medium">{conversation.ended ? t("Ended") : t("Active@@conversation")}</span>
       {name && (
         <>
           <span aria-hidden="true">·</span>

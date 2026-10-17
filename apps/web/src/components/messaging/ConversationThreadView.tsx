@@ -6,6 +6,8 @@ import { containsTurkishPhoneNumber, PHONE_SHARING_NOTE, sendMessageInputSchema 
 import { ApiError, apiPost } from "@/lib/api-client";
 import { formProblem } from "@/lib/validateForm";
 import { ConversationStatus, CounterpartPicture, SidePicture } from "./conversationIdentity";
+import { useI18n, useT } from "@/lib/i18n/client";
+import { intlLocale, type Locale } from "@/lib/i18n/core";
 
 interface Props {
   thread: ConversationThread;
@@ -17,9 +19,9 @@ interface Props {
   variant?: "page" | "dock";
 }
 
-function formatDay(day: string): string {
+function formatDay(day: string, locale: Locale): string {
   const [y, m, d] = day.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(intlLocale(locale), {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -31,6 +33,7 @@ function formatDay(day: string): string {
 // box while one is being typed. Numbers are allowed (both sides may agree to
 // swap them); this is a reminder, not a block.
 function PhoneSharingNote({ className = "" }: { className?: string }) {
+  const t = useT();
   return (
     <p
       role="note"
@@ -40,7 +43,7 @@ function PhoneSharingNote({ className = "" }: { className?: string }) {
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
         <path d="M12 8v4M12 16h.01" />
       </svg>
-      {PHONE_SHARING_NOTE}
+      {t(PHONE_SHARING_NOTE)}
     </p>
   );
 }
@@ -54,6 +57,7 @@ export function ConversationThreadView({ thread, mode, onChange, variant = "page
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t, locale } = useI18n();
   const scrollRef = useRef<HTMLOListElement>(null);
   const mySide = mode === "reviewer" ? "REVIEWER" : "COMPANY";
   const theirSide = mode === "reviewer" ? "COMPANY" : "REVIEWER";
@@ -67,15 +71,15 @@ export function ConversationThreadView({ thread, mode, onChange, variant = "page
   const disabledReason =
     thread.cannotSendReason === "ENDED"
       ? thread.endedBy === "YOU"
-        ? "You ended this conversation. No more messages can be sent."
-        : "This conversation was ended. No more messages can be sent."
+        ? t("You ended this conversation. No more messages can be sent.")
+        : t("This conversation was ended. No more messages can be sent.")
       : thread.cannotSendReason === "AWAITING_COMPANY"
-        ? `Please wait for ${thread.companyName} to answer before sending another message.`
+        ? t("Please wait for {name} to answer before sending another message.", { name: thread.companyName })
         : null;
 
   async function send() {
     if (!draft.trim()) return;
-    const problem = formProblem(sendMessageInputSchema, { content: draft });
+    const problem = formProblem(sendMessageInputSchema, { content: draft }, {}, t);
     if (problem) {
       setError(problem);
       return;
@@ -87,19 +91,19 @@ export function ConversationThreadView({ thread, mode, onChange, variant = "page
       setDraft("");
       onChange(updated);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't send that message. Please try again.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't send that message. Please try again."));
     } finally {
       setSending(false);
     }
   }
 
   async function end() {
-    if (!window.confirm("End this conversation? Neither side will be able to send messages here again.")) return;
+    if (!window.confirm(t("End this conversation? Neither side will be able to send messages here again."))) return;
     setError(null);
     try {
       onChange(await apiPost<ConversationThread>(`/conversations/${thread.id}/end`, {}));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't end the conversation. Please try again.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't end the conversation. Please try again."));
     }
   }
 
@@ -123,7 +127,7 @@ export function ConversationThreadView({ thread, mode, onChange, variant = "page
             {!dock && <ConversationStatus conversation={thread} mode={mode} />}
             {thread.reviewExcerpt && (
               <p className={`line-clamp-2 text-xs italic text-muted-foreground ${dock ? "" : "mt-1"}`}>
-                {mode === "company" ? "About their review: " : "About your review: "}
+                {mode === "company" ? t("About their review:") : t("About your review:")}{" "}
                 &ldquo;{thread.reviewExcerpt}&rdquo;
               </p>
             )}
@@ -133,18 +137,18 @@ export function ConversationThreadView({ thread, mode, onChange, variant = "page
           <button
             type="button"
             onClick={end}
-            aria-label="End conversation"
+            aria-label={t("End conversation")}
             className={`rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-surface-muted ${dock ? "px-2 py-1" : "px-3 py-1.5"}`}
           >
-            {dock ? "End" : "End conversation"}
+            {dock ? t("End") : t("End conversation")}
           </button>
         )}
       </header>
 
-      <ol ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1" aria-label="Messages">
+      <ol ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1" aria-label={t("Messages")}>
         {groups.map((group) => (
           <li key={group.day} className="flex flex-col gap-2">
-            <p className="text-center text-xs font-medium text-muted-foreground">{formatDay(group.day)}</p>
+            <p className="text-center text-xs font-medium text-muted-foreground">{formatDay(group.day, locale)}</p>
             {group.messages.map((message) => (
               <div key={message.id} className={message.fromMe ? "flex flex-col items-end gap-1" : "flex flex-col items-start gap-1"}>
                 <div className={message.fromMe ? "flex flex-row-reverse items-end gap-2" : "flex items-end gap-2"}>
@@ -169,7 +173,7 @@ export function ConversationThreadView({ thread, mode, onChange, variant = "page
       <div className="flex shrink-0 flex-col gap-2 border-t border-border pt-3">
         {disabledReason && <p className="text-sm text-muted-foreground">{disabledReason}</p>}
         <label htmlFor={`reply-${thread.id}`} className="sr-only">
-          Your message
+          {t("Your message")}
         </label>
         <textarea
           id={`reply-${thread.id}`}
@@ -178,7 +182,7 @@ export function ConversationThreadView({ thread, mode, onChange, variant = "page
           disabled={!thread.canSend || sending}
           maxLength={2000}
           rows={dock ? 2 : 3}
-          placeholder={thread.canSend ? "Write a message. Don't include anyone's name." : ""}
+          placeholder={thread.canSend ? t("Write a message. Don't include anyone's name.") : ""}
           className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground disabled:opacity-50"
         />
         {thread.canSend && containsTurkishPhoneNumber(draft) && <PhoneSharingNote />}
@@ -194,7 +198,7 @@ export function ConversationThreadView({ thread, mode, onChange, variant = "page
             disabled={!thread.canSend || sending || !draft.trim()}
             className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
           >
-            Send
+            {t("Send")}
           </button>
         </div>
       </div>

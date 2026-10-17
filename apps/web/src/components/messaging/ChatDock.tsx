@@ -8,6 +8,7 @@ import { apiGet, apiPost } from "@/lib/api-client";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { ConversationThreadView } from "./ConversationThreadView";
 import { ConversationStatus, CounterpartPicture } from "./conversationIdentity";
+import { useT } from "@/lib/i18n/client";
 
 // The private-messages dock, docked to the bottom right of every page
 // except Edit Profile and the Dashboard (GlobalChatDock in layout.tsx
@@ -142,11 +143,12 @@ function DockInner() {
 
   const state = useMemo(() => ({ activeChats, openChat, closeChat }), [activeChats, openChat, closeChat]);
   const unreadCount = list?.filter((r) => r.unread).length ?? 0;
+  const t = useT();
 
   return (
     <DockContext.Provider value={state}>
       <div
-        aria-label="Messages"
+        aria-label={t("Messages")}
         role="region"
         className="pointer-events-none fixed bottom-0 right-4 z-50 flex flex-row-reverse items-end gap-3"
       >
@@ -217,6 +219,7 @@ function MessagesTab({
   onToggle: () => void;
 }) {
   const { openChat, activeChats } = useChatDock();
+  const t = useT();
   return (
     <section
       className={`pointer-events-auto flex ${PANEL_WIDTH} max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-t-[2px] border border-b-0 border-border bg-surface ${
@@ -224,28 +227,28 @@ function MessagesTab({
       }`}
     >
       <button type="button" onClick={onToggle} aria-expanded={open} className={MESSAGES_BAR}>
-        <span className="flex-1 font-medium">Messages</span>
+        <span className="flex-1 font-medium">{t("Messages")}</span>
         {unreadCount > 0 && (
           <span className="rounded-[2px] bg-white px-1.5 py-0.5 text-xs font-semibold tabular-nums text-brand-700">
             {unreadCount}
-            <span className="sr-only"> unread</span>
+            <span className="sr-only"> {t("unread")}</span>
           </span>
         )}
         <ChevronIcon up={!open} />
       </button>
       {open && (
         <div className="max-h-[min(26rem,calc(100dvh-8rem))] overflow-y-auto">
-          {listError && <p className="p-3 text-sm text-red-700 dark:text-red-300">Couldn&apos;t load your messages.</p>}
-          {!listError && list === null && <p className="p-3 text-sm text-muted-foreground">Loading messages…</p>}
+          {listError && <p className="p-3 text-sm text-red-700 dark:text-red-300">{t("Couldn't load your messages.")}</p>}
+          {!listError && list === null && <p className="p-3 text-sm text-muted-foreground">{t("Loading messages...")}</p>}
           {list !== null && list.length === 0 && (
             <p className="p-3 text-sm text-muted-foreground">
               {mode === "company"
-                ? "No messages yet. When a reviewer you've replied to writes to you, it will show up here."
-                : "No messages yet. After a company replies to one of your reviews, you can message it privately from My Ratings."}
+                ? t("No messages yet. When a reviewer you've replied to writes to you, it will show up here.")
+                : t("No messages yet. After a company replies to one of your reviews, you can message it privately from My Ratings.")}
             </p>
           )}
           {list !== null && list.length > 0 && (
-            <ul aria-label="Conversations" className="divide-y divide-border">
+            <ul aria-label={t("Conversations")} className="divide-y divide-border">
               {list.map((row) => (
                 <li key={row.id}>
                   <button
@@ -260,7 +263,7 @@ function MessagesTab({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate font-medium text-foreground">{row.companyName}</span>
-                        {row.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-brand-600" aria-label="Unread" />}
+                        {row.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-brand-600" aria-label={t("Unread")} />}
                       </span>
                       <ConversationStatus conversation={row} mode={mode} />
                       <span className="mt-0.5 block truncate text-xs font-normal text-muted-foreground">
@@ -294,6 +297,7 @@ function ChatPanel({
   const [thread, setThread] = useState<ConversationThread | null>(null);
   const [error, setError] = useState(false);
   const [minimised, setMinimised] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -360,12 +364,12 @@ function ChatPanel({
         <button
           type="button"
           onClick={() => setMinimised((v) => !v)}
-          aria-label={minimised ? "Expand conversation" : "Minimise conversation"}
+          aria-label={minimised ? t("Expand conversation") : t("Minimise conversation")}
           className={ICON_BUTTON}
         >
           <ChevronIcon up={minimised} />
         </button>
-        <button type="button" onClick={() => closeChat(conversationId)} aria-label="Close conversation" className={ICON_BUTTON}>
+        <button type="button" onClick={() => closeChat(conversationId)} aria-label={t("Close conversation")} className={ICON_BUTTON}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
@@ -374,11 +378,11 @@ function ChatPanel({
       {!minimised && (
         <div className="flex h-[min(28rem,calc(100dvh-8rem))] flex-col p-3">
           {error ? (
-            <p className="text-sm text-red-700 dark:text-red-300">Couldn&apos;t open that conversation.</p>
+            <p className="text-sm text-red-700 dark:text-red-300">{t("Couldn't open that conversation.")}</p>
           ) : thread ? (
             <ConversationThreadView thread={thread} mode={mode} onChange={onChange} variant="dock" />
           ) : (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
           )}
         </div>
       )}
