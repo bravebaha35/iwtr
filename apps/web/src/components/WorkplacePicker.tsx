@@ -6,6 +6,7 @@ import { apiGet } from "@/lib/api-client";
 import { COUNTRIES } from "@/lib/countries";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { SingleSelectDropdown } from "@/components/Dropdown";
+import { useT } from "@/lib/i18n/client";
 
 function optionClass(active: boolean): string {
   return `w-full rounded px-2 py-1.5 text-left text-sm transition ${
@@ -65,6 +66,7 @@ export function WorkplacePicker({
   onPick: (workplace: { companyId: string | null; name: string; slug: string | null }) => void;
   allowFreeText?: boolean;
 }) {
+  const t = useT();
   // Defaults to Turkey rather than unset — nearly every seeded company is a
   // Turkish business today (see lib/turkeyGeo.ts), so defaulting here avoids
   // an extra click on the common path while still leaving the dropdown open
@@ -141,7 +143,7 @@ export function WorkplacePicker({
     <div className="flex flex-col gap-2">
       <input
         type="search"
-        placeholder="Search workplace name..."
+        placeholder={t("Search workplace name...")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
@@ -149,12 +151,12 @@ export function WorkplacePicker({
 
       {showResultsPanel && (
         <div className="no-scrollbar flex max-h-40 flex-col gap-0.5 overflow-y-auto rounded-lg border border-border p-1">
-          {companies === null && <p className="p-2 text-xs text-muted-foreground">Loading...</p>}
+          {companies === null && <p className="p-2 text-xs text-muted-foreground">{t("Loading...")}</p>}
           {companies !== null && filtered.length === 0 && loadFailed && (
-            <p className="p-2 text-xs text-red-600 dark:text-red-300">Couldn&apos;t load workplaces — try again.</p>
+            <p className="p-2 text-xs text-red-600 dark:text-red-300">{t("Couldn't load workplaces - try again.")}</p>
           )}
           {companies !== null && filtered.length === 0 && !loadFailed && (
-            <p className="p-2 text-xs text-muted-foreground">No workplaces found.</p>
+            <p className="p-2 text-xs text-muted-foreground">{t("No workplaces found.")}</p>
           )}
           {filtered.slice(0, MAX_RESULTS).map((c) => {
             const location = resolveCompanyLocation(c);
@@ -172,13 +174,13 @@ export function WorkplacePicker({
           })}
           {filtered.length > MAX_RESULTS && (
             <p className="p-2 text-xs text-muted-foreground">
-              {filtered.length - MAX_RESULTS} more match — keep typing to narrow it down.
+              {t("{n} more match - keep typing to narrow it down.", { n: filtered.length - MAX_RESULTS })}
             </p>
           )}
         </div>
       )}
       {!hasQuery && query.trim() && (
-        <p className="text-xs text-muted-foreground/60">Keep typing (2+ characters) to search.</p>
+        <p className="text-xs text-muted-foreground/60">{t("Keep typing (2+ characters) to search.")}</p>
       )}
 
       {allowFreeText && query.trim() && (
@@ -187,32 +189,32 @@ export function WorkplacePicker({
           onClick={() => onPick({ companyId: null, name: query.trim(), slug: null })}
           className="rounded-lg border border-dashed border-border px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:bg-surface-muted"
         >
-          Can&apos;t find it? Use &ldquo;{query.trim()}&rdquo; as your workplace name
+          {t("Can't find it? Use “{name}” as your workplace name", { name: query.trim() })}
         </button>
       )}
 
       <div>
         <p className="mb-1 text-[11px] font-medium text-muted-foreground">
-          Workplace&apos;s country, city &amp; district
-          <span className="font-normal text-muted-foreground/70"> — fills in automatically once you pick a workplace above</span>
+          {t("Workplace's country, city & district")}
+          <span className="font-normal text-muted-foreground/70"> {t("- fills in automatically once you pick a workplace above")}</span>
         </p>
         <div className="grid grid-cols-3 gap-2">
           <SingleSelectDropdown value={country} options={COUNTRY_OPTIONS} placeholder="Country" onChange={pickCountry} />
 
           {!isTurkey ? (
             <input
-              placeholder="City"
+              placeholder={t("City")}
               value={city ?? ""}
               onChange={(e) => pickCity(e.target.value || null)}
               className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
             />
           ) : (
-            <SingleSelectDropdown value={city} options={cityOptions} placeholder="City" onChange={pickCity} />
+            <SingleSelectDropdown value={city} options={cityOptions} placeholder={t("City")} onChange={pickCity} />
           )}
 
           {city && !isTurkey ? (
             <input
-              placeholder="District (optional)"
+              placeholder={t("District (optional)")}
               value={district ?? ""}
               onChange={(e) => setDistrict(e.target.value || null)}
               className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
@@ -229,12 +231,12 @@ export function WorkplacePicker({
         </div>
         {!isTurkey && (
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Workplace data for {country} isn&apos;t available yet — Turkey is the only country covered so far.
+            {t("Workplace data for {country} isn't available yet - Turkey is the only country covered so far.", { country: t(country) })}
           </p>
         )}
         {allowFreeText && (
           <p className="mt-1.5 text-xs text-muted-foreground/70">
-            Using a free-typed name? Set these yourself — there&apos;s no matched company to fill them in from.
+            {t("Using a free-typed name? Set these yourself - there's no matched company to fill them in from.")}
           </p>
         )}
       </div>

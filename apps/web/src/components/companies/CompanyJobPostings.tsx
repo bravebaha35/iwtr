@@ -19,6 +19,7 @@ import { ContactButton } from "@/components/jobs/JobCard";
 import { ApplyButton } from "@/components/jobs/ApplyButton";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
+import { useT } from "@/lib/i18n/client";
 
 // The "Job Postings" tab on a company's profile page. Its own fetch against
 // GET /companies/:slug/job-postings - independent of the Ratings and Social
@@ -35,6 +36,7 @@ const PREVIEW_MAX_HEIGHT = "17.5rem";
 
 function RoleRow({ company, posting }: { company: Company; posting: PublicJobPosting }) {
   const { savedIds, canSave, toggleSave, loading: savedLoading } = useSavedJobPostings();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [overflows, setOverflows] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
@@ -59,17 +61,17 @@ function RoleRow({ company, posting }: { company: Company; posting: PublicJobPos
         <div>
           <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <span className={`h-[3px] w-4 rounded-full ${collarTileTone[workType].bar}`} aria-hidden="true" />
-            {workplaceTypeLabel(workType)}
+            {t(workplaceTypeLabel(workType))}
           </span>
           <h3 className="mt-2 font-display text-2xl leading-tight text-foreground">{posting.jobTitle}</h3>
           {location && <p className="mt-1 text-sm text-muted-foreground">{location}</p>}
         </div>
 
         {posting.positions.length > 0 && (
-          <ul className="flex flex-wrap gap-1.5" aria-label="Position">
+          <ul className="flex flex-wrap gap-1.5" aria-label={t("Position")}>
             {posting.positions.map((p) => (
               <li key={p} className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-foreground">
-                {jobPositionLabel(p)}
+                {t(jobPositionLabel(p))}
               </li>
             ))}
           </ul>
@@ -86,12 +88,12 @@ function RoleRow({ company, posting }: { company: Company; posting: PublicJobPos
             type="button"
             onClick={() => canSave && toggleSave(posting.id)}
             disabled={!canSave || savedLoading}
-            title={!canSave ? "Log in to save" : undefined}
+            title={!canSave ? t("Log in to save") : undefined}
             aria-pressed={isSaved}
             className="-ml-1 flex items-center gap-1.5 rounded-full px-1 py-1 text-xs font-semibold text-muted-foreground transition hover:text-brand-600 disabled:opacity-40 dark:hover:text-brand-400"
           >
             <BookmarkIcon className="h-4 w-4" filled={isSaved} />
-            {isSaved ? "Saved" : "Save"}
+            {isSaved ? t("Saved") : t("Save")}
           </button>
           <RiskScoreBadge riskScore={company.riskScore > 0 ? company.riskScore : 0} short />
         </div>
@@ -109,7 +111,7 @@ function RoleRow({ company, posting }: { company: Company; posting: PublicJobPos
           {posting.description.trim() ? (
             <RichText text={posting.description} className="whitespace-pre-wrap" />
           ) : (
-            <p className="text-muted-foreground">The company has not written a description for this role yet.</p>
+            <p className="text-muted-foreground">{t("The company has not written a description for this role yet.")}</p>
           )}
         </div>
         {(overflows || open) && (
@@ -120,7 +122,7 @@ function RoleRow({ company, posting }: { company: Company; posting: PublicJobPos
             aria-controls={`role-${posting.id}-text`}
             className="mt-3 self-start text-[13px] font-semibold text-brand-600 transition hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
           >
-            {open ? "Show less" : "Read the full posting"}
+            {open ? t("Show less") : t("Read the full posting")}
           </button>
         )}
       </div>
@@ -131,17 +133,18 @@ function RoleRow({ company, posting }: { company: Company; posting: PublicJobPos
 // No owner-written postings, but reviewers' job titles say what this
 // workplace hires for. Small tiles, no Apply: there is no posting behind them.
 function InferredRoles({ company, titles }: { company: Company; titles: ClassifiedJobTitle[] }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">
-        No job ads right now. These are roles people who worked here have held; contact the company to ask about them.
+        {t("No job ads right now. These are roles people who worked here have held; contact the company to ask about them.")}
       </p>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {titles.map((t) => (
-          <li key={t.title} className="flex items-center justify-between gap-3 rounded-2xl bg-surface p-4 shadow-xs">
+        {titles.map((role) => (
+          <li key={role.title} className="flex items-center justify-between gap-3 rounded-2xl bg-surface p-4 shadow-xs">
             <span className="min-w-0">
-              <span className="block truncate font-semibold text-foreground">{t.title}</span>
-              <span className="block text-xs text-muted-foreground">{workplaceTypeLabel(t.workType)}</span>
+              <span className="block truncate font-semibold text-foreground">{role.title}</span>
+              <span className="block text-xs text-muted-foreground">{t(workplaceTypeLabel(role.workType))}</span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5">
               <ContactButton icon="mail" label="Mail" value={company.contactEmail} />
@@ -162,6 +165,7 @@ export function CompanyJobPostings({
   aggregate?: CompanyAggregateScore | null;
 }) {
   const [data, setData] = useState<CompanyJobPostingsData | null>(null);
+  const t = useT();
   const [error, setError] = useState<string | null>(null);
 
   // slug is a route param, so this component remounts on navigation: the
@@ -182,7 +186,7 @@ export function CompanyJobPostings({
   }, [company.slug]);
 
   if (error) {
-    return <p className="text-sm text-red-600 dark:text-red-300">{error}</p>;
+    return <p className="text-sm text-red-600 dark:text-red-300">{t(error)}</p>;
   }
   if (data === null) {
     return (
@@ -198,8 +202,8 @@ export function CompanyJobPostings({
   if (jobPostings.length === 0 && jobTitles.length === 0) {
     return (
       <div className="rounded-2xl bg-surface-muted px-6 py-8">
-        <p className="font-semibold text-foreground">No open roles right now</p>
-        <p className="mt-1 text-sm text-muted-foreground">Follow this workplace to hear when it posts a job.</p>
+        <p className="font-semibold text-foreground">{t("No open roles right now")}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("Follow this workplace to hear when it posts a job.")}</p>
       </div>
     );
   }
@@ -207,7 +211,7 @@ export function CompanyJobPostings({
   return (
     <div className="flex flex-col gap-5">
       <h2 className="text-lg font-semibold text-foreground">
-        Open Roles
+        {t("Open Roles")}
         {jobPostings.length > 0 && <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">{jobPostings.length}</span>}
       </h2>
       {jobPostings.length > 0 ? (

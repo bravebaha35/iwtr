@@ -7,6 +7,7 @@ import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { KVKKModal } from "@/components/legal/KVKKModal";
 import { NoticeTakedownModal } from "@/components/legal/NoticeTakedownModal";
 import { AnonymityPolicyModal } from "@/components/legal/AnonymityPolicyModal";
+import { useT } from "@/lib/i18n/client";
 
 // Sentinel hrefs, not real routes — caught below and opened as a popup
 // instead of navigated to. Pricing is deliberately not a page (see
@@ -87,6 +88,7 @@ export function GlobalFooter() {
   const [showKvkk, setShowKvkk] = useState(false);
   const [showNoticeTakedown, setShowNoticeTakedown] = useState(false);
   const [showAnonymity, setShowAnonymity] = useState(false);
+  const t = useT();
 
   // Every sentinel href opens a popup instead of navigating — this map is
   // the one place that decides which, so a link renders as a <button> (see
@@ -105,7 +107,7 @@ export function GlobalFooter() {
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
         {FOOTER_COLUMNS.map((column) => (
           <div key={column.title}>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-footer-foreground">{column.title}</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-footer-foreground">{t(column.title)}</h2>
             <ul className="mt-4 space-y-3">
               {column.links.map((link) => {
                 const openPopup = popupOpeners[link.href];
@@ -116,13 +118,13 @@ export function GlobalFooter() {
                       onClick={openPopup}
                       className="text-sm text-footer-foreground/75 transition hover:text-footer-foreground"
                     >
-                      {link.label}
+                      {t(link.label)}
                     </button>
                   </li>
                 ) : (
                   <li key={link.label}>
                     <Link href={link.href} className="text-sm text-footer-foreground/75 transition hover:text-footer-foreground">
-                      {link.label}
+                      {t(link.label)}
                     </Link>
                   </li>
                 );
@@ -137,7 +139,7 @@ export function GlobalFooter() {
           <Logo size="sm" />
           <span className="text-sm font-semibold text-footer-foreground">I Worked There</span>
         </div>
-        <p className="text-sm text-footer-foreground/75">&copy; 2026 iworkedthere.com. All rights reserved.</p>
+        <p className="text-sm text-footer-foreground/75">&copy; 2026 iworkedthere.com. {t("All rights reserved.")}</p>
       </div>
 
       {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}

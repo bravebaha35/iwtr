@@ -1,3 +1,7 @@
+"use client";
+
+import { useT } from "@/lib/i18n/client";
+
 // Worker-facing accountability signal: riskScore increments (server-side,
 // see JobPostingsService.create) when a company reposts the exact same
 // title+workType after marking an earlier identical posting FILLED. Shown
@@ -54,17 +58,19 @@ export function RiskScoreBadge({
   className?: string;
   short?: boolean;
 }) {
+  const t = useT();
+  const note = riskScore === null ? t(NO_OPEN_POSTING_NOTE) : t(RISK_SCORE_NOTES[riskScore]);
   if (short) {
     return (
       <span
         className={`inline-flex text-xs font-semibold ${className ?? ""}`}
-        title={riskScore === null ? NO_OPEN_POSTING_NOTE : RISK_SCORE_NOTES[riskScore]}
+        title={note}
       >
         <span aria-hidden="true" className={riskScore === null ? "text-muted-foreground" : riskScoreColorClass(riskScore)}>
-          RS {riskScore === null ? "-" : `${riskScore}/3`}
+          {t("RS")} {riskScore === null ? "-" : `${riskScore}/3`}
         </span>
         <span className="sr-only">
-          {riskScore === null ? "Risk Score not available yet" : `Risk Score ${riskScore} of 3`}
+          {riskScore === null ? t("Risk Score not available yet") : t("Risk Score {n} of 3", { n: riskScore })}
         </span>
       </span>
     );
@@ -73,21 +79,21 @@ export function RiskScoreBadge({
     return (
       <span
         className={`text-xs font-semibold text-muted-foreground ${className ?? ""}`}
-        title={NO_OPEN_POSTING_NOTE}
+        title={note}
       >
-        Risk Score: -
+        {t("Risk Score")}: -
       </span>
     );
   }
   return (
     <span
       className={`inline-flex items-center gap-1 text-xs font-semibold ${riskScoreColorClass(riskScore)} ${className ?? ""}`}
-      title={RISK_SCORE_NOTES[riskScore]}
+      title={note}
     >
       {Array.from({ length: riskScore }, (_, i) => (
         <RiskTriangleIcon key={i} className="h-3.5 w-3.5" />
       ))}
-      Risk Score: {riskScore}/3
+      {t("Risk Score")}: {riskScore}/3
     </span>
   );
 }

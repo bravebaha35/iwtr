@@ -5,15 +5,17 @@ import type { CreateJobPostingResult, OwnedCompany } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "@/lib/api-client";
 import { JobSetupModal, type JobSetupData } from "@/components/jobs/JobSetupModal";
 import { JobBoostModal } from "@/components/jobs/JobBoostModal";
+import { useT } from "@/lib/i18n/client";
 
 // Close (x) button shared by every step's card here — same shape as
 // AuthModal.tsx's local CloseButton (not exported from there, so redeclared).
 function CloseButton({ onClose }: { onClose: () => void }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onClose}
-      aria-label="Close"
+      aria-label={t("Close")}
       className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
     >
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -49,6 +51,7 @@ export function JobCreationFlow({ open, onClose }: { open: boolean; onClose: () 
   const [setupData, setSetupData] = useState<JobSetupData | null>(null);
   const [result, setResult] = useState<CreateJobPostingResult | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     if (!open) return;
@@ -85,7 +88,7 @@ export function JobCreationFlow({ open, onClose }: { open: boolean; onClose: () 
   if (step === "loading") {
     return (
       <ShellModal onClose={reset}>
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
       </ShellModal>
     );
   }
@@ -93,9 +96,9 @@ export function JobCreationFlow({ open, onClose }: { open: boolean; onClose: () 
   if (step === "none-approved") {
     return (
       <ShellModal onClose={reset}>
-        <h2 className="mb-2 text-lg font-bold text-foreground">No approved company yet</h2>
+        <h2 className="mb-2 text-lg font-bold text-foreground">{t("No approved company yet")}</h2>
         <p className="text-sm text-muted-foreground">
-          {loadError ?? "You need an approved company claim before you can post a job. Claim a company from its page, then check back once an admin approves it."}
+          {t(loadError ?? "You need an approved company claim before you can post a job. Claim a company from its page, then check back once an admin approves it.")}
         </p>
       </ShellModal>
     );
@@ -104,7 +107,7 @@ export function JobCreationFlow({ open, onClose }: { open: boolean; onClose: () 
   if (step === "picker") {
     return (
       <ShellModal onClose={reset}>
-        <h2 className="mb-4 text-lg font-bold text-foreground">Which company is this job for?</h2>
+        <h2 className="mb-4 text-lg font-bold text-foreground">{t("Which company is this job for?")}</h2>
         <div className="flex flex-col gap-2">
           {companies.map((c) => (
             <button
@@ -155,16 +158,16 @@ export function JobCreationFlow({ open, onClose }: { open: boolean; onClose: () 
     return (
       <ShellModal onClose={reset}>
         <h2 className="mb-2 text-lg font-bold text-foreground">
-          {result.status === "PENDING_ADMIN" ? "Submitted for review" : "Your job posting is up !"}
+          {result.status === "PENDING_ADMIN" ? t("Submitted for review") : t("Your job posting is up !")}
         </h2>
         <p className="text-sm text-muted-foreground">
           {result.status === "PENDING_ADMIN"
-            ? "This posting needs a quick admin check before it goes live — you'll get a notification once it's published."
-            : "Job-seekers browsing /jobs can see it now."}
+            ? t("This posting needs a quick admin check before it goes live - you'll get a notification once it's published.")
+            : t("Job-seekers browsing /jobs can see it now.")}
         </p>
         {result.status !== "CHECKOUT_REQUIRED" && result.boostError && (
           <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-            {result.boostError}
+            {t(result.boostError)}
           </p>
         )}
       </ShellModal>

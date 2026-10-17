@@ -13,6 +13,7 @@ import {
   type Splice,
   type Style,
 } from "@/lib/richText";
+import { useT } from "@/lib/i18n/client";
 
 // The box shows formatting as it will look; what it hands back is the
 // stored text of lib/richText (**bold**, __italic__, "• " / "1. " lines).
@@ -167,6 +168,7 @@ export function RichTextEditor({
   ariaLabel?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const t = useT();
   // The stored text this box last produced, so a value coming back from the
   // parent doesn't redraw the box under the caret.
   const shown = useRef<string | null>(null);
@@ -285,36 +287,36 @@ export function RichTextEditor({
       className={`flex flex-col overflow-hidden rounded-xl border border-border bg-surface transition focus-within:border-brand-600 dark:focus-within:border-brand-400 ${className}`}
     >
       <div className="flex flex-wrap items-center gap-0.5 border-b border-border/70 px-1.5 py-1">
-        <button type="button" onMouseDown={keep} onClick={() => format("bold")} aria-pressed={active.b} title="Bold (Ctrl+B)" className={`${toolButton} ${active.b ? on : off}`}>
+        <button type="button" onMouseDown={keep} onClick={() => format("bold")} aria-pressed={active.b} title={t("Bold (Ctrl+B)")} className={`${toolButton} ${active.b ? on : off}`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" />
           </svg>
-          Bold
+          {t("Bold")}
         </button>
-        <button type="button" onMouseDown={keep} onClick={() => format("italic")} aria-pressed={active.i} title="Italic (Ctrl+I)" className={`${toolButton} ${active.i ? on : off}`}>
+        <button type="button" onMouseDown={keep} onClick={() => format("italic")} aria-pressed={active.i} title={t("Italic (Ctrl+I)")} className={`${toolButton} ${active.i ? on : off}`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M14 5h5M5 19h5M15 5l-6 14" />
           </svg>
-          Italic
+          {t("Italic")}
         </button>
         <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
-        <button type="button" onMouseDown={keep} onClick={() => toggle("bullet")} title="Bullet list" className={`${toolButton} ${off}`}>
+        <button type="button" onMouseDown={keep} onClick={() => toggle("bullet")} title={t("Bullet list")} className={`${toolButton} ${off}`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M9 6h11M9 12h11M9 18h11" />
             <circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
             <circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
             <circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
           </svg>
-          Bullet list
+          {t("Bullet list")}
         </button>
-        <button type="button" onMouseDown={keep} onClick={() => toggle("number")} title="Numbered list" className={`${toolButton} ${off}`}>
+        <button type="button" onMouseDown={keep} onClick={() => toggle("number")} title={t("Numbered list")} className={`${toolButton} ${off}`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M10 6h10M10 12h10M10 18h10" />
             <path d="M4 4.6l1.3-.8v4.4M3.7 11.4h2.4l-2.4 3.2h2.6" strokeWidth="1.5" />
           </svg>
-          Numbered list
+          {t("Numbered list")}
         </button>
-        <span className="ml-auto hidden pr-2 text-[11px] text-muted-foreground lg:inline">Enter starts the next item</span>
+        <span className="ml-auto hidden pr-2 text-[11px] text-muted-foreground lg:inline">{t("Enter starts the next item")}</span>
       </div>
       <div className="relative min-h-0 flex-1">
         {empty && placeholder && (

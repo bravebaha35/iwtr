@@ -10,6 +10,7 @@ import { AdminOtpScreen } from "@/components/auth/AdminOtpScreen";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/passwordValidation";
 import { loginEmailInputSchema } from "@iwtr/shared-types";
 import { formProblem } from "@/lib/validateForm";
+import { useT } from "@/lib/i18n/client";
 import {
   clearPendingVerification,
   loadPendingVerification,
@@ -31,11 +32,12 @@ const DEV_TEST_MEMBER_EMAIL = "mehmet.ahmetoglu.test@iworkedthere.dev";
 // the whole dialog back to whatever page was showing underneath (the
 // homepage's WorkplaceBrowser, a company page, etc.) without logging in.
 function CloseButton({ onClose }: { onClose: () => void }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onClose}
-      aria-label="Close"
+      aria-label={t("Close")}
       className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
     >
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -59,6 +61,7 @@ export function AuthModal() {
     authModalOpen,
     closeAuthModal,
   } = useAuth();
+  const t = useT();
   // "" / "form" are just the pre-hydration placeholders — sessionStorage
   // isn't available during server rendering, so reading it in a lazy
   // useState initializer would make the server's markup ("form", empty
@@ -116,7 +119,7 @@ export function AuthModal() {
       try {
         await companyLogin(email.trim(), password);
       } catch {
-        setError("The company email or password you entered is incorrect. Please try again.");
+        setError(t("The company email or password you entered is incorrect. Please try again."));
       } finally {
         setSubmitting(false);
       }
@@ -124,7 +127,7 @@ export function AuthModal() {
     }
 
     if (mode === "login") {
-      const problem = formProblem(loginEmailInputSchema, { email, password }, { email: "email address" });
+      const problem = formProblem(loginEmailInputSchema, { email, password }, { email: "email address" }, t);
       if (problem) {
         setError(problem);
         return;
@@ -139,7 +142,7 @@ export function AuthModal() {
         // The only failure mode loginWithEmail ever throws is "invalid
         // credentials" (see auth.service.ts) — deliberately not surfacing
         // the raw backend/network error text here.
-        setError("The username or password you entered is incorrect. Please try again.");
+        setError(t("The username or password you entered is incorrect. Please try again."));
       } finally {
         setSubmitting(false);
       }
@@ -149,7 +152,7 @@ export function AuthModal() {
     // Register mode doesn't call the API yet — it hands off to the email
     // verification screen first, and only creates the account once that
     // resolves (see handleVerified below).
-    const emailProblem = validateRegistrationEmail(email);
+    const emailProblem = validateRegistrationEmail(email, t);
     if (emailProblem) {
       setEmailError(emailProblem);
       return;
@@ -272,7 +275,7 @@ export function AuthModal() {
           </h2>
         </div>
         <p className="mb-6 text-center text-sm text-muted-foreground">
-          Anonymous, honest workplace reviews.
+          {t("Anonymous, honest workplace reviews.")}
         </p>
 
         <div className="mb-6 flex rounded-lg bg-surface-muted p-1">
@@ -283,7 +286,7 @@ export function AuthModal() {
             }`}
             onClick={() => switchMode("register")}
           >
-            Register
+            {t("Register")}
           </button>
           <button
             type="button"
@@ -292,7 +295,7 @@ export function AuthModal() {
             }`}
             onClick={() => switchMode("login")}
           >
-            Log in
+            {t("Log in")}
           </button>
         </div>
 
@@ -301,20 +304,20 @@ export function AuthModal() {
             <input
               type="email"
               required
-              placeholder="Email"
+              placeholder={t("Email")}
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
                 setEmailError(null);
               }}
               onBlur={() => {
-                if (mode === "register" && email) setEmailError(validateRegistrationEmail(email));
+                if (mode === "register" && email) setEmailError(validateRegistrationEmail(email, t));
               }}
               className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
             />
             {mode === "register" && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Gmail, Hotmail, Outlook, or Windows Live only for now.
+                {t("Gmail, Hotmail, Outlook, or Windows Live only for now.")}
               </p>
             )}
             {emailError && <p className="mt-1 text-xs text-red-600 dark:text-red-300">{emailError}</p>}
@@ -325,7 +328,7 @@ export function AuthModal() {
               <PasswordInput
                 value={password}
                 onChange={setPassword}
-                placeholder="Password"
+                placeholder={t("Password")}
                 autoComplete="new-password"
                 maxLength={PASSWORD_MAX_LENGTH}
               />
@@ -335,16 +338,16 @@ export function AuthModal() {
               <PasswordInput
                 value={confirmPassword}
                 onChange={setConfirmPassword}
-                placeholder="Confirm password"
+                placeholder={t("Confirm password")}
                 autoComplete="new-password"
                 maxLength={PASSWORD_MAX_LENGTH}
               />
               {confirmPassword.length > 0 && !passwordsMatch && (
-                <p className="-mt-1 text-xs text-red-600 dark:text-red-300">Passwords don&apos;t match.</p>
+                <p className="-mt-1 text-xs text-red-600 dark:text-red-300">{t("Passwords don't match.")}</p>
               )}
             </>
           ) : (
-            <PasswordInput value={password} onChange={setPassword} placeholder="Password" autoComplete="current-password" />
+            <PasswordInput value={password} onChange={setPassword} placeholder={t("Password")} autoComplete="current-password" />
           )}
 
           {mode === "login" && (
@@ -359,8 +362,8 @@ export function AuthModal() {
                 className="mt-0.5"
               />
               <span>
-                <span className="font-semibold text-foreground">Company login</span> - sign in with the login your
-                company&apos;s owner shared with you. It opens only that company&apos;s dashboard.
+                <span className="font-semibold text-foreground">{t("Company login")}</span>{" "}
+                {t("- sign in with the login your company's owner shared with you. It opens only that company's dashboard.")}
               </span>
             </label>
           )}
@@ -372,7 +375,7 @@ export function AuthModal() {
             disabled={submitting || (mode === "register" && !canSubmitRegister)}
             className="mt-2 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            {submitting ? "Please wait..." : mode === "register" ? "Create account" : asCompany ? "Log in to company" : "Log in"}
+            {submitting ? t("Please wait...") : mode === "register" ? t("Create account") : asCompany ? t("Log in to company") : t("Log in")}
           </button>
         </form>
 
@@ -380,18 +383,18 @@ export function AuthModal() {
           <button
             type="button"
             disabled
-            title="Coming soon"
+            title={t("Coming soon")}
             className="cursor-not-allowed rounded-lg border border-border py-2 text-sm text-muted-foreground"
           >
-            Continue with Google (coming soon)
+            {t("Continue with Google (coming soon)")}
           </button>
           <button
             type="button"
             disabled
-            title="Coming soon"
+            title={t("Coming soon")}
             className="cursor-not-allowed rounded-lg border border-border py-2 text-sm text-muted-foreground"
           >
-            Continue with Apple (coming soon)
+            {t("Continue with Apple (coming soon)")}
           </button>
         </div>
 

@@ -8,8 +8,10 @@ import { WorkplaceBrowser } from "@/components/WorkplaceBrowser";
 import { ForbiddenBanner } from "@/components/ForbiddenBanner";
 import { AnonGate } from "@/components/auth/AnonGate";
 import { LandingSections } from "@/components/LandingSections";
+import { useT } from "@/lib/i18n/client";
 
 export function HomeClient({ hasSessionCookie }: { hasSessionCookie: boolean }) {
+  const t = useT();
   const { isLoading, isAuthenticated, onboardingStatus, companyAccount } = useAuth();
   const router = useRouter();
 
@@ -24,7 +26,7 @@ export function HomeClient({ hasSessionCookie }: { hasSessionCookie: boolean }) 
     return (
       <div className="flex min-h-screen items-center justify-center">
         <ForbiddenBanner />
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
       </div>
     );
   }
@@ -39,7 +41,7 @@ export function HomeClient({ hasSessionCookie }: { hasSessionCookie: boolean }) 
     if (!onboardingStatus || companyAccount) {
       return (
         <div className="flex min-h-screen items-center justify-center">
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
         </div>
       );
     }

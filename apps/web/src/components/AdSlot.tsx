@@ -1,3 +1,7 @@
+"use client";
+
+import { useT } from "@/lib/i18n/client";
+
 // The site's ad slots. Until a Google Ad Manager account is set up, every
 // slot shows made-up test ads (public/test-ads/, fictional brands) so the
 // layout can be judged with something real-looking in it. Swap the ads here
@@ -18,9 +22,10 @@ const BANNER_ADS: TestAd[] = [
 ];
 
 export function AdLabel() {
+  const t = useT();
   return (
     <span className="absolute right-1 top-1 bg-black/55 px-1 text-[9px] font-semibold uppercase tracking-wide text-white">
-      Ad
+      {t("Ad")}
     </span>
   );
 }

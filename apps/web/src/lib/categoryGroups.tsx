@@ -1,3 +1,5 @@
+"use client";
+
 // Shared by WorkplaceBrowser.tsx (the rating homepage) and JobsBrowser.tsx
 // (the Jobs page) — unlike the state/filtering logic those two files keep as
 // deliberate near-duplicates (see JobsBrowser.tsx's file-header comment),
@@ -17,6 +19,7 @@
 // The groups and their matching rule live in shared-types, so the homepage's
 // server-side paging (GET /companies/browse) and these pages agree exactly.
 import { matchesCategoryGroup, type CategoryGroup } from "@iwtr/shared-types";
+import { useT } from "@/lib/i18n/client";
 export { matchesCategoryGroup, type CategoryGroup };
 
 // Each pill shows its icon next to its name (see CategoryGroupFilter below).
@@ -140,11 +143,12 @@ export function CategoryGroupFilter({
   orientation?: "horizontal" | "vertical";
   highlighted?: boolean;
 }) {
+  const t = useT();
   const vertical = orientation === "vertical";
   return (
     <div
       role="radiogroup"
-      aria-label="Filter by category group"
+      aria-label={t("Filter by category group")}
       aria-orientation={orientation}
       className={`flex ${vertical ? "flex-col items-stretch gap-0.5 rounded-xl" : "flex-row flex-wrap items-center gap-2 rounded-full"} ${
         highlighted ? "highlight-pulse" : ""
@@ -171,7 +175,7 @@ export function CategoryGroupFilter({
             }`}
           >
             <Icon className={`shrink-0 ${vertical ? "h-[18px] w-[18px]" : "h-5 w-5"}`} />
-            <span className="whitespace-nowrap">{opt.label}</span>
+            <span className="whitespace-nowrap">{t(opt.label)}</span>
           </button>
         );
       })}

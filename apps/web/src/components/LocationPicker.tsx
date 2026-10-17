@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
+import { regionName } from "@/lib/i18n/core";
 import { COUNTRIES } from "@/lib/countries";
 import { TURKEY_PROVINCES, findProvinceByCityName } from "@/lib/turkeyGeo";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -16,11 +18,15 @@ export interface LocationValue {
 // flag-emoji sequences as their boxed two-letter fallback (e.g. "TR"), so
 // emoji alone can't be relied on across platforms. Same approach as
 // CityDistrictPicker's country dropdown.
-const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({
-  value: c.name,
-  label: c.name,
-  icon: <span className={`fi fi-${c.code.toLowerCase()} shrink-0 rounded-[2px]`} aria-hidden />,
-}));
+// The stored value stays the English name; only the label follows the
+// visitor's language.
+function countryOptions(locale: Parameters<typeof regionName>[2]) {
+  return COUNTRIES.map((c) => ({
+    value: c.name,
+    label: regionName(c.code, c.name, locale),
+    icon: <span className={`fi fi-${c.code.toLowerCase()} shrink-0 rounded-[2px]`} aria-hidden />,
+  })).sort((a, b) => a.label.localeCompare(b.label, locale));
+}
 
 /**
  * Three side-by-side dropdowns — Country, City, District — rather than a
@@ -38,6 +44,8 @@ export function LocationPicker({
   onChange: (value: LocationValue) => void;
   disabled?: boolean;
 }) {
+  const { t, locale } = useI18n();
+  const COUNTRY_OPTIONS = useMemo(() => countryOptions(locale), [locale]);
   const isTurkey = value.country === "Turkey";
   const province = isTurkey ? findProvinceByCityName(value.city) : null;
 
@@ -74,7 +82,7 @@ export function LocationPicker({
       <SingleSelectDropdown
         value={value.country}
         options={COUNTRY_OPTIONS}
-        placeholder="Country"
+        placeholder={t("Country")}
         clearable={false}
         disabled={disabled}
         onChange={(country) => {
@@ -85,7 +93,7 @@ export function LocationPicker({
 
       {value.country && !isTurkey ? (
         <input
-          placeholder="City"
+          placeholder={t("City")}
           disabled={disabled}
           value={value.city ?? ""}
           onChange={(e) => onChange({ ...value, city: e.target.value || null, district: null })}
@@ -95,7 +103,7 @@ export function LocationPicker({
         <SingleSelectDropdown
           value={value.city}
           options={cityOptions}
-          placeholder="City"
+          placeholder={t("City")}
           disabled={disabled || !value.country}
           openSignal={cityOpenSignal}
           clearable={false}
@@ -108,7 +116,7 @@ export function LocationPicker({
 
       {value.city && !isTurkey ? (
         <input
-          placeholder="District (optional)"
+          placeholder={t("District (optional)")}
           disabled={disabled}
           value={value.district ?? ""}
           onChange={(e) => onChange({ ...value, district: e.target.value || null })}
@@ -118,7 +126,7 @@ export function LocationPicker({
         <SingleSelectDropdown
           value={value.district}
           options={districtOptions}
-          placeholder="District"
+          placeholder={t("District")}
           disabled={disabled || !value.city}
           openSignal={districtOpenSignal}
           clearable={false}

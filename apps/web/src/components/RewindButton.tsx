@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 /**
  * Shared "clear this filter section back to no filter" control — replaces
  * the old "All" text buttons on Workplace/Rating/Location, which used to
@@ -25,13 +27,14 @@ export function RewindButton({
   // click could safely do (e.g. Company.workplaceTypesLocked).
   disabled?: boolean;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={title}
-      aria-label={title}
+      title={t(title)}
+      aria-label={t(title)}
       className={`transition ${
         disabled
           ? "cursor-not-allowed text-muted-foreground/30"

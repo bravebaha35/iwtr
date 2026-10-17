@@ -5,7 +5,9 @@ import {
   LENGTH_REQUIREMENT,
   MIN_CATEGORY_MATCHES,
   passwordCategoryCount,
+  PASSWORD_MIN_LENGTH,
 } from "@/lib/passwordValidation";
+import { useT } from "@/lib/i18n/client";
 
 function ChecklistRow({ label, met }: { label: string; met: boolean }) {
   return (
@@ -30,15 +32,19 @@ function ChecklistRow({ label, met }: { label: string; met: boolean }) {
 // (Security tab) — same rules, same look, one place to keep them in sync.
 // Hidden until the password field has something typed (see both call sites).
 export function PasswordChecklist({ password }: { password: string }) {
+  const t = useT();
+  const done = passwordCategoryCount(password) >= MIN_CATEGORY_MATCHES;
   return (
     <ul className="-mt-1 flex flex-col gap-1 rounded-lg border border-border bg-surface-muted/50 px-3 py-2 text-xs">
-      <ChecklistRow label={LENGTH_REQUIREMENT.label} met={LENGTH_REQUIREMENT.met(password)} />
+      <ChecklistRow label={t("At least {n} characters", { n: PASSWORD_MIN_LENGTH })} met={LENGTH_REQUIREMENT.met(password)} />
       <p className="mt-0.5 text-[11px] text-muted-foreground">
-        Include at least {MIN_CATEGORY_MATCHES} of the following {CATEGORY_REQUIREMENTS.length}
-        {passwordCategoryCount(password) >= MIN_CATEGORY_MATCHES ? " — done" : ""}:
+        {t(done ? "Include at least {min} of the following {total} - done:" : "Include at least {min} of the following {total}:", {
+          min: MIN_CATEGORY_MATCHES,
+          total: CATEGORY_REQUIREMENTS.length,
+        })}
       </p>
       {CATEGORY_REQUIREMENTS.map((req) => (
-        <ChecklistRow key={req.id} label={req.label} met={req.met(password)} />
+        <ChecklistRow key={req.id} label={t(req.label)} met={req.met(password)} />
       ))}
     </ul>
   );

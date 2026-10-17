@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiPost, ApiError } from "@/lib/api-client";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
+import { useT } from "@/lib/i18n/client";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -16,6 +17,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
   // Only ever set when the API is running outside production with no real
   // SMS provider configured — see PhoneVerificationService.requestOtp.
   const [devCode, setDevCode] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -34,7 +36,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
       setStage("otp");
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+      setError(err instanceof ApiError ? t(err.message) : t("Something went wrong."));
     } finally {
       setSubmitting(false);
     }
@@ -53,7 +55,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
       await apiPost("/onboarding/phone/verify-otp", { code });
       onSubmitted();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+      setError(err instanceof ApiError ? t(err.message) : t("Something went wrong."));
     } finally {
       setSubmitting(false);
     }
@@ -64,10 +66,9 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
       <div className="w-full max-w-md rounded-xl bg-surface p-8 shadow-xl">
         {stage === "phone" ? (
           <form onSubmit={requestCode}>
-            <h2 className="mb-1 text-xl font-bold text-foreground">Verify your phone number</h2>
+            <h2 className="mb-1 text-xl font-bold text-foreground">{t("Verify your phone number")}</h2>
             <p className="mb-6 text-sm text-muted-foreground">
-              We&apos;ll text you a 6-digit code. This confirms you&apos;re a real person before you
-              continue &mdash; your number is never shown publicly.
+              {t("We'll text you a 6-digit code. This confirms you're a real person before you continue. Your number is never shown publicly.")}
             </p>
 
             <PhoneNumberInput value={phoneNumber} onChange={setPhoneNumber} />
@@ -79,14 +80,14 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
               disabled={submitting}
               className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
-              {submitting ? "Sending..." : "Send code"}
+              {submitting ? t("Sending...") : t("Send code")}
             </button>
           </form>
         ) : (
           <form onSubmit={verifyCode}>
-            <h2 className="mb-1 text-xl font-bold text-foreground">Enter the code</h2>
+            <h2 className="mb-1 text-xl font-bold text-foreground">{t("Enter the code")}</h2>
             <p className="mb-6 text-sm text-muted-foreground">
-              We sent a 6-digit code to {phoneNumber}. It expires in 5 minutes.
+              {t("We sent a 6-digit code to {phone}. It expires in 5 minutes.", { phone: phoneNumber })}
             </p>
 
             {devCode && (
@@ -101,7 +102,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
               inputMode="numeric"
               placeholder="123456"
               pattern="[0-9]{6}"
-              title="Must be a 6-digit code"
+              title={t("Must be a 6-digit code")}
               value={code}
               onChange={(e) => setCode(e.target.value)}
               className="w-full rounded-lg border border-border bg-surface-muted px-3 py-2 text-center text-lg tracking-[0.5em] text-foreground"
@@ -114,7 +115,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
               disabled={submitting}
               className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
-              {submitting ? "Verifying..." : "Verify"}
+              {submitting ? t("Verifying...") : t("Verify")}
             </button>
 
             <button
@@ -123,7 +124,7 @@ export function PhoneVerificationForm({ onSubmitted }: { onSubmitted: () => void
               onClick={() => void sendCode()}
               className="mt-3 w-full text-center text-xs text-muted-foreground underline disabled:no-underline disabled:opacity-50"
             >
-              {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+              {cooldown > 0 ? t("Resend code in {s}s", { s: cooldown }) : t("Resend code")}
             </button>
           </form>
         )}

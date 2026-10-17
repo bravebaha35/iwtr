@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Company } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
+import { useT } from "@/lib/i18n/client";
 
 export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
   const [query, setQuery] = useState("");
@@ -46,12 +47,13 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
   }, [query]);
 
   const isLarge = size === "lg";
+  const t = useT();
 
   return (
     <div className={`relative ${isLarge ? "w-full" : "w-64"}`}>
       <input
         type="search"
-        placeholder="Search a workplace..."
+        placeholder={t("Search a workplace...")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setOpen(true)}
@@ -68,7 +70,7 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
             isLarge ? "left-0 right-0" : "right-0 w-72"
           }`}
         >
-          Couldn&apos;t search right now — try again.
+          {t("Couldn't search right now - try again.")}
         </div>
       )}
       {open && !loadFailed && results.length > 0 && (
@@ -84,7 +86,7 @@ export function CompanySearch({ size = "sm" }: { size?: "sm" | "lg" }) {
               className="block px-4 py-2 text-sm text-foreground hover:bg-surface-muted"
             >
               {c.name}
-              <span className="ml-2 text-xs text-muted-foreground">{c.category}</span>
+              <span className="ml-2 text-xs text-muted-foreground">{t(c.category)}</span>
             </Link>
           ))}
         </div>

@@ -26,6 +26,7 @@ import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 import { ApplyButton } from "@/components/jobs/ApplyButton";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { RichText } from "@/components/RichText";
+import { useT } from "@/lib/i18n/client";
 
 // The standard job card, shared by the /jobs browse grid (JobsBrowser) and
 // a company's own "Job Postings" profile tab (CompanyJobPostings). One card
@@ -43,11 +44,12 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 function CopyIconButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
+  const t = useT();
   return (
     <button
       type="button"
-      title="Copy to clipboard"
-      aria-label="Copy to clipboard"
+      title={t("Copy to clipboard")}
+      aria-label={t("Copy to clipboard")}
       onClick={async () => {
         if (await copyToClipboard(text)) {
           setCopied(true);
@@ -96,6 +98,7 @@ function PhoneIcon({ className }: { className?: string }) {
 export function ContactButton({ icon, label, value }: { icon: "mail" | "phone"; label: string; value: string | null }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   // Closes this popover on any click/tap outside it. Mail and Call each
   // manage their own `open` state independently, so both stay open if the
@@ -119,8 +122,8 @@ export function ContactButton({ icon, label, value }: { icon: "mail" | "phone"; 
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={`${label}: ${value}`}
-        title={label}
+        aria-label={`${t(label)}: ${value}`}
+        title={t(label)}
         className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-foreground transition hover:bg-surface-muted"
       >
         <Icon className="h-3.5 w-3.5" />
@@ -143,6 +146,7 @@ const VIBE_FLAG_ROW_ORDER = ["corporateCulture", "leadership", "infrastructure",
 // deduped by category+cluster, capped so the popover stays small.
 function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
   const [data, setData] = useState<CompanyVibeFlags | null | "error">(null);
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -158,8 +162,8 @@ function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
     };
   }, [companySlug]);
 
-  if (data === null) return <p className="p-1 text-xs text-muted-foreground">Loading...</p>;
-  if (data === "error") return <p className="p-1 text-xs text-muted-foreground">Couldn&apos;t load flags.</p>;
+  if (data === null) return <p className="p-1 text-xs text-muted-foreground">{t("Loading...")}</p>;
+  if (data === "error") return <p className="p-1 text-xs text-muted-foreground">{t("Couldn't load flags.")}</p>;
 
   const allFlags = data.byWorkplaceType.flatMap((s) => s.flags);
   const seen = new Set<string>();
@@ -173,7 +177,7 @@ function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
     }
   }
   if (pooled.length === 0) {
-    return <p className="p-1 text-xs text-muted-foreground">No flags yet.</p>;
+    return <p className="p-1 text-xs text-muted-foreground">{t("No flags yet.")}</p>;
   }
 
   return (
@@ -263,6 +267,7 @@ export function JobCard({
   boosted?: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
+  const t = useT();
   const [expandedAt, setExpandedAt] = useState<{ top: number; left: number; width: number } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
@@ -342,8 +347,8 @@ export function JobCard({
             type="button"
             onClick={onClose}
             autoFocus
-            aria-label="Close the full job posting"
-            title="Close"
+            aria-label={t("Close the full job posting")}
+            title={t("Close")}
             className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-surface/90 text-foreground shadow-sm transition hover:bg-surface"
           >
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -386,7 +391,7 @@ export function JobCard({
                   glance, not just a number. */}
               <span
                 className={`font-grotesk text-sm font-bold tabular-nums ${company.overallAvg !== null ? scoreTextColor(company.overallAvg) : "text-muted-foreground"}`}
-                title="User rating"
+                title={t("User rating")}
               >
                 {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
               </span>
@@ -394,7 +399,7 @@ export function JobCard({
                 <button
                   type="button"
                   onClick={() => setInfoOpen((v) => !v)}
-                  aria-label="Workplace flags"
+                  aria-label={t("Workplace flags")}
                   aria-expanded={infoOpen}
                   className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-[11px] font-bold leading-none text-muted-foreground transition hover:bg-surface-muted"
                 >
@@ -411,7 +416,7 @@ export function JobCard({
 
           {/* Address + sector, light weight */}
           <p className="mt-1.5 truncate text-xs font-light text-muted-foreground">
-            {location || "Location not set"} · {company.category}
+            {location || t("Location not set")} · {t(company.category)}
           </p>
 
           {/* This card's one job title + Mail/Call/Apply on a single line.
@@ -429,7 +434,7 @@ export function JobCard({
                   {posting.jobTitle}
                 </span>
               ) : (
-                <span className="text-xs font-bold text-muted-foreground">No open roles listed yet</span>
+                <span className="text-xs font-bold text-muted-foreground">{t("No open roles listed yet")}</span>
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
@@ -443,10 +448,10 @@ export function JobCard({
               the short grid card has no room for it. */}
           {!compact && posting?.positions && posting.positions.length > 0 && (
             <p className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
-              <span className="mr-0.5 font-semibold text-foreground">Position</span>
+              <span className="mr-0.5 font-semibold text-foreground">{t("Position")}</span>
               {posting.positions.map((p) => (
                 <span key={p} className="rounded-md bg-surface-muted px-2 py-0.5 text-foreground">
-                  {jobPositionLabel(p)}
+                  {t(jobPositionLabel(p))}
                 </span>
               ))}
             </p>
@@ -465,11 +470,11 @@ export function JobCard({
                 type="button"
                 onClick={() => (expandedAt ? closeExpanded() : placeExpanded())}
                 aria-expanded={expandedAt !== null}
-                title="Click to read the full job posting"
+                title={t("Click to read the full job posting")}
                 className="mt-3 h-20 cursor-pointer rounded text-left text-sm text-muted-foreground transition hover:text-foreground"
               >
                 <RichText text={posting.description} className="line-clamp-4 whitespace-pre-wrap" />
-                <span className="sr-only"> (open the full job posting)</span>
+                <span className="sr-only"> {t("(open the full job posting)")}</span>
               </button>
             ) : (
               <div className="mt-3 h-20" />
@@ -496,10 +501,10 @@ export function JobCard({
           RiskScoreBadge). */}
       <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-2.5 compact:px-2 compact:py-1.5">
         <p className="min-w-0 truncate text-xs text-muted-foreground">
-          <span className="font-bold">{workplaceTypeLabel(cardWorkType)}</span>
-          {company.isChainStore ? " · Chain store" : ""}
+          <span className="font-bold">{t(workplaceTypeLabel(cardWorkType))}</span>
+          {company.isChainStore ? ` · ${t("Chain store")}` : ""}
           {" · "}
-          {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
+          {t(company.reviewCount === 1 ? "{n} review" : "{n} reviews", { n: company.reviewCount })}
         </p>
         <div className="flex shrink-0 items-center gap-1.5">
           {/* Only a real, individually-authored posting can be saved — the
@@ -514,8 +519,8 @@ export function JobCard({
               type="button"
               onClick={() => canSave && toggleSave(posting.id!)}
               disabled={!canSave || savedLoading}
-              title={!canSave ? "Log in to save" : undefined}
-              aria-label={isSaved ? "Remove from saved posts" : "Save this posting"}
+              title={!canSave ? t("Log in to save") : undefined}
+              aria-label={isSaved ? t("Remove from saved posts") : t("Save this posting")}
               aria-pressed={isSaved}
               className="-my-1 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40"
             >

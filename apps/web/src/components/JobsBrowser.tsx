@@ -37,6 +37,7 @@ import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 import { CardGridSkeleton } from "@/components/CardGridSkeleton";
 import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
 import { SidebarShell, SidebarContentRow } from "@/components/layout/SidebarShell";
+import { useT } from "@/lib/i18n/client";
 
 // This whole file is a deliberate near-duplicate of WorkplaceBrowser.tsx
 // rather than a shared-internals refactor of it — the brief asked for the
@@ -102,16 +103,17 @@ function PaginationBar({
   // click shows it at once. Only pages someone is about to open are fetched.
   onIntent?: (page: number) => void;
 }) {
+  const t = useT();
   if (totalPages <= 1) return null;
   return (
-    <nav className="mt-10 flex items-center justify-center gap-1 text-sm" aria-label="Pagination">
+    <nav className="mt-10 flex items-center justify-center gap-1 text-sm" aria-label={t("Pagination")}>
       <button
         type="button"
         onClick={() => onChange(Math.max(1, page - 1))}
         onPointerEnter={() => page > 1 && onIntent?.(page - 1)}
         onFocus={() => page > 1 && onIntent?.(page - 1)}
         disabled={page === 1}
-        aria-label="Previous page"
+        aria-label={t("Previous page")}
         className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
       >
         ‹
@@ -143,7 +145,7 @@ function PaginationBar({
         onPointerEnter={() => page < totalPages && onIntent?.(page + 1)}
         onFocus={() => page < totalPages && onIntent?.(page + 1)}
         disabled={page === totalPages}
-        aria-label="Next page"
+        aria-label={t("Next page")}
         className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
       >
         ›
@@ -241,14 +243,15 @@ function FollowingFilterList({
   onSelect: (companyId: string | null) => void;
 }) {
   const { companies, loading } = useFollowedCompanies();
+  const t = useT();
 
   return (
     <div>
-      <h2 className="mb-2 text-[13px] font-semibold text-foreground">Following</h2>
+      <h2 className="mb-2 text-[13px] font-semibold text-foreground">{t("Following")}</h2>
       <div className="thin-scrollbar flex h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-surface-muted/60 p-1.5">
-        {loading && <p className="p-1.5 text-xs text-muted-foreground">Loading...</p>}
+        {loading && <p className="p-1.5 text-xs text-muted-foreground">{t("Loading...")}</p>}
         {!loading && companies.length === 0 && (
-          <p className="p-1.5 text-xs text-muted-foreground">You&apos;re not following any companies yet.</p>
+          <p className="p-1.5 text-xs text-muted-foreground">{t("You're not following any companies yet.")}</p>
         )}
         {companies.map((c) => (
           <button
@@ -272,6 +275,7 @@ function FollowingFilterList({
 
 export function JobsBrowser() {
   const isCompanyOwner = useIsCompanyOwner();
+  const t = useT();
   const [jobFlowOpen, setJobFlowOpen] = useState(false);
   const [workplaceTypes, setWorkplaceTypes] = useState<WorkplaceType[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -464,9 +468,9 @@ export function JobsBrowser() {
   const fieldNote = !usesField
     ? null
     : field?.sector && featured.some((f) => f.company.category === field.sector!.value)
-      ? field.sector.label
+      ? t(field.sector.label)
       : field?.workType && featured.some((f) => f.posting.workType === field.workType)
-        ? (WORKPLACE_TYPES.find((w) => w.value === field.workType)?.label ?? null)
+        ? t(WORKPLACE_TYPES.find((w) => w.value === field.workType)?.label ?? "")
         : null;
   // A place is chosen but some featured ads are from elsewhere: there were
   // fewer than 4 in that place, so the row was topped up from the same
@@ -479,9 +483,12 @@ export function JobsBrowser() {
     featured.some((f) => !chosenProvinces.has(findProvinceByCityName(f.company.city)?.name ?? f.company.city ?? ""));
   const chosenRegion = regionFill ? findRegionByProvinceName(chosenPlaces[0]) : null;
   const regionFillNote = regionFill
-    ? `Fewer than 4 featured ads in ${chosenPlaces.join(", ")}, so this row also shows featured ads from the same region${
-        chosenRegion ? ` (${regionLabel(chosenRegion)})` : ""
-      }.`
+    ? chosenRegion
+      ? t("Fewer than 4 featured ads in {places}, so this row also shows featured ads from the same region ({region}).", {
+          places: chosenPlaces.join(", "),
+          region: t(regionLabel(chosenRegion)),
+        })
+      : t("Fewer than 4 featured ads in {places}, so this row also shows featured ads from the same region.", { places: chosenPlaces.join(", ") })
     : null;
   const featuredIds = new Set(featured.map((f) => f.posting.id));
   const standardCards = (pageCompanies ?? []).flatMap((c) => {
@@ -537,9 +544,9 @@ export function JobsBrowser() {
 
       <div className="w-full max-w-[1600px]">
         <div className="mb-8">
-          <h1 className="text-4xl leading-tight text-foreground">Jobs</h1>
+          <h1 className="text-4xl leading-tight text-foreground">{t("Jobs")}</h1>
           <p className="mt-1 text-[15px] text-muted-foreground">
-            Open roles at companies currently looking for people, with the same ratings and reviews as the homepage.
+            {t("Open roles at companies currently looking for people, with the same ratings and reviews as the homepage.")}
           </p>
         </div>
 
@@ -559,7 +566,7 @@ export function JobsBrowser() {
                   }`}
                 >
                   <BookmarkIcon className="h-4 w-4" />
-                  Saved Posts
+                  {t("Saved Posts")}
                 </button>
               </>
             )}
@@ -568,15 +575,15 @@ export function JobsBrowser() {
               <button
                 type="button"
                 onClick={() => setJobFlowOpen(true)}
-                title="Create a job posting"
+                title={t("Create a job posting")}
                 className="flex items-center justify-center rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
               >
-                Create !
+                {t("Create !")}
               </button>
             )}
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[13px] font-semibold text-foreground">Work-Type</h2>
+                <h2 className="text-[13px] font-semibold text-foreground">{t("Work-Type")}</h2>
                 <RewindButton
                   onClick={resetWorkplaceTypes}
                   active={workplaceTypes.length > 0 || selectedCategories.length > 0}
@@ -614,7 +621,7 @@ export function JobsBrowser() {
                 is listed. */}
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[13px] font-semibold text-foreground">Position</h2>
+                <h2 className="text-[13px] font-semibold text-foreground">{t("Position")}</h2>
                 <RewindButton onClick={() => setPositions([])} active={positions.length > 0} title="Clear Position filter" />
               </div>
               <div className="rounded-2xl bg-surface p-1.5 shadow-xs">
@@ -624,7 +631,7 @@ export function JobsBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[13px] font-semibold text-foreground">Rating</h2>
+                <h2 className="text-[13px] font-semibold text-foreground">{t("Rating")}</h2>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
@@ -657,7 +664,7 @@ export function JobsBrowser() {
                     onPointerMove={handleSliderPointerMove}
                     className="relative h-2 w-full cursor-pointer touch-none rounded-full"
                     style={{ background: "linear-gradient(to right, #ef4444, #22c55e)" }}
-                    title="Click and drag along the slider, or scroll, to fine-tune"
+                    title={t("Click and drag along the slider, or scroll, to fine-tune")}
                   >
                     <span
                       className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
@@ -667,7 +674,7 @@ export function JobsBrowser() {
                 </div>
 
                 <span className="text-center text-xs font-normal text-muted-foreground">
-                  {minRating === 0 || minRating === 5 ? "Any" : `${minRating.toFixed(1)} and Below`}
+                  {minRating === 0 || minRating === 5 ? t("Any") : t("{n} and Below", { n: minRating.toFixed(1) })}
                 </span>
               </div>
             </div>
@@ -694,19 +701,19 @@ export function JobsBrowser() {
             </div>
 
             {geo && geo !== "denied" && (
-              <p className="mb-3 text-xs text-muted-foreground">Showing workplaces nearest to you first.</p>
+              <p className="mb-3 text-xs text-muted-foreground">{t("Showing workplaces nearest to you first.")}</p>
             )}
             {geo === "denied" && (
               <p className="mb-3 text-xs text-muted-foreground">
-                Couldn&apos;t get your location — showing all workplaces.
+                {t("Couldn't get your location - showing all workplaces.")}
               </p>
             )}
 
             {savedView ? (
               <>
-                {savedLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
+                {savedLoading && <p className="text-sm text-muted-foreground">{t("Loading...")}</p>}
                 {!savedLoading && savedPostings.length === 0 && (
-                  <p className="text-sm text-muted-foreground">You haven&apos;t saved any job postings yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("You haven't saved any job postings yet.")}</p>
                 )}
                 <div className="grid grid-cols-1 gap-5 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {savedPostings.map((p) => (
@@ -719,20 +726,20 @@ export function JobsBrowser() {
                 {pageCompanies === null && <CardGridSkeleton />}
                 {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
                   <p className="text-sm text-red-600 dark:text-red-300">
-                    Couldn&apos;t load workplaces right now — check your connection and try again.
+                    {t("Couldn't load workplaces right now - check your connection and try again.")}
                   </p>
                 )}
                 {featured.length > 0 && (
-                  <section aria-label="Featured jobs" className={`transition-opacity ${loading ? "opacity-60" : ""}`}>
+                  <section aria-label={t("Featured jobs")} className={`transition-opacity ${loading ? "opacity-60" : ""}`}>
                     <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                         <path d="M12 0c.6 5.6 2.4 7.4 12 12-9.6 4.6-11.4 6.4-12 12-.6-5.6-2.4-7.4-12-12 9.6-4.6 11.4-6.4 12-12Z" />
                       </svg>
-                      Featured jobs
+                      {t("Featured jobs")}
                       {fieldNote && (
                         <span className="font-normal normal-case tracking-normal text-muted-foreground">
                           {" "}
-                          - picked for {fieldNote}
+                          {t("- picked for {field}", { field: fieldNote })}
                         </span>
                       )}
                     </h2>
@@ -745,7 +752,7 @@ export function JobsBrowser() {
                     {/* The line between the featured row and the standard jobs. */}
                     <div role="separator" className="my-6 flex items-center gap-3 text-xs font-medium text-muted-foreground">
                       <span className="h-px flex-1 bg-foreground/40" />
-                      All jobs
+                      {t("All jobs")}
                       <span className="h-px flex-1 bg-foreground/40" />
                     </div>
                   </section>
@@ -757,10 +764,10 @@ export function JobsBrowser() {
                 {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
                   <p className="text-sm text-muted-foreground">
                     {regionFill
-                      ? `No companies in ${chosenPlaces.join(", ")} are looking for people under these filters yet. The featured ads above are from the same region.`
+                      ? t("No companies in {places} are looking for people under these filters yet. The featured ads above are from the same region.", { places: chosenPlaces.join(", ") })
                       : positions.length > 0
-                        ? "No job posting is hiring for the ticked position under these filters yet."
-                        : "No companies are looking for people under these filters yet."}
+                        ? t("No job posting is hiring for the ticked position under these filters yet.")
+                        : t("No companies are looking for people under these filters yet.")}
                   </p>
                 )}
 
@@ -785,8 +792,7 @@ export function JobsBrowser() {
                 {total > 0 && (
                   <>
                     <p className="mt-4 text-center text-xs text-muted-foreground">
-                      Page {page} of {totalPages} — {total} job listing
-                      {total === 1 ? "" : "s"}
+                      {t(total === 1 ? "Page {page} of {pages} - {total} job listing" : "Page {page} of {pages} - {total} job listings", { page, pages: totalPages, total })}
                     </p>
                     <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} onIntent={(p) => prefetchBrowsePage(filterParams, p)} />
                   </>

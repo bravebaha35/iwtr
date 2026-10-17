@@ -6,6 +6,7 @@ import { apiPost, ApiError } from "@/lib/api-client";
 import { formProblem } from "@/lib/validateForm";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
+import { useT } from "@/lib/i18n/client";
 
 export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
   const [firstName, setFirstName] = useState("");
@@ -14,11 +15,12 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const t = useT();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!birthDate || !location.country || !location.city) {
-      setError("Please fill in your birth date, country, and city.");
+      setError(t("Please fill in your birth date, country, and city."));
       return;
     }
     const body = {
@@ -29,7 +31,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
       city: location.city,
       district: location.district ?? undefined,
     };
-    const problem = formProblem(piiOnboardingInputSchema, body, { birthDate: "birth date" });
+    const problem = formProblem(piiOnboardingInputSchema, body, { birthDate: "birth date" }, t);
     if (problem) {
       setError(problem);
       return;
@@ -40,7 +42,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
       await apiPost("/onboarding/pii", body);
       onSubmitted();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+      setError(err instanceof ApiError ? t(err.message) : t("Something went wrong."));
     } finally {
       setSubmitting(false);
     }
@@ -53,11 +55,10 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
         className="w-full max-w-md rounded-xl bg-surface p-8 shadow-xl"
       >
         <h2 className="mb-1 text-xl font-bold text-foreground">
-          Tell us who you are
+          {t("Tell us who you are")}
         </h2>
         <p className="mb-6 text-sm text-muted-foreground">
-          This information is kept private and encrypted. It is used only to confirm you&apos;re a
-          real person and to prevent duplicate accounts &mdash; it is never shown publicly.
+          {t("This information is kept private and encrypted. It is used only to confirm you're a real person and to prevent duplicate accounts. It is never shown publicly.")}
         </p>
 
         <div className="flex flex-col gap-3">
@@ -65,31 +66,31 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
             <div className="grid grid-cols-2 gap-3">
               <input
                 required
-                placeholder="First name"
+                placeholder={t("First name")}
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
               />
               <input
                 required
-                placeholder="Last name"
+                placeholder={t("Last name")}
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
               />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Double-check the spelling — your name and surname can&apos;t be changed later except by contacting us.
+              {t("Double-check the spelling. Your name and surname can't be changed later except by contacting us.")}
             </p>
           </div>
 
           <div>
-            <p className="mb-1 text-xs text-muted-foreground">Birth date</p>
+            <p className="mb-1 text-xs text-muted-foreground">{t("Birth date")}</p>
             <DateDropdownPicker value={birthDate} onChange={setBirthDate} maxYear={new Date().getFullYear()} />
           </div>
 
           <div>
-            <p className="mb-1 text-xs text-muted-foreground">Country, city &amp; district</p>
+            <p className="mb-1 text-xs text-muted-foreground">{t("Country, city & district")}</p>
             <LocationPicker value={location} onChange={setLocation} />
           </div>
         </div>
@@ -101,7 +102,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
           disabled={submitting}
           className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
-          {submitting ? "Saving..." : "Continue"}
+          {submitting ? t("Saving...") : t("Continue")}
         </button>
       </form>
     </div>

@@ -5,6 +5,7 @@ import { TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { COUNTRIES } from "@/lib/countries";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { RewindButton } from "@/components/RewindButton";
+import { useT } from "@/lib/i18n/client";
 
 // Real vector flag icons (flag-icons package, imported globally in
 // layout.tsx) rather than Unicode flag emoji — Windows renders unsupported
@@ -61,6 +62,7 @@ export function CityDistrictPicker({
   nearMeLoading: boolean;
   nearMeActive: boolean;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Only Turkey has real city/district data (see lib/countries.ts) — starts
@@ -105,18 +107,18 @@ export function CityDistrictPicker({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-[13px] font-semibold text-foreground">Location</h2>
+        <h2 className="text-[13px] font-semibold text-foreground">{t("Location")}</h2>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onNearMe}
             disabled={nearMeLoading}
-            title="Sort results by distance from you — doesn't change which cities are selected"
+            title={t("Sort results by distance from you - doesn't change which cities are selected")}
             className={`text-xs font-medium disabled:opacity-50 ${
               nearMeActive ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
             }`}
           >
-            {nearMeLoading ? "Locating…" : "Near Me"}
+            {nearMeLoading ? t("Locating...") : t("Near Me")}
           </button>
           <RewindButton
             onClick={onReset}
@@ -139,14 +141,14 @@ export function CityDistrictPicker({
       <div>
         <input
           type="search"
-          placeholder={isTurkey ? "Search city or district..." : `Search ${country} city or district...`}
+          placeholder={isTurkey ? t("Search city or district...") : t("Search {country} city or district...", { country: t(country) })}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="mb-2 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground"
         />
         {!isTurkey && (
           <p className="mb-1.5 rounded-lg border border-dashed border-border p-2.5 text-xs text-muted-foreground">
-            City/district data for {country} isn&apos;t available yet — Turkey is the only country covered so far.
+            {t("City/district data for {country} isn't available yet - Turkey is the only country covered so far.", { country: t(country) })}
           </p>
         )}
         <div className="thin-scrollbar max-h-64 overflow-y-auto pr-1 text-sm">

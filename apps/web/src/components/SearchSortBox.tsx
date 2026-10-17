@@ -1,6 +1,7 @@
 "use client";
 
 import { SortButtons, type SortOption } from "@/components/SortButtons";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The workplace search field with the RS / A-Z / Rating sort buttons right
@@ -27,6 +28,7 @@ export function SearchSortBox({
   /** Width classes for the whole row (field + sort buttons). */
   widthClassName?: string;
 }) {
+  const t = useT();
   return (
     <div className={`flex ${widthClassName} flex-wrap items-center gap-2.5`}>
       <div
@@ -36,8 +38,8 @@ export function SearchSortBox({
       >
         <input
           type="search"
-          aria-label="Search workplaces"
-          placeholder="Search or sort a workplace you want !"
+          aria-label={t("Search workplaces")}
+          placeholder={t("Search or sort a workplace you want !")}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none"

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { generateMockOtp, isDevBypassCode } from "@/lib/emailVerification";
+import { useT } from "@/lib/i18n/client";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -33,6 +34,7 @@ export function EmailVerificationScreen({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+  const t = useT();
 
   useEffect(() => {
     setExpectedCode(generateMockOtp());
@@ -57,11 +59,11 @@ export function EmailVerificationScreen({
   async function attemptVerify(candidateCode: string) {
     const effectivePassword = password || recoveredPassword;
     if (!effectivePassword) {
-      setError("Please re-enter your password to finish creating your account.");
+      setError(t("Please re-enter your password to finish creating your account."));
       return;
     }
     if (candidateCode !== expectedCode && !isDevBypassCode(candidateCode)) {
-      setError("That code doesn't match — check the digits and try again.");
+      setError(t("That code doesn't match - check the digits and try again."));
       return;
     }
     setError(null);
@@ -69,7 +71,7 @@ export function EmailVerificationScreen({
     try {
       await onVerified(effectivePassword);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof Error ? t(err.message) : t("Something went wrong. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -84,22 +86,22 @@ export function EmailVerificationScreen({
   return (
     <div>
       <button type="button" onClick={onBack} className="mb-3 text-xs text-muted-foreground hover:underline">
-        &larr; Back
+        &larr; {t("Back")}
       </button>
-      <h2 className="mb-1 text-xl font-bold text-foreground">Verify your email</h2>
+      <h2 className="mb-1 text-xl font-bold text-foreground">{t("Verify your email")}</h2>
       <p className="mb-6 text-sm text-muted-foreground">
-        We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>.
+        {t("We sent a 6-digit code to")} <span className="font-medium text-foreground">{email}</span>.
       </p>
 
       {!password && (
         <div className="mb-4">
           <p className="mb-1 text-xs text-muted-foreground">
-            Your session refreshed, so please confirm your password once more to finish.
+            {t("Your session refreshed, so please confirm your password once more to finish.")}
           </p>
           <PasswordInput
             value={recoveredPassword}
             onChange={setRecoveredPassword}
-            placeholder="Password"
+            placeholder={t("Password")}
             autoComplete="new-password"
           />
         </div>
@@ -115,7 +117,7 @@ export function EmailVerificationScreen({
         disabled={submitting || code.length !== 6}
         className="mt-4 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
       >
-        {submitting ? "Verifying..." : "Verify"}
+        {submitting ? t("Verifying...") : t("Verify")}
       </button>
 
       <button
@@ -124,7 +126,7 @@ export function EmailVerificationScreen({
         disabled={cooldown > 0}
         className="mt-3 w-full text-center text-xs text-muted-foreground underline disabled:no-underline disabled:opacity-50"
       >
-        {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+        {cooldown > 0 ? t("Resend code in {s}s", { s: cooldown }) : t("Resend code")}
       </button>
 
       {/* Dead-code-eliminated out of production builds — see

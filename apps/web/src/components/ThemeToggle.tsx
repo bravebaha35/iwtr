@@ -1,6 +1,7 @@
 "use client";
 
 import { useSettings } from "@/lib/settings-context";
+import { useT } from "@/lib/i18n/client";
 
 // Replaces the old hamburger/dropdown settings panel — now that density is
 // gone, theme is the only setting left, so it gets a direct on/off switch
@@ -8,12 +9,13 @@ import { useSettings } from "@/lib/settings-context";
 export function ThemeToggle() {
   const { theme, setTheme } = useSettings();
   const isDark = theme === "dark";
+  const t = useT();
 
   return (
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={isDark ? t("Switch to light mode") : t("Switch to dark mode")}
       aria-pressed={isDark}
       className={`relative inline-flex h-8 w-[60px] shrink-0 items-center justify-between rounded-full border px-2 transition-colors ${
         isDark ? "border-border bg-sidebar" : "border-amber-300 bg-amber-50"

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { COUNTRIES, findCountryByCode } from "@/lib/countries";
 import { formatGroupedDigits } from "@/lib/phoneFormat";
+import { useI18n } from "@/lib/i18n/client";
+import { regionName } from "@/lib/i18n/core";
 
 /**
  * E.164 phone entry: a flag + dial-code button (opens a searchable country
@@ -29,6 +31,7 @@ export function PhoneNumberInput({
   const [countryCode, setCountryCode] = useState(defaultCountryCode);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const { t, locale } = useI18n();
 
   const country = findCountryByCode(countryCode) ?? COUNTRIES[0];
   const numberPart = value.startsWith(country.dialCode) ? value.slice(country.dialCode.length) : "";
@@ -48,7 +51,12 @@ export function PhoneNumberInput({
 
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = normalizedQuery
-    ? COUNTRIES.filter((c) => c.name.toLowerCase().includes(normalizedQuery) || c.dialCode.includes(normalizedQuery))
+    ? COUNTRIES.filter(
+        (c) =>
+          c.name.toLowerCase().includes(normalizedQuery) ||
+          regionName(c.code, c.name, locale).toLocaleLowerCase("tr").includes(normalizedQuery) ||
+          c.dialCode.includes(normalizedQuery),
+      )
     : COUNTRIES;
 
   return (
@@ -77,7 +85,7 @@ export function PhoneNumberInput({
             <input
               type="search"
               autoFocus
-              placeholder="Search country or code..."
+              placeholder={t("Search country or code...")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="mb-1.5 w-full rounded-lg border border-border bg-surface-muted px-2.5 py-1.5 text-xs text-foreground"
@@ -91,7 +99,7 @@ export function PhoneNumberInput({
                   className="flex items-center gap-2 rounded px-2 py-1 text-left text-xs text-foreground hover:bg-surface-muted"
                 >
                   <span className="shrink-0">{c.flag}</span>
-                  <span className="min-w-0 flex-1 whitespace-normal break-words">{c.name}</span>
+                  <span className="min-w-0 flex-1 whitespace-normal break-words">{regionName(c.code, c.name, locale)}</span>
                   <span className="shrink-0 text-muted-foreground">{c.dialCode}</span>
                 </button>
               ))}

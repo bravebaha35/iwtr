@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/i18n/client";
+
 // "ratingAsc"/"ratingDesc", "alphabetical"/"alphabeticalDesc" and
 // "riskDesc"/"riskAsc" are each two states of one button, so the button can
 // show which way it's sorting.
@@ -127,26 +129,27 @@ export function SortButtons({
   onChange: (next: SortOption) => void;
   showRiskSort?: boolean;
 }) {
+  const t = useT();
   const alphaOn = value === "alphabetical" || value === "alphabeticalDesc";
   const base = TOGGLE_BASE;
   return (
-    <div role="group" aria-label="Sort" className="flex h-12 shrink-0 items-center">
+    <div role="group" aria-label={t("Sort")} className="flex h-12 shrink-0 items-center">
       {showRiskSort && (
         <button
           type="button"
           onClick={() => onChange(nextRiskSort(value))}
           aria-pressed={value === "riskDesc" || value === "riskAsc"}
-          aria-label="Sort by Risk Score"
+          aria-label={t("Sort by Risk Score")}
           title={
             value === "riskDesc"
-              ? "Showing highest Risk Score first"
+              ? t("Showing highest Risk Score first")
               : value === "riskAsc"
-                ? "Showing lowest Risk Score first"
-                : "Sort by Risk Score"
+                ? t("Showing lowest Risk Score first")
+                : t("Sort by Risk Score")
           }
           className={`${base} ${value === "riskDesc" ? TOGGLE_RED : value === "riskAsc" ? TOGGLE_GREEN : TOGGLE_OFF}`}
         >
-          RS
+          {t("RS")}
           {value === "riskDesc" && <DirectionArrow up={false} />}
           {value === "riskAsc" && <DirectionArrow up />}
         </button>
@@ -155,7 +158,7 @@ export function SortButtons({
         type="button"
         onClick={() => onChange(nextAlphaSort(value))}
         aria-pressed={alphaOn}
-        title={value === "alphabetical" ? "Sorted A to Z" : value === "alphabeticalDesc" ? "Sorted Z to A" : "Sort A to Z"}
+        title={value === "alphabetical" ? t("Sorted A to Z") : value === "alphabeticalDesc" ? t("Sorted Z to A") : t("Sort A to Z")}
         className={`${base} ${alphaOn ? TOGGLE_ON : TOGGLE_OFF}`}
       >
         {value === "alphabeticalDesc" ? "Z-A" : "A-Z"}
@@ -165,11 +168,11 @@ export function SortButtons({
         onClick={() => onChange(nextRatingSort(value))}
         aria-pressed={value === "ratingAsc" || value === "ratingDesc"}
         title={
-          value === "ratingAsc" ? "Showing least-rated first" : value === "ratingDesc" ? "Showing best-rated first" : "Sort by rating"
+          value === "ratingAsc" ? t("Showing least-rated first") : value === "ratingDesc" ? t("Showing best-rated first") : t("Sort by rating")
         }
         className={`${base} ${value === "ratingAsc" ? TOGGLE_RED : value === "ratingDesc" ? TOGGLE_GREEN : TOGGLE_OFF}`}
       >
-        Rating
+        {t("Rating")}
         {value === "ratingAsc" && <DirectionArrow up />}
         {value === "ratingDesc" && <DirectionArrow up={false} />}
       </button>

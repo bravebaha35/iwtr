@@ -14,6 +14,7 @@ import { SingleSelectDropdown } from "@/components/Dropdown";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { PositionPicker } from "@/components/jobs/PositionPicker";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { useT } from "@/lib/i18n/client";
 
 export interface JobSetupData {
   jobTitle: string;
@@ -23,11 +24,12 @@ export interface JobSetupData {
 }
 
 function CloseButton({ onClose }: { onClose: () => void }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onClose}
-      aria-label="Close"
+      aria-label={t("Close")}
       className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
     >
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -79,6 +81,7 @@ export function JobSetupModal({
   const [detailError, setDetailError] = useState(false);
   // Turned on by the first Continue press with something missing.
   const [showMissing, setShowMissing] = useState(false);
+  const t = useT();
 
   // workType can only ever come from this fetch (OwnedCompany has no
   // workplaceTypes of its own), so a transient failure here must be
@@ -141,20 +144,20 @@ export function JobSetupModal({
     >
       <div
         role="dialog"
-        aria-label="Post a job"
+        aria-label={t("Post a job")}
         className="relative flex max-h-full w-full max-w-5xl flex-col overflow-y-auto rounded-2xl bg-surface p-6 shadow-xl sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <CloseButton onClose={onClose} />
-        <h2 className="mb-1 text-2xl text-foreground">Post a job</h2>
-        <p className="mb-6 text-sm text-muted-foreground">Step 1 of 2: the basics.</p>
+        <h2 className="mb-1 text-2xl text-foreground">{t("Post a job")}</h2>
+        <p className="mb-6 text-sm text-muted-foreground">{t("Step 1 of 2: the basics.")}</p>
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,29rem)_minmax(0,1fr)]">
           {/* Left: who, what, which level. */}
           <div className="flex flex-col gap-5">
             <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-muted px-3.5 py-2.5">
               <span className="truncate text-sm font-semibold text-foreground/80">{company.companyName}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{detail?.company.category ?? "-"}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{detail ? t(detail.company.category) : "-"}</span>
             </div>
 
             {/* Plain wrappers, not <label>: a label hands a click anywhere
@@ -162,38 +165,38 @@ export function JobSetupModal({
                 trigger - so a click-away meant to close the list opened it
                 again. */}
             <div>
-              <FieldLabel>What are you looking for?</FieldLabel>
+              <FieldLabel>{t("What are you looking for?")}</FieldLabel>
               <SingleSelectDropdown
                 value={jobTitle}
                 onChange={setJobTitle}
                 options={suggestions.map((title) => ({ value: title, label: title }))}
-                placeholder={suggestions.length === 0 ? "Loading..." : "Choose a job title"}
+                placeholder={suggestions.length === 0 ? t("Loading...") : t("Choose a job title")}
                 disabled={suggestions.length === 0}
-                ariaLabel="Job title"
+                ariaLabel={t("Job title")}
               />
-              {showMissing && missing.jobTitle && <Missing>Choose a job title.</Missing>}
+              {showMissing && missing.jobTitle && <Missing>{t("Choose a job title.")}</Missing>}
             </div>
 
             {detailError && (
               <p className="text-sm text-red-600 dark:text-red-300">
-                Couldn&apos;t load company details.{" "}
+                {t("Couldn't load company details.")}{" "}
                 <button type="button" onClick={loadDetail} className="underline">
-                  Retry
+                  {t("Retry")}
                 </button>
               </p>
             )}
 
             {detail && detail.company.workplaceTypes.length > 1 && (
               <div>
-                <FieldLabel>Which type of role is this?</FieldLabel>
+                <FieldLabel>{t("Which type of role is this?")}</FieldLabel>
                 <SingleSelectDropdown
                   value={workType}
                   onChange={(v) => setWorkType(v as WorkplaceType | null)}
-                  options={detail.company.workplaceTypes.map((t) => ({ value: t, label: workplaceTypeLabel(t) }))}
-                  placeholder="Choose a work type"
-                  ariaLabel="Work type"
+                  options={detail.company.workplaceTypes.map((w) => ({ value: w, label: workplaceTypeLabel(w) }))}
+                  placeholder={t("Choose a work type")}
+                  ariaLabel={t("Work type")}
                 />
-                {showMissing && missing.workType && <Missing>Choose a work type.</Missing>}
+                {showMissing && missing.workType && <Missing>{t("Choose a work type.")}</Missing>}
               </div>
             )}
 
@@ -201,18 +204,17 @@ export function JobSetupModal({
               <FieldLabel
                 hint={
                   <span aria-live="polite">
-                    {positions.length} of {MAX_JOB_POSITIONS} ticked
+                    {t("{n} of {max} ticked", { n: positions.length, max: MAX_JOB_POSITIONS })}
                   </span>
                 }
               >
-                Position
+                {t("Position")}
               </FieldLabel>
               <PositionPicker selected={positions} onToggle={togglePosition} max={MAX_JOB_POSITIONS} columns={2} />
               <p className="mt-2 text-xs text-muted-foreground">
-                Tick the level this role is for - {MAX_JOB_POSITIONS} at most. Job-seekers can filter the Jobs page by
-                position, and see it when they open your posting.
+                {t("Tick the level this role is for - {max} at most. Job-seekers can filter the Jobs page by position, and see it when they open your posting.", { max: MAX_JOB_POSITIONS })}
               </p>
-              {showMissing && missing.positions && <Missing>Tick at least one position.</Missing>}
+              {showMissing && missing.positions && <Missing>{t("Tick at least one position.")}</Missing>}
             </div>
           </div>
 
@@ -225,24 +227,24 @@ export function JobSetupModal({
                 </span>
               }
             >
-              Tell us more
+              {t("Tell us more")}
             </FieldLabel>
             <RichTextEditor
               value={description}
               onChange={setDescription}
               maxLength={JOB_DESCRIPTION_MAX_LENGTH}
-              ariaLabel="Tell us more"
-              placeholder="Responsibilities, working hours, what makes this role worth applying for..."
+              ariaLabel={t("Tell us more")}
+              placeholder={t("Responsibilities, working hours, what makes this role worth applying for...")}
               className="flex-1"
             />
-            {showMissing && missing.description && <Missing>Write a few words about the role.</Missing>}
+            {showMissing && missing.description && <Missing>{t("Write a few words about the role.")}</Missing>}
           </div>
         </div>
 
         <div className="mt-7 flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
           {showMissing && anyMissing && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-300">
-              A few things are still missing - they&apos;re marked above.
+              {t("A few things are still missing - they're marked above.")}
             </p>
           )}
           <button
@@ -250,7 +252,7 @@ export function JobSetupModal({
             onClick={submit}
             className="rounded-full bg-brand-600 px-9 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
           >
-            Continue
+            {t("Continue")}
           </button>
         </div>
       </div>

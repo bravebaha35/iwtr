@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
 
 // Plain password field plus a show/hide eye toggle — shared by the
 // register password, confirm-password, and login fields in AuthModal so
@@ -20,6 +21,7 @@ export function PasswordInput({
   maxLength?: number;
 }) {
   const [visible, setVisible] = useState(false);
+  const t = useT();
 
   return (
     <div className="relative">
@@ -36,7 +38,7 @@ export function PasswordInput({
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
-        aria-label={visible ? "Hide password" : "Show password"}
+        aria-label={visible ? t("Hide password") : t("Show password")}
         tabIndex={-1}
         className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
       >

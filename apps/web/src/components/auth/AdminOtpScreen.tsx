@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { OtpInput } from "@/components/auth/OtpInput";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Second step of logging in as the ADMIN role — shown after a correct
@@ -23,6 +24,7 @@ export function AdminOtpScreen({
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const t = useT();
 
   async function attemptVerify(candidateCode: string) {
     if (candidateCode.length !== 6) return;
@@ -36,7 +38,7 @@ export function AdminOtpScreen({
       // AdminLoginOtpService — surfaced as-is here since none of those are
       // sensitive to reveal to whoever's holding this specific account's
       // password already.
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof Error ? t(err.message) : t("Something went wrong. Please try again."));
       setCode("");
     } finally {
       setSubmitting(false);
@@ -52,11 +54,11 @@ export function AdminOtpScreen({
   return (
     <div>
       <button type="button" onClick={onBack} className="mb-3 text-xs text-muted-foreground hover:underline">
-        &larr; Back
+        &larr; {t("Back")}
       </button>
-      <h2 className="mb-1 text-xl font-bold text-foreground">Enter your login code</h2>
+      <h2 className="mb-1 text-xl font-bold text-foreground">{t("Enter your login code")}</h2>
       <p className="mb-6 text-sm text-muted-foreground">
-        We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>.
+        {t("We sent a 6-digit code to")} <span className="font-medium text-foreground">{email}</span>.
       </p>
 
       <OtpInput value={code} onChange={handleCodeChange} autoFocus />
@@ -69,7 +71,7 @@ export function AdminOtpScreen({
         disabled={submitting || code.length !== 6}
         className="mt-4 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
       >
-        {submitting ? "Verifying..." : "Verify"}
+        {submitting ? t("Verifying...") : t("Verify")}
       </button>
     </div>
   );

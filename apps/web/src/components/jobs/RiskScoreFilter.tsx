@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { RewindButton } from "@/components/RewindButton";
 import { riskScoreColorClass, RISK_SCORE_NOTES, RiskTriangleIcon } from "@/components/jobs/RiskScoreBadge";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The sidebar "Risk Score" slider (0-3, 3 = "Any"), shared by the rating
@@ -10,6 +11,7 @@ import { riskScoreColorClass, RISK_SCORE_NOTES, RiskTriangleIcon } from "@/compo
  * or scroll along the track to pick the highest Risk Score to show.
  */
 export function RiskScoreFilter({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   // The wheel listener is attached once; it reads the latest value from here.
   const valueRef = useRef(value);
@@ -49,7 +51,7 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-[13px] font-semibold text-foreground">Risk Score</h2>
+        <h2 className="text-[13px] font-semibold text-foreground">{t("Risk Score")}</h2>
         <RewindButton onClick={() => onChange(3)} active={value !== 3} title="Reset Risk Score filter" />
       </div>
       <div className="flex flex-col gap-3 rounded-lg px-3 py-3 select-none">
@@ -78,7 +80,7 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
             onPointerMove={handlePointerMove}
             className="relative h-2 w-full cursor-pointer touch-none rounded-full"
             style={{ background: "linear-gradient(to right, #22c55e, #f97316, #ef4444)" }}
-            title="Click and drag along the slider, or scroll, to choose a maximum Risk Score"
+            title={t("Click and drag along the slider, or scroll, to choose a maximum Risk Score")}
           >
             <span
               className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
@@ -88,9 +90,9 @@ export function RiskScoreFilter({ value, onChange }: { value: number; onChange: 
         </div>
 
         <span className="text-center text-xs font-normal text-muted-foreground">
-          {value === 3 ? "Any" : `${value} and Below`}
+          {value === 3 ? t("Any") : t("{n} and Below", { n: value })}
         </span>
-        <p className="text-xs text-muted-foreground">{RISK_SCORE_NOTES[value]}</p>
+        <p className="text-xs text-muted-foreground">{t(RISK_SCORE_NOTES[value])}</p>
       </div>
     </div>
   );

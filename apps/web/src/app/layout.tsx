@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, DM_Serif_Display, Google_Sans_Flex } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SettingsProvider } from "@/lib/settings-context";
+import { I18nProvider } from "@/lib/i18n/client";
+import { getLocale, TR } from "@/lib/i18n/server";
 import { BackButton } from "@/components/BackButton";
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { HomeFiltersReset } from "@/components/HomeFiltersReset";
@@ -63,38 +65,45 @@ const dmSerifDisplay = DM_Serif_Display({
 
 const SITE_DESCRIPTION =
   "Anonymous, honest workplace reviews from people who actually worked there. No names. No HR. Rate your past employers and check a company before you accept a job.";
+const SITE_DESCRIPTION_TR =
+  "Orada gerçekten çalışmış kişilerden anonim ve dürüst şirket değerlendirmeleri. İsim yok, İK yok. Eski işyerlerini puanla, bir teklifi kabul etmeden önce şirketi incele.";
 
 // Site-wide defaults; pages override title/description (company pages build
 // theirs from the company's name and score). The social preview image is
 // app/opengraph-image.tsx.
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: { default: "I Worked There — anonymous workplace reviews", template: "%s · I Worked There" },
-  description: SITE_DESCRIPTION,
-  applicationName: "I Worked There",
-  openGraph: {
-    type: "website",
-    siteName: "I Worked There",
-    title: "I Worked There — anonymous workplace reviews",
-    description: SITE_DESCRIPTION,
-    locale: "en_US",
-    alternateLocale: ["tr_TR"],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "I Worked There — anonymous workplace reviews",
-    description: SITE_DESCRIPTION,
-  },
-};
+// In the visitor's language (the Language setting's cookie).
+export async function generateMetadata(): Promise<Metadata> {
+  const tr = (await getLocale()) === "tr";
+  const title = tr ? "I Worked There - anonim şirket değerlendirmeleri" : "I Worked There — anonymous workplace reviews";
+  const description = tr ? SITE_DESCRIPTION_TR : SITE_DESCRIPTION;
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: { default: title, template: "%s · I Worked There" },
+    description,
+    applicationName: "I Worked There",
+    openGraph: {
+      type: "website",
+      siteName: "I Worked There",
+      title,
+      description,
+      locale: tr ? "tr_TR" : "en_US",
+      alternateLocale: [tr ? "en_US" : "tr_TR"],
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The Language setting's cookie; English when unset. Only a Turkish
+  // visitor is sent the dictionary.
+  const locale = await getLocale();
   return (
     <html
-      lang="en"
+      lang={locale}
       // The font variables are applied on <body> below too, but must ALSO be
       // here: globals.css's `@theme inline` declares `--font-sans:
       // var(--font-google-sans-flex)` at :root, and a custom-property
@@ -115,6 +124,7 @@ export default function RootLayout({
       <body
         className={`${googleSansFlex.variable} ${bricolage.variable} ${dmSerifDisplay.variable} min-h-full flex flex-col bg-background text-foreground`}
       >
+        <I18nProvider locale={locale} dict={locale === "tr" ? TR : null}>
         <SettingsProvider>
           <AuthProvider>
             <GlobalHeader />
@@ -134,6 +144,7 @@ export default function RootLayout({
         <MagneticPrimaryButtons />
         <CookieConsentBanner />
         <AnalyticsLoader />
+        </I18nProvider>
       </body>
     </html>
   );

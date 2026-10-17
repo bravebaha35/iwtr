@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { BoostOption, CreateJobPostingInput, JobPostingBoostStatus } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
+import { useT } from "@/lib/i18n/client";
 
 export const emptyBilling = {
   buyerName: "",
@@ -114,7 +115,8 @@ export function BoostPicker({
   onBillingChange: (billing: BillingDraft) => void;
   onOpenPricing: () => void;
 }) {
-  if (status === null) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  const t = useT();
+  if (status === null) return <p className="text-sm text-muted-foreground">{t("Loading...")}</p>;
 
   const needsBilling = boostNeedsBilling(selected, status);
   const set = (key: keyof BillingDraft, value: string) => onBillingChange({ ...billing, [key]: value });
@@ -135,9 +137,9 @@ export function BoostPicker({
               onClick={() => onSelect(isChecked ? null : option.option)}
               className={`flex flex-col gap-2 rounded-xl p-4 text-left transition ${isChecked ? style.picked : style.idle}`}
             >
-              <p className="text-sm text-foreground">{OPTION_COPY[option.option]}</p>
+              <p className="text-sm text-foreground">{t(OPTION_COPY[option.option])}</p>
               <p className="mt-auto text-lg font-bold text-foreground">
-                {freeForThisOne ? "Free" : `${formatTry(option.priceTry)} ₺`}
+                {freeForThisOne ? t("Free") : `${formatTry(option.priceTry)} ₺`}
               </p>
             </button>
           );
@@ -147,46 +149,47 @@ export function BoostPicker({
       <div className="mt-4 rounded-lg border border-border p-3 text-sm">
         {status.tierKey === "free" ? (
           <p className="text-muted-foreground">
-            Free Membership —{" "}
+            {t("Free Membership")} -{" "}
             <button type="button" onClick={onOpenPricing} className="font-bold text-brand-600 hover:underline dark:text-brand-400">
-              Upgrade your membership to get boosts monthly for free !
+              {t("Upgrade your membership to get boosts monthly for free !")}
             </button>
           </p>
         ) : (
           <p className="text-muted-foreground">
-            <span className="font-semibold text-foreground">{status.freeBoostsRemaining}</span> free 7-day boost
-            {status.freeBoostsRemaining === 1 ? "" : "s"} remaining this month on your{" "}
-            {status.tierKey[0].toUpperCase() + status.tierKey.slice(1)} membership.
+            {t(status.freeBoostsRemaining === 1 ? "{n} free 7-day boost remaining this month on your {plan} membership." : "{n} free 7-day boosts remaining this month on your {plan} membership.", {
+              n: status.freeBoostsRemaining,
+              plan: status.tierKey[0].toUpperCase() + status.tierKey.slice(1),
+            })}
           </p>
         )}
       </div>
 
       {needsBilling && (
         <div className="mt-4">
-          <p className="mb-2 text-xs text-muted-foreground">Billing details, for payment and invoicing.</p>
+          <p className="mb-2 text-xs text-muted-foreground">{t("Billing details, for payment and invoicing.")}</p>
           <div className="grid grid-cols-2 gap-2">
-            <input placeholder="First name" value={billing.buyerName} onChange={(e) => set("buyerName", e.target.value)} className={inputClass} />
-            <input placeholder="Last name" value={billing.buyerSurname} onChange={(e) => set("buyerSurname", e.target.value)} className={inputClass} />
+            <input placeholder={t("First name")} value={billing.buyerName} onChange={(e) => set("buyerName", e.target.value)} className={inputClass} />
+            <input placeholder={t("Last name")} value={billing.buyerSurname} onChange={(e) => set("buyerSurname", e.target.value)} className={inputClass} />
             <input
-              placeholder="T.C. Kimlik No / Tax ID (11 digits)"
+              placeholder={t("T.C. Kimlik No / Tax ID (11 digits)")}
               value={billing.buyerIdentityNumber}
               onChange={(e) => set("buyerIdentityNumber", e.target.value)}
               className={`col-span-2 ${inputClass}`}
             />
             <input
-              placeholder="Billing email"
+              placeholder={t("Billing email")}
               value={billing.buyerEmail}
               onChange={(e) => set("buyerEmail", e.target.value)}
               className={`col-span-2 ${inputClass}`}
             />
             <input
-              placeholder="Phone (optional)"
+              placeholder={t("Phone (optional)")}
               value={billing.buyerGsmNumber}
               onChange={(e) => set("buyerGsmNumber", e.target.value)}
               className={`col-span-2 ${inputClass}`}
             />
-            <input placeholder="City" value={billing.city} onChange={(e) => set("city", e.target.value)} className={inputClass} />
-            <input placeholder="Billing address" value={billing.address} onChange={(e) => set("address", e.target.value)} className={inputClass} />
+            <input placeholder={t("City")} value={billing.city} onChange={(e) => set("city", e.target.value)} className={inputClass} />
+            <input placeholder={t("Billing address")} value={billing.address} onChange={(e) => set("address", e.target.value)} className={inputClass} />
           </div>
         </div>
       )}

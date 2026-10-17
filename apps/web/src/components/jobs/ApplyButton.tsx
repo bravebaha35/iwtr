@@ -15,6 +15,7 @@ import {
   markSeenApplyCvPrompt,
 } from "@/lib/cvDisclosurePrefs";
 import { loadWatermarkDataUrl, stampCvWatermark } from "@/lib/cvPdfWatermark";
+import { useT } from "@/lib/i18n/client";
 
 // Renders the actual CvPreview off-screen (never visible to the user as a
 // second copy on the page) purely so html2pdf.js has a real DOM node with
@@ -35,6 +36,7 @@ import { loadWatermarkDataUrl, stampCvWatermark } from "@/lib/cvPdfWatermark";
 // would race html2pdf's snapshot.
 export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
   const { isAuthenticated, role } = useAuth();
+  const t = useT();
   const router = useRouter();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [employment, setEmployment] = useState<MyEmploymentEntry[]>([]);
@@ -131,7 +133,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
     // Confirm before the FIRST successful generate-and-send on this button
     // instance — sending a CV (which may include email/phone, see Fix 2) to
     // an employer isn't something a single accidental click should trigger.
-    if (!window.confirm("This will send your CV to this employer. Continue?")) return;
+    if (!window.confirm(t("This will send your CV to this employer. Continue?"))) return;
     setState("generating");
     try {
       const [fetchedProfile, fetchedEmployment] = await Promise.all([
@@ -158,12 +160,12 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
         className="flex h-7 items-center gap-1 rounded-full border border-border bg-sidebar px-2 text-xs font-bold text-sidebar-foreground transition disabled:opacity-50"
       >
         {state === "done"
-          ? "Applied"
+          ? t("Applied")
           : state === "generating" || state === "sending"
-            ? "Sending..."
+            ? t("Sending...")
             : state === "error"
-              ? "Couldn't send — try again"
-              : "Apply"}
+              ? t("Couldn't send - try again")
+              : t("Apply")}
       </motion.button>
       {showCvPrompt && (
         <div
@@ -175,8 +177,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-sm text-foreground">
-              Before you apply for any job we advice you edit your profile to max and add notes in the
-              &quot;CV&quot; section to gain even more attention!
+              {t("Before you apply for any job we advise you to fill in your profile as fully as you can and add notes in the “CV” section to get even more attention!")}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -184,7 +185,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
                 onClick={() => setShowCvPrompt(false)}
                 className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-surface-muted"
               >
-                Not now
+                {t("Not now")}
               </button>
               <button
                 type="button"
@@ -194,7 +195,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
                 }}
                 className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
               >
-                Go to My CV
+                {t("Go to My CV")}
               </button>
             </div>
           </div>

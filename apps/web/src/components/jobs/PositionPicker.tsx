@@ -2,6 +2,7 @@
 
 import type { JobPosition } from "@iwtr/shared-types";
 import { JOB_POSITIONS } from "@/lib/jobPositions";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The Position buttons: one row per position with a tick box in front, in
@@ -24,6 +25,7 @@ export function PositionPicker({
   columns?: 1 | 2;
 }) {
   const full = max !== undefined && selected.length >= max;
+  const t = useT();
   return (
     <div className={columns === 2 ? "grid grid-cols-1 gap-1 sm:grid-cols-2" : "flex flex-col gap-0.5"}>
       {JOB_POSITIONS.map((p) => {
@@ -63,7 +65,7 @@ export function PositionPicker({
                 </svg>
               )}
             </span>
-            <span className="min-w-0 flex-1">{p.label}</span>
+            <span className="min-w-0 flex-1">{t(p.label)}</span>
           </button>
         );
       })}

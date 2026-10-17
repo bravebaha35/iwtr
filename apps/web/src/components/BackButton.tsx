@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n/client";
 
 // Global, single mount point (rendered once from layout.tsx), mirroring
 // SettingsPanel's top-right placement — so every page gets a consistent
@@ -10,6 +11,7 @@ import { usePathname, useRouter } from "next/navigation";
 export function BackButton() {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
 
   if (pathname === "/") return null;
 
@@ -18,7 +20,7 @@ export function BackButton() {
       <button
         type="button"
         onClick={() => router.back()}
-        aria-label="Go back"
+        aria-label={t("Go back")}
         className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-muted text-foreground transition hover:bg-border active:scale-[0.96]"
       >
         <svg

@@ -6,6 +6,7 @@ import { WORK_TYPE_AVATARS, avatarWorkType } from "@/lib/avatars";
 import { AVATAR_GRADIENTS, avatarGradientCss, customGradientColor, customGradientKey } from "@/lib/avatarGradients";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { WorkTypePicker } from "@/components/WorkTypePicker";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * "What kind of work?" -> "Choose your avatar" (4 variants of that work
@@ -45,6 +46,7 @@ export function AvatarEditor({
   const [internalWorkType, setInternalWorkType] = useState<WorkplaceType | null>(avatarWorkType(avatarKey));
   const browsingWorkType = controlledWorkType !== undefined ? controlledWorkType : internalWorkType;
   const colorInputRef = useRef<HTMLInputElement>(null);
+  const t = useT();
 
   const variants = WORK_TYPE_AVATARS.find((g) => g.workType === browsingWorkType)?.variants ?? [];
   const customColor = customGradientColor(avatarGradient);
@@ -61,7 +63,7 @@ export function AvatarEditor({
     <>
       {showWorkTypePicker && (
         <>
-          <p className="mb-2 text-[13px] font-semibold text-foreground">What kind of work?</p>
+          <p className="mb-2 text-[13px] font-semibold text-foreground">{t("What kind of work?")}</p>
           <div className="mb-4">
             <WorkTypePicker value={browsingWorkType} onChange={pickWorkType} />
           </div>
@@ -71,7 +73,7 @@ export function AvatarEditor({
       {browsingWorkType && (
         <>
           <p className="mb-2 text-[13px] font-semibold text-foreground">
-            Choose your avatar
+            {t("Choose your avatar")}
           </p>
           <div className="mb-6 grid grid-cols-4 gap-3">
             {variants.map((v) => (
@@ -79,7 +81,7 @@ export function AvatarEditor({
                 key={v.key}
                 type="button"
                 onClick={() => onChangeAvatarKey(v.key)}
-                title={workplaceTypeLabel(browsingWorkType)}
+                title={t(workplaceTypeLabel(browsingWorkType))}
                 className={`flex aspect-square items-center justify-center rounded-full text-3xl transition ${
                   avatarKey === v.key
                     ? "ring-2 ring-brand-600 ring-offset-2 ring-offset-surface"
@@ -93,7 +95,7 @@ export function AvatarEditor({
         </>
       )}
 
-      <p className="mb-2 text-[13px] font-semibold text-foreground">Background</p>
+      <p className="mb-2 text-[13px] font-semibold text-foreground">{t("Background")}</p>
       <div className="mb-2 grid grid-cols-6 gap-2">
         {AVATAR_GRADIENTS.map((g) => (
           <button
@@ -114,8 +116,8 @@ export function AvatarEditor({
         <button
           type="button"
           onClick={() => colorInputRef.current?.click()}
-          aria-label="Pick a custom color"
-          title="Pick a custom color"
+          aria-label={t("Pick a custom color")}
+          title={t("Pick a custom color")}
           className={`relative aspect-square rounded-full transition ${
             customColor ? "ring-1 ring-brand-600 ring-offset-2 ring-offset-surface" : ""
           }`}

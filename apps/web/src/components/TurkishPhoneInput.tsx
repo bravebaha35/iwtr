@@ -5,6 +5,7 @@ import { TURKEY_AREA_CODES_BY_PLATE, areaCodesForProvince, provinceForAreaCode, 
 import { SingleSelectDropdown, type DropdownOption } from "@/components/Dropdown";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
 import { formatGroupedDigits } from "@/lib/phoneFormat";
+import { useT } from "@/lib/i18n/client";
 
 const PROVINCE_OPTIONS: DropdownOption[] = TURKEY_PROVINCES.map((p) => ({
   value: p.plate,
@@ -50,6 +51,7 @@ export function TurkishPhoneInput({
   suggestedProvince?: string | null;
 }) {
   const digits = digitsOf(value);
+  const t = useT();
   // `value` often starts as the "+90" placeholder and is replaced by a real
   // loaded number a moment later (once the parent's async fetch resolves) —
   // seeding this from `value` only once at mount (a plain useState
@@ -88,10 +90,10 @@ export function TurkishPhoneInput({
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
         <button type="button" onClick={() => switchKind("LANDLINE")} className={pillClass(kind === "LANDLINE")}>
-          Landline
+          {t("Landline")}
         </button>
         <button type="button" onClick={() => switchKind("MOBILE")} className={pillClass(kind === "MOBILE")}>
-          Mobile
+          {t("Mobile")}
         </button>
       </div>
 
@@ -104,7 +106,7 @@ export function TurkishPhoneInput({
               <SingleSelectDropdown
                 value={selectedProvince?.plate ?? null}
                 options={PROVINCE_OPTIONS}
-                placeholder="Province"
+                placeholder={t("Province")}
                 searchable
                 clearable={false}
                 onChange={(plate) => {
@@ -132,7 +134,7 @@ export function TurkishPhoneInput({
               </div>
             ) : (
               <div
-                aria-label="Area code (fixed by province)"
+                aria-label={t("Area code (fixed by province)")}
                 className="flex w-full items-center rounded-lg border border-border bg-surface-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground"
               >
                 {areaCode ? `0${areaCode}` : "—"}

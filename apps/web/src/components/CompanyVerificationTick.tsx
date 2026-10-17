@@ -1,4 +1,7 @@
+"use client";
+
 import type { OwnerTier } from "@iwtr/shared-types";
+import { useT } from "@/lib/i18n/client";
 
 // The badge next to a company's name. One minimal check-mark symbol at every
 // level — only its colour changes with the owner's membership:
@@ -32,6 +35,7 @@ export function CompanyVerificationTick({
   size?: number;
   className?: string;
 }) {
+  const t = useT();
   if (badgeTier === "FREE" && !claimed) return null;
 
   const { colorClassName, label } = TIER_TICK[badgeTier];
@@ -42,7 +46,7 @@ export function CompanyVerificationTick({
       width={size}
       height={size}
       role="img"
-      aria-label={label}
+      aria-label={t(label)}
       className={`inline-block shrink-0 align-middle ${colorClassName} ${className}`}
       fill="none"
       stroke="currentColor"

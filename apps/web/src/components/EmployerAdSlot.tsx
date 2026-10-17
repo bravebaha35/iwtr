@@ -7,6 +7,7 @@ import { apiGet } from "@/lib/api-client";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { AdLabel } from "@/components/AdSlot";
 import { stripMarkup } from "@/lib/richText";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The employer ad space beside the search bar on the Rating and Jobs pages.
@@ -19,6 +20,7 @@ import { stripMarkup } from "@/lib/richText";
  */
 export function EmployerAdSlot() {
   const [ad, setAd] = useState<EmployerAd | undefined>(undefined);
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +39,7 @@ export function EmployerAdSlot() {
 
   return (
     <aside
-      aria-label="Employer ad"
+      aria-label={t("Employer ad")}
       data-testid="employer-ad-slot"
       className="relative hidden min-h-[104px] min-w-[18rem] max-w-[30rem] flex-1 overflow-hidden border border-border bg-surface 2xl:flex"
     >
@@ -55,13 +57,13 @@ export function EmployerAdSlot() {
             <span className="block truncate text-lg font-bold text-foreground">{ad.posting.jobTitle}</span>
             <span className="block truncate text-xs text-muted-foreground">{stripMarkup(ad.posting.description)}</span>
           </span>
-          <span className="shrink-0 bg-brand-600 px-3 py-2 text-sm font-semibold text-white">See the job</span>
+          <span className="shrink-0 bg-brand-600 px-3 py-2 text-sm font-semibold text-white">{t("See the job")}</span>
         </Link>
       ) : ad === null ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src="/test-ads/employer-ad-sample.svg"
-          alt="Test ad: Örnek Lojistik is hiring a forklift operator"
+          alt={t("Test ad: Örnek Lojistik is hiring a forklift operator")}
           className="h-full w-full bg-[#12494c] object-contain"
         />
       ) : null}

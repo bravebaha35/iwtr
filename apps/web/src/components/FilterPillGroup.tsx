@@ -1,4 +1,7 @@
+"use client";
+
 import { RewindButton } from "@/components/RewindButton";
+import { useT } from "@/lib/i18n/client";
 
 // Base (colorless) class strings for the two pill shapes, shared between the
 // default brand-colored look and any per-option color override (e.g. the
@@ -65,12 +68,13 @@ export function SingleSelectPillTabs<T extends string>({
   allLabel?: string;
   pillColorClassName?: (value: T, active: boolean) => string;
 }) {
+  const t = useT();
   const basePillClass =
     "rounded-full px-3 py-1.5 compact:px-2.5 compact:py-1 text-sm compact:text-xs font-medium transition";
   return (
     <div className="flex flex-wrap gap-1.5">
       <button type="button" onClick={() => onSelect(null)} className={pillClass(selected === null)}>
-        {allLabel}
+        {t(allLabel)}
       </button>
       {options.map((o) => (
         <button
@@ -83,7 +87,7 @@ export function SingleSelectPillTabs<T extends string>({
               : pillClass(selected === o.value)
           }
         >
-          {o.label}
+          {t(o.label)}
         </button>
       ))}
     </div>
@@ -137,6 +141,7 @@ export function MultiFilterPillGroup<T extends string>({
   // existing consumer passes this, so every one is unaffected.
   disabled?: boolean;
 }) {
+  const t = useT();
   const isTrack = variant === "track";
   const layoutClassName =
     direction === "column"
@@ -165,7 +170,7 @@ export function MultiFilterPillGroup<T extends string>({
         if (disabled) className += " cursor-not-allowed opacity-50";
         return (
           <button key={o.value} type="button" disabled={disabled} onClick={() => onToggle(o.value)} className={className}>
-            {o.label}
+            {t(o.label)}
           </button>
         );
       })}
@@ -175,8 +180,8 @@ export function MultiFilterPillGroup<T extends string>({
     <div>
       {showHeading && (
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold text-foreground">{heading}</h2>
-          <RewindButton onClick={onReset} active={selected.length > 0} title={`Clear ${heading} filter`} disabled={disabled} />
+          <h2 className="text-[13px] font-semibold text-foreground">{t(heading)}</h2>
+          <RewindButton onClick={onReset} active={selected.length > 0} title={t("Clear {heading} filter", { heading: t(heading) })} disabled={disabled} />
         </div>
       )}
       {isTrack ? <div className={trackWrapperClass}>{pills}</div> : pills}

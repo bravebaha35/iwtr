@@ -5,6 +5,8 @@ import type { OwnerJobPosting } from "@iwtr/shared-types";
 import { RemoveJobPostingModal } from "@/components/jobs/RemoveJobPostingModal";
 import { EditJobPostingModal, isBoostActive } from "@/components/jobs/EditJobPostingModal";
 import { RichText } from "@/components/RichText";
+import { useI18n } from "@/lib/i18n/client";
+import { intlLocale } from "@/lib/i18n/core";
 
 // Plain words for the owner - no internal status names.
 const STATUS_LABEL: Record<OwnerJobPosting["status"], string> = {
@@ -36,6 +38,7 @@ export function OwnerJobPostingRow({
   const [editing, setEditing] = useState(false);
   const active = isActivePosting(posting);
   const featured = active && isBoostActive(posting);
+  const { t, locale } = useI18n();
 
   return (
     <div className={`flex flex-col gap-2 rounded-xl border bg-surface p-4 ${featured ? "border-amber-400" : "border-border"}`}>
@@ -43,15 +46,15 @@ export function OwnerJobPostingRow({
         <div className="min-w-0">
           <p className="truncate font-semibold text-foreground">{posting.jobTitle}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {STATUS_LABEL[posting.status]}
+            {t(STATUS_LABEL[posting.status])}
             {posting.status === "PUBLISHED"
-              ? ` — ${posting.daysRemaining} day${posting.daysRemaining === 1 ? "" : "s"} left`
+              ? ` - ${t(posting.daysRemaining === 1 ? "{n} day left" : "{n} days left", { n: posting.daysRemaining })}`
               : ""}
           </p>
           {featured && (
             <p className="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              {posting.boostAdSpace ? "In the ad space until" : "Featured until"}{" "}
-              {new Date(posting.boostExpiresAt!).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}
+              {posting.boostAdSpace ? t("In the ad space until") : t("Featured until")}{" "}
+              {new Date(posting.boostExpiresAt!).toLocaleDateString(intlLocale(locale), { day: "numeric", month: "long" })}
             </p>
           )}
         </div>
@@ -63,21 +66,21 @@ export function OwnerJobPostingRow({
                 onClick={() => setEditing(true)}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
               >
-                Edit
+                {t("Edit")}
               </button>
               <button
                 type="button"
                 onClick={() => setRemoving(true)}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
               >
-                Remove
+                {t("Remove")}
               </button>
             </>
           )}
           <span
             role="img"
-            aria-label={active ? "Active" : "Inactive"}
-            title={active ? "Active - live on the Jobs page" : "Inactive - not on the Jobs page"}
+            aria-label={active ? t("Active") : t("Inactive")}
+            title={active ? t("Active - live on the Jobs page") : t("Inactive - not on the Jobs page")}
             className={`h-3 w-3 rounded-full ${active ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.7)]" : "bg-red-500"}`}
           />
         </div>

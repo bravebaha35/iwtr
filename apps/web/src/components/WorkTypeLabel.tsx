@@ -1,5 +1,8 @@
+"use client";
+
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { useT } from "@/lib/i18n/client";
 
 // Employee-facing rendering of a company's work-types: the PRIMARY
 // (workplaceTypes[0]) in a bold weight, the SECONDARY (workplaceTypes[1]),
@@ -16,13 +19,14 @@ export function WorkTypeLabel({
   className?: string;
 }) {
   const [primary, secondary] = workplaceTypes;
+  const t = useT();
   return (
     <span className={className}>
-      <span className="font-bold">{workplaceTypeLabel(primary)}</span>
+      <span className="font-bold">{t(workplaceTypeLabel(primary))}</span>
       {secondary != null && (
         <>
           {" "}
-          <span className="ml-0.5 font-normal">{workplaceTypeLabel(secondary)}</span>
+          <span className="ml-0.5 font-normal">{t(workplaceTypeLabel(secondary))}</span>
         </>
       )}
     </span>

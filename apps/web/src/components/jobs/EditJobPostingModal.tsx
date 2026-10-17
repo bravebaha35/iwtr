@@ -17,6 +17,8 @@ import { BoostPicker, boostInput, boostNeedsBilling, emptyBilling, useBoostStatu
 import { CloseButton } from "@/components/jobs/JobBoostModal";
 import { PositionPicker } from "@/components/jobs/PositionPicker";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { useI18n } from "@/lib/i18n/client";
+import { intlLocale } from "@/lib/i18n/core";
 
 const DESCRIPTION_MAX = JOB_DESCRIPTION_MAX_LENGTH;
 
@@ -52,6 +54,7 @@ export function EditJobPostingModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UpdateJobPostingResult | null>(null);
+  const { t, locale } = useI18n();
 
   const descriptionChanged = description.trim() !== posting.description.trim();
   const positionsChanged =
@@ -86,7 +89,7 @@ export function EditJobPostingModal({
       setResult(data);
       onSaved();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't save your changes.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't save your changes."));
     } finally {
       setSubmitting(false);
     }
@@ -96,7 +99,7 @@ export function EditJobPostingModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
       <div
         role="dialog"
-        aria-label={`Edit ${posting.jobTitle}`}
+        aria-label={t("Edit {title}", { title: posting.jobTitle })}
         className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-surface p-8 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -104,9 +107,9 @@ export function EditJobPostingModal({
 
         {result?.status === "CHECKOUT_REQUIRED" ? (
           <>
-            <h2 className="mb-2 text-lg font-bold text-foreground">Complete payment</h2>
+            <h2 className="mb-2 text-lg font-bold text-foreground">{t("Complete payment")}</h2>
             <p className="mb-4 text-xs text-muted-foreground">
-              Your changes are saved — the boost starts as soon as payment succeeds.
+              {t("Your changes are saved - the boost starts as soon as payment succeeds.")}
             </p>
             <IyzicoCheckoutEmbed checkoutFormContent={result.checkoutFormContent} />
             <button
@@ -114,24 +117,24 @@ export function EditJobPostingModal({
               onClick={onClose}
               className="mt-4 w-full rounded-lg border border-border py-2 text-sm text-foreground hover:bg-surface-muted"
             >
-              Done
+              {t("Done")}
             </button>
           </>
         ) : result ? (
           <>
             <h2 className="mb-2 text-lg font-bold text-foreground">
-              {result.status === "PENDING_ADMIN" ? "Sent for a quick check" : "Changes saved"}
+              {result.status === "PENDING_ADMIN" ? t("Sent for a quick check") : t("Changes saved")}
             </h2>
             <p className="text-sm text-muted-foreground">
               {result.status === "PENDING_ADMIN"
-                ? "The new description needs a quick admin check, so this posting is off the Jobs page until it's approved. You'll get a notification."
+                ? t("The new description needs a quick admin check, so this posting is off the Jobs page until it's approved. You'll get a notification.")
                 : isBoostActive(result.jobPosting)
-                  ? "Your posting is now featured at the top of the Jobs page."
-                  : "Job-seekers see the updated posting on the Jobs page now."}
+                  ? t("Your posting is now featured at the top of the Jobs page.")
+                  : t("Job-seekers see the updated posting on the Jobs page now.")}
             </p>
             {result.boostError && (
               <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                {result.boostError}
+                {t(result.boostError)}
               </p>
             )}
             <button
@@ -139,14 +142,14 @@ export function EditJobPostingModal({
               onClick={onClose}
               className="mt-4 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
             >
-              Close
+              {t("Close")}
             </button>
           </>
         ) : (
           <>
-            <h2 className="mb-5 text-xl font-bold text-foreground">Edit job posting</h2>
+            <h2 className="mb-5 text-xl font-bold text-foreground">{t("Edit job posting")}</h2>
 
-            <p className="mb-1 text-[13px] font-semibold text-foreground">Looking for</p>
+            <p className="mb-1 text-[13px] font-semibold text-foreground">{t("Looking for")}</p>
             <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted px-3 py-2">
               <span className="font-semibold text-foreground">{posting.jobTitle}</span>
               <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -154,25 +157,25 @@ export function EditJobPostingModal({
                   <rect x="4" y="11" width="16" height="10" rx="2" />
                   <path d="M8 11V7a4 4 0 0 1 8 0v4" />
                 </svg>
-                Can&apos;t be changed
+                {t("Can't be changed")}
               </span>
             </div>
 
             <div className="mb-1 flex items-baseline justify-between gap-3">
-              <p className="text-[13px] font-semibold text-foreground">Position</p>
+              <p className="text-[13px] font-semibold text-foreground">{t("Position")}</p>
               <span className="text-xs text-muted-foreground" aria-live="polite">
-                {positions.length} of {MAX_JOB_POSITIONS} ticked
+                {t("{n} of {max} ticked", { n: positions.length, max: MAX_JOB_POSITIONS })}
               </span>
             </div>
             <PositionPicker selected={positions} onToggle={togglePosition} max={MAX_JOB_POSITIONS} columns={2} />
-            {positionsMissing && <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">Tick at least one position.</p>}
+            {positionsMissing && <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">{t("Tick at least one position.")}</p>}
 
             <label htmlFor="edit-job-description" className="mb-1 mt-4 block text-[13px] font-semibold text-foreground">
-              Description
+              {t("Description")}
             </label>
             <RichTextEditor
               id="edit-job-description"
-              ariaLabel="Description"
+              ariaLabel={t("Description")}
               value={description}
               maxLength={DESCRIPTION_MAX}
               onChange={setDescription}
@@ -182,13 +185,13 @@ export function EditJobPostingModal({
               {description.length}/{DESCRIPTION_MAX}
             </p>
 
-            <p className="mb-2 text-[13px] font-semibold text-foreground">Boost</p>
+            <p className="mb-2 text-[13px] font-semibold text-foreground">{t("Boost")}</p>
             {boosted ? (
               <p className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                 {posting.boostAdSpace
-                  ? "In the employer ad space (Rating and Jobs pages) until"
-                  : "Featured on the Jobs page until"}{" "}
-                {new Date(posting.boostExpiresAt!).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}.
+                  ? t("In the employer ad space (Rating and Jobs pages) until")
+                  : t("Featured on the Jobs page until")}{" "}
+                {new Date(posting.boostExpiresAt!).toLocaleDateString(intlLocale(locale), { day: "numeric", month: "long" })}.
               </p>
             ) : (
               <BoostPicker
@@ -209,7 +212,7 @@ export function EditJobPostingModal({
               disabled={!canSave}
               className="mt-5 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
-              {submitting ? "Saving..." : selected ? "Save and boost" : "Save changes"}
+              {submitting ? t("Saving...") : selected ? t("Save and boost") : t("Save changes")}
             </button>
           </>
         )}

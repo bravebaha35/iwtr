@@ -5,12 +5,14 @@ import { apiPost, ApiError } from "@/lib/api-client";
 import { AVATAR_GRADIENTS } from "@/lib/avatarGradients";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
+import { useT } from "@/lib/i18n/client";
 
 export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [selectedGradient, setSelectedGradient] = useState<string>(AVATAR_GRADIENTS[0].key);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const t = useT();
 
   async function handleContinue() {
     if (!selectedAvatar) return;
@@ -20,7 +22,7 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
       await apiPost("/onboarding/avatar", { avatarKey: selectedAvatar, avatarGradient: selectedGradient });
       onSubmitted();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+      setError(err instanceof ApiError ? t(err.message) : t("Something went wrong."));
     } finally {
       setSubmitting(false);
     }
@@ -33,9 +35,9 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
           <Avatar avatarKey={selectedAvatar} avatarGradient={selectedGradient} size="md" />
         </div>
 
-        <h2 className="mb-1 text-xl font-bold text-foreground">Pick an anonymous avatar</h2>
+        <h2 className="mb-1 text-xl font-bold text-foreground">{t("Pick an anonymous avatar")}</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          This is how you&apos;ll appear to other users. Last step!
+          {t("This is how you'll appear to other users. Last step!")}
         </p>
 
         <AvatarEditor
@@ -52,7 +54,7 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
           disabled={!selectedAvatar || submitting}
           className="mt-2 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
-          {submitting ? "Saving..." : "Finish"}
+          {submitting ? t("Saving...") : t("Finish")}
         </button>
       </div>
     </div>

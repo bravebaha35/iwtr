@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarTileTone } from "@/lib/collarColors";
+import { useT } from "@/lib/i18n/client";
 
 // One object per kind of work, drawn for these tiles: a pencil, a headset,
 // two hands reaching for each other, a hard hat. Square art on a clear
@@ -46,6 +47,7 @@ export function WorkTypeTiles({
   disabled?: boolean;
   tone?: "muted" | "surface";
 }) {
+  const tr = useT();
   return (
     <div className={`grid gap-1.5 ${columns === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
       {WORKPLACE_TYPES.map((t) => {
@@ -68,7 +70,7 @@ export function WorkTypeTiles({
                 on ? "font-bold text-foreground" : "font-medium text-muted-foreground group-hover:text-foreground"
               }`}
             >
-              {t.label}
+              {tr(t.label)}
             </span>
             <span
               aria-hidden="true"

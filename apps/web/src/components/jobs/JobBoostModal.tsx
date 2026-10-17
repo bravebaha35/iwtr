@@ -7,13 +7,15 @@ import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import type { JobSetupData } from "@/components/jobs/JobSetupModal";
 import { BoostPicker, boostInput, boostNeedsBilling, emptyBilling, useBoostStatus } from "@/components/jobs/BoostPicker";
+import { useT } from "@/lib/i18n/client";
 
 export function CloseButton({ onClose }: { onClose: () => void }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onClose}
-      aria-label="Close"
+      aria-label={t("Close")}
       className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
     >
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,6 +45,7 @@ export function JobBoostModal({
   const [selected, setSelected] = useState<BoostOption | null>(null);
   const [billing, setBilling] = useState(emptyBilling);
   const [showPricing, setShowPricing] = useState(false);
+  const t = useT();
   const [result, setResult] = useState<CreateJobPostingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +74,7 @@ export function JobBoostModal({
         onDone(data);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't create this job posting.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't create this job posting."));
     } finally {
       setSubmitting(false);
     }
@@ -82,9 +85,9 @@ export function JobBoostModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
         <div className="relative w-full max-w-lg rounded-xl bg-surface p-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
           <CloseButton onClose={onClose} />
-          <h2 className="mb-2 text-lg font-bold text-foreground">Complete payment</h2>
+          <h2 className="mb-2 text-lg font-bold text-foreground">{t("Complete payment")}</h2>
           <p className="mb-4 text-xs text-muted-foreground">
-            Your job posting is created — the boost starts as soon as payment succeeds.
+            {t("Your job posting is created - the boost starts as soon as payment succeeds.")}
           </p>
           <IyzicoCheckoutEmbed checkoutFormContent={result.checkoutFormContent} />
           <button
@@ -92,7 +95,7 @@ export function JobBoostModal({
             onClick={() => onDone(result)}
             className="mt-4 w-full rounded-lg border border-border py-2 text-sm text-foreground hover:bg-surface-muted"
           >
-            Done
+            {t("Done")}
           </button>
         </div>
       </div>
@@ -103,11 +106,11 @@ export function JobBoostModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
       <div className="relative w-full max-w-2xl rounded-xl bg-surface p-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <CloseButton onClose={onClose} />
-        <h2 className="mb-1 text-xl font-bold text-foreground">Boost your posting?</h2>
-        <p className="mb-6 text-sm text-muted-foreground">Step 2 of 2 — optional, get seen by more people.</p>
+        <h2 className="mb-1 text-xl font-bold text-foreground">{t("Boost your posting?")}</h2>
+        <p className="mb-6 text-sm text-muted-foreground">{t("Step 2 of 2 - optional, get seen by more people.")}</p>
 
         {status === null ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
         ) : (
           <>
             <BoostPicker
@@ -129,12 +132,7 @@ export function JobBoostModal({
                 className="mt-0.5"
               />
               <span>
-                By publishing this job, you accept our Fair Hiring Rules. To prevent job-board spamming and protect
-                workers from high-turnover roles, posting the exact same position and work-type repeatedly will
-                increase your company&apos;s public &apos;Risk Score&apos; up to a maximum of 3. This score is
-                visible to all workers. You cannot simply post and delete jobs to manipulate the system.
-                Furthermore, all worker applications are anonymous by default; we prioritize direct, bias-free
-                contact by providing only candidate emails and phone numbers.
+                {t("By publishing this job, you accept our Fair Hiring Rules. To prevent job-board spamming and protect workers from high-turnover roles, posting the exact same position and work-type repeatedly will increase your company's public 'Risk Score' up to a maximum of 3. This score is visible to all workers. You cannot simply post and delete jobs to manipulate the system. Furthermore, all worker applications are anonymous by default; we prioritize direct, bias-free contact by providing only candidate emails and phone numbers.")}
               </span>
             </label>
 
@@ -144,7 +142,7 @@ export function JobBoostModal({
                 checked={autoReshareEnabled}
                 onChange={(e) => setAutoReshareEnabled(e.target.checked)}
               />
-              Re-share automatically after 30 days
+              {t("Re-share automatically after 30 days")}
             </label>
 
             <button
@@ -153,7 +151,7 @@ export function JobBoostModal({
               disabled={submitting || !disclaimerChecked}
               className="mt-4 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
-              {submitting ? "Please wait..." : selected ? "Finish" : "Continue without boost"}
+              {submitting ? t("Please wait...") : selected ? t("Finish") : t("Continue without boost")}
             </button>
           </>
         )}

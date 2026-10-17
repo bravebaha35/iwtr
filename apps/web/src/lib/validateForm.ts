@@ -1,4 +1,5 @@
 import type { ZodTypeAny } from "zod";
+import { plainT, type TFn } from "@/lib/i18n/core";
 
 // Prefix zod's own default messages get (via the contextual errorMap below)
 // so they can be told apart from a schema's hand-written message.
@@ -15,14 +16,19 @@ function humanize(field: string): string {
  * A schema's own custom message wins; otherwise the field is named in
  * plain words (optionally via `labels`).
  */
-export function formProblem(schema: ZodTypeAny, data: unknown, labels: Record<string, string> = {}): string | null {
+export function formProblem(
+  schema: ZodTypeAny,
+  data: unknown,
+  labels: Record<string, string> = {},
+  t: TFn = plainT,
+): string | null {
   const result = schema.safeParse(data, { errorMap: (_issue, ctx) => ({ message: DEFAULT_MARK + ctx.defaultError }) });
   if (result.success) return null;
   const issue = result.error.issues[0];
   if (!issue.message.startsWith(DEFAULT_MARK)) {
-    return issue.message.endsWith(".") ? issue.message : `${issue.message}.`;
+    return t(issue.message.endsWith(".") ? issue.message : `${issue.message}.`);
   }
   const field = String(issue.path[issue.path.length - 1] ?? "");
   const label = labels[field] ?? (field ? humanize(field) : "form");
-  return `Please check your ${label}.`;
+  return t("Please check your {label}.", { label: t(label) });
 }

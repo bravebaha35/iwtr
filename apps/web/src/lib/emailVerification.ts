@@ -1,4 +1,5 @@
 import { ALLOWED_REGISTRATION_EMAIL_DOMAINS } from "@iwtr/shared-types";
+import { plainT, type TFn } from "@/lib/i18n/core";
 
 // Frontend-only prototype for the registration email-verification step.
 // There is no backend endpoint for this yet (see CLAUDE.md — real email
@@ -42,18 +43,18 @@ const COMMON_TYPO_DOMAINS: Record<string, string> = {
  * the same address. Returns an error message to show, or null if the email
  * is well-formed and on an allowed domain.
  */
-export function validateRegistrationEmail(email: string): string | null {
+export function validateRegistrationEmail(email: string, t: TFn = plainT): string | null {
   const trimmed = email.trim().toLowerCase();
   const match = /^[^\s@]+@([^\s@]+)$/.exec(trimmed);
-  if (!match) return "Enter a valid email address.";
+  if (!match) return t("Enter a valid email address.");
 
   const domain = match[1];
   if (ALLOWED_REGISTRATION_EMAIL_DOMAINS.includes(domain)) return null;
 
   const suggestion = COMMON_TYPO_DOMAINS[domain];
-  if (suggestion) return `Did you mean @${suggestion}? Double-check your email address.`;
+  if (suggestion) return t("Did you mean @{suggestion}? Double-check your email address.", { suggestion });
 
-  return `Please use an email address from: ${ALLOWED_REGISTRATION_EMAIL_DOMAINS.join(", ")}.`;
+  return t("Please use an email address from: {domains}.", { domains: ALLOWED_REGISTRATION_EMAIL_DOMAINS.join(", ") });
 }
 
 export function generateMockOtp(): string {

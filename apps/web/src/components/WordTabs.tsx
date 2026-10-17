@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Plain-word tabs on a hairline, with a Wood bar under the open one - the
@@ -20,6 +21,7 @@ export function WordTabs<T extends string>({
   // What this group of tabs switches, for screen readers.
   label: string;
 }) {
+  const t = useT();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -32,7 +34,7 @@ export function WordTabs<T extends string>({
   }
 
   return (
-    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="flex items-end gap-6 border-b border-border">
+    <div role="tablist" aria-label={t(label)} onKeyDown={onKeyDown} className="flex items-end gap-6 border-b border-border">
       {tabs.map((tab, i) => {
         const selected = tab.value === value;
         return (
@@ -52,7 +54,7 @@ export function WordTabs<T extends string>({
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         );
       })}

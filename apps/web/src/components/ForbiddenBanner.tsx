@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 
 const COOKIE_NAME = "iwtr_forbidden_notice";
 
@@ -36,6 +37,7 @@ const wasForbidden = typeof document !== "undefined" && readAndClearCookie();
 export function ForbiddenBanner() {
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const t = useT();
 
   // The server always renders null (no `document`, so `wasForbidden` is
   // always false there). Using `wasForbidden` directly in the first client
@@ -51,11 +53,11 @@ export function ForbiddenBanner() {
 
   return (
     <div className="flex items-center justify-between gap-3 bg-red-50 px-4 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-      <span>You don&apos;t have access to that page.</span>
+      <span>{t("You don't have access to that page.")}</span>
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        aria-label="Dismiss"
+        aria-label={t("Dismiss")}
         className="text-red-800/70 hover:text-red-800 dark:text-red-200/70 dark:hover:text-red-200"
       >
         ✕

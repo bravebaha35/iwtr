@@ -1,13 +1,17 @@
+"use client";
+
+import { useT } from "@/lib/i18n/client";
 // The shape of the Home and Jobs card grids while the first page is on the
 // way: banner, logo, name, two lines, footer - in the same grid as the real
 // cards, so nothing jumps when they arrive. Shown instead of a "Loading..."
 // line; it costs no request of its own.
 export function CardGridSkeleton({ count = 8 }: { count?: number }) {
+  const t = useT();
   const bar = "rounded-full bg-surface-muted";
   return (
     <div
       role="status"
-      aria-label="Loading"
+      aria-label={t("Loading")}
       className="grid grid-cols-1 gap-5 compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
     >
       {Array.from({ length: count }, (_, i) => (

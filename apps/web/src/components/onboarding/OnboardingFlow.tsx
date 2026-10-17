@@ -7,10 +7,12 @@ import { PiiForm } from "./PiiForm";
 import { AnonymityModal } from "./AnonymityModal";
 import { HistoryForm } from "./HistoryForm";
 import { AvatarPicker } from "./AvatarPicker";
+import { useT } from "@/lib/i18n/client";
 
 export function OnboardingFlow() {
   const { onboardingStatus, refreshOnboardingStatus, logout } = useAuth();
   const [showReassurance, setShowReassurance] = useState(false);
+  const t = useT();
 
   if (!onboardingStatus) return null;
 
@@ -39,7 +41,7 @@ export function OnboardingFlow() {
         onClick={logout}
         className="fixed top-4 left-4 z-[60] rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm transition hover:text-foreground"
       >
-        Log out
+        {t("Log out")}
       </button>
     </>
   );

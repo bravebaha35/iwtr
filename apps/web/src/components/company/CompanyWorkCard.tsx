@@ -10,6 +10,7 @@ import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
+import { useT } from "@/lib/i18n/client";
 
 export interface CompanyWorkCardData {
   name: string;
@@ -56,6 +57,7 @@ export function CompanyWorkCard({
   // Every card shows a banner: the owner's own image when their tier
   // includes custom banners and one is set, otherwise the system default
   // keyed on the primary work-type (company.defaultBannerUrl).
+  const t = useT();
   const hasCustomBanner = canUseBanner(company.badgeTier) && !!company.bannerImageUrl;
   const bannerUrl = hasCustomBanner ? company.bannerImageUrl! : company.defaultBannerUrl;
   // Greyscale the default banner until the company has been claimed.
@@ -105,7 +107,7 @@ export function CompanyWorkCard({
       </h3>
 
       <p className="text-xs text-muted-foreground">
-        <WorkTypeLabel workplaceTypes={company.workplaceTypes} /> · {company.category}
+        <WorkTypeLabel workplaceTypes={company.workplaceTypes} /> · {t(company.category)}
       </p>
       {(company.city || company.district) && (
         <p className="truncate text-xs text-muted-foreground">
@@ -122,17 +124,17 @@ export function CompanyWorkCard({
             <div className="flex items-center gap-1.5">
               <span className="font-display text-2xl leading-none tabular-nums text-foreground">{company.overallAvg.toFixed(1)}</span>
               <span className={`whitespace-nowrap text-xs font-medium ${scoreTextColor(company.overallAvg)}`}>
-                {scoreBandLabel(company.overallAvg)}
+                {t(scoreBandLabel(company.overallAvg))}
               </span>
             </div>
             <div className="ml-auto flex items-center gap-1.5">
               {company.isHiring && (
                 <span className="whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                  Hiring now
+                  {t("Hiring now")}
                 </span>
               )}
               <span className="whitespace-nowrap text-xs text-muted-foreground">
-                {company.reviewCount} review{company.reviewCount === 1 ? "" : "s"}
+                {t(company.reviewCount === 1 ? "{n} review" : "{n} reviews", { n: company.reviewCount })}
               </span>
             </div>
           </>
@@ -140,10 +142,10 @@ export function CompanyWorkCard({
           <div className="flex items-center gap-1.5">
             {company.isHiring && (
               <span className="whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                Hiring now
+                {t("Hiring now")}
               </span>
             )}
-            <p className="text-xs text-muted-foreground">No reviews yet</p>
+            <p className="text-xs text-muted-foreground">{t("No reviews yet")}</p>
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SingleSelectDropdown } from "@/components/Dropdown";
+import { useT } from "@/lib/i18n/client";
 
 const MONTHS = [
   "January",
@@ -76,6 +77,7 @@ export function DateDropdownPicker({
   // "adjusting state when a prop changes" pattern) — avoids an extra
   // render pass, and tracking prevValue is what lets this run only on a
   // real external change instead of every render.
+  const t = useT();
   const [prevValue, setPrevValue] = useState(value);
   if (value !== prevValue) {
     setPrevValue(value);
@@ -100,7 +102,7 @@ export function DateDropdownPicker({
   }
 
   const dayOptions = Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => ({ value: String(d), label: String(d) }));
-  const monthOptions = MONTHS.map((label, i) => ({ value: String(i + 1), label }));
+  const monthOptions = MONTHS.map((label, i) => ({ value: String(i + 1), label: t(label) }));
   const years: number[] = [];
   for (let y = maxYear; y >= minYear; y--) years.push(y);
   const yearOptions = years.map((y) => ({ value: String(y), label: String(y) }));
@@ -114,7 +116,7 @@ export function DateDropdownPicker({
       <SingleSelectDropdown
         value={day !== null ? String(day) : null}
         options={dayOptions}
-        placeholder="Day"
+        placeholder={t("Day")}
         disabled={disabled}
         searchable={false}
         fitContent
@@ -123,7 +125,7 @@ export function DateDropdownPicker({
       <SingleSelectDropdown
         value={month !== null ? String(month) : null}
         options={monthOptions}
-        placeholder="Month"
+        placeholder={t("Month")}
         disabled={disabled}
         searchable={false}
         fitContent
@@ -132,7 +134,7 @@ export function DateDropdownPicker({
       <SingleSelectDropdown
         value={year !== null ? String(year) : null}
         options={yearOptions}
-        placeholder="Year"
+        placeholder={t("Year")}
         disabled={disabled}
         searchable={false}
         fitContent

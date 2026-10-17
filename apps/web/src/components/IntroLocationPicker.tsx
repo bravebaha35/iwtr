@@ -5,6 +5,7 @@ import { TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { COUNTRIES } from "@/lib/countries";
 import { SingleSelectDropdown, MultiSelectDropdown } from "@/components/Dropdown";
 import { districtKey } from "@/components/CityDistrictPicker";
+import { useT } from "@/lib/i18n/client";
 
 const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({
   value: c.name,
@@ -39,6 +40,7 @@ export function IntroLocationPicker({
   nearMeLoading: boolean;
   nearMeActive: boolean;
 }) {
+  const t = useT();
   const [country, setCountry] = useState<string>(DEFAULT_COUNTRY);
   const isTurkey = country === DEFAULT_COUNTRY;
 
@@ -63,17 +65,17 @@ export function IntroLocationPicker({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-[13px] font-semibold text-foreground">Location</h2>
+        <h2 className="text-[13px] font-semibold text-foreground">{t("Location")}</h2>
         <button
           type="button"
           onClick={onNearMe}
           disabled={nearMeLoading}
-          title="Sort results by distance from you — doesn't change which cities are selected"
+          title={t("Sort results by distance from you - doesn't change which cities are selected")}
           className={`text-xs font-medium disabled:opacity-50 ${
             nearMeActive ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground hover:underline"
           }`}
         >
-          {nearMeLoading ? "Locating…" : "Near Me"}
+          {nearMeLoading ? t("Locating...") : t("Near Me")}
         </button>
       </div>
       <div className="mb-2">
@@ -86,12 +88,12 @@ export function IntroLocationPicker({
       </div>
       {!isTurkey ? (
         <p className="rounded-lg border border-dashed border-border p-2.5 text-xs text-muted-foreground">
-          City/district data for {country} isn&apos;t available yet — Turkey is the only country covered so far.
+          {t("City/district data for {country} isn't available yet - Turkey is the only country covered so far.", { country: t(country) })}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <p className="mb-1 text-[11px] font-medium text-muted-foreground">City</p>
+            <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t("City")}</p>
             <SingleSelectDropdown
               value={selectedCity}
               options={cityOptions}
@@ -100,7 +102,7 @@ export function IntroLocationPicker({
             />
           </div>
           <div>
-            <p className="mb-1 text-[11px] font-medium text-muted-foreground">District</p>
+            <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t("District")}</p>
             <MultiSelectDropdown
               values={selectedDistrictKeys}
               options={districtOptions}

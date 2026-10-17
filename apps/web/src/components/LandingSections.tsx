@@ -1,8 +1,11 @@
+"use client";
+
 import Image from "next/image";
 import { DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE, scoreBands, type WorkplaceType } from "@iwtr/shared-types";
 import { RATING_TICKS } from "@/lib/beaverRating";
 import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { useT } from "@/lib/i18n/client";
 
 // The four work types with the same default banner art company pages use.
 const WORK_TYPES: { type: WorkplaceType; banner: string; line: string }[] = [
@@ -34,14 +37,15 @@ const TRUST_POINTS: { title: string; body: string }[] = [
  */
 export function LandingSections() {
   const top = scoreBands[scoreBands.length - 1].max;
+  const t = useT();
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-24 px-4 pb-24 sm:px-8 md:gap-32 md:pb-32">
       <section aria-labelledby="landing-work-types">
         <h2 id="landing-work-types" className="text-3xl leading-tight text-foreground md:text-4xl">
-          Every kind of work has a place here
+          {t("Every kind of work has a place here")}
         </h2>
         <p className="mt-3 max-w-[60ch] text-lg text-muted-foreground">
-          Each workplace is rated by the people who did that kind of work there.
+          {t("Each workplace is rated by the people who did that kind of work there.")}
         </p>
         <div className="mt-10 grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-2">
           {WORK_TYPES.map((w) => (
@@ -49,8 +53,8 @@ export function LandingSections() {
               <div className="relative aspect-[4/1] w-full overflow-hidden rounded-[0.875rem] bg-surface-muted">
                 <Image src={w.banner} alt="" fill sizes="(min-width: 768px) 660px, 100vw" className="object-cover" />
               </div>
-              <h3 className="mt-4 text-xl text-foreground">{workplaceTypeLabel(w.type)}</h3>
-              <p className="mt-1 text-[15px] text-muted-foreground">{w.line}</p>
+              <h3 className="mt-4 text-xl text-foreground">{t(workplaceTypeLabel(w.type))}</h3>
+              <p className="mt-1 text-[15px] text-muted-foreground">{t(w.line)}</p>
             </div>
           ))}
         </div>
@@ -58,15 +62,15 @@ export function LandingSections() {
 
       <section aria-labelledby="landing-score">
         <h2 id="landing-score" className="text-3xl leading-tight text-foreground md:text-4xl">
-          How to read a score
+          {t("How to read a score")}
         </h2>
         <p className="mt-3 max-w-[60ch] text-lg text-muted-foreground">
-          Every workplace gets a score out of 5 from its reviews. Each range has a plain name.
+          {t("Every workplace gets a score out of 5 from its reviews. Each range has a plain name.")}
         </p>
         <div className="mt-10">
           <div className="flex items-end justify-between px-1">
             {RATING_TICKS.map((tick) => (
-              <Image key={tick.value} src={tick.src} alt={tick.alt} width={192} height={192} sizes="96px" className="h-20 w-20 md:h-24 md:w-24" />
+              <Image key={tick.value} src={tick.src} alt={t(tick.alt)} width={192} height={192} sizes="96px" className="h-20 w-20 md:h-24 md:w-24" />
             ))}
           </div>
           {/* One bar, split where the score bands actually change. */}
@@ -88,9 +92,9 @@ export function LandingSections() {
                 className="lg:w-[var(--band)]"
                 style={{ "--band": `${((Math.min(b.max, 5) - b.min) / 5) * 100}%` } as React.CSSProperties}
               >
-                <span className={`block text-base font-semibold ${scoreTextColor(b.min)}`}>{b.label}</span>
+                <span className={`block text-base font-semibold ${scoreTextColor(b.min)}`}>{t(b.label)}</span>
                 <span className="text-sm tabular-nums text-muted-foreground">
-                  {b.min.toFixed(1)} to {(b.max === top ? 5 : b.max).toFixed(1)}
+                  {t("{from} to {to}", { from: b.min.toFixed(1), to: (b.max === top ? 5 : b.max).toFixed(1) })}
                 </span>
               </li>
             ))}
@@ -101,17 +105,17 @@ export function LandingSections() {
       <section aria-labelledby="landing-trust" className="grid grid-cols-1 gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:gap-16">
         <div>
           <h2 id="landing-trust" className="max-w-[14ch] text-3xl leading-tight text-foreground md:text-4xl">
-            Honest because it is anonymous
+            {t("Honest because it is anonymous")}
           </h2>
           <p className="mt-3 max-w-[40ch] text-lg text-muted-foreground">
-            No names. No HR. Just what it&apos;s really like to work there.
+            {t("No names. No HR. Just what it's really like to work there.")}
           </p>
         </div>
         <dl className="flex flex-col">
           {TRUST_POINTS.map((p) => (
             <div key={p.title} className="border-t border-border py-6 first:border-t-0 first:pt-0 md:first:border-t md:first:pt-6">
-              <dt className="font-display text-xl text-foreground">{p.title}</dt>
-              <dd className="mt-1.5 max-w-[58ch] text-[15px] leading-relaxed text-muted-foreground">{p.body}</dd>
+              <dt className="font-display text-xl text-foreground">{t(p.title)}</dt>
+              <dd className="mt-1.5 max-w-[58ch] text-[15px] leading-relaxed text-muted-foreground">{t(p.body)}</dd>
             </div>
           ))}
         </dl>

@@ -12,6 +12,7 @@ import { NotificationsMenu } from "@/components/NotificationsMenu";
 import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { navItemActiveClass, navItemClass, navItemLabelClass } from "@/components/layout/navItem";
+import { useT } from "@/lib/i18n/client";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
 // uses (Home, Messages, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
@@ -33,6 +34,7 @@ function NavIconLink({
   active?: boolean;
   children: ReactNode;
 }) {
+  const t = useT();
   const className = `${navItemClass} ${active ? navItemActiveClass : ""}`;
   const inner = (
     <>
@@ -44,7 +46,7 @@ function NavIconLink({
     return (
       <span
         aria-disabled="true"
-        title={title ?? `${label} — coming soon`}
+        title={title ?? t("{label} - coming soon", { label })}
         className={`${className} cursor-default opacity-50`}
       >
         {inner}
@@ -69,6 +71,7 @@ export function GlobalHeader() {
   const pathname = usePathname();
   const showAccountControls = isAuthenticated && onboardingStatus?.status === "ACTIVE";
   const isCompanyOwner = useIsCompanyOwner();
+  const t = useT();
 
   return (
     // One 64px line in the page's own colour (slightly see-through over
@@ -84,7 +87,7 @@ export function GlobalHeader() {
           <span className="hidden font-display text-xl text-foreground min-[420px]:inline">I Worked There</span>
         </Link>
         <span className="hidden border-l border-border pl-4 text-sm text-muted-foreground xl:inline">
-          No names. No HR. Just what it&apos;s really like to work there.
+          {t("No names. No HR. Just what it's really like to work there.")}
         </span>
       </div>
 
@@ -117,7 +120,7 @@ export function GlobalHeader() {
         )}
 
         <div className="flex min-w-0 shrink items-center overflow-x-auto no-scrollbar">
-          <NavIconLink href="/" label="Home" title="Home" active={pathname === "/" || pathname.startsWith("/companies")}>
+          <NavIconLink href="/" label={t("Home")} title={t("Home")} active={pathname === "/" || pathname.startsWith("/companies")}>
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
@@ -126,7 +129,7 @@ export function GlobalHeader() {
 
           {showAccountControls &&
             (role === "COMPANY_OWNER" ? (
-              <NavIconLink href="/my/companies" label="Dashboard" title="Company dashboard" active={pathname.startsWith("/my/companies")}>
+              <NavIconLink href="/my/companies" label={t("Dashboard")} title={t("Company dashboard")} active={pathname.startsWith("/my/companies")}>
                 {/* dashboard-tile-solid, svgrepo.com/show/445068 — fill
                     swapped for currentColor so it inherits this link's
                     light/dark text color instead of a color baked into the
@@ -139,7 +142,7 @@ export function GlobalHeader() {
                 </svg>
               </NavIconLink>
             ) : (
-              <NavIconLink href="/me/reviews" label="My Ratings" title="The reviews you've submitted" active={pathname.startsWith("/me/reviews")}>
+              <NavIconLink href="/me/reviews" label={t("My Ratings")} title={t("The reviews you've submitted")} active={pathname.startsWith("/me/reviews")}>
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
@@ -147,7 +150,7 @@ export function GlobalHeader() {
             ))}
 
           {showAccountControls && (
-            <NavIconLink href="/jobs" label={isCompanyOwner ? "Hire now !" : "Jobs"} title={isCompanyOwner ? "Post a job" : "Jobs"} active={pathname.startsWith("/jobs")}>
+            <NavIconLink href="/jobs" label={isCompanyOwner ? t("Hire now !") : t("Jobs")} title={isCompanyOwner ? t("Post a job") : t("Jobs")} active={pathname.startsWith("/jobs")}>
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
               </svg>
@@ -180,24 +183,24 @@ export function GlobalHeader() {
               // A company login: the company's name, never the owner's, and
               // no link to a personal profile it can't open.
               <span
-                title="Signed in with the company login"
+                title={t("Signed in with the company login")}
                 className="flex min-w-0 items-center gap-2 rounded-lg px-1.5 py-1 text-sm font-medium text-foreground"
               >
                 <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                  Company
+                  {t("Company")}
                 </span>
                 <span className="hidden max-w-[12rem] truncate md:inline">{companyAccount.companyName}</span>
               </span>
             ) : (
             <Link
               href="/me"
-              title="My profile"
+              title={t("My profile")}
               // Below md only the avatar shows, so it keeps its full size
               // (shrinking let it slide under the Log out icon on phones);
               // from md up the name beside it is what gives way.
               className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-full p-1 transition hover:bg-surface-muted md:shrink md:pr-3.5"
             >
-              <span className="sr-only md:hidden">My profile</span>
+              <span className="sr-only md:hidden">{t("My profile")}</span>
               <Avatar
                 avatarKey={onboardingStatus.avatarKey}
                 avatarGradient={onboardingStatus.avatarGradient}
@@ -216,8 +219,8 @@ export function GlobalHeader() {
             )}
             <button
               onClick={logout}
-              aria-label="Log out"
-              title="Log out"
+              aria-label={t("Log out")}
+              title={t("Log out")}
               className="shrink-0 text-muted-foreground transition hover:text-foreground"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -238,8 +241,8 @@ export function GlobalHeader() {
             onClick={() => openAuthModal()}
             className="shrink-0 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
           >
-            <span className="sm:hidden">Join</span>
-            <span className="hidden sm:inline">Login/Register</span>
+            <span className="sm:hidden">{t("Join")}</span>
+            <span className="hidden sm:inline">{t("Login/Register")}</span>
           </button>
         )}
       </div>

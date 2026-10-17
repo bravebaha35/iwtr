@@ -5,6 +5,7 @@ import { apiPost, ApiError } from "@/lib/api-client";
 import type { EduLevel } from "@iwtr/shared-types";
 import { WorkplacePicker } from "@/components/WorkplacePicker";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
+import { useT } from "@/lib/i18n/client";
 
 const EDU_LEVELS: { level: EduLevel; label: string }[] = [
   { level: "ELEMENTARY", label: "Elementary School" },
@@ -98,6 +99,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
   const [jobs, setJobs] = useState<JobRow[]>([{ ...emptyJob }]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const t = useT();
 
   // College graduation requires having graduated high school first, so
   // "didn't graduate high school" and "didn't graduate college" are kept in
@@ -158,13 +160,13 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
 
       const collegeMissingFaculty = education.some((entry) => entry.level === "COLLEGE" && !entry.faculty);
       if (collegeMissingFaculty) {
-        setError("Faculty is required for a College entry.");
+        setError(t("Faculty is required for a College entry."));
         setSubmitting(false);
         return;
       }
 
       if (education.length === 0 || employment.length === 0) {
-        setError("Please fill in at least one school and pick at least one workplace.");
+        setError(t("Please fill in at least one school and pick at least one workplace."));
         setSubmitting(false);
         return;
       }
@@ -172,7 +174,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
       await apiPost("/onboarding/history", { education, employment });
       onSubmitted();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+      setError(err instanceof ApiError ? t(err.message) : t("Something went wrong."));
     } finally {
       setSubmitting(false);
     }
@@ -189,10 +191,10 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
         className="w-full max-w-xl rounded-xl bg-surface p-8 shadow-xl"
       >
         <h2 className="mb-1 text-xl font-bold text-foreground">
-          Your education &amp; work history
+          {t("Your education & work history")}
         </h2>
         <p className="mb-6 text-sm text-muted-foreground">
-          You&apos;ll only be able to rate workplaces that appear here.
+          {t("You'll only be able to rate workplaces that appear here.")}
         </p>
 
         <div className="mb-6 flex flex-col gap-3">
@@ -209,18 +211,20 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                       disabled={level === "COLLEGE" && didNotGraduate.HIGH_SCHOOL}
                       tooltip={
                         level === "COLLEGE" && didNotGraduate.HIGH_SCHOOL
-                          ? "Can't graduate college without graduating high school first."
-                          : `I didn't graduate from ${level === "HIGH_SCHOOL" ? "high school" : "college"}.`
+                          ? t("Can't graduate college without graduating high school first.")
+                          : level === "HIGH_SCHOOL"
+                            ? t("I didn't graduate from high school.")
+                            : t("I didn't graduate from college.")
                       }
                     />
-                    <span className="text-sm font-medium text-foreground">{label}</span>
+                    <span className="text-sm font-medium text-foreground">{t(label)}</span>
                   </div>
                 )}
                 <div className={`flex flex-col gap-2 transition-opacity ${greyedOut ? "opacity-40" : ""}`}>
                   <div className="grid grid-cols-3 gap-2">
                     <input
                       disabled={greyedOut}
-                      placeholder={isOptional ? "Institution name" : label}
+                      placeholder={isOptional ? t("Institution name") : t(label)}
                       value={edu[level].institutionName}
                       onChange={(e) =>
                         setEdu((prev) => ({ ...prev, [level]: { ...prev[level], institutionName: e.target.value } }))
@@ -229,7 +233,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                     />
                     <input
                       disabled={greyedOut}
-                      placeholder="Grad. year"
+                      placeholder={t("Grad. year")}
                       inputMode="numeric"
                       value={edu[level].graduationYear}
                       onChange={(e) =>
@@ -242,7 +246,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         disabled={greyedOut}
-                        placeholder="Faculty"
+                        placeholder={t("Faculty")}
                         value={edu.COLLEGE.faculty}
                         onChange={(e) =>
                           setEdu((prev) => ({ ...prev, COLLEGE: { ...prev.COLLEGE, faculty: e.target.value } }))
@@ -251,7 +255,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                       />
                       <input
                         disabled={greyedOut}
-                        placeholder="Department (optional)"
+                        placeholder={t("Department (optional)")}
                         value={edu.COLLEGE.department}
                         onChange={(e) =>
                           setEdu((prev) => ({ ...prev, COLLEGE: { ...prev.COLLEGE, department: e.target.value } }))
@@ -263,7 +267,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                   {level === "HIGH_SCHOOL" && edu.HIGH_SCHOOL.institutionName.trim() !== "" && (
                     <input
                       disabled={greyedOut}
-                      placeholder="Department (optional)"
+                      placeholder={t("Department (optional)")}
                       value={edu.HIGH_SCHOOL.department}
                       onChange={(e) =>
                         setEdu((prev) => ({
@@ -282,14 +286,14 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
 
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground/80">
-            Where have you worked?
+            {t("Where have you worked?")}
           </h3>
           <button
             type="button"
             onClick={addJob}
             className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-200 dark:bg-brand-900 dark:text-brand-300 dark:hover:bg-brand-900/70"
           >
-            + Add workplace
+            + {t("Add workplace")}
           </button>
         </div>
         <div className="flex flex-col gap-4">
@@ -298,13 +302,13 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
               <WorkplacePicker allowFreeText onPick={(company) => updateJob(i, { company })} />
               {job.company && (
                 <p className="text-xs text-muted-foreground">
-                  Selected: <span className="font-medium text-foreground">{job.company.name}</span>
+                  {t("Selected:")} <span className="font-medium text-foreground">{job.company.name}</span>
                 </p>
               )}
               <div>
-                <p className="mb-1 text-[11px] font-medium text-muted-foreground">Job title (optional)</p>
+                <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t("Job title (optional)")}</p>
                 <input
-                  placeholder="e.g. Software Engineer"
+                  placeholder={t("e.g. Software Engineer")}
                   value={job.jobTitle}
                   onChange={(e) => updateJob(i, { jobTitle: e.target.value })}
                   className="w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-foreground"
@@ -312,7 +316,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">Start date</p>
+                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t("Start date")}</p>
                   <DateDropdownPicker
                     value={job.startDate}
                     onChange={(v) => {
@@ -329,7 +333,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                 </div>
                 <div>
                   <p className="mb-1 text-[11px] font-medium text-muted-foreground">
-                    End date (if any) {!job.startDate && "— pick a start date first"}
+                    {t("End date (if any)")} {!job.startDate && t("- pick a start date first")}
                   </p>
                   <DateDropdownPicker
                     value={job.endDate}
@@ -346,7 +350,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
                   onClick={() => removeJob(i)}
                   className="self-start text-xs text-red-600 hover:underline dark:text-red-300"
                 >
-                  Remove
+                  {t("Remove")}
                 </button>
               )}
             </div>
@@ -360,7 +364,7 @@ export function HistoryForm({ onSubmitted }: { onSubmitted: () => void }) {
           disabled={submitting}
           className="mt-6 w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
         >
-          {submitting ? "Saving..." : "Continue"}
+          {submitting ? t("Saving...") : t("Continue")}
         </button>
       </form>
     </div>

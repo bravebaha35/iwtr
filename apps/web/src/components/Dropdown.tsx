@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useT } from "@/lib/i18n/client";
 
 export interface DropdownOption {
   value: string;
@@ -83,6 +84,7 @@ export function SingleSelectDropdown({
   // sizing to its longest entry would blow out the layout.
   fitContent?: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -106,7 +108,7 @@ export function SingleSelectDropdown({
   const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
   const visibleOptions =
     searchable && normalizedQuery
-      ? options.filter((o) => o.label.toLocaleLowerCase("tr-TR").includes(normalizedQuery))
+      ? options.filter((o) => t(o.label).toLocaleLowerCase("tr-TR").includes(normalizedQuery))
       : options;
 
   function close() {
@@ -122,14 +124,14 @@ export function SingleSelectDropdown({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={ariaLabel ?? (selectedOption ? undefined : placeholder)}
+        aria-label={ariaLabel ? t(ariaLabel) : selectedOption ? undefined : t(placeholder)}
         className={`flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:border-border/50 disabled:bg-surface-muted disabled:text-muted-foreground disabled:opacity-60 disabled:hover:bg-surface-muted ${fitContent ? "w-max" : "w-full"}`}
       >
         <span
           className={`flex min-w-0 items-center gap-1.5 ${fitContent ? "whitespace-nowrap" : "truncate"} ${value ? "text-foreground" : "text-muted-foreground"}`}
         >
           {selectedOption?.icon}
-          <span className={fitContent ? "whitespace-nowrap" : "truncate"}>{selectedOption?.label ?? placeholder}</span>
+          <span className={fitContent ? "whitespace-nowrap" : "truncate"}>{t(selectedOption?.label ?? placeholder)}</span>
         </span>
         <span className={`shrink-0 text-[10px] text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}>
           ▾
@@ -158,7 +160,7 @@ export function SingleSelectDropdown({
               <input
                 type="search"
                 autoFocus
-                placeholder="Search..."
+                placeholder={t("Search...")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="mb-1 w-full rounded-md border border-border bg-surface-muted px-2 py-1 text-xs text-foreground"
@@ -174,11 +176,11 @@ export function SingleSelectDropdown({
                   }}
                   className="block w-full px-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-surface-muted"
                 >
-                  {placeholder}
+                  {t(placeholder)}
                 </button>
               )}
               {searchable && visibleOptions.length === 0 && (
-                <p className="px-2 py-1.5 text-xs text-muted-foreground">No matches.</p>
+                <p className="px-2 py-1.5 text-xs text-muted-foreground">{t("No matches.")}</p>
               )}
               {visibleOptions.map((o) => (
                 <button
@@ -195,7 +197,7 @@ export function SingleSelectDropdown({
                   }`}
                 >
                   {o.icon}
-                  <span className={fitContent ? "whitespace-nowrap" : "whitespace-normal break-words"}>{o.label}</span>
+                  <span className={fitContent ? "whitespace-nowrap" : "whitespace-normal break-words"}>{t(o.label)}</span>
                 </button>
               ))}
             </div>
@@ -238,6 +240,7 @@ export function MultiSelectDropdown({
   countNoun?: string;
   ariaLabel?: string;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -245,7 +248,7 @@ export function MultiSelectDropdown({
   const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
   const visibleOptions =
     searchable && normalizedQuery
-      ? options.filter((o) => o.label.toLocaleLowerCase("tr-TR").includes(normalizedQuery))
+      ? options.filter((o) => t(o.label).toLocaleLowerCase("tr-TR").includes(normalizedQuery))
       : options;
 
   function close() {
@@ -255,10 +258,10 @@ export function MultiSelectDropdown({
 
   const summary =
     values.length === 0
-      ? placeholder
+      ? t(placeholder)
       : values.length === 1
-        ? (options.find((o) => o.value === values[0])?.label ?? placeholder)
-        : `${values.length} ${countNoun}`;
+        ? t(options.find((o) => o.value === values[0])?.label ?? placeholder)
+        : `${values.length} ${t(countNoun)}`;
 
   return (
     <div className="relative">
@@ -268,7 +271,7 @@ export function MultiSelectDropdown({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={ariaLabel ?? (values.length === 0 ? placeholder : undefined)}
+        aria-label={ariaLabel ? t(ariaLabel) : values.length === 0 ? t(placeholder) : undefined}
         className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:border-border/50 disabled:bg-surface-muted disabled:text-muted-foreground disabled:opacity-60 disabled:hover:bg-surface-muted"
       >
         <span className={`min-w-0 truncate ${values.length > 0 ? "text-foreground" : "text-muted-foreground"}`}>
@@ -289,7 +292,7 @@ export function MultiSelectDropdown({
               <input
                 type="search"
                 autoFocus
-                placeholder="Search..."
+                placeholder={t("Search...")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="mb-1 w-full rounded-md border border-border bg-surface-muted px-2 py-1 text-xs text-foreground"
@@ -302,11 +305,11 @@ export function MultiSelectDropdown({
                   onClick={onClear}
                   className="block w-full px-2 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-surface-muted"
                 >
-                  Clear ({values.length} ticked)
+                  {t("Clear ({n} ticked)", { n: values.length })}
                 </button>
               )}
               {searchable && visibleOptions.length === 0 && (
-                <p className="px-2 py-1.5 text-xs text-muted-foreground">No matches.</p>
+                <p className="px-2 py-1.5 text-xs text-muted-foreground">{t("No matches.")}</p>
               )}
               {visibleOptions.map((o) => {
                 const checked = values.includes(o.value);
@@ -330,7 +333,7 @@ export function MultiSelectDropdown({
                       {checked ? "✓" : ""}
                     </span>
                     {o.icon}
-                    <span className="whitespace-normal break-words">{o.label}</span>
+                    <span className="whitespace-normal break-words">{t(o.label)}</span>
                   </button>
                 );
               })}

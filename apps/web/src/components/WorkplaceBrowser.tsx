@@ -22,6 +22,7 @@ import { RiskScoreFilter } from "@/components/jobs/RiskScoreFilter";
 import { HOME_FILTERS_STORAGE_KEY } from "@/lib/homeFilters";
 import { distanceKm, TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { RATING_TICKS, activeMoodIndex } from "@/lib/beaverRating";
+import { useT } from "@/lib/i18n/client";
 
 // "Near Me" keeps only the nearest province's name - the visitor's actual
 // position never leaves requestNearMe, let alone the browser.
@@ -57,16 +58,17 @@ function PaginationBar({
   // click shows it at once. Only pages someone is about to open are fetched.
   onIntent?: (page: number) => void;
 }) {
+  const t = useT();
   if (totalPages <= 1) return null;
   return (
-    <nav className="mt-10 flex items-center justify-center gap-1 text-sm" aria-label="Pagination">
+    <nav className="mt-10 flex items-center justify-center gap-1 text-sm" aria-label={t("Pagination")}>
       <button
         type="button"
         onClick={() => onChange(Math.max(1, page - 1))}
         onPointerEnter={() => page > 1 && onIntent?.(page - 1)}
         onFocus={() => page > 1 && onIntent?.(page - 1)}
         disabled={page === 1}
-        aria-label="Previous page"
+        aria-label={t("Previous page")}
         className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
       >
         ‹
@@ -98,7 +100,7 @@ function PaginationBar({
         onPointerEnter={() => page < totalPages && onIntent?.(page + 1)}
         onFocus={() => page < totalPages && onIntent?.(page + 1)}
         disabled={page === totalPages}
-        aria-label="Next page"
+        aria-label={t("Next page")}
         className="rounded-lg px-2.5 py-1.5 text-muted-foreground transition hover:bg-surface-muted disabled:opacity-30"
       >
         ›
@@ -189,6 +191,7 @@ export function WorkplaceBrowser() {
   // control a footer link pointed at, then cleared once the CSS animation
   // (.highlight-pulse, 3 iterations of a 0.8s keyframe ≈ 2.4s) has finished.
   const [highlightTarget, setHighlightTarget] = useState<HighlightTarget | null>(null);
+  const t = useT();
   const onHighlight = useCallback((target: HighlightTarget) => {
     setHighlightTarget(target);
     window.setTimeout(() => setHighlightTarget(null), 2500);
@@ -492,7 +495,7 @@ export function WorkplaceBrowser() {
           <SidebarShell>
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[13px] font-semibold text-foreground">Work-Type</h2>
+                <h2 className="text-[13px] font-semibold text-foreground">{t("Work-Type")}</h2>
                 <RewindButton
                   onClick={resetWorkplaceTypes}
                   active={workplaceTypes.length > 0 || selectedCategories.length > 0}
@@ -527,7 +530,7 @@ export function WorkplaceBrowser() {
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[13px] font-semibold text-foreground">Rating</h2>
+                <h2 className="text-[13px] font-semibold text-foreground">{t("Rating")}</h2>
                 <RewindButton onClick={() => setMinRating(0)} active={minRating !== 0} title="Reset rating filter" />
               </div>
               {/* Red-to-green slider, no stars. Shows companies at or BELOW
@@ -575,7 +578,7 @@ export function WorkplaceBrowser() {
                     onPointerMove={handleSliderPointerMove}
                     className="relative h-2 w-full cursor-pointer touch-none rounded-full"
                     style={{ background: "linear-gradient(to right, #ef4444, #22c55e)" }}
-                    title="Click and drag along the slider, or scroll, to fine-tune"
+                    title={t("Click and drag along the slider, or scroll, to fine-tune")}
                   >
                     <span
                       className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-foreground shadow-sm"
@@ -585,7 +588,7 @@ export function WorkplaceBrowser() {
                 </div>
 
                 <span className="text-center text-xs font-normal text-muted-foreground">
-                  {minRating === 0 || minRating === 5 ? "Any" : `${minRating.toFixed(1)} and Below`}
+                  {minRating === 0 || minRating === 5 ? t("Any") : t("{n} and Below", { n: minRating.toFixed(1) })}
                 </span>
               </div>
             </div>
@@ -630,25 +633,25 @@ export function WorkplaceBrowser() {
             </div>
 
             {geo && geo !== "denied" && (
-              <p className="mb-3 text-xs text-muted-foreground">Showing workplaces nearest to you first.</p>
+              <p className="mb-3 text-xs text-muted-foreground">{t("Showing workplaces nearest to you first.")}</p>
             )}
             {geo === "denied" && (
               <p className="mb-3 text-xs text-muted-foreground">
-                Couldn&apos;t get your location — showing all workplaces.
+                {t("Couldn't get your location - showing all workplaces.")}
               </p>
             )}
 
             {pageCompanies === null && <CardGridSkeleton />}
             {pageCompanies !== null && pageCompanies.length === 0 && loadError && (
               <p className="text-sm text-red-600 dark:text-red-300">
-                Couldn&apos;t load workplaces right now — check your connection and try again.
+                {t("Couldn't load workplaces right now - check your connection and try again.")}
               </p>
             )}
             {pageCompanies !== null && pageCompanies.length === 0 && !loadError && (
               <p className="text-sm text-muted-foreground">
                 {hiddenUnratedCount > 0
-                  ? "No rated workplaces match these filters yet. Press A-Z or a Quick Select button to see workplaces that haven't been reviewed."
-                  : "No workplaces match these filters yet."}
+                  ? t("No rated workplaces match these filters yet. Press A-Z or a Quick Select button to see workplaces that haven't been reviewed.")
+                  : t("No workplaces match these filters yet.")}
               </p>
             )}
             {/* Fixed at 4 columns from the xl breakpoint up (never 5, even in
@@ -676,8 +679,7 @@ export function WorkplaceBrowser() {
             {total > 0 && (
               <>
                 <p className="mt-4 text-center text-xs text-muted-foreground">
-                  Page {page} of {totalPages} — {total} workplace
-                  {total === 1 ? "" : "s"}
+                  {t(total === 1 ? "Page {page} of {pages} - {total} workplace" : "Page {page} of {pages} - {total} workplaces", { page, pages: totalPages, total })}
                 </p>
                 <PaginationBar page={page} totalPages={totalPages} onChange={goToPage} onIntent={(p) => prefetchBrowsePage(filterParams, p)} />
               </>
