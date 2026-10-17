@@ -587,6 +587,32 @@ export const companySocialSummarySchema = z.object({
 });
 export type CompanySocialSummary = z.infer<typeof companySocialSummarySchema>;
 
+// GET /social/companies/:slug/rail - the column beside a company's own
+// Social tab, in one answer. The same for every visitor (no follower or
+// viewer data), so the API keeps each company's answer for a minute. Any
+// list can be empty; the page shows no panel for an empty one.
+export const companySocialRailSchema = z.object({
+  // This company's busiest posts of all time (reactions + comments), busiest
+  // first. A post nobody has reacted to or commented on is left out.
+  topPosts: z.array(
+    z.object({
+      postId: z.string(),
+      thumbUrl: z.string().nullable(),
+      caption: z.string().nullable(),
+      likeCount: z.number().int(),
+      commentCount: z.number().int(),
+    }),
+  ),
+  // The newest photos it has posted, one per post.
+  photos: z.array(z.object({ postId: z.string(), url: z.string() })),
+  // Its open job ads, newest first.
+  openRoles: z.array(z.object({ jobPostingId: z.string(), jobTitle: z.string(), workType: workplaceTypeSchema.nullable() })),
+  // Public questions put to it that nobody has answered (empty while
+  // Questions is switched off).
+  openQuestions: z.array(z.object({ questionId: z.string(), body: z.string() })),
+});
+export type CompanySocialRail = z.infer<typeof companySocialRailSchema>;
+
 // --- Questions (IWT Social phase 3). A member asks one company, or everyone
 // in a kind of work, anonymously; members answer anonymously and the asked
 // company's owner answers under their real name.

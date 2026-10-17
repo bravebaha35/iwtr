@@ -1426,6 +1426,58 @@ describe("SocialService.getPost / rail / companySummary", () => {
     prisma.company.findUnique.mockResolvedValue({ id: "c1", hiddenAt: new Date() });
     await expect(new SocialService(prisma as never, moderationPass).companySummary("acme")).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it("companyRail builds one company's lists, keeps them a minute, and 404s for a hidden company", async () => {
+    const now = new Date();
+    const post = (id: string, likes: number, comments: number, imageUrls: string[] = []) => ({
+      id,
+      caption: `caption ${id}`,
+      title: null,
+      imageUrls,
+      _count: { likes, comments },
+    });
+    const job = (id: string, createdAt: Date) => ({
+      id,
+      jobTitle: `Role ${id}`,
+      workType: "OFFICE",
+      createdAt,
+      lastResharedAt: null,
+      filledAt: null,
+      status: "PUBLISHED",
+      autoReshareEnabled: false,
+    });
+    const postFindMany = jest
+      .fn()
+      // most liked, most commented, photos
+      .mockResolvedValueOnce([post("p1", 5, 0, ["/a.webp"]), post("p2", 0, 0)])
+      .mockResolvedValueOnce([post("p3", 1, 2)])
+      .mockResolvedValueOnce([{ id: "p1", imageUrls: ["/a.webp", "/b.webp"] }]);
+    const prisma = {
+      company: { findUnique: jest.fn().mockResolvedValue({ id: "c1", hiddenAt: null }) },
+      socialPost: { findMany: postFindMany },
+      jobPosting: { findMany: jest.fn().mockResolvedValue([job("j1", now), job("j-old", new Date("2020-01-01"))]) },
+      socialQuestion: { findMany: jest.fn().mockResolvedValue([{ id: "q1", body: "Is there a shuttle?" }]) },
+    };
+    const service = new SocialService(prisma as never, moderationPass);
+
+    const rail = await service.companyRail("acme");
+    // Busiest first; a post with no reactions or comments is left out.
+    expect(rail.topPosts.map((p) => p.postId)).toEqual(["p1", "p3"]);
+    expect(rail.topPosts[0]).toMatchObject({ thumbUrl: "/a.webp", likeCount: 5, commentCount: 0 });
+    expect(rail.photos).toEqual([{ postId: "p1", url: "/a.webp" }]);
+    // An ad past its live window is not "hiring now".
+    expect(rail.openRoles).toEqual([{ jobPostingId: "j1", jobTitle: "Role j1", workType: "OFFICE" }]);
+    expect(prisma.jobPosting.findMany.mock.calls[0][0].where).toEqual({ companyId: "c1", status: "PUBLISHED" });
+    expect(prisma.socialQuestion.findMany.mock.calls[0][0].where).toEqual({ companyId: "c1", visibility: "PUBLIC", answers: { none: {} } });
+    expect(rail.openQuestions).toEqual([{ questionId: "q1", body: "Is there a shuttle?" }]);
+
+    // A second view within the minute is served from memory.
+    await service.companyRail("acme");
+    expect(postFindMany).toHaveBeenCalledTimes(3);
+
+    prisma.company.findUnique.mockResolvedValue({ id: "c1", hiddenAt: new Date() });
+    await expect(service.companyRail("acme")).rejects.toBeInstanceOf(NotFoundException);
+  });
 });
 
 describe("SocialService times (members see the hour, admins the exact moment)", () => {

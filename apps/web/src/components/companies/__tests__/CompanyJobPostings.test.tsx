@@ -4,6 +4,7 @@ import { CompanyJobPostings } from "../CompanyJobPostings";
 import * as apiClient from "@/lib/api-client";
 
 jest.mock("@/lib/api-client");
+jest.mock("@/components/jobs/ApplyButton", () => ({ ApplyButton: () => <button type="button">Apply</button> }));
 jest.mock("@/lib/useSavedJobPostings", () => ({
   useSavedJobPostings: () => ({ savedIds: new Set(), canSave: false, toggleSave: jest.fn() }),
 }));
@@ -53,22 +54,24 @@ describe("CompanyJobPostings", () => {
     await waitFor(() => expect(apiClient.apiGet).toHaveBeenCalledWith("/companies/acme/job-postings"));
   });
 
-  it("renders a standard job card per owner-authored posting", async () => {
+  it("renders one wide role row per owner-authored posting", async () => {
     (apiClient.apiGet as jest.Mock).mockResolvedValue({
       jobPostings: [
-        { jobTitle: "Forklift Operator", description: "Day shift, warehouse.", workType: "MANUAL_LABOUR" },
-        { jobTitle: "3D Artist", description: null, workType: null },
+        { id: "p1", jobTitle: "Forklift Operator", description: "Day shift, warehouse.", workType: "MANUAL_LABOUR", positions: ["BLUE_COLLAR"] },
+        { id: "p2", jobTitle: "3D Artist", description: "", workType: null, positions: [] },
       ],
       jobTitles: [{ title: "Accountant", workType: "OFFICE" }], // ignored while explicit postings exist
     });
     render(<CompanyJobPostings company={company} aggregate={aggregate} />);
 
-    expect(await screen.findByText("Forklift Operator")).toBeInTheDocument();
-    expect(screen.getByText("3D Artist")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Forklift Operator" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "3D Artist" })).toBeInTheDocument();
     expect(screen.getByText("Day shift, warehouse.")).toBeInTheDocument();
+    expect(screen.getByText(/has not written a description/i)).toBeInTheDocument();
     expect(screen.queryByText("Accountant")).not.toBeInTheDocument();
-    // the shared JobCard chrome is present (Mail/Call, rating slot, footer)
-    expect(screen.getAllByRole("button", { name: /workplace flags/i }).length).toBe(2);
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    // A short description is never cut off, so there is nothing to open.
+    expect(screen.queryByRole("button", { name: /read the full posting/i })).not.toBeInTheDocument();
   });
 
   it("falls back to the classified job titles when there are no explicit postings", async () => {
@@ -88,7 +91,7 @@ describe("CompanyJobPostings", () => {
   it("shows a no-open-roles message when both arrays are empty", async () => {
     (apiClient.apiGet as jest.Mock).mockResolvedValue({ jobPostings: [], jobTitles: [] });
     render(<CompanyJobPostings company={company} aggregate={aggregate} />);
-    expect(await screen.findByText(/no open roles listed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no open roles right now/i)).toBeInTheDocument();
   });
 
   it("surfaces a load error instead of a silent empty state", async () => {

@@ -1,4 +1,4 @@
-import type { PublicSocialPost, PublicSocialQuestion, SocialQuestionIdentity, SocialRail } from "@iwtr/shared-types";
+import type { CompanySocialRail, PublicSocialPost, PublicSocialQuestion, SocialQuestionIdentity, SocialRail } from "@iwtr/shared-types";
 
 // What IWT Social last showed, kept in memory for this visit so coming back
 // to a list (another tab of the feed, back from a post's page, back from a
@@ -32,6 +32,19 @@ export function readRail(): SocialRail | null {
 
 export function writeRail(next: SocialRail): void {
   rail = next;
+}
+
+// A company Social tab's rail, per company slug.
+const companyRails = new Map<string, CompanySocialRail>();
+
+export function readCompanyRail(slug: string): CompanySocialRail | null {
+  return companyRails.get(slug) ?? null;
+}
+
+export function writeCompanyRail(slug: string, next: CompanySocialRail): void {
+  companyRails.delete(slug);
+  companyRails.set(slug, next);
+  while (companyRails.size > MAX_FEEDS) companyRails.delete(companyRails.keys().next().value!);
 }
 
 // Question lists, kept the same way as post lists.
@@ -71,6 +84,7 @@ export function clearSocialCache(): void {
   questionLists.clear();
   questionIdentity = null;
   rail = null;
+  companyRails.clear();
 }
 
 // A new post was just published from this page: every list on it reads

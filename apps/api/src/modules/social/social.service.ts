@@ -17,6 +17,7 @@ import {
   type ReportSocialCommentResult,
   type AdminReportedSocialComment,
   type AdminSocialComment,
+  type CompanySocialRail,
   type CompanySocialSummary,
   type SavedPostToggleResult,
   type SocialCommentIdentityContext,
@@ -59,6 +60,13 @@ const HIRING_NOW_WINDOW_DAYS = 7;
 // The rail's Trending and Hiring lists are the same for every visitor, so
 // they are built once and reused for a minute instead of on every page view.
 const RAIL_SHARED_TTL_MS = 60_000;
+// The company Social tab's rail (companyRail): list lengths, and how many
+// companies' answers are held at once before the store starts over.
+const COMPANY_RAIL_TOP_POSTS = 3;
+const COMPANY_RAIL_PHOTOS = 6;
+const COMPANY_RAIL_ROLES = 3;
+const COMPANY_RAIL_QUESTIONS = 3;
+const COMPANY_RAIL_CACHE_MAX = 500;
 
 // The company fields every post shape carries. An explicit select, like the
 // rest of this file (REVIEW.md): a post query never pulls a whole row.
@@ -187,6 +195,7 @@ export class SocialService {
   ) {}
 
   private railShared: { at: number; lists: Promise<RailSharedLists> } | null = null;
+  private readonly companyRails = new Map<string, { at: number; rail: Promise<CompanySocialRail> }>();
 
   async createPost(
     userId: string,
@@ -519,6 +528,95 @@ export class SocialService {
       this.prisma.socialPost.count({ where: { companyId: company.id } }),
     ]);
     return { followerCount, postCount };
+  }
+
+  // The column beside a company's own Social tab. Nothing in it depends on
+  // who is looking, so each company's answer is kept for a minute (like the
+  // IWT Social rail's shared lists) instead of being rebuilt on every view.
+  async companyRail(slug: string): Promise<CompanySocialRail> {
+    const company = await this.prisma.company.findUnique({ where: { slug }, select: { id: true, hiddenAt: true } });
+    assertCompanyVisibleOrThrow(company);
+    const hit = this.companyRails.get(company.id);
+    if (hit && Date.now() - hit.at < RAIL_SHARED_TTL_MS) return hit.rail;
+    const rail = this.buildCompanyRail(company.id);
+    if (this.companyRails.size >= COMPANY_RAIL_CACHE_MAX) this.companyRails.clear();
+    this.companyRails.set(company.id, { at: Date.now(), rail });
+    // A failed build must not be served for the next minute.
+    rail.catch(() => {
+      if (this.companyRails.get(company.id)?.rail === rail) this.companyRails.delete(company.id);
+    });
+    return rail;
+  }
+
+  private async buildCompanyRail(companyId: string): Promise<CompanySocialRail> {
+    const busiest = (by: "likes" | "comments") =>
+      this.prisma.socialPost.findMany({
+        where: { companyId },
+        orderBy: [{ [by]: { _count: "desc" } }, { id: "desc" }],
+        take: COMPANY_RAIL_TOP_POSTS,
+        select: { id: true, caption: true, title: true, imageUrls: true, _count: { select: { likes: true, comments: true } } },
+      });
+    const [mostLiked, mostCommented, photoPosts, jobs, questions] = await Promise.all([
+      busiest("likes"),
+      busiest("comments"),
+      this.prisma.socialPost.findMany({
+        where: { companyId, imageUrls: { isEmpty: false } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: COMPANY_RAIL_PHOTOS,
+        select: { id: true, imageUrls: true },
+      }),
+      // A few more than shown: ads past their live window are dropped below.
+      this.prisma.jobPosting.findMany({
+        where: { companyId, status: "PUBLISHED" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: COMPANY_RAIL_ROLES * 3,
+        select: {
+          id: true,
+          jobTitle: true,
+          workType: true,
+          createdAt: true,
+          lastResharedAt: true,
+          filledAt: true,
+          status: true,
+          autoReshareEnabled: true,
+        },
+      }),
+      socialQuestionsEnabled()
+        ? this.prisma.socialQuestion.findMany({
+            where: { companyId, visibility: "PUBLIC", answers: { none: {} } },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: COMPANY_RAIL_QUESTIONS,
+            select: { id: true, body: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const byId = new Map([...mostLiked, ...mostCommented].map((p) => [p.id, p]));
+    const topPosts = [...byId.values()]
+      .filter((p) => p._count.likes + p._count.comments > 0)
+      .sort((a, b) => b._count.likes + b._count.comments - (a._count.likes + a._count.comments))
+      .slice(0, COMPANY_RAIL_TOP_POSTS)
+      .map((p) => ({
+        postId: p.id,
+        thumbUrl: p.imageUrls[0] ?? null,
+        caption: p.caption ?? p.title,
+        likeCount: p._count.likes,
+        commentCount: p._count.comments,
+      }));
+
+    // Same live rule as the Jobs tab, without the reshare write: an ad that
+    // is due a reshare still counts as live.
+    const openRoles = jobs
+      .filter((j) => shouldLazyReshare(j) || daysRemaining(j) > 0)
+      .slice(0, COMPANY_RAIL_ROLES)
+      .map((j) => ({ jobPostingId: j.id, jobTitle: j.jobTitle, workType: j.workType as WorkplaceType | null }));
+
+    return {
+      topPosts,
+      photos: photoPosts.map((p) => ({ postId: p.id, url: p.imageUrls[0] })),
+      openRoles,
+      openQuestions: questions.map((q) => ({ questionId: q.id, body: q.body })),
+    };
   }
 
   // --- The owner's own post tools (the card's "..." menu). Each one is for

@@ -563,6 +563,17 @@ export function JobsBrowser() {
                 </button>
               </>
             )}
+            {/* Employers only: the first thing in the sidebar, above Work-Type. */}
+            {isCompanyOwner && (
+              <button
+                type="button"
+                onClick={() => setJobFlowOpen(true)}
+                title="Create a job posting"
+                className="flex items-center justify-center rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
+              >
+                Create !
+              </button>
+            )}
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-[13px] font-semibold text-foreground">Work-Type</h2>
@@ -597,17 +608,6 @@ export function JobsBrowser() {
               nearMeLoading={geoRequesting}
               nearMeActive={geo !== null && geo !== "denied"}
             />
-
-            {/* Employers only: sits under the Location list. */}
-            {isCompanyOwner && (
-              <button
-                type="button"
-                onClick={() => setJobFlowOpen(true)}
-                className="flex items-center justify-center rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
-              >
-                Create job posting !
-              </button>
-            )}
 
             {/* Position: the same buttons an owner ticks when posting a job.
                 Any number can be on; a posting hiring for any one of them

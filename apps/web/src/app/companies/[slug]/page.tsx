@@ -14,7 +14,8 @@ import { RateButton } from "@/components/RateButton";
 import { AdSlot } from "@/components/AdSlot";
 import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
-import { ratingImageSrc } from "@/lib/ratingNarrative";
+import { RatingIllustration } from "@/components/companies/RatingIllustration";
+import { WorkTypeViewProvider } from "@/components/companies/WorkTypeView";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
@@ -35,16 +36,7 @@ const CATEGORIES = [
 // empty fixed-size slot (reserved for future design). It has a fixed `lg:`
 // height (set below) so 600 chars of text and the empty state render at the
 // same size.
-function RatingNarrativeBox({
-  score,
-  workplaceType,
-  narrative,
-}: {
-  score: number | null;
-  workplaceType: Company["workplaceTypes"][number];
-  narrative: CompanyNarrative | null;
-}) {
-  const imageSrc = score !== null ? ratingImageSrc(score, workplaceType) : null;
+function RatingNarrativeBox({ score, narrative }: { score: number | null; narrative: CompanyNarrative | null }) {
   const waitingLine =
     narrative && narrative.description === null && narrative.reviewCount >= 1 && narrative.reviewCount <= 2
       ? `${narrative.reviewCount} review${narrative.reviewCount === 1 ? "" : "s"} so far — a full summary appears once 3 people have rated this workplace.`
@@ -55,14 +47,9 @@ function RatingNarrativeBox({
     // illustration on desktop (350px) → lg:h-[360px]. Scoped to lg: so the
     // mobile stacked layout flows; the 0-review empty state holds this same
     // slot.
-    <div className="flex flex-col items-center gap-6 font-sans sm:flex-row sm:items-center lg:h-[360px] lg:max-w-2xl lg:shrink-0">
-      {imageSrc ? (
-        // A small fixed set of local /public illustrations, not a
-        // remote/arbitrary URL.
-        <Image src={imageSrc} alt="" width={448} height={576} sizes="224px" priority className="h-72 w-56 shrink-0 object-contain" />
-      ) : (
-        <div className="h-72 w-56 shrink-0" aria-hidden="true" />
-      )}
+    <div className="flex flex-col items-center gap-6 font-sans sm:flex-row sm:items-center lg:min-h-[360px] lg:max-w-2xl lg:shrink-0">
+      {/* Drawn for the work type picked in WorkTypeViewProvider (below). */}
+      <RatingIllustration score={score} />
       {narrative?.description ? (
         <p className="text-center text-[15px] leading-relaxed text-foreground sm:text-left">{narrative.description}</p>
       ) : waitingLine ? (
@@ -299,6 +286,10 @@ export default async function CompanyPage({
           company={company}
           aggregate={aggregate}
           ratings={
+            // One work-type choice shared by the illustration and the Vibe
+            // Flags, so a company with an office and a shop floor shows
+            // both in step.
+            <WorkTypeViewProvider types={company.workplaceTypes}>
             <div className="flex flex-col gap-10">
               {/* Rating visuals (left) + the category-breakdown box (right)
                   sit in their own full-width flex row, so there's real room
@@ -311,7 +302,6 @@ export default async function CompanyPage({
               <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
                 <RatingNarrativeBox
                   score={aggregate && aggregate.reviewCount > 0 ? aggregate.overallAvg : null}
-                  workplaceType={company.workplaceTypes[0]}
                   narrative={narrative}
                 />
 
@@ -333,8 +323,8 @@ export default async function CompanyPage({
                       </div>
                       {CATEGORIES.map((c) => (
                         <div key={c.key} className="flex items-center gap-3">
-                          <span className="w-40 shrink-0 text-sm text-foreground sm:w-56">{c.label}</span>
-                          <div className="h-2 flex-1 rounded-full bg-surface-muted">
+                          <span className="w-36 shrink-0 text-sm leading-tight text-foreground sm:w-44">{c.label}</span>
+                          <div className="h-2 min-w-12 flex-1 rounded-full bg-surface-muted">
                             <div
                               className={`h-2 rounded-full ${scoreBarColor(aggregate[c.key])}`}
                               style={{ width: `${(aggregate[c.key] / 5) * 100}%` }}
@@ -373,6 +363,7 @@ export default async function CompanyPage({
                 featuredReviewId={company.badgeTier !== "FREE" ? company.featuredReviewId : null}
               />
             </div>
+            </WorkTypeViewProvider>
           }
         />
 

@@ -8,6 +8,8 @@ import { SocialComposerSlot } from "@/components/social/SocialComposerSlot";
 import { CompanySocialHeader, type CompanySocialView } from "@/components/social/CompanySocialHeader";
 import { QuestionsFeed } from "@/components/social/QuestionsFeed";
 import { CompanyPhotoGrid } from "@/components/social/CompanyPhotoGrid";
+import { CompanySocialRail } from "@/components/social/CompanySocialRail";
+import { useStickyTop } from "@/lib/useStickyTop";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 
 // The consolidated company-profile hub. Sits directly under the page's
@@ -132,6 +134,25 @@ export function CompanyProfileTabs({
     return () => window.removeEventListener("popstate", syncFromUrl);
   }, []);
 
+  const { ref: sidebarRef, top: sidebarTop } = useStickyTop<HTMLDivElement>();
+  const { ref: railRef, top: railTop } = useStickyTop<HTMLDivElement>();
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  // The rail's "See all ..." links jump back up to the tab strip.
+  const scrollToTabs = useCallback(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 88, behavior: "smooth" });
+  }, []);
+
+  const openSocialView = useCallback(
+    (view: CompanySocialView) => {
+      setSocialView(view);
+      scrollToTabs();
+    },
+    [scrollToTabs],
+  );
+
   const panelId = useMemo(
     () => ({
       ratings: "company-tabpanel-ratings",
@@ -150,7 +171,7 @@ export function CompanyProfileTabs({
   );
 
   return (
-    <div className="mt-8">
+    <div ref={tabsRef} className="mt-8">
       {/* Plain word tabs on a full-width baseline rule; the open one carries a
           Wood bar on that rule. Each tab keeps a 48px minimum height (past
           the 44px tap-target floor). */}
@@ -215,24 +236,29 @@ export function CompanyProfileTabs({
           {visited.has("social") && (
             // Same shape as the root /social page's SocialShell: 1fr, the
             // feed, 1fr from `lg` up, so the posts and questions sit in the
-            // middle of the page here too. The sidebar is the left column's
-            // only content; the right column is an empty one of the same
-            // width (a tab panel has no rail or ad slots of its own). Sidebar
-            // and feed widths match /social, so posts render the same size.
-            <div className="flex flex-col gap-6 sm:flex-row lg:grid lg:grid-cols-[1fr_minmax(0,36rem)_1fr] lg:items-start">
-              <SocialSidebar
-                mode="company"
-                sort={sort}
-                onSortChange={handleSortChange}
-                showSort={socialView !== "questions"}
-                socialLinks={{
-                  facebookUrl: company.facebookUrl,
-                  instagramUrl: company.instagramUrl,
-                  whatsappUrl: company.whatsappUrl,
-                  xUrl: company.xUrl,
-                  youtubeUrl: company.youtubeUrl,
-                }}
-              />
+            // middle of the page here too. Left: the Sort sidebar; right:
+            // this company's own rail (most talked-about posts, photos, open
+            // roles, unanswered questions). Both columns stretch the feed's
+            // full height and each follows the page on its own (sticky, see
+            // useStickyTop), as on /social.
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start lg:grid lg:grid-cols-[1fr_minmax(0,36rem)_1fr] lg:items-start">
+              <div className="flex shrink-0 sm:self-stretch lg:justify-end">
+                <div ref={sidebarRef} style={{ top: sidebarTop }} className="shrink-0 sm:sticky">
+                  <SocialSidebar
+                    mode="company"
+                    sort={sort}
+                    onSortChange={handleSortChange}
+                    showSort={socialView !== "questions"}
+                    socialLinks={{
+                      facebookUrl: company.facebookUrl,
+                      instagramUrl: company.instagramUrl,
+                      whatsappUrl: company.whatsappUrl,
+                      xUrl: company.xUrl,
+                      youtubeUrl: company.youtubeUrl,
+                    }}
+                  />
+                </div>
+              </div>
               <div className="flex min-w-0 flex-1 justify-center">
                 <div className="flex w-full max-w-xl flex-col gap-5">
                   <CompanySocialHeader company={company} view={socialView} onViewChange={setSocialView} />
@@ -249,7 +275,20 @@ export function CompanyProfileTabs({
                   )}
                 </div>
               </div>
-              <div aria-hidden="true" className="hidden lg:block lg:min-w-56" />
+              <div className="hidden lg:flex lg:self-stretch">
+                <div ref={railRef} style={{ top: railTop }} className="sticky w-full">
+                  <CompanySocialRail
+                    slug={slug}
+                    companyName={company.name}
+                    onOpenPhotos={() => openSocialView("photos")}
+                    onOpenQuestions={() => openSocialView("questions")}
+                    onOpenJobs={() => {
+                      selectTab("jobs");
+                      scrollToTabs();
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>

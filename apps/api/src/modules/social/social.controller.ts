@@ -177,6 +177,14 @@ export class SocialController {
     return this.social.companySummary(slug);
   }
 
+  // The column beside a company's Social tab: its busiest posts, newest
+  // photos, open job ads and unanswered questions. Public and the same for
+  // everyone, like the summary above.
+  @Get("companies/:slug/rail")
+  companyRail(@Param("slug") slug: string) {
+    return this.social.companyRail(slug);
+  }
+
   // Public per-company feed, addressed by slug. Same optional-auth rule.
   // `sort` defaults to "newest" (today's only behavior) when omitted or
   // unrecognized.
