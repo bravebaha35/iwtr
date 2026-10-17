@@ -37,6 +37,8 @@ import { CvPreview } from "@/components/profile/CvPreview";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { SettingsNav } from "@/components/layout/SettingsNav";
 import { PROFILE_TABS, type ProfileTabKey } from "@/components/profile/profileTabs";
+import { useI18n } from "@/lib/i18n/client";
+import { intlLocale, languageName, type Locale } from "@/lib/i18n/core";
 
 const SUPPORT_EMAIL = "iworkedthere@hotmail.com";
 
@@ -64,9 +66,9 @@ function sectorAppliesTo(sector: Sector, workType: WorkplaceType): boolean {
   return sector.workplaceTypes.includes(workType);
 }
 
-function formatDate(iso: string | null): string {
+function formatDate(iso: string | null, locale: Locale): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return new Date(iso).toLocaleDateString(intlLocale(locale), { year: "numeric", month: "long", day: "numeric" });
 }
 
 // useSearchParams (the ?tab= deep link) needs a Suspense boundary so
@@ -81,6 +83,7 @@ export default function ProfilePage() {
 
 function ProfilePageContent() {
   const { isAuthenticated, isLoading: authLoading, refreshOnboardingStatus, patchOnboardingStatus, role } = useAuth();
+  const { t, locale } = useI18n();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   // Only a claimed+APPROVED owner has this at all (GET 403s otherwise, see
   // EmployerProfileService.requireVerifiedEmployer) — null here means
@@ -233,7 +236,7 @@ function ProfilePageContent() {
       setSectorIdDraft(profileData.sector?.id ?? null);
       setSkillIdsDraft(profileData.skills.map((s) => s.id));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't load your profile.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't load your profile."));
     }
   }, [isAuthenticated]);
 
@@ -321,9 +324,9 @@ function ProfilePageContent() {
       // this, a save here looks like it silently reverted once you navigate
       // back, because that separate cache was never told anything changed.
       await refreshOnboardingStatus();
-      setAvatarStatus("Saved.");
+      setAvatarStatus(t("Saved."));
     } catch (err) {
-      setAvatarError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setAvatarError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
     } finally {
       setAvatarSaving(false);
     }
@@ -345,10 +348,10 @@ function ProfilePageContent() {
       });
       await load();
       await refreshOnboardingStatus();
-      setLocationStatus("Saved.");
+      setLocationStatus(t("Saved."));
       setEditingLocation(false);
     } catch (err) {
-      setLocationError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setLocationError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
     } finally {
       setLocationSaving(false);
     }
@@ -366,7 +369,7 @@ function ProfilePageContent() {
       await apiPatch("/me/profile", { languages: next });
     } catch (err) {
       setProfile((p) => (p ? { ...p, languages: previous } : p));
-      setLanguagesError(err instanceof ApiError ? err.message : "Couldn't save your languages.");
+      setLanguagesError(err instanceof ApiError ? t(err.message) : t("Couldn't save your languages."));
     }
   }
 
@@ -388,9 +391,9 @@ function ProfilePageContent() {
       // Clears ApplyButton's redirect-to-CV gate for this member permanently
       // — see cvDisclosurePrefs.ts's doc comment.
       markCvSaved();
-      setCvStatus("Saved.");
+      setCvStatus(t("Saved."));
     } catch (err) {
-      setCvError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setCvError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
     } finally {
       setCvSaving(false);
     }
@@ -408,9 +411,9 @@ function ProfilePageContent() {
         customExperienceText: customExperienceDraft.trim(),
       });
       await load();
-      setPersonalStatus("Saved.");
+      setPersonalStatus(t("Saved."));
     } catch (err) {
-      setPersonalError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setPersonalError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
     } finally {
       setPersonalSaving(false);
     }
@@ -439,7 +442,7 @@ function ProfilePageContent() {
       await load();
       setEditingBirthDate(false);
     } catch (err) {
-      setBirthDateError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setBirthDateError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
     } finally {
       setBirthDateSaving(false);
     }
@@ -462,7 +465,7 @@ function ProfilePageContent() {
       setPhoneDevCode(result.devCode ?? null);
       setPhoneStage("otp");
     } catch (err) {
-      setPhoneError(err instanceof ApiError ? err.message : "Couldn't send a code.");
+      setPhoneError(err instanceof ApiError ? t(err.message) : t("Couldn't send a code."));
     } finally {
       setPhoneSaving(false);
     }
@@ -476,7 +479,7 @@ function ProfilePageContent() {
       await load();
       setEditingPhone(false);
     } catch (err) {
-      setPhoneError(err instanceof ApiError ? err.message : "Couldn't verify that code.");
+      setPhoneError(err instanceof ApiError ? t(err.message) : t("Couldn't verify that code."));
     } finally {
       setPhoneSaving(false);
     }
@@ -485,7 +488,7 @@ function ProfilePageContent() {
   async function addEducation() {
     if (!newEduInstitution.trim()) return;
     if (newEduLevel === "COLLEGE" && !newEduFaculty.trim()) {
-      setEduError("Faculty is required for a College entry.");
+      setEduError(t("Faculty is required for a College entry."));
       return;
     }
     setAddingEdu(true);
@@ -508,7 +511,7 @@ function ProfilePageContent() {
       setNewEduDepartment("");
       setShowAddEdu(false);
     } catch (err) {
-      setEduError(err instanceof ApiError ? err.message : "Couldn't add that.");
+      setEduError(err instanceof ApiError ? t(err.message) : t("Couldn't add that."));
     } finally {
       setAddingEdu(false);
     }
@@ -527,7 +530,7 @@ function ProfilePageContent() {
   async function saveEditEducation() {
     if (!editingEduId || !editEduInstitution.trim()) return;
     if (editEduLevel === "COLLEGE" && !editEduFaculty.trim()) {
-      setEduError("Faculty is required for a College entry.");
+      setEduError(t("Faculty is required for a College entry."));
       return;
     }
     setEduError(null);
@@ -545,7 +548,7 @@ function ProfilePageContent() {
       );
       setEditingEduId(null);
     } catch (err) {
-      setEduError(err instanceof ApiError ? err.message : "Couldn't save that.");
+      setEduError(err instanceof ApiError ? t(err.message) : t("Couldn't save that."));
     }
   }
 
@@ -555,7 +558,7 @@ function ProfilePageContent() {
       await apiDelete(`/me/education-history/${id}`);
       setProfile((prev) => (prev ? { ...prev, education: prev.education.filter((e) => e.id !== id) } : prev));
     } catch (err) {
-      setEduError(err instanceof ApiError ? err.message : "Couldn't remove that.");
+      setEduError(err instanceof ApiError ? t(err.message) : t("Couldn't remove that."));
     }
   }
 
@@ -581,7 +584,7 @@ function ProfilePageContent() {
       setNewJobEnd(null);
       setShowAddJob(false);
     } catch (err) {
-      setJobError(err instanceof ApiError ? err.message : "Couldn't add that.");
+      setJobError(err instanceof ApiError ? t(err.message) : t("Couldn't add that."));
     } finally {
       setAddingJob(false);
     }
@@ -607,7 +610,7 @@ function ProfilePageContent() {
       setEmployment((prev) => (prev ? prev.map((e) => (e.id === updated.id ? updated : e)) : prev));
       setEditingJobId(null);
     } catch (err) {
-      setJobError(err instanceof ApiError ? err.message : "Couldn't save that.");
+      setJobError(err instanceof ApiError ? t(err.message) : t("Couldn't save that."));
     }
   }
 
@@ -617,7 +620,7 @@ function ProfilePageContent() {
       await apiDelete(`/me/employment-history/${id}`);
       setEmployment((prev) => (prev ? prev.filter((e) => e.id !== id) : prev));
     } catch (err) {
-      setJobError(err instanceof ApiError ? err.message : "Couldn't remove that.");
+      setJobError(err instanceof ApiError ? t(err.message) : t("Couldn't remove that."));
     }
   }
 
@@ -626,7 +629,7 @@ function ProfilePageContent() {
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Log in to see your account settings.</p>
+        <p className="text-sm text-muted-foreground">{t("Log in to see your account settings.")}</p>
       </div>
     );
   }
@@ -640,18 +643,18 @@ function ProfilePageContent() {
     // what was making the sidebar visibly jump left/right when switching
     // tabs — each tab's card content has a different natural width.
     <div className="mx-auto min-h-screen w-full max-w-5xl px-6 py-10">
-      <h1 className="mb-8 text-4xl leading-tight text-foreground">Your account</h1>
+      <h1 className="mb-8 text-4xl leading-tight text-foreground">{t("Your account")}</h1>
 
       {profile === null ? (
         error ? (
           <div className="rounded-2xl bg-surface shadow-xs p-5">
             <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
             <Link href="/" className="mt-2 inline-block text-sm text-brand-600 hover:underline dark:text-brand-400">
-              &larr; Back home
+              &larr; {t("Back home")}
             </Link>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">{t("Loading...")}</p>
         )
       ) : (
         <SidebarContentRow>
@@ -675,7 +678,7 @@ function ProfilePageContent() {
                   {profile.firstName} {profile.lastName}
                 </p>
                 <p className="text-sm font-light text-muted-foreground">
-                  {profile.reviewUsername ?? avatarLabel(profile.avatarKey) ?? "Anonymous"}
+                  {profile.reviewUsername ?? avatarLabel(profile.avatarKey) ?? t("Anonymous")}
                 </p>
               </div>
             </div>
@@ -691,16 +694,16 @@ function ProfilePageContent() {
 
             {/* One box, in this order: avatar (above), username, and for a
                 company owner their own picture in place of the avatar. */}
-                <p className="mb-1 mt-6 text-[13px] font-semibold text-foreground">Username</p>
+                <p className="mb-1 mt-6 text-[13px] font-semibold text-foreground">{t("Username")}</p>
                 <p className="mb-2 text-xs text-muted-foreground">
                   {role === "COMPANY_OWNER"
-                    ? "Your anonymous name on the site - pick whichever one you like. As a company owner, the top of the site always shows your real name."
-                    : "Shown on your own reviews instead of your real name — pick whichever one you like."}
+                    ? t("Your anonymous name on the site - pick whichever one you like. As a company owner, the top of the site always shows your real name.")
+                    : t("Shown on your own reviews instead of your real name - pick whichever one you like.")}
                 </p>
                 <SingleSelectDropdown
                   value={reviewUsername}
                   onChange={(v) => v && setReviewUsername(v)}
-                  placeholder="Choose a username"
+                  placeholder={t("Choose a username")}
                   clearable={false}
                   searchable={false}
                   maxHeightClassName="max-h-none"
@@ -709,8 +712,7 @@ function ProfilePageContent() {
             {role !== "COMPANY_OWNER" && (
               <>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Want a one-off random name instead, for a single review? You can turn that on at the end of the review
-                  itself, when you submit or edit it.
+                  {t("Want a one-off random name instead, for a single review? You can turn that on at the end of the review itself, when you submit or edit it.")}
                 </p>
 
                 <label className="mb-3 mt-4 flex cursor-pointer items-start gap-2.5 text-sm text-foreground">
@@ -721,10 +723,9 @@ function ProfilePageContent() {
                     onChange={(e) => setShowUsernameDraft(e.target.checked)}
                   />
                   <span>
-                    Show my username in the top-right corner
+                    {t("Show my username in the top-right corner")}
                     <span className="mt-0.5 block text-xs text-muted-foreground">
-                      The corner of the site then shows the username above instead of your name (the display name from
-                      My CV). Only you see that corner - your CV keeps your name.
+                      {t("The corner of the site then shows the username above instead of your name (the display name from My CV). Only you see that corner - your CV keeps your name.")}
                     </span>
                   </span>
                 </label>
@@ -733,11 +734,9 @@ function ProfilePageContent() {
 
             {role === "COMPANY_OWNER" && employerProfile && (
               <div className="mt-6 border-t border-border pt-5">
-                <p className="mb-1 text-[13px] font-semibold text-foreground">Use your own picture instead of avatar</p>
+                <p className="mb-1 text-[13px] font-semibold text-foreground">{t("Use your own picture instead of avatar")}</p>
                 <p className="mb-4 text-xs text-muted-foreground">
-                  Shown instead of your avatar wherever you appear under your real name as a verified company owner, until
-                  you remove it with the X. It is saved as soon as you pick it. Your anonymous avatar and username stay on
-                  anything you post anonymously.
+                  {t("Shown instead of your avatar wherever you appear under your real name as a verified company owner, until you remove it with the X. It is saved as soon as you pick it. Your anonymous avatar and username stay on anything you post anonymously.")}
                 </p>
                 <AvatarPhotoUploader
                   value={employerProfile.profilePictureUrl}
@@ -755,7 +754,7 @@ function ProfilePageContent() {
               disabled={avatarSaving}
               className="mt-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
-              {avatarSaving ? "Saving..." : "Save changes"}
+              {avatarSaving ? t("Saving...") : t("Save changes")}
             </button>
             {avatarStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{avatarStatus}</p>}
             {avatarError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{avatarError}</p>}
@@ -768,27 +767,27 @@ function ProfilePageContent() {
           <>
           {/* Personal information */}
           <div className="rounded-2xl bg-surface shadow-xs p-5">
-            <h2 className="mb-3 font-semibold text-foreground">Personal Information</h2>
+            <h2 className="mb-3 font-semibold text-foreground">{t("Personal Information")}</h2>
 
             <div className="text-sm">
-              <p className="text-xs font-medium text-muted-foreground">Name</p>
+              <p className="text-xs font-medium text-muted-foreground">{t("Name")}</p>
               <p className="text-foreground">{profile.firstName ?? "—"}</p>
             </div>
 
             <div className="mt-4 border-t border-border pt-4 text-sm">
-              <p className="text-xs font-medium text-muted-foreground">Surname</p>
+              <p className="text-xs font-medium text-muted-foreground">{t("Surname")}</p>
               <p className="text-foreground">{profile.lastName ?? "—"}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Name and surname can&apos;t be changed here — email{" "}
+                {t("Name and surname can't be changed here. If either needs correcting, email")}{" "}
                 <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-600 hover:underline dark:text-brand-400">
                   {SUPPORT_EMAIL}
-                </a>{" "}
-                if either needs correcting.
+                </a>
+                .
               </p>
             </div>
 
             <div className="mt-4 border-t border-border pt-4">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">Location</p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">{t("Location")}</p>
               <LocationPicker value={location} onChange={setLocation} disabled={!editingLocation} />
               <button
                 onClick={() => {
@@ -803,7 +802,7 @@ function ProfilePageContent() {
                 disabled={locationSaving || (editingLocation && (!location.country || !location.city))}
                 className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
               >
-                {editingLocation ? (locationSaving ? "Saving..." : "Save location") : "Change location"}
+                {editingLocation ? (locationSaving ? t("Saving...") : t("Save location")) : t("Change location")}
               </button>
               {locationStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{locationStatus}</p>}
               {locationError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{locationError}</p>}
@@ -815,14 +814,14 @@ function ProfilePageContent() {
               <p className="mb-1 text-xs font-medium text-muted-foreground">T.C. Kimlik No</p>
               <input
                 disabled
-                placeholder="Coming soon"
+                placeholder={t("Coming soon")}
                 className="w-full cursor-not-allowed rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-muted-foreground opacity-60"
               />
             </div>
 
 
             <div className="mt-4 border-t border-border pt-4 text-sm">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">Birth date</p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">{t("Birth date")}</p>
               {editingBirthDate ? (
                 <div className="flex flex-col gap-2">
                   <DateDropdownPicker
@@ -837,27 +836,27 @@ function ProfilePageContent() {
                       disabled={birthDateSaving || !birthDateDraft}
                       className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                     >
-                      {birthDateSaving ? "Saving..." : "Save"}
+                      {birthDateSaving ? t("Saving...") : t("Save")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingBirthDate(false)}
                       className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
                     >
-                      Cancel
+                      {t("Cancel")}
                     </button>
                   </div>
                   {birthDateError && <p className="text-sm text-red-600 dark:text-red-300">{birthDateError}</p>}
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
-                  <p className="text-foreground">{formatDate(profile.birthDate) || "—"}</p>
+                  <p className="text-foreground">{formatDate(profile.birthDate, locale) || "—"}</p>
                   <button
                     type="button"
                     onClick={startEditBirthDate}
                     className="text-xs text-brand-600 hover:underline dark:text-brand-400"
                   >
-                    Edit
+                    {t("Edit")}
                   </button>
                 </div>
               )}
@@ -865,7 +864,7 @@ function ProfilePageContent() {
 
             <div className="mt-4 border-t border-border pt-4">
               <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                <p className="text-xs font-medium text-muted-foreground">Languages</p>
+                <p className="text-xs font-medium text-muted-foreground">{t("Languages")}</p>
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {profile.languages.length} / {MAX_LANGUAGES_PER_MEMBER}
                 </span>
@@ -878,30 +877,30 @@ function ProfilePageContent() {
                   }}
                   options={LANGUAGES.filter((l) => !profile.languages.includes(l.code)).map((l) => ({
                     value: l.code,
-                    label: l.label,
+                    label: languageName(l.code, l.label, locale),
                   }))}
                   placeholder={
                     profile.languages.length >= MAX_LANGUAGES_PER_MEMBER
-                      ? "Remove one to add another"
-                      : "Add a language you know"
+                      ? t("Remove one to add another")
+                      : t("Add a language you know")
                   }
-                  ariaLabel="Add a language you know"
+                  ariaLabel={t("Add a language you know")}
                   clearable={false}
                   disabled={profile.languages.length >= MAX_LANGUAGES_PER_MEMBER}
                 />
               </div>
               {profile.languages.length > 0 ? (
-                <ul aria-label="Your languages" className="mt-3 flex flex-wrap gap-1.5">
+                <ul aria-label={t("Your languages")} className="mt-3 flex flex-wrap gap-1.5">
                   {profile.languages.map((code) => (
                     <li key={code}>
                       <button
                         type="button"
                         onClick={() => void saveLanguages(profile.languages.filter((c) => c !== code))}
-                        title={`Remove ${languageLabel(code)}`}
-                        aria-label={`Remove ${languageLabel(code)}`}
+                        title={t("Remove {name}", { name: languageName(code, languageLabel(code), locale) })}
+                        aria-label={t("Remove {name}", { name: languageName(code, languageLabel(code), locale) })}
                         className="group flex items-center gap-1.5 rounded-full bg-brand-600 py-1 pl-3 pr-2 text-xs font-semibold text-white transition hover:bg-brand-700"
                       >
-                        {languageLabel(code)}
+                        {languageName(code, languageLabel(code), locale)}
                         <svg viewBox="0 0 24 24" className="h-3 w-3 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
                           <path d="M6 6l12 12M18 6L6 18" />
                         </svg>
@@ -910,14 +909,14 @@ function ProfilePageContent() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-xs text-muted-foreground">None added yet.</p>
+                <p className="mt-2 text-xs text-muted-foreground">{t("None added yet.")}</p>
               )}
-              <p className="mt-2 text-xs text-muted-foreground">Saved as you pick, and shown on your CV.</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("Saved as you pick, and shown on your CV.")}</p>
               {languagesError && <p className="mt-1 text-sm text-red-600 dark:text-red-300">{languagesError}</p>}
             </div>
 
             <div className="mt-4 border-t border-border pt-4">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">What kind of work?</p>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">{t("What kind of work?")}</p>
               <WorkTypePicker value={workTypeDraft} onChange={handleWorkTypeChange} />
             </div>
 
@@ -930,18 +929,18 @@ function ProfilePageContent() {
                   transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.4 }}
                   className="mt-4 overflow-hidden border-t border-border pt-4"
                 >
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Sector</p>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">{t("Sector")}</p>
                   <select
                     value={sectorIdDraft ?? ""}
                     onChange={(e) => setSectorIdDraft(e.target.value || null)}
                     className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                   >
-                    <option value="">Select a sector...</option>
+                    <option value="">{t("Select a sector...")}</option>
                     {sectors
                       .filter((s) => sectorAppliesTo(s, workTypeDraft))
                       .map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.label}
+                          {t(s.label)}
                         </option>
                       ))}
                   </select>
@@ -954,10 +953,9 @@ function ProfilePageContent() {
             </div>
 
             <div className="mt-4 border-t border-border pt-4">
-              <label className="text-sm font-medium text-foreground">Information</label>
+              <label className="text-sm font-medium text-foreground">{t("Information")}</label>
               <p className="text-xs text-muted-foreground">
-                For an employer not in the list on your Education & Work History tab — free text, up to 2000
-                characters. Shown on your CV.
+                {t("For an employer not in the list on your Education & Work History tab: free text, up to 2000 characters. Shown on your CV.")}
               </p>
               <textarea
                 maxLength={2000}
@@ -974,7 +972,7 @@ function ProfilePageContent() {
               disabled={personalSaving}
               className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
-              {personalSaving ? "Saving..." : "Save"}
+              {personalSaving ? t("Saving...") : t("Save")}
             </button>
             {personalStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{personalStatus}</p>}
             {personalError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{personalError}</p>}
@@ -986,29 +984,28 @@ function ProfilePageContent() {
           <>
           {/* Contact information */}
           <div className="rounded-2xl bg-surface shadow-xs p-5">
-            <h2 className="mb-3 font-semibold text-foreground">Contact Information</h2>
+            <h2 className="mb-3 font-semibold text-foreground">{t("Contact Information")}</h2>
 
             <div className="text-sm">
-              <p className="text-xs font-medium text-muted-foreground">E-Mail Address</p>
+              <p className="text-xs font-medium text-muted-foreground">{t("E-Mail Address")}</p>
               <p className="text-foreground">{profile.email ?? "—"}</p>
             </div>
 
             <div className="mt-4 border-t border-border pt-4 text-sm">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">Verified phone number</p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">{t("Verified phone number")}</p>
               {editingPhone ? (
                 <div className="flex flex-col gap-2">
                   {phoneStage === "phone" ? (
                     <>
                       <PhoneNumberInput value={phoneDraft} onChange={setPhoneDraft} />
                       <p className="text-xs text-muted-foreground">
-                        We&apos;ll text a 6-digit code to confirm you control this number before it replaces your
-                        current one.
+                        {t("We'll text a 6-digit code to confirm you control this number before it replaces your current one.")}
                       </p>
                     </>
                   ) : (
                     <>
                       <p className="text-xs text-muted-foreground">
-                        We sent a 6-digit code to {phoneDraft}. It expires in 5 minutes.
+                        {t("We sent a 6-digit code to {phone}. It expires in 5 minutes.", { phone: phoneDraft })}
                       </p>
                       {phoneDevCode && (
                         <p className="rounded-lg border border-dashed border-brand-300 bg-brand-50 px-3 py-2 text-xs text-brand-700 dark:border-brand-700 dark:bg-brand-950 dark:text-brand-300">
@@ -1034,18 +1031,18 @@ function ProfilePageContent() {
                     >
                       {phoneSaving
                         ? phoneStage === "phone"
-                          ? "Sending..."
-                          : "Verifying..."
+                          ? t("Sending...")
+                          : t("Verifying...")
                         : phoneStage === "phone"
-                          ? "Send code"
-                          : "Verify"}
+                          ? t("Send code")
+                          : t("Verify")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingPhone(false)}
                       className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
                     >
-                      Cancel
+                      {t("Cancel")}
                     </button>
                   </div>
                   {phoneError && <p className="text-sm text-red-600 dark:text-red-300">{phoneError}</p>}
@@ -1058,16 +1055,14 @@ function ProfilePageContent() {
                     onClick={startEditPhone}
                     className="text-xs text-brand-600 hover:underline dark:text-brand-400"
                   >
-                    Edit
+                    {t("Edit")}
                   </button>
                 </div>
               )}
             </div>
 
             <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
-              We&apos;re not collecting a T.C. Kimlik No yet — for now, your phone number verified by SMS/OTP is
-              what confirms your account. When that&apos;s added, it&apos;ll be from this page, used once, then
-              removed — we never hold on to national ID numbers.
+              {t("We're not collecting a T.C. Kimlik No yet. For now, your phone number verified by SMS/OTP is what confirms your account. When that's added, it'll be from this page, used once, then removed. We never hold on to national ID numbers.")}
             </p>
           </div>
           </>
@@ -1077,7 +1072,7 @@ function ProfilePageContent() {
           <>
           {/* Education */}
           <div className="rounded-2xl bg-surface shadow-xs p-5">
-            <h2 className="mb-3 font-semibold text-foreground">Education</h2>
+            <h2 className="mb-3 font-semibold text-foreground">{t("Education")}</h2>
             {profile.education.length > 0 && (
               <ul className="mb-4 flex flex-col gap-2">
                 {[...profile.education].sort((a, b) => eduLevelRank(a.level) - eduLevelRank(b.level)).map((e) =>
@@ -1091,7 +1086,7 @@ function ProfilePageContent() {
                         >
                           {EDU_LEVELS.map((l) => (
                             <option key={l.level} value={l.level}>
-                              {l.label}
+                              {t(l.label)}
                             </option>
                           ))}
                         </select>
@@ -1104,7 +1099,7 @@ function ProfilePageContent() {
                           value={editEduYear}
                           onChange={(ev) => setEditEduYear(ev.target.value)}
                           inputMode="numeric"
-                          placeholder="Year"
+                          placeholder={t("Year")}
                           className="col-span-2 rounded-lg border border-border bg-surface-muted px-2 py-1.5 text-xs text-foreground"
                         />
                       </div>
@@ -1113,13 +1108,13 @@ function ProfilePageContent() {
                           <input
                             value={editEduFaculty}
                             onChange={(ev) => setEditEduFaculty(ev.target.value)}
-                            placeholder="Faculty"
+                            placeholder={t("Faculty")}
                             className="rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
                           />
                           <input
                             value={editEduDepartment}
                             onChange={(ev) => setEditEduDepartment(ev.target.value)}
-                            placeholder="Department (optional)"
+                            placeholder={t("Department (optional)")}
                             className="rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
                           />
                         </div>
@@ -1128,7 +1123,7 @@ function ProfilePageContent() {
                         <input
                           value={editEduDepartment}
                           onChange={(ev) => setEditEduDepartment(ev.target.value)}
-                          placeholder="Department (optional)"
+                          placeholder={t("Department (optional)")}
                           className="rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
                         />
                       )}
@@ -1138,14 +1133,14 @@ function ProfilePageContent() {
                           onClick={saveEditEducation}
                           className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
                         >
-                          Save
+                          {t("Save")}
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingEduId(null)}
                           className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
                         >
-                          Cancel
+                          {t("Cancel")}
                         </button>
                       </div>
                     </li>
@@ -1154,18 +1149,18 @@ function ProfilePageContent() {
                       <span className="text-foreground">
                         {e.institutionName}{" "}
                         <span className="text-muted-foreground">
-                          · {eduLevelLabel(e.level)}
-                          {e.graduationYear ? ` · Class of ${e.graduationYear}` : ""}
+                          · {t(eduLevelLabel(e.level))}
+                          {e.graduationYear ? ` · ${t("Class of {year}", { year: e.graduationYear })}` : ""}
                           {e.faculty ? ` · ${e.faculty}` : ""}
                           {e.department ? ` · ${e.department}` : ""}
                         </span>
                       </span>
                       <span className="flex shrink-0 gap-2 text-xs">
                         <button type="button" onClick={() => startEditEducation(e)} className="text-brand-600 hover:underline dark:text-brand-400">
-                          Edit
+                          {t("Edit")}
                         </button>
                         <button type="button" onClick={() => deleteEducation(e.id)} className="text-red-600 hover:underline dark:text-red-300">
-                          Remove
+                          {t("Remove")}
                         </button>
                       </span>
                     </li>
@@ -1184,18 +1179,18 @@ function ProfilePageContent() {
                   >
                     {EDU_LEVELS.map((l) => (
                       <option key={l.level} value={l.level}>
-                        {l.label}
+                        {t(l.label)}
                       </option>
                     ))}
                   </select>
                   <input
-                    placeholder="Institution name"
+                    placeholder={t("Institution name")}
                     value={newEduInstitution}
                     onChange={(e) => setNewEduInstitution(e.target.value)}
                     className="col-span-4 rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
                   />
                   <input
-                    placeholder="Grad. year"
+                    placeholder={t("Grad. year")}
                     inputMode="numeric"
                     value={newEduYear}
                     onChange={(e) => setNewEduYear(e.target.value)}
@@ -1205,13 +1200,13 @@ function ProfilePageContent() {
                 {newEduLevel === "COLLEGE" && newEduInstitution.trim() !== "" && (
                   <div className="grid grid-cols-2 gap-2">
                     <input
-                      placeholder="Faculty"
+                      placeholder={t("Faculty")}
                       value={newEduFaculty}
                       onChange={(e) => setNewEduFaculty(e.target.value)}
                       className="rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
                     />
                     <input
-                      placeholder="Department (optional)"
+                      placeholder={t("Department (optional)")}
                       value={newEduDepartment}
                       onChange={(e) => setNewEduDepartment(e.target.value)}
                       className="rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
@@ -1220,7 +1215,7 @@ function ProfilePageContent() {
                 )}
                 {newEduLevel === "HIGH_SCHOOL" && newEduInstitution.trim() !== "" && (
                   <input
-                    placeholder="Department (optional)"
+                    placeholder={t("Department (optional)")}
                     value={newEduDepartment}
                     onChange={(e) => setNewEduDepartment(e.target.value)}
                     className="rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
@@ -1233,14 +1228,14 @@ function ProfilePageContent() {
                     disabled={addingEdu || !newEduInstitution.trim()}
                     className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                   >
-                    {addingEdu ? "Adding..." : "Add"}
+                    {addingEdu ? t("Adding...") : t("Add")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowAddEdu(false)}
                     className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
                   >
-                    Cancel
+                    {t("Cancel")}
                   </button>
                 </div>
               </div>
@@ -1250,21 +1245,20 @@ function ProfilePageContent() {
                 onClick={() => setShowAddEdu(true)}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
               >
-                + Add education
+                + {t("Add education")}
               </button>
             )}
           </div>
 
           {/* Employment history */}
           <div className="rounded-2xl bg-surface shadow-xs p-5">
-            <h2 className="mb-1 font-semibold text-foreground">Employment history</h2>
+            <h2 className="mb-1 font-semibold text-foreground">{t("Employment history")}</h2>
             <p className="mb-3 text-xs text-muted-foreground">
-              Pick a real workplace from the list below — no free typing, same as everywhere else on this page.
-              Entries you&apos;ve already reviewed can&apos;t be changed or removed.
+              {t("Pick a real workplace from the list below: no free typing, same as everywhere else on this page. Entries you've already reviewed can't be changed or removed.")}
             </p>
-            {employment === null && <p className="text-sm text-muted-foreground">Loading...</p>}
+            {employment === null && <p className="text-sm text-muted-foreground">{t("Loading...")}</p>}
             {employment !== null && employment.length === 0 && (
-              <p className="mb-3 text-sm text-muted-foreground">Nothing on file yet.</p>
+              <p className="mb-3 text-sm text-muted-foreground">{t("Nothing on file yet.")}</p>
             )}
             <ul className="mb-3 flex flex-col gap-2">
               {employment?.map((e) =>
@@ -1272,9 +1266,9 @@ function ProfilePageContent() {
                   <li key={e.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
                     <p className="text-sm font-medium text-foreground">{e.rawCompanyName}</p>
                     <div>
-                      <p className="mb-1 text-[11px] font-medium text-muted-foreground">Job title (optional)</p>
+                      <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t("Job title (optional)")}</p>
                       <input
-                        placeholder="e.g. Software Engineer"
+                        placeholder={t("e.g. Software Engineer")}
                         value={editJobTitle}
                         onChange={(ev) => setEditJobTitle(ev.target.value)}
                         className="w-full rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
@@ -1282,7 +1276,7 @@ function ProfilePageContent() {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <p className="mb-1 text-[11px] font-medium text-muted-foreground">Start date</p>
+                        <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t("Start date")}</p>
                         <DateDropdownPicker
                           value={editJobStart}
                           onChange={(v) => {
@@ -1296,7 +1290,7 @@ function ProfilePageContent() {
                       </div>
                       <div>
                         <p className="mb-1 text-[11px] font-medium text-muted-foreground">
-                          End date {!editJobStart && "— pick a start date first"}
+                          {t("End date")} {!editJobStart && t("- pick a start date first")}
                         </p>
                         <DateDropdownPicker
                           value={editJobEnd}
@@ -1312,14 +1306,14 @@ function ProfilePageContent() {
                         onClick={saveEditEmployment}
                         className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
                       >
-                        Save
+                        {t("Save")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingJobId(null)}
                         className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
                       >
-                        Cancel
+                        {t("Cancel")}
                       </button>
                     </div>
                   </li>
@@ -1336,22 +1330,22 @@ function ProfilePageContent() {
                       {e.jobTitle && <span className="text-muted-foreground"> &middot; {e.jobTitle}</span>}
                       {(e.startDate || e.endDate) && (
                         <span className="ml-2 text-xs text-muted-foreground">
-                          {e.startDate ?? "?"} &ndash; {e.endDate ?? "present"}
+                          {e.startDate ?? "?"} - {e.endDate ?? t("present")}
                         </span>
                       )}
                     </span>
                     <span className="flex shrink-0 items-center gap-2 text-xs">
                       {e.hasReview ? (
                         <span className="rounded-full bg-brand-100 px-2 py-0.5 font-medium text-brand-700 dark:bg-brand-900 dark:text-brand-300">
-                          Reviewed
+                          {t("Reviewed")}
                         </span>
                       ) : (
                         <>
                           <button type="button" onClick={() => startEditEmployment(e)} className="text-brand-600 hover:underline dark:text-brand-400">
-                            Edit
+                            {t("Edit")}
                           </button>
                           <button type="button" onClick={() => deleteEmployment(e.id)} className="text-red-600 hover:underline dark:text-red-300">
-                            Remove
+                            {t("Remove")}
                           </button>
                         </>
                       )}
@@ -1367,20 +1361,20 @@ function ProfilePageContent() {
                 <WorkplacePicker onPick={setNewJobCompany} />
                 {newJobCompany && (
                   <p className="text-xs text-muted-foreground">
-                    Selected: <span className="font-medium text-foreground">{newJobCompany.name}</span>
+                    {t("Selected:")} <span className="font-medium text-foreground">{newJobCompany.name}</span>
                   </p>
                 )}
                 <div>
-                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">Job title (optional)</p>
+                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t("Job title (optional)")}</p>
                   <input
-                    placeholder="e.g. Software Engineer"
+                    placeholder={t("e.g. Software Engineer")}
                     value={newJobTitle}
                     onChange={(e) => setNewJobTitle(e.target.value)}
                     className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
                   />
                 </div>
                 <div>
-                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">Start date</p>
+                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">{t("Start date")}</p>
                   <DateDropdownPicker
                     value={newJobStart}
                     onChange={(v) => {
@@ -1394,7 +1388,7 @@ function ProfilePageContent() {
                 </div>
                 <div>
                   <p className="mb-1 text-[11px] font-medium text-muted-foreground">
-                    End date (leave blank if current) {!newJobStart && "— pick a start date first"}
+                    {t("End date (leave blank if current)")} {!newJobStart && t("- pick a start date first")}
                   </p>
                   <DateDropdownPicker
                     value={newJobEnd}
@@ -1410,14 +1404,14 @@ function ProfilePageContent() {
                     disabled={addingJob || !newJobCompany}
                     className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                   >
-                    {addingJob ? "Adding..." : "Add workplace"}
+                    {addingJob ? t("Adding...") : t("Add workplace")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowAddJob(false)}
                     className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
                   >
-                    Cancel
+                    {t("Cancel")}
                   </button>
                 </div>
               </div>
@@ -1427,7 +1421,7 @@ function ProfilePageContent() {
                 onClick={() => setShowAddJob(true)}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
               >
-                + Add workplace
+                + {t("Add workplace")}
               </button>
             )}
           </div>
@@ -1437,15 +1431,13 @@ function ProfilePageContent() {
           {activeTab === "cv" && (
           <>
           <div className="rounded-2xl bg-surface shadow-xs p-5">
-            <h2 className="mb-3 font-semibold text-foreground">My CV</h2>
+            <h2 className="mb-3 font-semibold text-foreground">{t("My CV")}</h2>
             <div className="flex flex-col gap-6 sm:flex-row">
               <div className="flex-1 flex flex-col gap-4">
                 <div>
-                  <label className="text-sm font-medium text-foreground">Display name</label>
+                  <label className="text-sm font-medium text-foreground">{t("Display name")}</label>
                   <p className="text-xs text-muted-foreground">
-                    Optional. Shown on your CV and in the site header instead of your anonymous handle (unless you
-                    ticked &quot;Show my username in the top-right corner&quot; on Customize) — your reviews always
-                    stay under your anonymous handle regardless of this setting.
+                    {t("Optional. Shown on your CV and in the site header instead of your anonymous handle (unless you ticked “Show my username in the top-right corner” on Customize). Your reviews always stay under your anonymous handle regardless of this setting.")}
                   </p>
                   <input
                     type="text"
@@ -1461,13 +1453,12 @@ function ProfilePageContent() {
                     checked={isPublicEmployeeDraft}
                     onChange={(e) => setIsPublicEmployeeDraft(e.target.checked)}
                   />
-                  I am a public sector employee
+                  {t("I am a public sector employee")}
                 </label>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Contact details on my CV</p>
+                  <p className="text-sm font-medium text-foreground">{t("Contact details on my CV")}</p>
                   <p className="text-xs text-muted-foreground">
-                    Off by default — your email and phone number are never sent to an employer unless you turn
-                    these on yourself.
+                    {t("Off by default: your email and phone number are never sent to an employer unless you turn these on yourself.")}
                   </p>
                   <label className="mt-2 flex items-center gap-2 text-sm">
                     <input
@@ -1475,7 +1466,7 @@ function ProfilePageContent() {
                       checked={showEmailOnCv}
                       onChange={(e) => toggleShowEmailOnCv(e.target.checked)}
                     />
-                    Include my email on my CV
+                    {t("Include my email on my CV")}
                   </label>
                   <label className="mt-1 flex items-center gap-2 text-sm">
                     <input
@@ -1483,7 +1474,7 @@ function ProfilePageContent() {
                       checked={showPhoneOnCv}
                       onChange={(e) => toggleShowPhoneOnCv(e.target.checked)}
                     />
-                    Include my phone number on my CV
+                    {t("Include my phone number on my CV")}
                   </label>
                 </div>
                 <button
@@ -1492,19 +1483,19 @@ function ProfilePageContent() {
                   disabled={cvSaving}
                   className="self-start rounded-full border border-border bg-sidebar px-4 py-2 text-sm font-bold text-sidebar-foreground transition disabled:opacity-50"
                 >
-                  {cvSaving ? "Saving..." : "Save CV"}
+                  {cvSaving ? t("Saving...") : t("Save CV")}
                 </button>
                 {cvStatus && <p className="text-sm text-green-700 dark:text-green-400">{cvStatus}</p>}
                 {cvError && <p className="text-sm text-red-600 dark:text-red-300">{cvError}</p>}
               </div>
               <div className="flex-1">
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">How it looks</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("How it looks")}</p>
                   <button
                     type="button"
                     onClick={() => setCvFullscreen(true)}
-                    title="View fullscreen"
-                    aria-label="View CV fullscreen"
+                    title={t("View fullscreen")}
+                    aria-label={t("View CV fullscreen")}
                     className="rounded p-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1525,7 +1516,7 @@ function ProfilePageContent() {
                 <button
                   type="button"
                   onClick={() => setCvFullscreen(false)}
-                  aria-label="Close"
+                  aria-label={t("Close")}
                   className="absolute -top-10 right-0 rounded-full p-1 text-white transition hover:bg-white/10"
                 >
                   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

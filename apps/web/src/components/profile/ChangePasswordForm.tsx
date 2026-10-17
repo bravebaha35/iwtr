@@ -7,6 +7,7 @@ import { formProblem } from "@/lib/validateForm";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { PASSWORD_MAX_LENGTH, isPasswordValid } from "@/lib/passwordValidation";
+import { useT } from "@/lib/i18n/client";
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -14,6 +15,7 @@ export function ChangePasswordForm() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const t = useT();
   const [submitting, setSubmitting] = useState(false);
 
   const passwordsMatch = confirmNewPassword.length > 0 && newPassword === confirmNewPassword;
@@ -22,7 +24,7 @@ export function ChangePasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
-    const problem = formProblem(changePasswordInputSchema, { currentPassword, newPassword });
+    const problem = formProblem(changePasswordInputSchema, { currentPassword, newPassword }, {}, t);
     if (problem) {
       setError(problem);
       return;
@@ -35,9 +37,9 @@ export function ChangePasswordForm() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
-      setStatus("Password changed.");
+      setStatus(t("Password changed."));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't change your password.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't change your password."));
     } finally {
       setSubmitting(false);
     }
@@ -45,23 +47,23 @@ export function ChangePasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="rounded-2xl bg-surface shadow-xs p-5">
-      <h2 className="mb-1 font-semibold text-foreground">Change password</h2>
+      <h2 className="mb-1 font-semibold text-foreground">{t("Change password")}</h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        Enter your current password, then choose a new one.
+        {t("Enter your current password, then choose a new one.")}
       </p>
 
       <div className="flex flex-col gap-3">
         <div>
-          <p className="mb-1 text-xs font-medium text-muted-foreground">Current password</p>
-          <PasswordInput value={currentPassword} onChange={setCurrentPassword} placeholder="Current password" autoComplete="current-password" />
+          <p className="mb-1 text-xs font-medium text-muted-foreground">{t("Current password")}</p>
+          <PasswordInput value={currentPassword} onChange={setCurrentPassword} placeholder={t("Current password")} autoComplete="current-password" />
         </div>
 
         <div>
-          <p className="mb-1 text-xs font-medium text-muted-foreground">New password</p>
+          <p className="mb-1 text-xs font-medium text-muted-foreground">{t("New password")}</p>
           <PasswordInput
             value={newPassword}
             onChange={setNewPassword}
-            placeholder="New password"
+            placeholder={t("New password")}
             autoComplete="new-password"
             maxLength={PASSWORD_MAX_LENGTH}
           />
@@ -70,16 +72,16 @@ export function ChangePasswordForm() {
         {newPassword.length > 0 && <PasswordChecklist password={newPassword} />}
 
         <div>
-          <p className="mb-1 text-xs font-medium text-muted-foreground">New password again</p>
+          <p className="mb-1 text-xs font-medium text-muted-foreground">{t("New password again")}</p>
           <PasswordInput
             value={confirmNewPassword}
             onChange={setConfirmNewPassword}
-            placeholder="New password again"
+            placeholder={t("New password again")}
             autoComplete="new-password"
             maxLength={PASSWORD_MAX_LENGTH}
           />
           {confirmNewPassword.length > 0 && !passwordsMatch && (
-            <p className="mt-1 text-xs text-red-600 dark:text-red-300">Passwords don&apos;t match.</p>
+            <p className="mt-1 text-xs text-red-600 dark:text-red-300">{t("Passwords don't match.")}</p>
           )}
         </div>
       </div>
@@ -92,7 +94,7 @@ export function ChangePasswordForm() {
         disabled={submitting || !canSubmit}
         className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
       >
-        {submitting ? "Saving..." : "Change password"}
+        {submitting ? t("Saving...") : t("Change password")}
       </button>
     </form>
   );

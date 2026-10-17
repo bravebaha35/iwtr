@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { generateMockOtp, isDevBypassCode } from "@/lib/emailVerification";
+import { useT } from "@/lib/i18n/client";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -25,6 +26,7 @@ export function EmailConfirmGate({
   onCancel: () => void;
 }) {
   const [code, setCode] = useState("");
+  const t = useT();
   // "" is just the pre-hydration placeholder — see the matching comment in
   // EmailVerificationScreen.tsx for why this can't be a Math.random() lazy
   // initializer.
@@ -54,7 +56,7 @@ export function EmailConfirmGate({
 
   async function attemptConfirm(candidateCode: string) {
     if (candidateCode !== expectedCode && !isDevBypassCode(candidateCode)) {
-      setError("That code doesn't match — check the digits and try again.");
+      setError(t("That code doesn't match - check the digits and try again."));
       return;
     }
     setError(null);
@@ -62,7 +64,7 @@ export function EmailConfirmGate({
     try {
       await onConfirmed();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(err instanceof Error ? t(err.message) : t("Something went wrong. Please try again."));
       setSubmitting(false);
     }
   }
@@ -75,20 +77,19 @@ export function EmailConfirmGate({
 
   return (
     <div>
-      <p className="mb-1 text-sm font-semibold text-foreground">Confirm it&apos;s you</p>
+      <p className="mb-1 text-sm font-semibold text-foreground">{t("Confirm it's you")}</p>
       <p className="mb-4 text-xs text-muted-foreground">
-        We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span> to confirm you want
-        to {actionLabel}.
+        {t("We sent a 6-digit code to {email} to confirm you want to {action}.", { email, action: actionLabel })}
       </p>
 
       <OtpInput value={code} onChange={handleCodeChange} autoFocus />
 
       {error && <p className="mt-3 text-center text-sm text-red-600 dark:text-red-300">{error}</p>}
-      {submitting && <p className="mt-3 text-center text-xs text-muted-foreground">Processing...</p>}
+      {submitting && <p className="mt-3 text-center text-xs text-muted-foreground">{t("Processing...")}</p>}
 
       <div className="mt-4 flex items-center justify-between">
         <button type="button" onClick={onCancel} className="text-xs text-muted-foreground hover:underline">
-          Cancel
+          {t("Cancel")}
         </button>
         <button
           type="button"
@@ -96,7 +97,7 @@ export function EmailConfirmGate({
           disabled={cooldown > 0}
           className="text-xs text-muted-foreground underline disabled:no-underline disabled:opacity-50"
         >
-          {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+          {cooldown > 0 ? t("Resend code in {s}s", { s: cooldown }) : t("Resend code")}
         </button>
       </div>
 

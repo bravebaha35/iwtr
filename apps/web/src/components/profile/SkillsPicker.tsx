@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { MAX_SKILLS_PER_MEMBER, type Skill } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
+import { useT } from "@/lib/i18n/client";
 
 // How many matches are listed under the search box at once.
 const MAX_RESULTS = 8;
@@ -55,6 +56,7 @@ export function SkillsPicker({
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [query, setQuery] = useState("");
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -92,7 +94,7 @@ export function SkillsPicker({
     <div>
       <div className="mb-1.5 flex items-baseline justify-between gap-3">
         <label htmlFor="skill-search" className="text-xs font-medium text-muted-foreground">
-          Verified skills
+          {t("Verified skills")}
         </label>
         <span className="text-xs tabular-nums text-muted-foreground">
           {selectedIds.length} / {MAX_SKILLS_PER_MEMBER}
@@ -126,21 +128,21 @@ export function SkillsPicker({
             }
           }}
           placeholder={
-            full ? "You've picked 10 - remove one to add another" : "Search a skill: welding, Excel, barista, forklift..."
+            full ? t("You've picked 10 - remove one to add another") : t("Search a skill: welding, Excel, barista, forklift...")
           }
           className="w-full rounded-full border border-border bg-surface py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:bg-surface-muted"
         />
       </div>
 
       {loadFailed && (
-        <p className="mt-2 text-xs text-red-600 dark:text-red-300">Couldn&apos;t load the skill list. Reload the page to try again.</p>
+        <p className="mt-2 text-xs text-red-600 dark:text-red-300">{t("Couldn't load the skill list. Reload the page to try again.")}</p>
       )}
 
       {query.trim() !== "" && !loadFailed && (
-        <ul aria-label="Matching skills" className="mt-2 flex flex-col gap-0.5 rounded-xl bg-surface-muted/60 p-1.5">
+        <ul aria-label={t("Matching skills")} className="mt-2 flex flex-col gap-0.5 rounded-xl bg-surface-muted/60 p-1.5">
           {shown.length === 0 && (
             <li className="px-2.5 py-2 text-sm text-muted-foreground">
-              No skill matches &quot;{query.trim()}&quot;. Try a shorter or different word.
+              {t("No skill matches “{q}”. Try a shorter or different word.", { q: query.trim() })}
             </li>
           )}
           {shown.map((skill) => (
@@ -151,27 +153,27 @@ export function SkillsPicker({
                 className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition hover:bg-surface"
               >
                 <span>{skill.name}</span>
-                <span className="shrink-0 text-xs font-semibold text-brand-700 dark:text-brand-300">Add</span>
+                <span className="shrink-0 text-xs font-semibold text-brand-700 dark:text-brand-300">{t("Add")}</span>
               </button>
             </li>
           ))}
           {matches.length > shown.length && (
             <li className="px-2.5 pb-1 pt-1.5 text-xs text-muted-foreground">
-              {matches.length - shown.length} more - keep typing to narrow it down.
+              {t("{n} more - keep typing to narrow it down.", { n: matches.length - shown.length })}
             </li>
           )}
         </ul>
       )}
 
       {selected.length > 0 ? (
-        <ul aria-label="Your skills" className="mt-3 flex flex-wrap gap-1.5">
+        <ul aria-label={t("Your skills")} className="mt-3 flex flex-wrap gap-1.5">
           {selected.map((skill) => (
             <li key={skill.id}>
               <button
                 type="button"
                 onClick={() => remove(skill.id)}
-                title={`Remove ${skill.name}`}
-                aria-label={`Remove ${skill.name}`}
+                title={t("Remove {name}", { name: skill.name })}
+                aria-label={t("Remove {name}", { name: skill.name })}
                 className="group flex items-center gap-1.5 rounded-full bg-brand-600 py-1 pl-3 pr-2 text-xs font-semibold text-white transition hover:bg-brand-700"
               >
                 {skill.name}
@@ -184,7 +186,7 @@ export function SkillsPicker({
         </ul>
       ) : (
         <p className="mt-2 text-xs text-muted-foreground">
-          Up to {MAX_SKILLS_PER_MEMBER} skills, shown on your CV. Nothing picked yet.
+          {t("Up to {n} skills, shown on your CV. Nothing picked yet.", { n: MAX_SKILLS_PER_MEMBER })}
         </p>
       )}
     </div>

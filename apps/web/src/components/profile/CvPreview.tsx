@@ -5,10 +5,12 @@ import { languageLabel, type EduLevel, type MyEmploymentEntry, type MyProfile } 
 import { apiGet } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { Avatar } from "@/components/Avatar";
+import { useI18n } from "@/lib/i18n/client";
+import { languageName, type TFn } from "@/lib/i18n/core";
 
-function formatRange(startDate: string | null, endDate: string | null): string {
+function formatRange(startDate: string | null, endDate: string | null, t: TFn): string {
   const start = startDate ? new Date(startDate).getFullYear() : "?";
-  const end = endDate ? new Date(endDate).getFullYear() : "Present";
+  const end = endDate ? new Date(endDate).getFullYear() : t("Present");
   return `${start} - ${end}`;
 }
 
@@ -18,8 +20,14 @@ const EDU_LEVEL_LABELS: Record<EduLevel, string> = {
   COLLEGE: "College",
 };
 
-function formatEducationDetail(level: EduLevel, faculty: string | null | undefined, department: string | null | undefined, graduationYear: number | null | undefined): string {
-  return [EDU_LEVEL_LABELS[level], faculty, department, graduationYear ? `Class of ${graduationYear}` : null]
+function formatEducationDetail(
+  level: EduLevel,
+  faculty: string | null | undefined,
+  department: string | null | undefined,
+  graduationYear: number | null | undefined,
+  t: TFn,
+): string {
+  return [t(EDU_LEVEL_LABELS[level]), faculty, department, graduationYear ? t("Class of {year}", { year: graduationYear }) : null]
     .filter(Boolean)
     .join(" · ");
 }
@@ -110,6 +118,7 @@ export function CvPreview({
   forPrint?: boolean;
 }) {
   const [employmentState, setEmploymentState] = useState<MyEmploymentEntry[]>(employmentProp ?? []);
+  const { t, locale } = useI18n();
 
   useEffect(() => {
     // A caller that already fetched employment history (ApplyButton, to
@@ -130,7 +139,7 @@ export function CvPreview({
   }, [employmentProp]);
 
   const employment = employmentProp ?? employmentState;
-  const name = profile.displayName?.trim() || "Your name here";
+  const name = profile.displayName?.trim() || t("Your name here");
   const contactLine = [showEmail ? profile.email : null, showPhone ? profile.phoneNumber : null]
     .filter(Boolean)
     .join(" · ");
@@ -140,9 +149,9 @@ export function CvPreview({
   // member's current location instead, already collected at onboarding.
   const locationLine = [profile.district, profile.city, profile.country].filter(Boolean).join(", ");
   const education = profile.education;
-  const workTypeLabel = profile.workType ? workplaceTypeLabel(profile.workType) : null;
+  const workTypeLabel = profile.workType ? t(workplaceTypeLabel(profile.workType)) : null;
   // Picked on Edit Profile > Personal Information; always on the CV.
-  const languages = (profile.languages ?? []).map(languageLabel);
+  const languages = (profile.languages ?? []).map((code) => languageName(code, languageLabel(code), locale));
 
   return (
     <div
@@ -153,7 +162,7 @@ export function CvPreview({
     >
       <section>
         <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">
-          Personal Information
+          {t("Personal Information")}
         </h2>
         <div className="mt-3 flex items-center space-x-4">
           <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
@@ -189,13 +198,13 @@ export function CvPreview({
             Trailing margin on every item, including the last, is the
             harmless cost of avoiding that. */}
         <div className="mt-3 flex flex-wrap text-sm text-[#475569]">
-          {profile.birthDate && <span className="mr-6 mb-1">Born {new Date(profile.birthDate).getFullYear()}</span>}
+          {profile.birthDate && <span className="mr-6 mb-1">{t("Born {year}", { year: new Date(profile.birthDate).getFullYear() })}</span>}
           {workTypeLabel && <span className="mr-6 mb-1">{workTypeLabel}</span>}
-          {profile.sector && <span className="mr-6 mb-1">{profile.sector.label}</span>}
+          {profile.sector && <span className="mr-6 mb-1">{t(profile.sector.label)}</span>}
         </div>
         {profile.isPublicEmployee && (
           <span className="mt-2 inline-block rounded-full border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-            Public Sector Employee
+            {t("Public Sector Employee")}
           </span>
         )}
         {profile.skills.length > 0 && (
@@ -212,7 +221,7 @@ export function CvPreview({
         )}
         {languages.length > 0 && (
           <p className="mt-2 break-words text-sm">
-            <span className="font-bold">Languages:</span> {languages.join(", ")}
+            <span className="font-bold">{t("Languages:")}</span> {languages.join(", ")}
           </p>
         )}
         {profile.customExperienceText && (
@@ -225,13 +234,13 @@ export function CvPreview({
       {education.length > 0 && (
         <>
           <section>
-            <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Education</h2>
+            <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">{t("Education")}</h2>
             <ul className="mt-2 flex flex-col space-y-2">
               {education.map((e) => (
                 <li key={e.id} className="text-sm">
                   <p className="font-bold">{e.institutionName}</p>
                   <p className="text-xs text-[#475569]">
-                    {formatEducationDetail(e.level, e.faculty, e.department, e.graduationYear)}
+                    {formatEducationDetail(e.level, e.faculty, e.department, e.graduationYear, t)}
                   </p>
                 </li>
               ))}
@@ -242,13 +251,13 @@ export function CvPreview({
       )}
 
       <section>
-        <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">Employment History</h2>
+        <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">{t("Employment History")}</h2>
         <ul className="mt-2 flex flex-col space-y-2">
-          {employment.length === 0 && <li className="text-sm text-[#64748b]">Nothing added yet.</li>}
+          {employment.length === 0 && <li className="text-sm text-[#64748b]">{t("Nothing added yet.")}</li>}
           {employment.map((e) => (
             <li key={e.id} className="text-sm">
-              <p className="font-bold">{e.jobTitle ?? "Employee"} — {e.rawCompanyName}</p>
-              <p className="text-xs text-[#475569]">{formatRange(e.startDate, e.endDate)}</p>
+              <p className="font-bold">{e.jobTitle ?? t("Employee")} - {e.rawCompanyName}</p>
+              <p className="text-xs text-[#475569]">{formatRange(e.startDate, e.endDate, t)}</p>
             </li>
           ))}
         </ul>
@@ -257,7 +266,7 @@ export function CvPreview({
       <footer className="mt-8 flex flex-col items-start border-t border-[#1e293b] pt-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- snapshotted by html2canvas, which can't resolve next/image's optimized/lazy output */}
         <img src="/realicon.png" alt="I Worked There" className="h-6 w-6" />
-        <p className="mt-1 text-[10px] font-bold text-[#0f172a]">Made in iworkedthere.com</p>
+        <p className="mt-1 text-[10px] font-bold text-[#0f172a]">{t("Made in iworkedthere.com")}</p>
       </footer>
     </div>
   );

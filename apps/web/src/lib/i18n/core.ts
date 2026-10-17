@@ -66,6 +66,19 @@ export function intlLocale(locale: Locale): string {
   return locale === "tr" ? "tr-TR" : "en-GB";
 }
 
+// A language's name (by ISO code) in the visitor's language.
+let trLanguages: Intl.DisplayNames | null = null;
+export function languageName(code: string, english: string, locale: Locale): string {
+  if (locale === "en") return english;
+  try {
+    trLanguages ??= new Intl.DisplayNames(["tr-TR"], { type: "language" });
+    const name = trLanguages.of(code);
+    return name && name !== code ? name.charAt(0).toLocaleUpperCase("tr-TR") + name.slice(1) : english;
+  } catch {
+    return english;
+  }
+}
+
 // A country's name in the visitor's language from its ISO code (the browser
 // knows every country's Turkish name), the stored English name otherwise.
 let trRegions: Intl.DisplayNames | null = null;

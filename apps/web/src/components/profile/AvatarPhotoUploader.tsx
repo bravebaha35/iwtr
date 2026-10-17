@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { validateSourceImageForAvatarCrop, type AvatarPhotoUploadResult } from "@iwtr/shared-types";
 import { apiUpload, apiPatch, ApiError } from "@/lib/api-client";
 import { AvatarPhotoCropper } from "@/components/profile/AvatarPhotoCropper";
+import { useT } from "@/lib/i18n/client";
 
 function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -53,6 +54,7 @@ export function AvatarPhotoUploader({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
+  const t = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFilePicked(file: File | undefined) {
@@ -62,12 +64,12 @@ export function AvatarPhotoUploader({
       const { width, height } = await readImageDimensions(file);
       const check = validateSourceImageForAvatarCrop({ mimeType: file.type, sizeBytes: file.size, width, height });
       if (!check.valid) {
-        setError(check.error);
+        setError(t(check.error));
         return;
       }
       setPendingCropFile(file);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't read that image.");
+      setError(err instanceof Error ? t(err.message) : t("Couldn't read that image."));
     }
   }
 
@@ -85,7 +87,7 @@ export function AvatarPhotoUploader({
       await preloadImage(result.url);
       onChange(result.url);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't upload that photo.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't upload that photo."));
     } finally {
       setUploading(false);
     }
@@ -98,7 +100,7 @@ export function AvatarPhotoUploader({
       await apiPatch("/me/employer-profile", { profilePictureUrl: null });
       onChange(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't remove that photo.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't remove that photo."));
     } finally {
       setUploading(false);
     }
@@ -122,7 +124,7 @@ export function AvatarPhotoUploader({
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
-        aria-label="Change photo"
+        aria-label={t("Change photo")}
         className="group relative h-24 w-24 overflow-hidden rounded-full border border-border bg-surface-muted disabled:opacity-60"
       >
         {value ? (
@@ -138,7 +140,7 @@ export function AvatarPhotoUploader({
         )}
         <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
           {uploading ? (
-            <span className="text-xs font-medium text-white">Uploading...</span>
+            <span className="text-xs font-medium text-white">{t("Uploading...")}</span>
           ) : (
             <svg viewBox="0 0 24 24" className="h-6 w-6 text-white" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9" />
@@ -152,8 +154,8 @@ export function AvatarPhotoUploader({
           type="button"
           onClick={() => void handleRemove()}
           disabled={uploading}
-          aria-label="Remove photo"
-          title="Remove photo and use your avatar again"
+          aria-label={t("Remove photo")}
+          title={t("Remove photo and use your avatar again")}
           className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-surface text-foreground shadow-sm transition hover:bg-red-600 hover:text-white disabled:opacity-60"
         >
           <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -164,7 +166,7 @@ export function AvatarPhotoUploader({
       </div>
 
       {error && <p className="max-w-[200px] text-center text-xs text-red-600 dark:text-red-300">{error}</p>}
-      <p className="text-[11px] text-muted-foreground">Recommended 800x800</p>
+      <p className="text-[11px] text-muted-foreground">{t("Recommended 800x800")}</p>
 
       {pendingCropFile && (
         <AvatarPhotoCropper

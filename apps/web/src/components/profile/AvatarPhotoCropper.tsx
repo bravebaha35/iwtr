@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AVATAR_RECOMMENDED_DIMENSION_PX } from "@iwtr/shared-types";
 import { baseScaleFor, clampOffset, recenterOffsetOnZoom, sourceRectFor } from "@/lib/cropMath";
+import { useT } from "@/lib/i18n/client";
 
 const VIEWPORT_PX = 280;
 // Compressed JPEG quality — chosen for a small file size while staying
@@ -31,6 +32,7 @@ export function AvatarPhotoCropper({
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState(1);
+  const t = useT();
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startX: number; startY: number; startOffset: { x: number; y: number } } | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -130,7 +132,7 @@ export function AvatarPhotoCropper({
         className="flex flex-col items-center gap-3 rounded-2xl bg-surface shadow-xs p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-sm font-medium text-foreground">Drag to reposition, use the slider to zoom</p>
+        <p className="text-sm font-medium text-foreground">{t("Drag to reposition, use the slider to zoom")}</p>
         <div
           className="relative touch-none overflow-hidden rounded-full border border-border bg-surface-muted"
           style={{ width: VIEWPORT_PX, height: VIEWPORT_PX }}
@@ -164,7 +166,7 @@ export function AvatarPhotoCropper({
           onChange={(e) => onZoomChange(Number(e.target.value))}
           disabled={!natural}
           className="w-full"
-          aria-label="Zoom"
+          aria-label={t("Zoom")}
         />
         <div className="flex gap-2 self-end">
           <button
@@ -172,7 +174,7 @@ export function AvatarPhotoCropper({
             onClick={onCancel}
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -180,7 +182,7 @@ export function AvatarPhotoCropper({
             disabled={!natural || exporting}
             className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
-            {exporting ? "Saving..." : "Use this photo"}
+            {exporting ? t("Saving...") : t("Use this photo")}
           </button>
         </div>
       </div>

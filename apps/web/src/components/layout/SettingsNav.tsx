@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import { useT } from "@/lib/i18n/client";
 
 export type SettingsNavItem<K extends string> =
   // `note`: a short bold line under the label for something the reader
@@ -56,11 +57,12 @@ export function SettingsNavList<K extends string>({
   onChange: (key: K) => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const t = useT();
   const hover = reduceMotion ? undefined : { x: 4 };
 
   return (
     <nav
-      aria-label={label}
+      aria-label={t(label)}
       className="flex flex-row gap-1 overflow-x-auto sm:flex-col sm:overflow-visible"
     >
       {items.map((item) => {
@@ -68,7 +70,7 @@ export function SettingsNavList<K extends string>({
           return (
             <motion.div key={item.key} whileHover={hover} transition={HOVER_TRANSITION}>
               <Link href={item.href} className={ITEM_IDLE}>
-                {item.label}
+                {t(item.label)}
               </Link>
             </motion.div>
           );
@@ -82,8 +84,8 @@ export function SettingsNavList<K extends string>({
               aria-current={isActive ? "page" : undefined}
               className={isActive ? ITEM_ACTIVE : ITEM_IDLE}
             >
-              {item.label}
-              {item.note && <span className={`mt-0.5 block text-xs font-bold ${isActive ? "" : "text-sidebar-foreground"}`}>{item.note}</span>}
+              {t(item.label)}
+              {item.note && <span className={`mt-0.5 block text-xs font-bold ${isActive ? "" : "text-sidebar-foreground"}`}>{t(item.note)}</span>}
             </button>
           </motion.div>
         );
