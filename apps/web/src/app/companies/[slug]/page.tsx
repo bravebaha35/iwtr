@@ -16,6 +16,8 @@ import { scoreBarColor, scoreTextColor } from "@/lib/scoreBandColors";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { RatingIllustration } from "@/components/companies/RatingIllustration";
 import { WorkTypeViewProvider } from "@/components/companies/WorkTypeView";
+import { getTranslator } from "@/lib/i18n/server";
+import type { TFn } from "@/lib/i18n/core";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
@@ -36,10 +38,15 @@ const CATEGORIES = [
 // empty fixed-size slot (reserved for future design). It has a fixed `lg:`
 // height (set below) so 600 chars of text and the empty state render at the
 // same size.
-function RatingNarrativeBox({ score, narrative }: { score: number | null; narrative: CompanyNarrative | null }) {
+function RatingNarrativeBox({ score, narrative, t }: { score: number | null; narrative: CompanyNarrative | null; t: TFn }) {
   const waitingLine =
     narrative && narrative.description === null && narrative.reviewCount >= 1 && narrative.reviewCount <= 2
-      ? `${narrative.reviewCount} review${narrative.reviewCount === 1 ? "" : "s"} so far — a full summary appears once 3 people have rated this workplace.`
+      ? t(
+          narrative.reviewCount === 1
+            ? "{n} review so far - a full summary appears once 3 people have rated this workplace."
+            : "{n} reviews so far - a full summary appears once 3 people have rated this workplace.",
+          { n: narrative.reviewCount },
+        )
       : null;
 
   return (
@@ -149,11 +156,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   try {
     const { company, aggregate } = await apiGetPublic<CompanyDetail>(`/companies/${slug}`);
-    const title = `${company.name} reviews`;
+    const { t } = await getTranslator();
+    const title = t("{name} reviews", { name: company.name });
     const description =
       aggregate && aggregate.reviewCount > 0
-        ? `Anonymous employee ratings for ${company.name}: ${aggregate.overallAvg.toFixed(1)}/5 (${scoreBandLabel(aggregate.overallAvg)}) from ${aggregate.reviewCount} review${aggregate.reviewCount === 1 ? "" : "s"}.`
-        : `What is it really like to work at ${company.name}? Read and write anonymous employee reviews.`;
+        ? t("Anonymous employee ratings for {name}: {score}/5 ({band}) from {n} reviews.", {
+            name: company.name,
+            score: aggregate.overallAvg.toFixed(1),
+            band: t(scoreBandLabel(aggregate.overallAvg)),
+            n: aggregate.reviewCount,
+          })
+        : t("What is it really like to work at {name}? Read and write anonymous employee reviews.", { name: company.name });
     return {
       title,
       description,
@@ -162,7 +175,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       twitter: { card: "summary_large_image", title, description },
     };
   } catch {
-    return { title: "Company not found" };
+    return { title: (await getTranslator()).t("Company not found") };
   }
 }
 
@@ -175,6 +188,7 @@ export default async function CompanyPage({
 }) {
   const { slug } = await params;
   const { tab, review } = await searchParams;
+  const { t } = await getTranslator();
   const initialTab = Array.isArray(tab) ? tab[0] : tab;
   // From a notification link: the review to scroll to and pulse.
   const highlightReviewId = Array.isArray(review) ? review[0] : review;
@@ -248,7 +262,7 @@ export default async function CompanyPage({
                 />
               </h1>
               <p className="mt-1 text-[15px] text-muted-foreground">
-                {company.category} · <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
+                {t(company.category)} · <WorkTypeLabel workplaceTypes={company.workplaceTypes} />
                 {company.city ? ` · ${company.city}` : ""}
               </p>
               <div className="mt-2">
@@ -303,10 +317,11 @@ export default async function CompanyPage({
                 <RatingNarrativeBox
                   score={aggregate && aggregate.reviewCount > 0 ? aggregate.overallAvg : null}
                   narrative={narrative}
+                  t={t}
                 />
 
                 <div className="flex-1 font-sans lg:border-l lg:border-border lg:pl-12">
-                  <h2 className="mb-4 text-xl text-foreground">Rating Breakdown</h2>
+                  <h2 className="mb-4 text-xl text-foreground">{t("Rating Breakdown")}</h2>
                   {aggregate && aggregate.reviewCount > 0 ? (
                     <div className="flex flex-col gap-2.5">
                       {/* The overall score leads: it is the one number a
@@ -315,15 +330,15 @@ export default async function CompanyPage({
                         <span className="font-display text-6xl leading-none tabular-nums text-foreground">{aggregate.overallAvg.toFixed(1)}</span>
                         <span className="text-sm text-muted-foreground">/ 5.0</span>
                         <span className={`ml-3 text-lg font-semibold ${scoreTextColor(aggregate.overallAvg)}`}>
-                          {scoreBandLabel(aggregate.overallAvg)}
+                          {t(scoreBandLabel(aggregate.overallAvg))}
                         </span>
                         <span className="ml-auto text-sm text-muted-foreground">
-                          {aggregate.reviewCount} review{aggregate.reviewCount === 1 ? "" : "s"}
+                          {t(aggregate.reviewCount === 1 ? "{n} review" : "{n} reviews", { n: aggregate.reviewCount })}
                         </span>
                       </div>
                       {CATEGORIES.map((c) => (
                         <div key={c.key} className="flex items-center gap-3">
-                          <span className="w-36 shrink-0 text-sm leading-tight text-foreground sm:w-44">{c.label}</span>
+                          <span className="w-36 shrink-0 text-sm leading-tight text-foreground sm:w-44">{t(c.label)}</span>
                           <div className="h-2 min-w-12 flex-1 rounded-full bg-surface-muted">
                             <div
                               className={`h-2 rounded-full ${scoreBarColor(aggregate[c.key])}`}
@@ -338,7 +353,7 @@ export default async function CompanyPage({
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      No reviews yet. Be the first to rate this workplace if it&apos;s in your work history.
+                      {t("No reviews yet. Be the first to rate this workplace if it's in your work history.")}
                     </p>
                   )}
                 </div>

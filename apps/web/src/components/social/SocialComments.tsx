@@ -18,6 +18,7 @@ import { apiGet, apiPost, apiDelete, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar } from "@/components/Avatar";
 import { shortRelativeTime } from "./socialTime";
+import { useI18n, useT } from "@/lib/i18n/client";
 
 const MAX_COMMENT_LENGTH = 1250;
 
@@ -134,12 +135,13 @@ function CommentRow({
   replyToggle?: { replyCount: number; expanded: boolean; onToggle: () => void };
 }) {
   const c = comment;
+  const { t, locale } = useI18n();
   return (
     <div className="flex items-start gap-2 py-1">
       <Avatar avatarKey={c.avatarKey} avatarGradient={c.avatarGradient} photoUrl={c.avatarPhotoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-muted-foreground">
-          {c.displayUsername ?? "Anonymous"} · {shortRelativeTime(c.createdAt)}
+          {c.displayUsername ?? t("Anonymous")} · {shortRelativeTime(c.createdAt, locale)}
         </p>
         <p className="whitespace-pre-wrap text-sm text-foreground">{c.body}</p>
 
@@ -150,9 +152,9 @@ function CommentRow({
             type="button"
             onClick={() => onVote(c.id, 1)}
             disabled={votingId === c.id}
-            aria-label="Helpful"
+            aria-label={t("Helpful")}
             aria-pressed={c.myVote === 1}
-            title={!isAuthenticated ? "Log in to vote" : "Helpful"}
+            title={!isAuthenticated ? t("Log in to vote") : t("Helpful")}
             className={`flex items-center gap-1 text-xs transition disabled:opacity-40 ${
               c.myVote === 1
                 ? "text-green-700 dark:text-green-400"
@@ -166,9 +168,9 @@ function CommentRow({
             type="button"
             onClick={() => onVote(c.id, -1)}
             disabled={votingId === c.id}
-            aria-label="Not Helpful"
+            aria-label={t("Not Helpful")}
             aria-pressed={c.myVote === -1}
-            title={!isAuthenticated ? "Log in to vote" : "Not Helpful"}
+            title={!isAuthenticated ? t("Log in to vote") : t("Not Helpful")}
             className={`flex items-center gap-1 text-xs transition disabled:opacity-40 ${
               c.myVote === -1
                 ? "text-red-600 dark:text-red-300"
@@ -187,8 +189,8 @@ function CommentRow({
               >
                 <ChevronIcon direction={replyToggle.expanded ? "up" : "down"} className="h-3 w-3" />
                 {replyToggle.expanded
-                  ? "Hide replies"
-                  : `Reply · ${replyToggle.replyCount} repl${replyToggle.replyCount === 1 ? "y" : "ies"}`}
+                  ? t("Hide replies")
+                  : t(replyToggle.replyCount === 1 ? "Reply · {n} reply" : "Reply · {n} replies", { n: replyToggle.replyCount })}
               </button>
             ) : (
               <button
@@ -196,7 +198,7 @@ function CommentRow({
                 onClick={replyToggle.onToggle}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                Reply
+                {t("Reply")}
               </button>
             ))}
         </div>
@@ -208,7 +210,7 @@ function CommentRow({
         <button
           type="button"
           onClick={() => onToggleMenu(c.id)}
-          aria-label="Comment options"
+          aria-label={t("Comment options")}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           className="rounded p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
@@ -227,10 +229,10 @@ function CommentRow({
                 onClick={() => onDelete(c.id)}
                 className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-surface-muted dark:text-red-300"
               >
-                Delete
+                {t("Delete")}
               </button>
             ) : reported ? (
-              <span className="block px-3 py-1.5 text-left text-xs text-muted-foreground">Reported</span>
+              <span className="block px-3 py-1.5 text-left text-xs text-muted-foreground">{t("Reported")}</span>
             ) : (
               <button
                 type="button"
@@ -238,7 +240,7 @@ function CommentRow({
                 onClick={() => onReport(c.id)}
                 className="block w-full px-3 py-1.5 text-left text-xs text-foreground hover:bg-surface-muted"
               >
-                Report
+                {t("Report")}
               </button>
             )}
           </div>
@@ -274,6 +276,7 @@ function Composer({
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Grows line-by-line as content wraps or gains newlines, instead of
@@ -298,7 +301,7 @@ function Composer({
       await onSubmit(body);
       setDraft("");
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't post that comment.");
+      setError(e instanceof ApiError ? t(e.message) : t("Couldn't post that comment."));
     } finally {
       setBusy(false);
     }
@@ -312,8 +315,8 @@ function Composer({
           <button
             type="button"
             onClick={onToggleMode}
-            aria-label="Switch commenting identity"
-            title="Switch commenting identity"
+            aria-label={t("Switch commenting identity")}
+            title={t("Switch commenting identity")}
             className="absolute -bottom-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground hover:text-foreground"
           >
             <SwapIcon className="h-2.5 w-2.5" />
@@ -324,7 +327,7 @@ function Composer({
       {/* Full-width, like the original composer - only the avatar (and its
           toggle) sitting flush over the input's own outline is new. */}
       <div className="min-w-0 flex-1">
-        {preview.label && <p className="mb-1 truncate text-[11px] text-muted-foreground">Commenting as {preview.label}</p>}
+        {preview.label && <p className="mb-1 truncate text-[11px] text-muted-foreground">{t("Commenting as {name}", { name: t(preview.label) })}</p>}
         <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -333,7 +336,7 @@ function Composer({
             onFocus={() => {
               if (!isAuthenticated) openAuthModal();
             }}
-            placeholder={placeholder}
+            placeholder={t(placeholder)}
             maxLength={MAX_COMMENT_LENGTH}
             rows={1}
             autoFocus={autoFocus}
@@ -345,7 +348,7 @@ function Composer({
             disabled={busy}
             className="shrink-0 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            Post
+            {t("Post")}
           </button>
         </div>
         <p className="mt-0.5 text-right text-[10px] text-muted-foreground">
@@ -371,6 +374,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
   const [reportReason, setReportReason] = useState<SocialCommentReportReason | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const t = useT();
   // Brief "Report submitted" confirmation after a successful submit - fades
   // in on its own, auto-dismisses a couple seconds later.
   const [showReportToast, setShowReportToast] = useState(false);
@@ -518,7 +522,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
         openAuthModal();
         return;
       }
-      setReportError(e instanceof ApiError ? e.message : "Couldn't submit that report.");
+      setReportError(e instanceof ApiError ? t(e.message) : t("Couldn't submit that report."));
     } finally {
       setReportBusy(false);
     }
@@ -565,7 +569,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
           className="flex items-center justify-center gap-1 self-center rounded-full px-3 py-1 text-xs text-muted-foreground hover:bg-surface-muted hover:text-foreground"
         >
           <ChevronIcon direction={showAllComments ? "down" : "up"} className="h-3.5 w-3.5" />
-          {showAllComments ? "Show fewer comments" : `Show ${hiddenCount} earlier comment${hiddenCount === 1 ? "" : "s"}`}
+          {showAllComments ? t("Show fewer comments") : t(hiddenCount === 1 ? "Show {n} earlier comment" : "Show {n} earlier comments", { n: hiddenCount })}
         </button>
       )}
       {visibleComments.map((c) => (
@@ -642,11 +646,11 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Report this comment"
+            aria-label={t("Report this comment")}
             className="w-full max-w-sm rounded-xl bg-surface p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="mb-3 text-sm font-semibold text-foreground">Report this comment</h3>
+            <h3 className="mb-3 text-sm font-semibold text-foreground">{t("Report this comment")}</h3>
             <div className="flex flex-col gap-2">
               {SOCIAL_COMMENT_REPORT_REASONS.map((reason) => (
                 <label
@@ -660,12 +664,12 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
                     checked={reportReason === reason}
                     onChange={() => setReportReason(reason)}
                   />
-                  <span className="text-foreground">{SOCIAL_COMMENT_REPORT_REASON_LABELS[reason]}</span>
+                  <span className="text-foreground">{t(SOCIAL_COMMENT_REPORT_REASON_LABELS[reason])}</span>
                 </label>
               ))}
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Reports are anonymous - the comment&apos;s author will never see who reported it.
+              {t("Reports are anonymous - the comment's author will never see who reported it.")}
             </p>
             {reportError && <p className="mt-2 text-xs text-red-600 dark:text-red-300">{reportError}</p>}
             <div className="mt-4 flex justify-end gap-2">
@@ -674,7 +678,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
                 onClick={closeReportModal}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
               >
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 type="button"
@@ -682,7 +686,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
                 disabled={!reportReason || reportBusy}
                 className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                Submit report
+                {t("Submit report")}
               </button>
             </div>
           </div>
@@ -692,7 +696,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
       {showReportToast && (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4">
           <div className="rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-lg">
-            Report submitted
+            {t("Report submitted")}
           </div>
         </div>
       )}

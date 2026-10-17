@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { collarTileTone } from "@/lib/collarColors";
+import { useT } from "@/lib/i18n/client";
 
 // Which of a company's work types the Ratings tab is showing. A company can
 // hire for more than one (an office plus a shop floor), and the rating
@@ -71,17 +72,18 @@ const arrowClass =
  */
 export function WorkTypeSwitcher({ className = "" }: { className?: string }) {
   const { types, active, index, step } = useWorkTypeView();
+  const t = useT();
   const many = types.length > 1;
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       {many && (
-        <button type="button" onClick={() => step(-1)} aria-label={`Previous work type (${workplaceTypeLabel(types[(index - 1 + types.length) % types.length])})`} className={arrowClass}>
+        <button type="button" onClick={() => step(-1)} aria-label={t("Previous work type ({type})", { type: t(workplaceTypeLabel(types[(index - 1 + types.length) % types.length])) })} className={arrowClass}>
           <Chevron side="left" />
         </button>
       )}
       <div className="flex min-w-[7.5rem] flex-col items-center gap-1 px-1" aria-live="polite">
-        <span className="text-sm font-semibold text-foreground">{workplaceTypeLabel(active)}</span>
+        <span className="text-sm font-semibold text-foreground">{t(workplaceTypeLabel(active))}</span>
         <span className="flex gap-1" aria-hidden="true">
           {types.map((t) => (
             <span
@@ -92,7 +94,7 @@ export function WorkTypeSwitcher({ className = "" }: { className?: string }) {
         </span>
       </div>
       {many && (
-        <button type="button" onClick={() => step(1)} aria-label={`Next work type (${workplaceTypeLabel(types[(index + 1) % types.length])})`} className={arrowClass}>
+        <button type="button" onClick={() => step(1)} aria-label={t("Next work type ({type})", { type: t(workplaceTypeLabel(types[(index + 1) % types.length])) })} className={arrowClass}>
           <Chevron side="right" />
         </button>
       )}

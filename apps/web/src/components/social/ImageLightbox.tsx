@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useT } from "@/lib/i18n/client";
 
 function ChevronIcon({ className, direction }: { className?: string; direction: "left" | "right" }) {
   return (
@@ -35,6 +36,7 @@ export function ImageLightbox({
   onClose: () => void;
 }) {
   const many = imageUrls.length > 1;
+  const t = useT();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -50,14 +52,14 @@ export function ImageLightbox({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Enlarged photo"
+      aria-label={t("Enlarged photo")}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
       onClick={onClose}
     >
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close"
+        aria-label={t("Close")}
         className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
       >
         <CloseIcon className="h-5 w-5" />
@@ -76,7 +78,7 @@ export function ImageLightbox({
             e.stopPropagation();
             onIndexChange(index - 1);
           }}
-          aria-label="Previous photo"
+          aria-label={t("Previous photo")}
           className="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60 sm:left-4"
         >
           <ChevronIcon className="h-6 w-6" direction="left" />
@@ -89,7 +91,7 @@ export function ImageLightbox({
             e.stopPropagation();
             onIndexChange(index + 1);
           }}
-          aria-label="Next photo"
+          aria-label={t("Next photo")}
           className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60 sm:right-4"
         >
           <ChevronIcon className="h-6 w-6" direction="right" />

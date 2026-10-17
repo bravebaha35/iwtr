@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { SocialFeedPage } from "@iwtr/shared-types";
 import { apiGet, ApiError } from "@/lib/api-client";
+import { useT } from "@/lib/i18n/client";
 
 interface Photo {
   postId: string;
@@ -27,6 +28,7 @@ export function CompanyPhotoGrid({ slug }: { slug: string }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const load = useCallback(
     (from: string | null) => {
@@ -50,8 +52,8 @@ export function CompanyPhotoGrid({ slug }: { slug: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
-      {!loading && !error && photos.length === 0 && <p className="py-6 text-sm text-muted-foreground">No photos yet.</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-300">{t(error)}</p>}
+      {!loading && !error && photos.length === 0 && <p className="py-6 text-sm text-muted-foreground">{t("No photos yet.")}</p>}
 
       {photos.length > 0 && (
         <ul className="grid grid-cols-3 gap-1.5">
@@ -71,14 +73,14 @@ export function CompanyPhotoGrid({ slug }: { slug: string }) {
         </ul>
       )}
 
-      {loading && <p className="text-center text-sm text-muted-foreground">Loading...</p>}
+      {loading && <p className="text-center text-sm text-muted-foreground">{t("Loading...")}</p>}
       {!loading && cursor && (
         <button
           type="button"
           onClick={() => load(cursor)}
           className="self-center text-sm font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
         >
-          Show more photos
+          {t("Show more photos")}
         </button>
       )}
     </div>

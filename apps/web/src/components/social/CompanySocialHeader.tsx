@@ -6,6 +6,7 @@ import { apiGet } from "@/lib/api-client";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { WordTabs } from "@/components/WordTabs";
 import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
+import { useT } from "@/lib/i18n/client";
 
 export type CompanySocialView = "posts" | "photos" | "questions";
 
@@ -15,10 +16,6 @@ const VIEWS: { value: CompanySocialView; label: string }[] = [
   // What members have asked this company, and its answers.
   ...(SOCIAL_QUESTIONS_ENABLED ? [{ value: "questions" as const, label: "Questions" }] : []),
 ];
-
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
 
 /**
  * The line above a company's own posts: how many follow it and how much it
@@ -38,6 +35,7 @@ export function CompanySocialHeader({
 }) {
   const { confirmedToggles } = useFollowedCompanies();
   const [summary, setSummary] = useState<CompanySocialSummary | null>(null);
+  const t = useT();
 
   const loadSummary = useCallback(() => {
     apiGet<CompanySocialSummary>(`/social/companies/${company.slug}/summary`)
@@ -54,8 +52,10 @@ export function CompanySocialHeader({
       <p className="text-sm text-muted-foreground">
         {summary ? (
           <>
-            <span className="font-semibold tabular-nums text-foreground">{plural(summary.followerCount, "follower")}</span> &middot;{" "}
-            <span className="tabular-nums">{plural(summary.postCount, "post")}</span>
+            <span className="font-semibold tabular-nums text-foreground">
+              {t(summary.followerCount === 1 ? "{n} follower" : "{n} followers", { n: summary.followerCount })}
+            </span>{" "}
+            &middot; <span className="tabular-nums">{t(summary.postCount === 1 ? "{n} post" : "{n} posts", { n: summary.postCount })}</span>
           </>
         ) : (
           <span aria-hidden="true">&nbsp;</span>

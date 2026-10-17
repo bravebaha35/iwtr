@@ -20,7 +20,7 @@ type FeedTab = "explore" | "following" | "saved" | "questions";
 const TAB_LABELS: Record<FeedTab, string> = {
   explore: "Explore",
   following: "Following",
-  saved: "Saved",
+  saved: "Saved@@tab",
   questions: "Questions",
 };
 

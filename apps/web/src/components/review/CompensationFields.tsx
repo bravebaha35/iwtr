@@ -1,6 +1,7 @@
 "use client";
 
 import { BENEFIT_KEYS, BENEFIT_LABELS, type BenefitKey, type CompensationRequestBody } from "@iwtr/shared-types";
+import { useT } from "@/lib/i18n/client";
 
 // The explicit-consent sentence for the Sector Benchmark Report, verbatim
 // from the product brief. Needs a lawyer's sign-off before launch (see
@@ -50,13 +51,14 @@ export function CompensationFields({
         : [...value.benefits, benefit],
     });
   const filledWithoutConsent = !value.consent && (value.salary.trim() !== "" || value.benefits.length > 0);
+  const t = useT();
 
   return (
     <fieldset className="border-t border-border pt-3">
-      <legend className="text-sm font-semibold text-foreground">Salary &amp; benefits (optional)</legend>
+      <legend className="text-sm font-semibold text-foreground">{t("Salary & benefits (optional)")}</legend>
 
       <label htmlFor="review-monthly-net-salary" className="mt-2 block text-xs font-medium text-muted-foreground">
-        Monthly net salary
+        {t("Monthly net salary")}
       </label>
       <div className="mt-1 flex border border-border bg-surface focus-within:border-brand-600 dark:focus-within:border-brand-300">
         <span
@@ -89,11 +91,11 @@ export function CompensationFields({
       </label>
       {filledWithoutConsent && (
         <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-          Tick the consent box to include this — otherwise it won&apos;t be saved.
+          {t("Tick the consent box to include this - otherwise it won't be saved.")}
         </p>
       )}
 
-      <p className="mt-3 text-xs font-medium text-muted-foreground">Benefits you receive(d)</p>
+      <p className="mt-3 text-xs font-medium text-muted-foreground">{t("Benefits you receive(d)")}</p>
       <div className="mt-1 flex flex-wrap gap-1.5">
         {BENEFIT_KEYS.map((benefit) => {
           const selected = value.benefits.includes(benefit);
@@ -109,7 +111,7 @@ export function CompensationFields({
                   : "border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-surface-muted"
               }
             >
-              {BENEFIT_LABELS[benefit]}
+              {t(BENEFIT_LABELS[benefit])}
             </button>
           );
         })}

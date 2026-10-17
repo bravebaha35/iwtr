@@ -38,8 +38,18 @@ export interface Translator {
   tp: (n: number, one: string, many: string, vars?: Vars) => string;
 }
 
+// One English word can need two Turkish ones ("Following" as a list heading
+// is "Takip edilenler", as a button state "Takip ediliyor"). Such a key
+// carries a context after "@@" ("Following@@button"); English shows the part
+// before it.
+const CONTEXT_MARK = "@@";
+
 export function makeTranslator(locale: Locale, dict: Dictionary | null): Translator {
-  const t = (text: string, vars?: Vars) => fill((locale === "tr" && dict?.[text]) || text, vars);
+  const t = (text: string, vars?: Vars) => {
+    const translated = locale === "tr" ? dict?.[text] : undefined;
+    const english = text.includes(CONTEXT_MARK) ? text.slice(0, text.indexOf(CONTEXT_MARK)) : text;
+    return fill(translated || english, vars);
+  };
   const tp = (n: number, one: string, many: string, vars?: Vars) => t(n === 1 ? one : many, { n, ...vars });
   return { locale, t, tp };
 }

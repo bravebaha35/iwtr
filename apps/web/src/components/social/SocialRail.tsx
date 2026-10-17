@@ -13,15 +13,13 @@ import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
 import { readRail, writeRail } from "./socialFeedCache";
-
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
+import { useT } from "@/lib/i18n/client";
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
+  const t = useT();
   return (
     <section className="rounded-2xl bg-surface p-4 shadow-xs">
-      <h2 className="mb-3 text-[13px] font-semibold text-foreground">{title}</h2>
+      <h2 className="mb-3 text-[13px] font-semibold text-foreground">{t(title)}</h2>
       {children}
     </section>
   );
@@ -42,6 +40,7 @@ export function SocialRail({ onOpenQuestions }: { onOpenQuestions?: () => void }
   const { isAuthenticated, openAuthModal } = useAuth();
   const { followedIds, canFollow, toggleFollow } = useFollowedCompanies();
   const [rail, setRail] = useState<SocialRailData | null>(readRail);
+  const t = useT();
 
   useEffect(() => {
     apiGet<SocialRailData>("/social/rail")
@@ -62,7 +61,7 @@ export function SocialRail({ onOpenQuestions }: { onOpenQuestions?: () => void }
   const showFollow = !isAuthenticated || canFollow;
 
   return (
-    <aside aria-label="More on IWT Social" className="hidden w-72 shrink-0 flex-col gap-5 lg:flex">
+    <aside aria-label={t("More on IWT Social")} className="hidden w-72 shrink-0 flex-col gap-5 lg:flex">
       {trending.length > 0 && (
         <Panel title="Trending this week">
           <ol className="flex flex-col gap-3">
@@ -88,7 +87,8 @@ export function SocialRail({ onOpenQuestions }: { onOpenQuestions?: () => void }
                     <span className="block truncate text-sm font-semibold text-foreground group-hover:underline">{post.companyName}</span>
                     {post.caption && <span className="block truncate text-xs text-muted-foreground">{post.caption}</span>}
                     <span className="block text-xs tabular-nums text-muted-foreground">
-                      {plural(post.likeCount, "like")} &middot; {plural(post.commentCount, "comment")}
+                      {t(post.likeCount === 1 ? "{n} like" : "{n} likes", { n: post.likeCount })} &middot;{" "}
+                      {t(post.commentCount === 1 ? "{n} comment" : "{n} comments", { n: post.commentCount })}
                     </span>
                   </span>
                 </Link>
@@ -151,7 +151,7 @@ export function SocialRail({ onOpenQuestions }: { onOpenQuestions?: () => void }
                   <button
                       type="button"
                       aria-pressed={following}
-                      aria-label={`${following ? "Following" : "Follow"} ${c.companyName}`}
+                      aria-label={`${following ? t("Following@@button") : t("Follow")} ${c.companyName}`}
                       onClick={() => {
                         if (!isAuthenticated) return openAuthModal();
                         void toggleFollow(c.companyId, {
@@ -167,7 +167,7 @@ export function SocialRail({ onOpenQuestions }: { onOpenQuestions?: () => void }
                           : "text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
                       }`}
                     >
-                      {following ? "Following" : "+ Follow"}
+                      {following ? t("Following@@button") : `+ ${t("Follow")}`}
                     </button>
                 </li>
               );
@@ -192,7 +192,7 @@ export function SocialRail({ onOpenQuestions }: { onOpenQuestions?: () => void }
             ))}
           </ul>
           <Link href="/jobs" className="mt-3 inline-block text-[13px] font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
-            See all jobs
+            {t("See all jobs")}
           </Link>
         </Panel>
       )}

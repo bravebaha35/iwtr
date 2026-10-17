@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
+import { useT } from "@/lib/i18n/client";
 
 const SEEN_KEY = "iwtr:social-welcome-seen";
 
 export function SocialWelcomeDialog() {
   const isOwner = useIsCompanyOwner();
   const [open, setOpen] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     if (!isOwner) return;
@@ -36,7 +38,7 @@ export function SocialWelcomeDialog() {
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-base font-medium text-foreground">
-          You can share your projects, photos or posts if you like !
+          {t("You can share your projects, photos or posts if you like !")}
         </p>
         {/* The site beavers at work - the same artwork as the logged-out hero. */}
         <Image
@@ -52,7 +54,7 @@ export function SocialWelcomeDialog() {
           onClick={dismiss}
           className="mt-4 rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700"
         >
-          Got it
+          {t("Got it")}
         </button>
       </div>
     </div>

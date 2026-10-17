@@ -7,15 +7,13 @@ import { apiGet } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
 import { onSocialPosted, readCompanyRail, writeCompanyRail } from "./socialFeedCache";
-
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
+import { useT } from "@/lib/i18n/client";
 
 function Panel({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+  const t = useT();
   return (
     <section className="rounded-2xl bg-surface p-4 shadow-xs">
-      <h2 className="mb-3 text-[13px] font-semibold text-foreground">{title}</h2>
+      <h2 className="mb-3 text-[13px] font-semibold text-foreground">{t(title)}</h2>
       {children}
       {action}
     </section>
@@ -48,6 +46,7 @@ export function CompanySocialRail({
 }) {
   const [rail, setRail] = useState<CompanySocialRailData | null>(() => readCompanyRail(slug));
   const [loaded, setLoaded] = useState(rail !== null);
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +75,7 @@ export function CompanySocialRail({
   const empty = topPosts.length + photos.length + roles.length + questions.length === 0;
 
   return (
-    <aside aria-label={`More from ${companyName}`} className="hidden w-full max-w-72 flex-col gap-5 lg:flex">
+    <aside aria-label={t("More from {name}", { name: companyName })} className="hidden w-full max-w-72 flex-col gap-5 lg:flex">
       {!loaded && (
         <div className="flex flex-col gap-5" aria-hidden="true">
           <div className="h-40 animate-pulse rounded-2xl bg-surface-muted" />
@@ -109,9 +108,10 @@ export function CompanySocialRail({
                     </span>
                   )}
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-foreground group-hover:underline">{post.caption || "Untitled post"}</span>
+                    <span className="block truncate text-sm font-semibold text-foreground group-hover:underline">{post.caption || t("Untitled post")}</span>
                     <span className="block text-xs tabular-nums text-muted-foreground">
-                      {plural(post.likeCount, "reaction")} &middot; {plural(post.commentCount, "comment")}
+                      {t(post.likeCount === 1 ? "{n} reaction" : "{n} reactions", { n: post.likeCount })} &middot;{" "}
+                      {t(post.commentCount === 1 ? "{n} comment" : "{n} comments", { n: post.commentCount })}
                     </span>
                   </span>
                 </Link>
@@ -126,7 +126,7 @@ export function CompanySocialRail({
           title="Photos"
           action={
             <button type="button" onClick={onOpenPhotos} className={moreClass}>
-              See all photos
+              {t("See all photos")}
             </button>
           }
         >
@@ -148,7 +148,7 @@ export function CompanySocialRail({
           title="Hiring now"
           action={
             <button type="button" onClick={onOpenJobs} className={moreClass}>
-              See open roles
+              {t("See open roles")}
             </button>
           }
         >
@@ -157,7 +157,7 @@ export function CompanySocialRail({
               <li key={role.jobPostingId}>
                 <button type="button" onClick={onOpenJobs} className="group block w-full text-left">
                   <span className="block truncate text-sm font-semibold text-foreground group-hover:underline">{role.jobTitle}</span>
-                  {role.workType && <span className="block text-xs text-muted-foreground">{workplaceTypeLabel(role.workType)}</span>}
+                  {role.workType && <span className="block text-xs text-muted-foreground">{t(workplaceTypeLabel(role.workType))}</span>}
                 </button>
               </li>
             ))}
@@ -187,9 +187,9 @@ export function CompanySocialRail({
       )}
 
       {loaded && empty && (
-        <Panel title={`${companyName} on IWT Social`}>
+        <Panel title={t("{name} on IWT Social", { name: companyName })}>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Its most talked-about posts, newest photos and open roles will show here once it starts posting.
+            {t("Its most talked-about posts, newest photos and open roles will show here once it starts posting.")}
           </p>
         </Panel>
       )}

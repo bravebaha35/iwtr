@@ -3,11 +3,15 @@ import { cookies } from "next/headers";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/server-auth";
 import { SocialShell } from "@/components/social/SocialShell";
 import { AnonGate } from "@/components/auth/AnonGate";
+import { getTranslator } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "IWT Social",
-  description: "Posts and updates from companies, with anonymous comments from people who worked there.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslator();
+  return {
+    title: "IWT Social",
+    description: t("Posts and updates from companies, with anonymous comments from people who worked there."),
+  };
+}
 
 // Separate route: SocialShell lays out the whole row (left ad, filter
 // sidebar, feed in the middle of the page, right-hand rail, right ad). Not

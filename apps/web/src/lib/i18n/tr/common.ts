@@ -180,6 +180,8 @@ const common: Record<string, string> = {
   "Fuel & Energy": "Akaryakıt ve Enerji",
   "Chemical": "Kimya",
   "Software": "Yazılım",
+  "Following@@button": "Takip ediliyor",
+  "Saved@@tab": "Kaydedilenler",
 };
 
 export default common;

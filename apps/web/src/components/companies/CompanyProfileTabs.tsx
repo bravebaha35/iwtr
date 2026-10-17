@@ -11,6 +11,7 @@ import { CompanyPhotoGrid } from "@/components/social/CompanyPhotoGrid";
 import { CompanySocialRail } from "@/components/social/CompanySocialRail";
 import { useStickyTop } from "@/lib/useStickyTop";
 import { CompanyJobPostings } from "./CompanyJobPostings";
+import { useT } from "@/lib/i18n/client";
 
 // The consolidated company-profile hub. Sits directly under the page's
 // logo/banner header (rendered by the Server Component in
@@ -63,6 +64,7 @@ export function CompanyProfileTabs({
   // Which panels have been shown at least once — gates the mount of the
   // Social/Jobs panels (and therefore their network calls).
   const [visited, setVisited] = useState<Set<TabKey>>(() => new Set<TabKey>([active]));
+  const t = useT();
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   // The Social tab shows the posts themselves or just their photos.
   const [socialView, setSocialView] = useState<CompanySocialView>("posts");
@@ -177,7 +179,7 @@ export function CompanyProfileTabs({
           the 44px tap-target floor). */}
       <div
         role="tablist"
-        aria-label="Company profile sections"
+        aria-label={t("Company profile sections")}
         onKeyDown={onKeyDown}
         className="flex items-end gap-6 border-b border-border sm:gap-9"
       >
@@ -203,7 +205,7 @@ export function CompanyProfileTabs({
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab.label}
+              {t(tab.label)}
               {count !== null && count > 0 && (
                 <span
                   aria-hidden="true"

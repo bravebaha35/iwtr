@@ -11,6 +11,7 @@ import { ApiError, apiPost } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
+import { useT } from "@/lib/i18n/client";
 
 const BUTTON =
   "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50";
@@ -68,6 +69,7 @@ export function CompanyActions({ company }: { company: Company }) {
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     if (!toast) return;
@@ -99,9 +101,9 @@ export function CompanyActions({ company }: { company: Company }) {
     try {
       await apiPost(`/companies/${company.id}/report`, { reason });
       setReportOpen(false);
-      setToast("Report submitted. Thank you.");
+      setToast(t("Report submitted. Thank you."));
     } catch (err) {
-      setReportError(err instanceof ApiError ? err.message : "Couldn't send the report. Please try again.");
+      setReportError(err instanceof ApiError ? t(err.message) : t("Couldn't send the report. Please try again."));
     } finally {
       setReportBusy(false);
     }
@@ -120,9 +122,9 @@ export function CompanyActions({ company }: { company: Company }) {
     }
     try {
       await navigator.clipboard.writeText(url);
-      setToast("Link copied");
+      setToast(t("Link copied"));
     } catch {
-      setToast("Couldn't copy the link");
+      setToast(t("Couldn't copy the link"));
     }
   }
 
@@ -137,16 +139,16 @@ export function CompanyActions({ company }: { company: Company }) {
             className={`${BUTTON} ${following ? SELECTED : OUTLINE}`}
           >
             {following ? <CheckIcon className="h-4 w-4" /> : <PlusIcon className="h-4 w-4" />}
-            {following ? "Following" : "Follow"}
+            {following ? t("Following@@button") : t("Follow")}
           </button>
         )}
         <button type="button" onClick={openReport} className={`${BUTTON} ${OUTLINE}`}>
           <FlagIcon className="h-4 w-4" />
-          Report
+          {t("Report")}
         </button>
         <button type="button" onClick={onShare} className={`${BUTTON} ${OUTLINE}`}>
           <ShareIcon className="h-4 w-4" />
-          Share
+          {t("Share")}
         </button>
       </div>
 
@@ -158,11 +160,11 @@ export function CompanyActions({ company }: { company: Company }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={`Report ${company.name}`}
+            aria-label={t("Report {name}", { name: company.name })}
             className="w-full max-w-sm rounded-xl bg-surface p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="mb-3 text-sm font-semibold text-foreground">What&apos;s wrong with this company page?</h2>
+            <h2 className="mb-3 text-sm font-semibold text-foreground">{t("What's wrong with this company page?")}</h2>
             <div className="flex flex-col gap-2">
               {COMPANY_REPORT_REASONS.map((r) => (
                 <label
@@ -176,12 +178,12 @@ export function CompanyActions({ company }: { company: Company }) {
                     checked={reason === r}
                     onChange={() => setReason(r)}
                   />
-                  <span className="text-foreground">{COMPANY_REPORT_REASON_LABELS[r]}</span>
+                  <span className="text-foreground">{t(COMPANY_REPORT_REASON_LABELS[r])}</span>
                 </label>
               ))}
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Reports go to our moderators only. The company never sees who reported it.
+              {t("Reports go to our moderators only. The company never sees who reported it.")}
             </p>
             {reportError && <p className="mt-2 text-xs text-red-600 dark:text-red-300">{reportError}</p>}
             <div className="mt-4 flex justify-end gap-2">
@@ -190,7 +192,7 @@ export function CompanyActions({ company }: { company: Company }) {
                 onClick={() => setReportOpen(false)}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
               >
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 type="button"
@@ -198,7 +200,7 @@ export function CompanyActions({ company }: { company: Company }) {
                 disabled={!reason || reportBusy}
                 className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                Submit report
+                {t("Submit report")}
               </button>
             </div>
           </div>

@@ -15,6 +15,8 @@ import { SocialComments } from "./SocialComments";
 import { ImageLightbox } from "./ImageLightbox";
 import { ReactionButton } from "./ReactionButton";
 import { SocialPostBody } from "./SocialPostBody";
+import { useI18n, useT } from "@/lib/i18n/client";
+import { intlLocale } from "@/lib/i18n/core";
 
 const CAPTION_MAX = 1000;
 
@@ -90,6 +92,7 @@ function PostImageCarousel({
   const [index, setIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const t = useT();
   const many = imageUrls.length > 1;
 
   function go(delta: number) {
@@ -122,7 +125,7 @@ function PostImageCarousel({
         <button
           type="button"
           onClick={() => go(-1)}
-          aria-label="Previous photo"
+          aria-label={t("Previous photo")}
           className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
         >
           <ChevronIcon className="h-5 w-5" direction="left" />
@@ -132,7 +135,7 @@ function PostImageCarousel({
         <button
           type="button"
           onClick={() => go(1)}
-          aria-label="Next photo"
+          aria-label={t("Next photo")}
           className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
         >
           <ChevronIcon className="h-5 w-5" direction="right" />
@@ -173,6 +176,7 @@ function OwnerMenu({
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -201,7 +205,7 @@ function OwnerMenu({
     <div ref={ref} className="relative">
       <button
         type="button"
-        aria-label="Post options"
+        aria-label={t("Post options")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -217,14 +221,14 @@ function OwnerMenu({
         <div role="menu" className="absolute right-0 top-9 z-20 w-44 rounded-xl bg-surface p-1 shadow-lg ring-1 ring-border/60">
           {canEdit && (
             <button type="button" role="menuitem" onClick={pick(onEdit)} className={itemClass}>
-              Edit caption
+              {t("Edit caption")}
             </button>
           )}
           <button type="button" role="menuitem" onClick={pick(onTogglePin)} className={itemClass}>
-            {pinned ? "Unpin" : "Pin to top"}
+            {pinned ? t("Unpin") : t("Pin to top")}
           </button>
           <button type="button" role="menuitem" onClick={pick(onDelete)} className={`${itemClass} text-red-600 dark:text-red-400`}>
-            Delete
+            {t("Delete")}
           </button>
         </div>
       )}
@@ -275,6 +279,7 @@ export function SocialPostCard({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [ownerBusy, setOwnerBusy] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
+  const { t, locale } = useI18n();
 
   // Leave a reaction, swap it for another, or (the same one again) take it
   // back. Shown at once; the server's counts replace the guess when they land.
@@ -350,7 +355,7 @@ export function SocialPostCard({
     try {
       await run();
     } catch (e) {
-      setOwnerError(e instanceof ApiError ? e.message : failure);
+      setOwnerError(e instanceof ApiError ? t(e.message) : t(failure));
     } finally {
       setOwnerBusy(false);
     }
@@ -394,7 +399,7 @@ export function SocialPostCard({
       {showPinned && post.pinned && (
         <p className="flex items-center gap-1.5 px-4 pt-3 text-xs font-semibold text-muted-foreground">
           <PinIcon className="h-3.5 w-3.5" />
-          Pinned
+          {t("Pinned")}
         </p>
       )}
 
@@ -415,17 +420,17 @@ export function SocialPostCard({
             </Link>
             <p className="truncate text-xs text-muted-foreground">
               <WorkTypeLabel workplaceTypes={post.companyWorkplaceTypes} /> &middot;{" "}
-              <Link href={`/social/posts/${post.id}`} title="Open this post" className="hover:text-foreground hover:underline">
-                {shortRelativeTime(post.createdAt)}
+              <Link href={`/social/posts/${post.id}`} title={t("Open this post")} className="hover:text-foreground hover:underline">
+                {shortRelativeTime(post.createdAt, locale)}
               </Link>
-              {post.edited && <> &middot; Edited</>}
+              {post.edited && <> &middot; {t("Edited")}</>}
               {/* The company's own number: the API sends it to its owner only. */}
               {post.viewCount !== null && (
                 <>
                   {" "}
                   &middot;{" "}
-                  <span title="How many times members have seen this post. Only you can see this number.">
-                    {post.viewCount.toLocaleString("en-GB")} {post.viewCount === 1 ? "view" : "views"}
+                  <span title={t("How many times members have seen this post. Only you can see this number.")}>
+                    {t(post.viewCount === 1 ? "{n} view" : "{n} views", { n: post.viewCount.toLocaleString(intlLocale(locale)) })}
                   </span>
                 </>
               )}
@@ -443,7 +448,7 @@ export function SocialPostCard({
                 following ? "text-muted-foreground hover:text-foreground" : "text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
               }`}
             >
-              {following ? "Following" : "+ Follow"}
+              {following ? t("Following@@button") : `+ ${t("Follow")}`}
             </button>
           )}
           {post.canManage && (
@@ -474,7 +479,7 @@ export function SocialPostCard({
         <PostImageCarousel
           imageUrls={post.imageUrls}
           aspectRatios={post.imageAspectRatios}
-          alt={post.caption ?? post.title ?? `${post.companyName} post`}
+          alt={post.caption ?? post.title ?? t("{name} post", { name: post.companyName })}
           priority={priority}
         />
       )}
@@ -483,7 +488,7 @@ export function SocialPostCard({
       {editing ? (
         <div className="px-4 pt-3">
           <label htmlFor={`caption-${post.id}`} className="sr-only">
-            Caption
+            {t("Caption")}
           </label>
           <textarea
             id={`caption-${post.id}`}
@@ -500,10 +505,10 @@ export function SocialPostCard({
               disabled={ownerBusy}
               className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
             >
-              {ownerBusy ? "Saving..." : "Save caption"}
+              {ownerBusy ? t("Saving...") : t("Save caption")}
             </button>
             <button type="button" onClick={() => setEditing(false)} className="text-sm text-muted-foreground hover:text-foreground">
-              Cancel
+              {t("Cancel")}
             </button>
             <span className="ml-auto text-xs tabular-nums text-muted-foreground">
               {draft.length}/{CAPTION_MAX}
@@ -527,7 +532,7 @@ export function SocialPostCard({
 
       {confirmingDelete && (
         <div className="mx-4 mt-3 rounded-xl bg-surface-muted p-3">
-          <p className="text-sm text-foreground">Delete this post? Its comments and likes go with it.</p>
+          <p className="text-sm text-foreground">{t("Delete this post? Its comments and likes go with it.")}</p>
           <div className="mt-2 flex items-center gap-3">
             <button
               type="button"
@@ -535,10 +540,10 @@ export function SocialPostCard({
               disabled={ownerBusy}
               className="rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
             >
-              {ownerBusy ? "Deleting..." : "Delete post"}
+              {ownerBusy ? t("Deleting...") : t("Delete post")}
             </button>
             <button type="button" onClick={() => setConfirmingDelete(false)} className="text-sm text-muted-foreground hover:text-foreground">
-              Keep it
+              {t("Keep it")}
             </button>
           </div>
         </div>
@@ -551,23 +556,23 @@ export function SocialPostCard({
         <button
           type="button"
           onClick={() => setShowComments((v) => !v)}
-          aria-label="Comment"
+          aria-label={t("Comment")}
           aria-expanded={showComments}
           className={`${actionClass} ${quiet}`}
         >
           <CommentIcon className="h-5 w-5" />
           <span className="tabular-nums">{post.commentCount}</span>
         </button>
-        <button type="button" onClick={() => void copyLink()} aria-label="Copy link" className={`${actionClass} ${copied ? lit : quiet}`}>
+        <button type="button" onClick={() => void copyLink()} aria-label={t("Copy link")} className={`${actionClass} ${copied ? lit : quiet}`}>
           <LinkIcon className="h-5 w-5" />
           <span aria-live="polite" className="text-xs">
-            {copied ? "Link copied" : ""}
+            {copied ? t("Link copied") : ""}
           </span>
         </button>
         <button
           type="button"
           onClick={toggleSave}
-          aria-label="Save"
+          aria-label={t("Save")}
           aria-pressed={post.savedByMe ?? false}
           className={`ml-auto ${actionClass} ${post.savedByMe ? lit : quiet}`}
         >

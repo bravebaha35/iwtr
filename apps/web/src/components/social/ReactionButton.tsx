@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SOCIAL_REACTIONS, type SocialReaction, type SocialReactionCounts } from "@iwtr/shared-types";
+import { useT } from "@/lib/i18n/client";
 
 // The three reactions as one family of plain line icons (the like is
 // Lucide's thumbs up, ISC licence; praise and the question mark are drawn to
@@ -75,6 +76,7 @@ export function ReactionButton({
   onReact: (reaction: SocialReaction) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -104,7 +106,7 @@ export function ReactionButton({
   }, [open]);
 
   const present = SOCIAL_REACTIONS.filter((r) => counts[r] > 0);
-  const breakdown = present.map((r) => `${counts[r]} ${REACTION_META[r].label}`).join(", ");
+  const breakdown = present.map((r) => `${counts[r]} ${t(REACTION_META[r].label)}`).join(", ");
 
   return (
     <div ref={ref} className="relative flex items-center" onMouseEnter={() => later(true, OPEN_DELAY_MS)} onMouseLeave={() => later(false, CLOSE_DELAY_MS)}>
@@ -114,7 +116,7 @@ export function ReactionButton({
           setOpen(false);
           onReact(mine ?? "LIKE");
         }}
-        aria-label="Like"
+        aria-label={t("Like")}
         aria-pressed={mine !== null}
         title={breakdown || undefined}
         className={`flex items-center gap-1.5 font-medium transition active:scale-95 ${
@@ -140,7 +142,7 @@ export function ReactionButton({
 
       <button
         type="button"
-        aria-label="More reactions"
+        aria-label={t("More reactions")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -154,7 +156,7 @@ export function ReactionButton({
       {open && (
         <div
           role="menu"
-          aria-label="Reactions"
+          aria-label={t("Reactions")}
           // w-max: an absolutely placed box would otherwise be squeezed to
           // the width of the like button it hangs from.
           className="reaction-pop absolute bottom-full left-0 z-20 mb-2 flex w-max gap-1 rounded-full bg-surface p-1.5 shadow-lg ring-1 ring-border/60"
@@ -165,8 +167,8 @@ export function ReactionButton({
               type="button"
               role="menuitemradio"
               aria-checked={mine === r}
-              aria-label={REACTION_META[r].label}
-              title={REACTION_META[r].label}
+              aria-label={t(REACTION_META[r].label)}
+              title={t(REACTION_META[r].label)}
               onClick={() => {
                 setOpen(false);
                 onReact(r);

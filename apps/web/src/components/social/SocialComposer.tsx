@@ -17,6 +17,7 @@ import {
 } from "@iwtr/shared-types";
 import { apiGet, apiUpload, ApiError } from "@/lib/api-client";
 import { WordTabs } from "@/components/WordTabs";
+import { useT } from "@/lib/i18n/client";
 
 interface Picked {
   file: File;
@@ -63,13 +64,14 @@ const inputClass = "w-full rounded-lg border border-border bg-surface px-3 py-2 
 
 // Label above the field, the problem (if any) below it.
 function Field({ label, htmlFor, error, children }: { label: string; htmlFor: string; error?: string | false; children: ReactNode }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={htmlFor} className="text-[13px] font-semibold text-foreground">
-        {label}
+        {t(label)}
       </label>
       {children}
-      {error && <p className="text-xs text-red-600 dark:text-red-300">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-300">{t(error)}</p>}
     </div>
   );
 }
@@ -98,6 +100,7 @@ export function SocialComposer({
   onCancel: () => void;
   alwaysLater?: boolean;
 }) {
+  const t = useT();
   const [companyId, setCompanyId] = useState(companies[0]?.companyId ?? "");
   const [kind, setKind] = useState<ComposerKind>("UPDATE");
   const [caption, setCaption] = useState("");
@@ -145,14 +148,14 @@ export function SocialComposer({
     if (!files || files.length === 0) return;
     const room = MAX_SOCIAL_POST_IMAGES - picked.length;
     if (room <= 0) {
-      setError(`You can add up to ${MAX_SOCIAL_POST_IMAGES} photos.`);
+      setError(t("You can add up to {n} photos.", { n: MAX_SOCIAL_POST_IMAGES }));
       return;
     }
     const next: Picked[] = [];
     for (const f of Array.from(files).slice(0, room)) {
       const check = validateSocialImageUpload({ mimeType: f.type, sizeBytes: f.size });
       if (!check.valid) {
-        setError(check.error);
+        setError(t(check.error));
         return;
       }
       next.push({ file: f, previewUrl: URL.createObjectURL(f) });
@@ -183,9 +186,9 @@ export function SocialComposer({
       (!publishDate || Number.isNaN(publishDate.getTime())
         ? "Pick the date and time."
         : publishDate.getTime() < openedAt + SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD * 60_000
-          ? `Pick a time at least ${SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD} minutes from now.`
+          ? t("Pick a time at least {n} minutes from now.", { n: SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD })
           : publishDate.getTime() > openedAt + SOCIAL_SCHEDULE_MAX_DAYS_AHEAD * 86_400_000
-            ? `A post can be scheduled up to ${SOCIAL_SCHEDULE_MAX_DAYS_AHEAD} days ahead.`
+            ? t("A post can be scheduled up to {n} days ahead.", { n: SOCIAL_SCHEDULE_MAX_DAYS_AHEAD })
             : kind === "EVENT" && eventDate && eventDate.getTime() <= publishDate.getTime() && "The event has to start after the post goes out."),
     text:
       kind === "UPDATE" ? text.length === 0 && picked.length === 0 && "Write something or add a photo." : kind === "POLL" && text.length === 0 && "Write the question.",
@@ -196,7 +199,7 @@ export function SocialComposer({
     pollOptions:
       kind === "POLL" &&
       (answers.length < SOCIAL_POLL_MIN_OPTIONS
-        ? `Give at least ${SOCIAL_POLL_MIN_OPTIONS} answers.`
+        ? t("Give at least {n} answers.", { n: SOCIAL_POLL_MIN_OPTIONS })
         : new Set(answers.map((a) => a.toLocaleLowerCase("tr"))).size !== answers.length && "Each answer can appear once."),
     jobPostingId: kind === "HIRING" && !jobPostingId && "Pick the job posting.",
   };
@@ -235,7 +238,7 @@ export function SocialComposer({
       picked.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       onPosted();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : later ? "Couldn't schedule that." : "Couldn't post that.");
+      setError(e instanceof ApiError ? t(e.message) : later ? t("Couldn't schedule that.") : t("Couldn't post that."));
     } finally {
       setBusy(false);
     }
@@ -302,11 +305,11 @@ export function SocialComposer({
             <div aria-hidden="true" className="h-[38px] animate-pulse rounded-lg bg-surface-muted motion-reduce:animate-none" />
           ) : liveJobs.length === 0 ? (
             <p className="rounded-lg bg-surface-muted px-3 py-2 text-sm text-muted-foreground">
-              This company has no live job posting. Post one from the Jobs page first.
+              {t("This company has no live job posting. Post one from the Jobs page first.")}
             </p>
           ) : (
             <select id="composer-job" value={jobPostingId} onChange={(e) => setJobPostingId(e.target.value)} className={inputClass}>
-              <option value="">Choose a job posting</option>
+              <option value="">{t("Choose a job posting")}</option>
               {liveJobs.map((job) => (
                 <option key={job.id} value={job.id}>
                   {job.jobTitle}
@@ -322,7 +325,7 @@ export function SocialComposer({
           id="composer-text"
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          placeholder={kind === "UPDATE" ? "Tell us what you think !" : undefined}
+          placeholder={kind === "UPDATE" ? t("Tell us what you think !") : undefined}
           rows={kind === "POLL" ? 2 : 3}
           maxLength={1000}
           className={inputClass}
@@ -332,11 +335,11 @@ export function SocialComposer({
       {kind === "POLL" && (
         <>
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1.5 text-[13px] font-semibold text-foreground">Answers</legend>
+            <legend className="mb-1.5 text-[13px] font-semibold text-foreground">{t("Answers")}</legend>
             {pollOptions.map((option, i) => (
               <div key={i} className="flex items-center gap-2">
                 <input
-                  aria-label={`Answer ${i + 1}`}
+                  aria-label={t("Answer {n}", { n: i + 1 })}
                   value={option}
                   onChange={(e) => setPollOptions((prev) => prev.map((o, j) => (j === i ? e.target.value : o)))}
                   maxLength={SOCIAL_POLL_OPTION_MAX}
@@ -346,7 +349,7 @@ export function SocialComposer({
                   <button
                     type="button"
                     onClick={() => setPollOptions((prev) => prev.filter((_, j) => j !== i))}
-                    aria-label={`Remove answer ${i + 1}`}
+                    aria-label={t("Remove answer {n}", { n: i + 1 })}
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -362,16 +365,16 @@ export function SocialComposer({
                 onClick={() => setPollOptions((prev) => [...prev, ""])}
                 className="self-start text-[13px] font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
               >
-                + Add an answer
+                + {t("Add an answer")}
               </button>
             )}
-            {shown("pollOptions") && <p className="text-xs text-red-600 dark:text-red-300">{shown("pollOptions")}</p>}
+            {shown("pollOptions") && <p className="text-xs text-red-600 dark:text-red-300">{t(shown("pollOptions") as string)}</p>}
           </fieldset>
           <Field label="Open for" htmlFor="composer-poll-days">
             <select id="composer-poll-days" value={pollDays} onChange={(e) => setPollDays(Number(e.target.value))} className={`${inputClass} sm:w-40`}>
               {SOCIAL_POLL_DAYS.map((d) => (
                 <option key={d} value={d}>
-                  {POLL_DAYS_LABEL[d]}
+                  {t(POLL_DAYS_LABEL[d])}
                 </option>
               ))}
             </select>
@@ -382,12 +385,12 @@ export function SocialComposer({
       {photosAllowed && (
         <div className="flex flex-col gap-2">
           <label className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-lg bg-surface-muted px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-border/70">
-            <span className="text-lg leading-none">+</span> Add a photo{picked.length > 0 ? "" : " (or a few)"}
+            <span className="text-lg leading-none">+</span> {picked.length > 0 ? t("Add a photo") : t("Add a photo (or a few)")}
             <input
               type="file"
               multiple
               accept="image/jpeg,image/png,image/heic,image/heif"
-              aria-label="Add a photo"
+              aria-label={t("Add a photo")}
               className="hidden"
               onChange={(e) => {
                 pickFiles(e.target.files);
@@ -405,7 +408,7 @@ export function SocialComposer({
                   <button
                     type="button"
                     onClick={() => removePicked(i)}
-                    aria-label="Remove this photo"
+                    aria-label={t("Remove this photo")}
                     className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background shadow-sm"
                   >
                     <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
@@ -421,7 +424,7 @@ export function SocialComposer({
 
       <div className="flex flex-col gap-1.5">
         <span id="composer-when" className="text-[13px] font-semibold text-foreground">
-          {alwaysLater ? "Goes out on" : "When"}
+          {alwaysLater ? t("Goes out on") : t("When")}
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
           {!alwaysLater && (
@@ -437,7 +440,7 @@ export function SocialComposer({
                     when === option ? "bg-brand-600 text-white" : "bg-surface-muted text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {option === "now" ? "Now" : "Later"}
+                  {option === "now" ? t("Now") : t("Later")}
                 </button>
               ))}
             </div>
@@ -445,7 +448,7 @@ export function SocialComposer({
           {later && canSchedule && (
             <input
               type="datetime-local"
-              aria-label="Date and time to post"
+              aria-label={t("Date and time to post")}
               value={publishAt}
               min={localInputValue(new Date(openedAt + SOCIAL_SCHEDULE_MIN_MINUTES_AHEAD * 60_000))}
               max={localInputValue(new Date(openedAt + SOCIAL_SCHEDULE_MAX_DAYS_AHEAD * 86_400_000))}
@@ -456,10 +459,10 @@ export function SocialComposer({
         </div>
         {later && !canSchedule && (
           <p className="text-[13px] text-muted-foreground">
-            Posting later is part of the Starter plan and above. You can change your plan in the Dashboard.
+            {t("Posting later is part of the Starter plan and above. You can change your plan in the Dashboard.")}
           </p>
         )}
-        {later && canSchedule && shown("publishAt") && <p className="text-xs text-red-600 dark:text-red-300">{shown("publishAt")}</p>}
+        {later && canSchedule && shown("publishAt") && <p className="text-xs text-red-600 dark:text-red-300">{t(shown("publishAt") as string)}</p>}
       </div>
 
       {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
@@ -471,10 +474,10 @@ export function SocialComposer({
           disabled={busy || (later && !canSchedule)}
           className="rounded-full bg-brand-600 px-5 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50"
         >
-          {later ? (busy ? "Scheduling..." : "Schedule") : busy ? "Posting..." : "Post"}
+          {later ? (busy ? t("Scheduling...") : t("Schedule")) : busy ? t("Posting...") : t("Post")}
         </button>
         <button type="button" onClick={onCancel} className="text-sm text-muted-foreground hover:text-foreground">
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </div>

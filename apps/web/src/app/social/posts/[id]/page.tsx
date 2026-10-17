@@ -4,11 +4,15 @@ import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/server-auth";
 import { AdSlot } from "@/components/AdSlot";
 import { AnonGate } from "@/components/auth/AnonGate";
 import { SocialPostView } from "@/components/social/SocialPostView";
+import { getTranslator } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Post on IWT Social",
-  description: "A company post on IWT Social, with anonymous comments from people who worked there.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslator();
+  return {
+    title: t("Post on IWT Social"),
+    description: t("A company post on IWT Social, with anonymous comments from people who worked there."),
+  };
+}
 
 // One post's own page, behind the same register prompt as /social: a shared
 // link shows a logged-out visitor that prompt, not the post.

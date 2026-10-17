@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
 import Link from "next/link";
 import type { OwnedCompany, ScheduledSocialPost } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
@@ -13,6 +14,7 @@ export function SocialComposerSlot() {
   const isOwner = useIsCompanyOwner();
   const [companies, setCompanies] = useState<OwnedCompany[] | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const { t, locale } = useI18n();
   // The post just set to go out later, so the owner is told where it went.
   const [scheduled, setScheduled] = useState<ScheduledSocialPost | null>(null);
 
@@ -34,16 +36,16 @@ export function SocialComposerSlot() {
           }}
           className="w-full rounded-2xl bg-surface px-5 py-3.5 text-left text-[15px] text-muted-foreground shadow-xs transition hover:shadow-sm"
         >
-          Tell us what you think !
+          {t("Tell us what you think !")}
         </button>
         {scheduled && (
           <p role="status" className="px-1 text-[13px] text-muted-foreground">
-            Scheduled for {formatScheduledTime(scheduled.publishAt)}. It is waiting in your{" "}
+            {t("Scheduled for {time}. It is waiting in your", { time: formatScheduledTime(scheduled.publishAt, locale) })}{" "}
             <Link
               href={`/my/companies?company=${scheduled.companyId}&category=social`}
               className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
             >
-              Dashboard, under IWT Social
+              {t("Dashboard, under IWT Social")}
             </Link>
             .
           </p>

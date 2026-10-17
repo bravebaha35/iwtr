@@ -30,6 +30,7 @@ import {
   type CompensationDraft,
 } from "@/components/review/CompensationFields";
 import { findProvinceByCityName, provincesInRegion } from "@/lib/turkeyGeo";
+import { useT } from "@/lib/i18n/client";
 
 const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: "corporateCulture", label: "Corporate Culture" },
@@ -157,6 +158,7 @@ export function RateButton({
   const { isAuthenticated, role } = useAuth();
   const router = useRouter();
   const [matchingEntry, setMatchingEntry] = useState<MyEmploymentEntry | null | undefined>(undefined);
+  const t = useT();
   // Only meaningful while logged in — an anonymous visitor or one with no
   // matching employment history legitimately sees no button, so this only
   // drives an error note for the one case where hiding the button is
@@ -249,7 +251,7 @@ export function RateButton({
       // Otherwise: a new review on a multi-type company — the role-picker
       // step (step 0) loads questions itself once a role is chosen.
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't load the rating survey.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't load the rating survey."));
     } finally {
       setLoadingExisting(false);
     }
@@ -264,7 +266,7 @@ export function RateButton({
       await loadQuestionsFor(type);
       setStep(1);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't load the rating survey.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't load the rating survey."));
     } finally {
       setLoadingExisting(false);
     }
@@ -287,9 +289,9 @@ export function RateButton({
   // free-typed value, so what gets stored always matches a real place.
   const locationPrompt =
     structureType === "CITY_BASED"
-      ? "Choose the district"
+      ? t("Choose the district")
       : structureType === "REGION_BASED"
-        ? "Choose the city"
+        ? t("Choose the city")
         : null;
   const locationOptions: DropdownOption[] =
     structureType === "CITY_BASED"
@@ -326,7 +328,7 @@ export function RateButton({
         ? updateReviewInputSchema.safeParse(content)
         : createReviewInputSchema.safeParse(createBody);
       if (!check.success) {
-        setError(`Please check your answers: ${check.error.issues[0]?.message ?? "something is missing"}.`);
+        setError(t("Please check your answers: {problem}.", { problem: t(check.error.issues[0]?.message ?? "something is missing") }));
         return;
       }
       const trap = { headers: formTrapHeaders({ openedAt: openedAtRef.current, trapValue }) };
@@ -340,7 +342,7 @@ export function RateButton({
       setResult(res);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't submit your review.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't submit your review."));
     } finally {
       setSubmitting(false);
     }
@@ -353,7 +355,7 @@ export function RateButton({
   if (role === "COMPANY_OWNER") {
     return (
       <p className="rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-muted-foreground">
-        Company owners can&apos;t rate workplaces, to keep ratings fair.
+        {t("Company owners can't rate workplaces, to keep ratings fair.")}
       </p>
     );
   }
@@ -362,7 +364,7 @@ export function RateButton({
     if (isAuthenticated && loadFailed) {
       return (
         <p className="text-sm text-red-600 dark:text-red-300">
-          Couldn&apos;t check whether you can rate this workplace — try refreshing the page.
+          {t("Couldn't check whether you can rate this workplace - try refreshing the page.")}
         </p>
       );
     }
@@ -376,7 +378,7 @@ export function RateButton({
         onClick={handleOpen}
         className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
       >
-        {RATE_BUTTON_EMOJI} {editing ? "Edit your rating" : "Rate this workplace"}
+        {RATE_BUTTON_EMOJI} {editing ? t("Edit your rating") : t("Rate this workplace")}
       </button>
 
       {open && (
@@ -384,12 +386,12 @@ export function RateButton({
           <div className="w-full max-w-lg rounded-xl bg-surface p-8 shadow-xl">
             {result ? (
               <>
-                <h2 className="mb-2 text-xl font-bold text-foreground">{editing ? "Updated!" : "Thanks!"}</h2>
-                <p className="mb-4 text-sm text-muted-foreground">{result.message}</p>
+                <h2 className="mb-2 text-xl font-bold text-foreground">{editing ? t("Updated!") : t("Thanks!")}</h2>
+                <p className="mb-4 text-sm text-muted-foreground">{t(result.message)}</p>
                 <ul className="mb-6 flex flex-col gap-1 text-sm">
                   {CATEGORIES.map((c) => (
                     <li key={c.key} className="flex justify-between text-foreground">
-                      <span>{c.label}</span>
+                      <span>{t(c.label)}</span>
                       <span className="font-medium">{result.scores[c.key]}/5</span>
                     </li>
                   ))}
@@ -399,20 +401,20 @@ export function RateButton({
                   onClick={() => setOpen(false)}
                   className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700"
                 >
-                  Done
+                  {t("Done")}
                 </button>
               </>
             ) : onRoleStep ? (
               <div className="flex flex-col gap-4">
                 <div>
                   <p className="mb-1 text-xs font-medium text-muted-foreground">
-                    Step 1 of {totalSteps}
+                    {t("Step {n} of {total}", { n: 1, total: totalSteps })}
                   </p>
                   <h2 className="mb-1 text-xl font-bold text-foreground">
-                    Which best describes your role here?
+                    {t("Which best describes your role here?")}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    This company has more than one kind of work — pick whichever matches what you actually did.
+                    {t("This company has more than one kind of work - pick whichever matches what you actually did.")}
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -424,7 +426,7 @@ export function RateButton({
                       disabled={loadingExisting}
                       className="rounded-lg border border-border px-4 py-3 text-left text-sm font-medium text-foreground transition hover:border-brand-400 hover:bg-surface-muted disabled:opacity-50"
                     >
-                      {workplaceTypeLabel(type)}
+                      {t(workplaceTypeLabel(type))}
                     </button>
                   ))}
                 </div>
@@ -434,26 +436,28 @@ export function RateButton({
                   onClick={() => setOpen(false)}
                   className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
               </div>
             ) : loadingExisting || !questions ? (
-              <p className="text-sm text-muted-foreground">Loading survey...</p>
+              <p className="text-sm text-muted-foreground">{t("Loading survey...")}</p>
             ) : (
               <div className="flex flex-col gap-4">
                 <div>
                   <p className="mb-1 text-xs font-medium text-muted-foreground">
-                    Step {step + 1} of {totalSteps}
+                    {t("Step {n} of {total}", { n: step + 1, total: totalSteps })}
                   </p>
                   <h2 className="mb-1 text-xl font-bold text-foreground">
                     {onFinalStep
-                      ? "Anything else to add?"
-                      : `${editing ? "Edit your rating for" : "Rate"} ${companyName}`}
+                      ? t("Anything else to add?")
+                      : editing
+                        ? t("Edit your rating for {name}", { name: companyName })
+                        : t("Rate {name}", { name: companyName })}
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     {onFinalStep
-                      ? "Optional — anonymous, never linked back to you."
-                      : currentCategory?.label}
+                      ? t("Optional - anonymous, never linked back to you.")
+                      : currentCategory && t(currentCategory.label)}
                   </p>
                 </div>
 
@@ -477,8 +481,7 @@ export function RateButton({
                       {locationPrompt} <span className="text-red-600 dark:text-red-300">*</span>
                     </p>
                     <p className="mb-2 text-xs text-muted-foreground">
-                      {companyName} covers more than one place — this only tags your own review and never changes{" "}
-                      {companyName}&apos;s overall rating.
+                      {t("{name} covers more than one place - this only tags your own review and never changes {name}'s overall rating.", { name: companyName })}
                     </p>
                     <SingleSelectDropdown
                       ariaLabel={locationPrompt}
@@ -511,7 +514,7 @@ export function RateButton({
                     <textarea
                       value={generalThoughts}
                       onChange={(e) => setGeneralThoughts(e.target.value)}
-                      placeholder="Optional comment..."
+                      placeholder={t("Optional comment...")}
                       rows={4}
                       className="w-full rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-foreground"
                     />
@@ -523,11 +526,10 @@ export function RateButton({
                         className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-brand-600"
                       />
                       <span>
-                        Randomize my avatar and username for this review to prevent employer profiling.
+                        {t("Randomize my avatar and username for this review to prevent employer profiling.")}
                         {isRandomizedIdentity && (
                           <span className="block text-xs text-muted-foreground">
-                            You&apos;ll appear under a one-off, made-up name and a generic icon on this review only —
-                            your account&apos;s usual avatar and member number won&apos;t be shown here.
+                            {t("You'll appear under a one-off, made-up name and a generic icon on this review only; your account's usual avatar and member number won't be shown here.")}
                           </span>
                         )}
                       </span>
@@ -547,7 +549,7 @@ export function RateButton({
                       onClick={() => setStep((s) => s - 1)}
                       className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
                     >
-                      Back
+                      {t("Back")}
                     </button>
                   )}
                   {onFinalStep ? (
@@ -557,7 +559,7 @@ export function RateButton({
                       disabled={submitting || !canSubmit}
                       className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                     >
-                      {submitting ? "Saving..." : editing ? "Save changes" : "Submit review"}
+                      {submitting ? t("Saving...") : editing ? t("Save changes") : t("Submit review")}
                     </button>
                   ) : (
                     <button
@@ -566,7 +568,7 @@ export function RateButton({
                       disabled={!currentStepAnswered}
                       className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                     >
-                      Next
+                      {t("Next")}
                     </button>
                   )}
                   <button
@@ -574,7 +576,7 @@ export function RateButton({
                     onClick={() => setOpen(false)}
                     className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
                   >
-                    Cancel
+                    {t("Cancel")}
                   </button>
                 </div>
               </div>

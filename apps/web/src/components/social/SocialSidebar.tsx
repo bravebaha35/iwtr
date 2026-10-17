@@ -9,14 +9,16 @@ import { CategoryGroupFilter, type CategoryGroup } from "@/lib/categoryGroups";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { SidebarShell } from "@/components/layout/SidebarShell";
+import { useT } from "@/lib/i18n/client";
 
 // One section of the sidebar: a soft panel, the same family as the panels of
 // the right-hand rail, so the two columns either side of the feed match.
 function SidebarPanel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  const t = useT();
   return (
     <section className="rounded-2xl bg-surface p-2.5 shadow-xs">
       <div className="mb-2 flex min-h-5 items-center justify-between gap-2 px-0.5">
-        <h2 className="text-[13px] font-semibold text-foreground">{title}</h2>
+        <h2 className="text-[13px] font-semibold text-foreground">{t(title)}</h2>
         {action}
       </div>
       {children}
@@ -32,6 +34,7 @@ const BACK_TO_TOP_AFTER_PX = 400;
 // page it is not shown at all.
 function BackToFirstPost() {
   const [shown, setShown] = useState(false);
+  const t = useT();
   useEffect(() => {
     const check = () => setShown(window.scrollY > BACK_TO_TOP_AFTER_PX);
     check();
@@ -49,7 +52,7 @@ function BackToFirstPost() {
         <path d="M12 19V5" />
         <path d="m5 12 7-7 7 7" />
       </svg>
-      Back to first post
+      {t("Back to first post")}
     </button>
   );
 }
@@ -70,13 +73,14 @@ function SearchIcon({ className }: { className?: string }) {
 // that company's own Social tab.
 function FollowingList() {
   const { companies, loading } = useFollowedCompanies();
+  const t = useT();
 
   return (
     <SidebarPanel
       title="Following"
       action={
         companies.length > 0 ? (
-          <span aria-label={`${companies.length} companies`} className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+          <span aria-label={t("{n} companies", { n: companies.length })} className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
             {companies.length}
           </span>
         ) : undefined
@@ -92,7 +96,7 @@ function FollowingList() {
           ))}
         </div>
       ) : companies.length === 0 ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">Companies you follow show up here, one click from their posts.</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">{t("Companies you follow show up here, one click from their posts.")}</p>
       ) : (
         <div className="thin-scrollbar -mx-1 flex max-h-52 flex-col gap-0.5 overflow-y-auto">
           {companies.map((c) => (
@@ -118,6 +122,7 @@ function FollowingList() {
 // "selected" colour.
 function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v: SocialCompanySort) => void }) {
   const isOldest = value === "oldest";
+  const t = useT();
   const directionActive = value === "newest" || value === "oldest";
   const row = (active: boolean) =>
     `flex h-9 w-full items-center justify-between gap-2 rounded-lg px-2.5 text-left text-sm font-medium transition active:scale-[0.98] ${
@@ -128,7 +133,7 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
     <SidebarPanel title="Sort">
       <div className="flex flex-col gap-0.5">
         <button type="button" onClick={() => onChange(isOldest ? "newest" : "oldest")} aria-pressed={directionActive} className={row(directionActive)}>
-          {isOldest ? "Oldest to Newest" : "Newest to Oldest"}
+          {isOldest ? t("Oldest to Newest") : t("Newest to Oldest")}
           {/* Two arrows: this row flips its direction when pressed again. */}
           <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M8 4v16M8 4 4.5 7.5M8 4l3.5 3.5" />
@@ -136,10 +141,10 @@ function SortPills({ value, onChange }: { value: SocialCompanySort; onChange: (v
           </svg>
         </button>
         <button type="button" onClick={() => onChange("mostLiked")} aria-pressed={value === "mostLiked"} className={row(value === "mostLiked")}>
-          Most Liked
+          {t("Most Liked")}
         </button>
         <button type="button" onClick={() => onChange("mostCommented")} aria-pressed={value === "mostCommented"} className={row(value === "mostCommented")}>
-          Most Commented
+          {t("Most Commented")}
         </button>
       </div>
     </SidebarPanel>
@@ -236,6 +241,7 @@ function SeeThemOn({ links }: { links: CompanySocialLinks }) {
     links.youtubeUrl ? { label: "YouTube", href: links.youtubeUrl, icon: <YoutubeIcon className="h-4 w-4" /> } : null,
   ];
   const entries = allEntries.filter((v): v is { label: string; href: string; icon: ReactNode } => v !== null);
+  const t = useT();
 
   if (entries.length === 0) return null;
 
@@ -254,7 +260,7 @@ function SeeThemOn({ links }: { links: CompanySocialLinks }) {
               {icon}
             </span>
             {label}
-            <span className="sr-only"> (opens in a new tab)</span>
+            <span className="sr-only"> {t("(opens in a new tab)")}</span>
           </a>
         ))}
       </div>
@@ -285,6 +291,7 @@ type SocialSidebarProps =
     };
 
 export function SocialSidebar(props: SocialSidebarProps) {
+  const t = useT();
   if (props.mode === "company") {
     // No Following list here (per user feedback) - it's redundant on a
     // single company's own page; it stays on the global /social sidebar
@@ -298,7 +305,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
   }
 
   const { query, onQueryChange, workplaceType, onWorkplaceTypeChange, categoryGroup, onCategoryGroupChange, isMember } = props;
-  const placeholder = props.searchPlaceholder ?? "Search a company by name...";
+  const placeholder = t(props.searchPlaceholder ?? "Search a company by name...");
   const filtersOn = (query.trim() ? 1 : 0) + (workplaceType ? 1 : 0) + (categoryGroup ? 1 : 0);
 
   function clearAll() {
@@ -321,7 +328,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <label htmlFor="social-search" className="sr-only">
-            Search IWT Social
+            {t("Search IWT Social")}
           </label>
           <input
             id="social-search"
@@ -336,10 +343,10 @@ export function SocialSidebar(props: SocialSidebarProps) {
         {filtersOn > 0 && (
           <p className="flex items-center justify-between px-1 text-xs text-muted-foreground">
             <span className="tabular-nums">
-              {filtersOn} filter{filtersOn === 1 ? "" : "s"} on
+              {t(filtersOn === 1 ? "{n} filter on" : "{n} filters on", { n: filtersOn })}
             </span>
             <button type="button" onClick={clearAll} className="font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
-              Clear all
+              {t("Clear all")}
             </button>
           </p>
         )}
@@ -352,7 +359,7 @@ export function SocialSidebar(props: SocialSidebarProps) {
           they need the column's full width for their names. */}
       <section>
         <div className="mb-2 flex min-h-5 items-center justify-between gap-2 px-0.5">
-          <h2 className="text-[13px] font-semibold text-foreground">Only Show Me</h2>
+          <h2 className="text-[13px] font-semibold text-foreground">{t("Only Show Me")}</h2>
           <RewindButton onClick={() => onWorkplaceTypeChange(null)} active={workplaceType !== null} title="Clear Only Show Me filter" />
         </div>
         <WorkTypeTiles selected={workplaceType ? [workplaceType] : []} onToggle={toggleWorkplaceType} tone="surface" />

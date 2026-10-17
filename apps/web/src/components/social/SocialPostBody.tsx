@@ -7,6 +7,8 @@ import { apiPost, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { jobPositionLabel } from "@/lib/jobPositions";
+import { useI18n, useT } from "@/lib/i18n/client";
+import { intlLocale, plainT, type TFn } from "@/lib/i18n/core";
 
 // The part of a post card that depends on what kind of post it is: a poll's
 // answers, an event's date and place, a milestone's headline, the job ad a
@@ -15,21 +17,19 @@ import { jobPositionLabel } from "@/lib/jobPositions";
 const panel = "mx-4 mt-3 rounded-xl bg-surface-muted p-3.5";
 const headline = "font-display text-lg leading-snug text-foreground";
 
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
-
-export function pollTimeLeft(endsAt: string, now: number): string {
+export function pollTimeLeft(endsAt: string, now: number, t: TFn = plainT): string {
   const ms = new Date(endsAt).getTime() - now;
-  if (ms <= 0) return "Poll closed";
+  if (ms <= 0) return t("Poll closed");
   const hours = Math.floor(ms / 3_600_000);
-  if (hours < 1) return "Less than an hour left";
-  if (hours < 24) return `${plural(hours, "hour")} left`;
-  return `${plural(Math.floor(hours / 24), "day")} left`;
+  if (hours < 1) return t("Less than an hour left");
+  if (hours < 24) return t(hours === 1 ? "{n} hour left" : "{n} hours left", { n: hours });
+  const days = Math.floor(hours / 24);
+  return t(days === 1 ? "{n} day left" : "{n} days left", { n: days });
 }
 
 function PollBody({ post, onChanged }: { post: PublicSocialPost; onChanged?: (p: PublicSocialPost) => void }) {
   const { isAuthenticated, role, openAuthModal } = useAuth();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // "Now" as of when the card appeared - good enough for "2 days left".
@@ -48,7 +48,7 @@ function PollBody({ post, onChanged }: { post: PublicSocialPost; onChanged?: (p:
     try {
       onChanged?.(await apiPost<PublicSocialPost>(`/social/posts/${post.id}/poll-vote`, { optionId }));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't save your vote.");
+      setError(e instanceof ApiError ? t(e.message) : t("Couldn't save your vote."));
     } finally {
       setBusy(false);
     }
@@ -80,7 +80,7 @@ function PollBody({ post, onChanged }: { post: PublicSocialPost; onChanged?: (p:
                   </svg>
                 )}
                 <span className="min-w-0 break-words">{option.text}</span>
-                {mine && <span className="sr-only">(your vote)</span>}
+                {mine && <span className="sr-only">{t("(your vote)")}</span>}
               </span>
               {showResults && <span className="relative shrink-0 tabular-nums text-muted-foreground">{Math.round(share * 100)}%</span>}
             </>
@@ -106,8 +106,9 @@ function PollBody({ post, onChanged }: { post: PublicSocialPost; onChanged?: (p:
         })}
       </ul>
       <p className="mt-2 text-xs text-muted-foreground">
-        <span className="tabular-nums">{plural(poll.totalVotes, "vote")}</span> &middot; {poll.closed ? "Poll closed" : pollTimeLeft(poll.endsAt, now)}
-        {!poll.closed && isAuthenticated && role !== "MEMBER" && <> &middot; Only members can vote</>}
+        <span className="tabular-nums">{t(poll.totalVotes === 1 ? "{n} vote" : "{n} votes", { n: poll.totalVotes })}</span> &middot;{" "}
+        {poll.closed ? t("Poll closed") : pollTimeLeft(poll.endsAt, now, t)}
+        {!poll.closed && isAuthenticated && role !== "MEMBER" && <> &middot; {t("Only members can vote")}</>}
       </p>
       {error && <p className="mt-1 text-sm text-red-600 dark:text-red-300">{error}</p>}
     </div>
@@ -116,13 +117,15 @@ function PollBody({ post, onChanged }: { post: PublicSocialPost; onChanged?: (p:
 
 function EventBody({ post }: { post: PublicSocialPost }) {
   const [now] = useState(() => Date.now());
+  const { t, locale } = useI18n();
+  const tag = intlLocale(locale);
   const startsAt = new Date(post.eventStartsAt!);
   const past = startsAt.getTime() < now;
   return (
     <div className={`${panel} flex items-center gap-4`}>
       <div className="flex w-14 shrink-0 flex-col items-center rounded-lg bg-surface py-1.5 text-center">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
-          {startsAt.toLocaleDateString("en-GB", { month: "short" })}
+          {startsAt.toLocaleDateString(tag, { month: "short" })}
         </span>
         <span className="font-display text-2xl leading-none text-foreground tabular-nums">{startsAt.getDate()}</span>
       </div>
@@ -130,12 +133,12 @@ function EventBody({ post }: { post: PublicSocialPost }) {
         <p className={headline}>{post.title}</p>
         <p className="mt-0.5 text-sm text-muted-foreground">
           <time dateTime={post.eventStartsAt!}>
-            {startsAt.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })},{" "}
-            {startsAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+            {startsAt.toLocaleDateString(tag, { weekday: "long", day: "numeric", month: "long", year: "numeric" })},{" "}
+            {startsAt.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" })}
           </time>
           {post.eventLocation && <> &middot; {post.eventLocation}</>}
         </p>
-        {past && <p className="mt-0.5 text-xs text-muted-foreground">This event has taken place.</p>}
+        {past && <p className="mt-0.5 text-xs text-muted-foreground">{t("This event has taken place.")}</p>}
       </div>
     </div>
   );
@@ -153,16 +156,17 @@ function MilestoneBody({ post }: { post: PublicSocialPost }) {
 
 function HiringBody({ post }: { post: PublicSocialPost }) {
   const job = post.job!;
+  const t = useT();
   return (
     <div className={panel}>
-      <p className="text-xs font-semibold text-brand-700 dark:text-brand-300">We&apos;re hiring</p>
+      <p className="text-xs font-semibold text-brand-700 dark:text-brand-300">{t("We're hiring")}</p>
       {job.jobPostingId ? (
         <>
           <p className={`mt-0.5 ${headline}`}>{job.jobTitle}</p>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {job.workType && <WorkTypeLabel workplaceTypes={[job.workType]} />}
             {job.workType && job.positions.length > 0 && <> &middot; </>}
-            {job.positions.map(jobPositionLabel).join(", ")}
+            {job.positions.map((p) => t(jobPositionLabel(p))).join(", ")}
           </p>
         </>
       ) : null}
@@ -171,10 +175,10 @@ function HiringBody({ post }: { post: PublicSocialPost }) {
           href={`/companies/${post.companySlug}?tab=jobs`}
           className="mt-2 inline-block text-sm font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
         >
-          See the job
+          {t("See the job")}
         </Link>
       ) : (
-        <p className="mt-1.5 text-sm text-muted-foreground">This position is no longer open.</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">{t("This position is no longer open.")}</p>
       )}
     </div>
   );

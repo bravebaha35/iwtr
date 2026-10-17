@@ -1,3 +1,6 @@
+"use client";
+
+import { useT } from "@/lib/i18n/client";
 // The shape of a post card while its data is on the way: logo, two lines of
 // header, the photo block, the action row. Shown instead of a "Loading..."
 // line so the page keeps its layout and nothing jumps when the posts arrive.
@@ -27,8 +30,9 @@ export function SocialPostSkeleton({ withPhoto = true }: { withPhoto?: boolean }
 }
 
 export function SocialFeedSkeleton({ count = 3 }: { count?: number }) {
+  const t = useT();
   return (
-    <div role="status" aria-label="Loading posts" className="flex flex-col gap-5">
+    <div role="status" aria-label={t("Loading posts")} className="flex flex-col gap-5">
       {Array.from({ length: count }, (_, i) => (
         <SocialPostSkeleton key={i} withPhoto={i !== 1} />
       ))}
