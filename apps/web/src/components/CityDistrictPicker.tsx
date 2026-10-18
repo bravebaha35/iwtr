@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TURKEY_PROVINCES } from "@/lib/turkeyGeo";
 import { COUNTRIES } from "@/lib/countries";
 import { SingleSelectDropdown } from "@/components/Dropdown";
@@ -31,7 +31,7 @@ const CITY_OPTIONS = TURKEY_PROVINCES.map((p) => ({ value: p.name, label: p.name
 
 /**
  * The filter sidebar's Location: a country, then one city, then, if wanted,
- * some of that city's districts (a full tick list, no inner scrolling).
+ * some of that city's districts (a dropdown of side-by-side chips).
  * Picking a city shows every workplace in it; ticking districts narrows to
  * just those; "All" goes back to the whole city. Only Turkey has city data
  * so far.
@@ -58,6 +58,17 @@ export function CityDistrictPicker({
 }) {
   const t = useT();
   const [country, setCountry] = useState<string>(DEFAULT_COUNTRY);
+  const [districtsOpen, setDistrictsOpen] = useState(false);
+
+  // Escape closes the districts panel, like a click anywhere else does.
+  useEffect(() => {
+    if (!districtsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDistrictsOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [districtsOpen]);
   const isTurkey = country === DEFAULT_COUNTRY;
 
   const city = selectedCities[0] ?? selectedDistrictKeys[0]?.split("::")[0] ?? null;
@@ -136,53 +147,72 @@ export function CityDistrictPicker({
         </div>
 
         {province && (
-          <div className="mt-2.5 border-t border-border/70 pt-2">
-            <div className="mb-1 flex items-center justify-between px-1">
-              <p className="text-[11px] font-semibold text-muted-foreground">{t("Districts")}</p>
-              {/* Lit while the whole city is chosen; pressing it clears the
-                  ticked districts again. */}
-              <button
-                type="button"
-                onClick={() => onChange({ cities: [province.name], districtKeys: [] })}
-                aria-pressed={chosen.size === 0}
-                className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition ${
-                  chosen.size === 0 ? "bg-brand-600 text-white" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-                }`}
-              >
-                {chosen.size === 0 ? t("All") : t("All ({n} chosen)", { n: chosen.size })}
-              </button>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              {province.districts.map((d) => {
-                const on = chosen.has(d);
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    role="checkbox"
-                    aria-checked={on}
-                    onClick={() => toggleDistrict(d)}
-                    className={`group flex min-h-8 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] leading-tight transition active:scale-[0.99] ${
-                      on ? "bg-brand-600 font-semibold text-white" : "text-foreground/80 hover:bg-surface-muted hover:text-foreground"
-                    }`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] transition ${
-                        on ? "bg-white/25" : "bg-surface-muted ring-1 ring-inset ring-border group-hover:ring-foreground/40"
+          <div className="relative mt-1.5">
+            {/* Districts: a dropdown like the two above. Open, the city's
+                districts sit side by side as tick chips; it stays open while
+                ticking and closes on a click anywhere else. */}
+            <button
+              type="button"
+              onClick={() => setDistrictsOpen((o) => !o)}
+              aria-haspopup="dialog"
+              aria-expanded={districtsOpen}
+              aria-label={t("Districts")}
+              className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted"
+            >
+              <span className={`min-w-0 truncate ${chosen.size > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                {chosen.size === 0
+                  ? t("Districts")
+                  : chosen.size <= 2
+                    ? [...chosen].join(", ")
+                    : t("{n} districts", { n: chosen.size })}
+              </span>
+              <span className={`shrink-0 text-[10px] text-muted-foreground transition-transform ${districtsOpen ? "rotate-180" : ""}`}>▾</span>
+            </button>
+            {districtsOpen && (
+              <>
+                <div className="fixed inset-0 z-[65]" onClick={() => setDistrictsOpen(false)} />
+                <div
+                  role="dialog"
+                  aria-label={t("Districts")}
+                  className="absolute left-0 z-[70] mt-1 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-surface p-2.5 shadow-lg"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-muted-foreground">
+                      {t("{city} districts", { city: province.name })}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onChange({ cities: [province.name], districtKeys: [] })}
+                      aria-pressed={chosen.size === 0}
+                      className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition ${
+                        chosen.size === 0 ? "bg-brand-600 text-white" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                       }`}
                     >
-                      {on && (
-                        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 12.5l4.5 4.5L19 7.5" />
-                        </svg>
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1">{d}</span>
-                  </button>
-                );
-              })}
-            </div>
+                      {chosen.size === 0 ? t("All") : t("All ({n} chosen)", { n: chosen.size })}
+                    </button>
+                  </div>
+                  <div className="no-scrollbar flex max-h-80 flex-wrap gap-1.5 overflow-y-auto">
+                    {province.districts.map((d) => {
+                      const on = chosen.has(d);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={on}
+                          onClick={() => toggleDistrict(d)}
+                          className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium transition active:scale-[0.97] ${
+                            on ? "bg-brand-600 text-white" : "bg-surface-muted text-foreground/80 hover:text-foreground"
+                          }`}
+                        >
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

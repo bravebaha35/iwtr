@@ -84,6 +84,9 @@ const cv: Record<string, string> = {
   "Choose a city": "Bir il seç",
   "Districts": "İlçeler",
   "{n} chosen": "{n} seçili",
+  "{n} districts": "{n} ilçe",
+  "{city} districts": "{city} ilçeleri",
+  "Featured": "Öne çıkan",
   "All ({n} chosen)": "Tümü ({n} seçili)",
 
   // Chat window

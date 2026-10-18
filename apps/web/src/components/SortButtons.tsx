@@ -80,19 +80,20 @@ export function sortCompaniesBy<T extends { name: string; overallAvg: number | n
   }
 }
 
-// Each sort is a plain word, as tall as the search field it sits beside
-// (SearchSortBox). The one in use takes its colour and gets a bar of that
-// colour under it - no button shapes.
+// Each sort is a plain underlined word, as tall as the search field it sits
+// beside (SearchSortBox): a thin quiet underline at rest, so it reads as
+// something to press, and a thick underline in the sort's colour once in use.
 const TOGGLE_BASE =
-  "relative flex h-12 items-center gap-1 px-3 text-sm font-semibold transition-colors after:absolute after:inset-x-3 after:bottom-2 after:h-[3px] after:rounded-full";
-const TOGGLE_OFF = "text-muted-foreground hover:text-foreground";
+  "flex h-12 items-center gap-1 px-3 text-sm font-semibold underline underline-offset-[6px] transition-[color,text-decoration-color]";
+const TOGGLE_OFF =
+  "text-muted-foreground decoration-1 decoration-muted-foreground/40 hover:text-foreground hover:decoration-foreground/60";
 // A-Z in use: Wood, the site's one "selected" colour.
-const TOGGLE_ON = "text-brand-700 after:bg-brand-600 dark:text-brand-300 dark:after:bg-brand-400";
+const TOGGLE_ON = "text-brand-700 decoration-2 decoration-brand-600 dark:text-brand-300 dark:decoration-brand-400";
 
 // Red for the "bad end first" state, green for the "good end first" state -
 // shared by Rating and RS.
-const TOGGLE_RED = "text-red-700 after:bg-red-500 dark:text-red-400";
-const TOGGLE_GREEN = "text-emerald-700 after:bg-emerald-500 dark:text-emerald-400";
+const TOGGLE_RED = "text-red-700 decoration-2 decoration-red-500 dark:text-red-400";
+const TOGGLE_GREEN = "text-emerald-700 decoration-2 decoration-emerald-500 dark:text-emerald-400";
 
 // Which way a Rating / RS sort runs: up = lowest first, down = highest first.
 function DirectionArrow({ up }: { up: boolean }) {
@@ -114,8 +115,8 @@ function DirectionArrow({ up }: { up: boolean }) {
 
 /**
  * The sort controls, shown right next to the search field on both
- * WorkplaceBrowser and JobsBrowser: three plain words, the
- * one in use coloured with a bar under it. A-Z loops A→Z / Z→A / off (Wood);
+ * WorkplaceBrowser and JobsBrowser: three underlined words, the
+ * one in use coloured with a thick underline. A-Z loops A→Z / Z→A / off (Wood);
  * Rating keeps its own red/green colours for least/best-rated first, with
  * an arrow for the direction. With showRiskSort, RS (Risk Score) comes
  * first: red for riskiest first, green for cleanest first.

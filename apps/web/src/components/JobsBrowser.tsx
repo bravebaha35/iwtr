@@ -25,6 +25,7 @@ import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { type CategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
 import { WorkTypeTiles } from "@/components/WorkTypeTiles";
 import { JOB_POSITIONS } from "@/lib/jobPositions";
+import { CompanyLogo } from "@/components/CompanyLogo";
 import { RewindButton } from "@/components/RewindButton";
 import { MultiSelectDropdown } from "@/components/Dropdown";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
@@ -273,42 +274,68 @@ function FollowingFilterList({
   }
 
   const arrow =
-    "absolute top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-foreground shadow-md ring-1 ring-border transition hover:bg-surface-muted";
+    "absolute top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[0.7rem] bg-surface text-foreground shadow-md ring-1 ring-border/70 transition hover:bg-surface-muted active:scale-95";
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
       <h2 className="shrink-0 text-[13px] font-semibold text-foreground">{t("Following")}</h2>
       <div className="relative min-w-0 flex-1">
-        <div ref={scrollerRef} className="no-scrollbar flex gap-1.5 overflow-x-auto scroll-smooth py-1">
+        <div
+          ref={scrollerRef}
+          className="no-scrollbar flex items-center overflow-x-auto scroll-smooth py-1"
+          // The row fades out on a side where more companies are waiting.
+          style={{
+            maskImage: `linear-gradient(to right, ${edges.start ? "transparent, black 40px" : "black, black"}, ${edges.end ? "black calc(100% - 56px), transparent" : "black, black"})`,
+          }}
+        >
           {loading && <p className="px-1 py-1.5 text-xs text-muted-foreground">{t("Loading...")}</p>}
           {!loading && companies.length === 0 && (
             <p className="px-1 py-1.5 text-xs text-muted-foreground">{t("You're not following any companies yet.")}</p>
           )}
-          {companies.map((c) => (
-            <button
-              key={c.companyId}
-              type="button"
-              onClick={() => onSelect(selectedCompanyId === c.companyId ? null : c.companyId)}
-              aria-pressed={selectedCompanyId === c.companyId}
-              className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition ${
-                selectedCompanyId === c.companyId
-                  ? "bg-brand-600 font-semibold text-white"
-                  : "bg-surface-muted text-foreground hover:bg-border/70"
-              }`}
-            >
-              {c.companyName}
-            </button>
-          ))}
+          {companies.map((c, i) => {
+            const on = selectedCompanyId === c.companyId;
+            return (
+              <div key={c.companyId} className="flex shrink-0 items-center">
+                {i > 0 && <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />}
+                {/* Logo and name, no box: picked, the name gets a Wood
+                    underline and the logo a Wood ring. */}
+                <button
+                  type="button"
+                  onClick={() => onSelect(on ? null : c.companyId)}
+                  aria-pressed={on}
+                  title={c.companyName}
+                  className="group flex items-center gap-2 rounded-lg px-2 py-1 text-left transition"
+                >
+                  <span
+                    className={`block shrink-0 rounded-[0.6rem] transition duration-200 group-hover:-translate-y-0.5 ${
+                      on ? "ring-2 ring-brand-600 ring-offset-2 ring-offset-background" : ""
+                    }`}
+                  >
+                    <CompanyLogo name={c.companyName} mainPhotoUrl={c.mainPhotoUrl} size="sm" />
+                  </span>
+                  <span
+                    className={`max-w-[11rem] truncate text-sm underline-offset-[6px] transition-colors ${
+                      on
+                        ? "font-semibold text-foreground underline decoration-2 decoration-brand-600"
+                        : "font-medium text-foreground/70 group-hover:text-foreground"
+                    }`}
+                  >
+                    {c.companyName}
+                  </span>
+                </button>
+              </div>
+            );
+          })}
         </div>
         {edges.start && (
-          <button type="button" onClick={() => scrollBy(-1)} aria-label={t("Show earlier companies")} className={`${arrow} -left-2`}>
+          <button type="button" onClick={() => scrollBy(-1)} aria-label={t("Show earlier companies")} className={`${arrow} left-0`}>
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="m15 6-6 6 6 6" />
             </svg>
           </button>
         )}
         {edges.end && (
-          <button type="button" onClick={() => scrollBy(1)} aria-label={t("Show more companies")} className={`${arrow} -right-2`}>
+          <button type="button" onClick={() => scrollBy(1)} aria-label={t("Show more companies")} className={`${arrow} right-0`}>
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="m9 6 6 6-6 6" />
             </svg>
@@ -645,6 +672,21 @@ export function JobsBrowser() {
                   onClear={() => setSelectedCategories([])}
                 />
               </div>
+              {/* Position, right under Sector: the levels an owner ticks when
+                  posting a job. A pill like Sector that stays open while
+                  ticking and closes on a click anywhere else. */}
+              <div className="mt-2">
+                <MultiSelectDropdown
+                  values={positions}
+                  options={JOB_POSITIONS}
+                  placeholder="Position"
+                  countNoun="positions"
+                  onToggle={(value) => togglePosition(value as JobPosition)}
+                  onClear={() => setPositions([])}
+                  searchable={false}
+                  maxHeightClassName="max-h-none"
+                />
+              </div>
             </div>
 
 
@@ -715,27 +757,6 @@ export function JobsBrowser() {
               nearMeActive={geo !== null && geo !== "denied"}
             />
 
-            {/* Position: the same levels an owner ticks when posting a job.
-                Any number can be on; a posting hiring for any one of them
-                is listed. */}
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[13px] font-semibold text-foreground">{t("Position")}</h2>
-                <RewindButton onClick={() => setPositions([])} active={positions.length > 0} title="Clear Position filter" />
-              </div>
-              {/* A pill like Sector: opens a tick list, stays open while
-                  ticking, closes on a click anywhere else. */}
-              <MultiSelectDropdown
-                values={positions}
-                options={JOB_POSITIONS}
-                placeholder="Position"
-                countNoun="positions"
-                onToggle={(value) => togglePosition(value as JobPosition)}
-                onClear={() => setPositions([])}
-                searchable={false}
-                maxHeightClassName="max-h-none"
-              />
-            </div>
           </SidebarShell>
 
           {/* Results */}
@@ -787,7 +808,7 @@ export function JobsBrowser() {
                 )}
                 {featured.length > 0 && (
                   <section aria-label={t("Featured jobs")} className={`transition-opacity ${loading ? "opacity-60" : ""}`}>
-                    <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#3b6b54] dark:text-[#7fb59a]">
+                    <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                         <path d="M12 0c.6 5.6 2.4 7.4 12 12-9.6 4.6-11.4 6.4-12 12-.6-5.6-2.4-7.4-12-12 9.6-4.6 11.4-6.4 12-12Z" />
                       </svg>

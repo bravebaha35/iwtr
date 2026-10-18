@@ -262,8 +262,9 @@ export function JobCard({
   variant?: JobCardVariant;
   // "expanded" only: closes the floating panel.
   onClose?: () => void;
-  // A boosted ("featured") posting in the Jobs page's featured row: thicker
-  // gold outline with a soft gold glow. No "Featured" tag: the glow says it.
+  // A boosted ("featured") posting in the Jobs page's featured row: a warm
+  // hairline and shadow, a Wood star tab and a slow light sweep over the
+  // banner (globals.css .boosted-card / .boosted-banner).
   boosted?: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
@@ -329,7 +330,7 @@ export function JobCard({
           clear the protruding logo. No ring around the logo: a transparent
           brand image should read as transparent, not sit in a coloured box. */}
       <div className="relative">
-        <div className="relative aspect-[4/1] w-full overflow-hidden rounded-t-xl">
+        <div className={`relative aspect-[4/1] w-full overflow-hidden rounded-t-xl ${boosted ? "boosted-banner" : ""}`}>
           <Image
             src={bannerUrl}
             alt=""
@@ -342,6 +343,19 @@ export function JobCard({
         <div className="absolute left-3 top-full -translate-y-1/2">
           <CompanyLogo name={company.name} mainPhotoUrl={company.mainPhotoUrl} size="sm" />
         </div>
+        {/* A featured ad's mark: a small Wood star tab in the banner's corner. */}
+        {boosted && !expandedView && (
+          <span
+            role="img"
+            aria-label={t("Featured")}
+            title={t("Featured")}
+            className="absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-[0.65rem] bg-brand-600 text-white shadow-[0_4px_12px_-2px_rgba(72,47,22,0.55)]"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+              <path d="M12 0c.6 5.6 2.4 7.4 12 12-9.6 4.6-11.4 6.4-12 12-.6-5.6-2.4-7.4-12-12 9.6-4.6 11.4-6.4 12-12Z" />
+            </svg>
+          </span>
+        )}
         {expandedView && onClose && (
           <button
             type="button"

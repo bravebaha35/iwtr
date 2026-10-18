@@ -336,16 +336,20 @@ alone keeps DM Serif Display (`.cv-document`).
   sections are the same kind of tonal panel (`rounded-2xl bg-surface shadow-xs`). Only form inputs keep a
   1px border. Chips and secondary buttons are tonal (`bg-surface-muted`), not outlined.
 - **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`), the red/green
-  Rating and RS sort states (`SortButtons.tsx`), score-band colours, tier ticks, and the
-  featured job outline - grass green `#3b6b54`, no glow (was gold until 2026-10-19). The footer band is `#0d2b1f`.
+  Rating and RS sort states (`SortButtons.tsx`), score-band colours and tier ticks. A featured job card
+  (`.boosted-card`, 2026-10-19 Taste pass; the gold and the green outlines were both rejected) has a thin Wood hairline,
+  a Wood-tinted shadow, a Wood star tab in the banner corner and a slow sheen over the banner. The footer band is
+  `#0d2b1f`. Rounded corners are squircles (`corner-shape: squircle` in globals.css; `rounded-full` stays round).
 - Header is one 64px line; the current page is marked by a Wood bar (`components/layout/navItem.ts`). The
   notifications bell is a symbol with no label beside the theme switch, with a red counter that clears (and is
   saved as read) the moment its panel is opened. The sort controls (RS / A-Z / Rating) are plain words with a
   coloured bar under the one in use, right next to the search field (`SearchSortBox`); no "Sort" label.
   Sidebar width and gaps are locked by tests (`SidebarShell`); its order is (Jobs: Create !) Work-Type (+ Sector),
-  Rating, Risk Score, Location, (Jobs: Position, a pill dropdown of ticks). Location (`CityDistrictPicker`) is country,
-  then one city (dropdowns), then that city's districts as a full tick list with "All" (2026-10-19). On Jobs, Following
-  (one horizontal row with arrows) and Saved Posts (a bookmark button) sit beside the page title, not in the sidebar. Every inner scroll area hides its scrollbar (globals.css `body *`); only the page
+  (Jobs: Position dropdown right under Sector, no header of its own), Rating, Risk Score, Location. Location
+  (`CityDistrictPicker`) is country, then one city, then a Districts dropdown whose panel holds that city's districts as
+  side-by-side chips with one "All" button (2026-10-19). On Jobs, Following (one row of logo + name, no boxes, Wood
+  underline when picked, arrows and edge fades) and Saved Posts (a bookmark button) sit beside the page title. The sort
+  words are underlined: thin at rest, thick in the sort's colour when in use. Every inner scroll area hides its scrollbar (globals.css `body *`); only the page
   keeps one.
 - Work-Type is four tiles (`WorkTypeTiles`): the name, and an object for that work in the bottom corner (the
   owner's own art in `public/`: "Office QS" pencil, "Hybrid QS" headset, "Service QS" hands, "Manual-Labour QS"

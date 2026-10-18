@@ -26,6 +26,14 @@
   display: none; /* Chrome/Safari/new Edge */
 }
 
+/* Rounded corners are squircles (a continuous curve, the shape Samsung One UI
+   and Apple use) wherever the browser supports corner-shape (Chrome 139+);
+   elsewhere they stay ordinary rounded corners. True circles and pills
+   (rounded-full) are left round. */
+*:not(.rounded-full) {
+  corner-shape: squircle;
+}
+
 /* Every scrollable box (dropdowns, lists, panels, the chat) scrolls with an
    invisible scrollbar (2026-10-19, the owner's choice): the wheel, trackpad,
    touch and keyboard all still scroll it. Only the page itself keeps its
@@ -298,12 +306,53 @@ progress {
   outline-color: var(--color-brand-300);
 }
 
-/* Boosted ("featured") job cards on the Jobs page: a grass-green outline,
-   no glow (the owner's choice, 2026-10-19). Same look in both themes. */
+/* Boosted ("featured") job cards on the Jobs page (2026-10-19, Taste pass):
+   no loud outline. A thin warm Wood hairline, a soft Wood-tinted shadow that
+   lifts the card a little, a Wood star tab in the banner corner (JobCard),
+   and a slow sheen of light across the banner every 7 seconds - the one
+   motion, there to draw the eye to paid ads. Still under reduced motion. */
 .boosted-card {
-  border-width: 2px;
-  border-color: #3b6b54;
-  box-shadow: none;
+  border-width: 1px;
+  border-color: color-mix(in srgb, var(--color-brand-500) 55%, transparent);
+  box-shadow:
+    0 1px 2px rgba(72, 47, 22, 0.08),
+    0 14px 32px -16px rgba(139, 90, 43, 0.45);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.boosted-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 2px rgba(72, 47, 22, 0.1),
+    0 22px 40px -18px rgba(139, 90, 43, 0.55);
+}
+.boosted-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 244, 225, 0.38) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: boosted-sheen 7s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+@keyframes boosted-sheen {
+  0%,
+  72% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boosted-card,
+  .boosted-card:hover {
+    transition: none;
+    transform: none;
+  }
+  .boosted-banner::after {
+    animation: none;
+    display: none;
+  }
 }
 
 /* The beaver reaction picker on an IWT Social post: it lifts into place from

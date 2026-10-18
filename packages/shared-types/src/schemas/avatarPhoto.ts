@@ -8,8 +8,10 @@ import { httpUrlSchema } from "./company";
 // authoritative server check stays permissive rather than assuming that
 // step always ran.
 export const AVATAR_RECOMMENDED_DIMENSION_PX = 800;
-export const AVATAR_MIN_DIMENSION_PX = 400;
-export const AVATAR_MAX_SOURCE_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+// The cropper always draws an 800x800 JPEG, so the original only needs to be
+// big enough not to look blurry, and phone photos (often 10MB+) are fine.
+export const AVATAR_MIN_DIMENSION_PX = 200;
+export const AVATAR_MAX_SOURCE_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 // The authoritative cap on the already client-compressed uploaded file —
 // much smaller than the source cap above, since by the time a file reaches
 // this check it's already been through client-side compression.

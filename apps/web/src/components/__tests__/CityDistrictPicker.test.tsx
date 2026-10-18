@@ -35,7 +35,8 @@ describe("CityDistrictPicker", () => {
     await pickCity("İzmir");
     expect(onChange).toHaveBeenLastCalledWith({ cities: ["İzmir"], districtKeys: [] });
 
-    // Only İzmir's districts, as a full tick list, with "All" on.
+    // A Districts dropdown; open, only İzmir's districts, with "All" on.
+    await userEvent.click(screen.getByRole("button", { name: "Districts" }));
     expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("checkbox", { name: "Çankaya" })).not.toBeInTheDocument();
 
@@ -53,10 +54,13 @@ describe("CityDistrictPicker", () => {
     const onChange = jest.fn();
     render(<Harness onChange={onChange} />);
     await pickCity("İzmir");
+    await userEvent.click(screen.getByRole("button", { name: "Districts" }));
     await userEvent.click(screen.getByRole("checkbox", { name: "Buca" }));
+    await userEvent.keyboard("{Escape}");
     await userEvent.click(screen.getByRole("button", { name: "City" }));
     await userEvent.click(screen.getByRole("button", { name: "Ankara" }));
     expect(onChange).toHaveBeenLastCalledWith({ cities: ["Ankara"], districtKeys: [] });
+    await userEvent.click(screen.getByRole("button", { name: "Districts" }));
     expect(screen.getByRole("checkbox", { name: "Çankaya" })).toBeInTheDocument();
   });
 });
