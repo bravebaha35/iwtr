@@ -43,6 +43,7 @@ import { QuestionsCategory } from "@/components/owner/sections/QuestionsCategory
 import { SocialToolsCategory } from "@/components/owner/sections/SocialToolsCategory";
 import { PremiumLocked } from "@/components/owner/sections/PremiumLocked";
 import { TierInfoDialog } from "@/components/owner/TierInfoDialog";
+import { useT } from "@/lib/i18n/client";
 
 const STATUS_STYLES: Record<MyCompanyClaim["claimStatus"], string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
@@ -75,6 +76,7 @@ function UpgradeCheckout({
   onClose: () => void;
 }) {
   const [tier, setTier] = useState<PaidOwnerTier>(initialTier);
+  const t = useT();
   const [billing, setBilling] = useState(emptyBilling);
   const [checkout, setCheckout] = useState<PlusCheckoutResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,9 +107,9 @@ function UpgradeCheckout({
       setCheckout(result);
     } catch (err) {
       if (err instanceof ApiError && err.status === 501) {
-        setError("Subscriptions aren't set up yet — the site owner needs to add iyzico payment credentials first.");
+        setError(t("Subscriptions aren't set up yet - the site owner needs to add iyzico payment credentials first."));
       } else {
-        setError(err instanceof ApiError ? err.message : "Couldn't start checkout.");
+        setError(err instanceof ApiError ? t(err.message) : t("Couldn't start checkout."));
       }
     } finally {
       setSubmitting(false);
@@ -124,7 +126,7 @@ function UpgradeCheckout({
     <div className="mt-3 rounded-lg border border-border p-3">
       {checkout ? (
         <>
-          <p className="mb-2 text-xs text-muted-foreground">Complete payment below:</p>
+          <p className="mb-2 text-xs text-muted-foreground">{t("Complete payment below:")}</p>
           <IyzicoCheckoutEmbed checkoutFormContent={checkout.checkoutFormContent} />
         </>
       ) : (
@@ -148,47 +150,47 @@ function UpgradeCheckout({
             ))}
           </div>
           <p className="mb-2 text-xs text-muted-foreground">
-            Billing details for the subscription invoice (not shared with reviewers or the public).
+            {t("Billing details for the subscription invoice (not shared with reviewers or the public).")}
           </p>
           <div className="grid grid-cols-2 gap-2">
             <input
-              placeholder="First name"
+              placeholder={t("First name")}
               value={billing.buyerName}
               onChange={(e) => set("buyerName", e.target.value)}
               className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
             />
             <input
-              placeholder="Last name"
+              placeholder={t("Last name")}
               value={billing.buyerSurname}
               onChange={(e) => set("buyerSurname", e.target.value)}
               className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
             />
             <input
-              placeholder="T.C. Kimlik No / Tax ID (11 digits)"
+              placeholder={t("T.C. Kimlik No / Tax ID (11 digits)")}
               value={billing.buyerIdentityNumber}
               onChange={(e) => set("buyerIdentityNumber", e.target.value)}
               className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
             />
             <input
-              placeholder="Billing email"
+              placeholder={t("Billing email")}
               value={billing.buyerEmail}
               onChange={(e) => set("buyerEmail", e.target.value)}
               className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
             />
             <input
-              placeholder="Phone (optional)"
+              placeholder={t("Phone (optional)")}
               value={billing.buyerGsmNumber}
               onChange={(e) => set("buyerGsmNumber", e.target.value)}
               className="col-span-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
             />
             <input
-              placeholder="City"
+              placeholder={t("City")}
               value={billing.city}
               onChange={(e) => set("city", e.target.value)}
               className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
             />
             <input
-              placeholder="Billing address"
+              placeholder={t("Billing address")}
               value={billing.address}
               onChange={(e) => set("address", e.target.value)}
               className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
@@ -201,13 +203,13 @@ function UpgradeCheckout({
               disabled={submitting}
               className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
-              Continue to payment
+              {t("Continue to payment")}
             </button>
             <button
               onClick={onClose}
               className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
             >
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         </>
@@ -222,6 +224,7 @@ function sameWorkplaceTypes(a: WorkplaceType[], b: WorkplaceType[]): boolean {
 
 function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const { companyAccount } = useAuth();
+  const t = useT();
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<OwnerDashboardCategory>("general-info");
@@ -345,7 +348,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           setYoutubeUrl(c.youtubeUrl ?? "");
         }
       } catch (err) {
-        setDetailError(err instanceof ApiError ? err.message : "Couldn't load this company's details.");
+        setDetailError(err instanceof ApiError ? t(err.message) : t("Couldn't load this company's details."));
       }
     },
     [claim.companySlug],
@@ -415,14 +418,14 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
         body.bannerImageUrl = bannerImageUrl.trim();
       }
       if (Object.keys(body).length === 0) {
-        setGeneralInfoError("Change at least one field before saving.");
+        setGeneralInfoError(t("Change at least one field before saving."));
         return;
       }
       await apiPatch(`/my-companies/${claim.companyId}`, body);
       await loadDetail("general");
-      setGeneralInfoStatus("Saved.");
+      setGeneralInfoStatus(t("Saved."));
     } catch (err) {
-      setGeneralInfoError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setGeneralInfoError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
     } finally {
       setGeneralInfoSaving(false);
     }
@@ -438,14 +441,14 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     setWorkplaceTypesStatus(null);
     try {
       if (workplaceTypes.length === 0 || sameWorkplaceTypes(workplaceTypes, detail?.company.workplaceTypes ?? [])) {
-        setWorkplaceTypesError("Change the workplace types before saving.");
+        setWorkplaceTypesError(t("Change the workplace types before saving."));
         return;
       }
       await apiPatch(`/my-companies/${claim.companyId}`, { workplaceTypes });
       await loadDetail("workplace");
-      setWorkplaceTypesStatus("Saved.");
+      setWorkplaceTypesStatus(t("Saved."));
     } catch (err) {
-      setWorkplaceTypesError(err instanceof ApiError ? err.message : "Couldn't save work types.");
+      setWorkplaceTypesError(err instanceof ApiError ? t(err.message) : t("Couldn't save work types."));
     } finally {
       setWorkplaceTypesSaving(false);
     }
@@ -460,7 +463,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       await loadDetail("premium");
       setPremiumStatus(reviewId ? "Pinned. It now shows first on your company page." : "Unpinned.");
     } catch (err) {
-      setPremiumError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setPremiumError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
     } finally {
       setPremiumSaving(false);
     }
@@ -473,7 +476,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
     const trimmedEmail = contactEmail.trim();
     const trimmedPhone = contactPhone.trim() === "+90" ? "" : contactPhone.trim();
     if (!trimmedEmail && !trimmedPhone) {
-      setContactError("Provide at least a phone number or an email address so applicants can reach you.");
+      setContactError(t("Provide at least a phone number or an email address so applicants can reach you."));
       setContactSaving(false);
       return;
     }
@@ -500,9 +503,9 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       if (youtubeUrl.trim()) body.youtubeUrl = youtubeUrl.trim();
       await apiPatch(`/my-companies/${claim.companyId}`, body);
       await loadDetail("contact");
-      setContactStatus("Saved.");
+      setContactStatus(t("Saved."));
     } catch (err) {
-      setContactError(err instanceof ApiError ? err.message : "Couldn't save changes.");
+      setContactError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
     } finally {
       setContactSaving(false);
     }
@@ -532,14 +535,14 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
             aria-haspopup="dialog"
             className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 hover:underline dark:bg-brand-900 dark:text-brand-300"
           >
-            {planNameForOwnerTier(claim.tier)} Tier
+            {t("{plan} Tier", { plan: t(planNameForOwnerTier(claim.tier)) })}
           </button>
           <button
             type="button"
             onClick={() => setShowPricing(true)}
             className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
           >
-            See plans
+            {t("See plans")}
           </button>
         </div>
       </div>
@@ -550,7 +553,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
 
       {claim.hidden && (
         <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
-          This company is currently hidden by an administrator. Contact support at{" "}
+          {t("This company is currently hidden by an administrator. Contact support at")}{" "}
           <a href="mailto:iworkedthere@hotmail.com" className="font-medium underline">
             iworkedthere@hotmail.com
           </a>
@@ -681,7 +684,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
               <JobPostingsCategory
                 companyId={claim.companyId}
                 freeAdsLeft={freeAdsLeft}
-                planIncludes={pricingFeature("job-ads").values[tierKeyFromOwnerTier(claim.tier)]}
+                planIncludes={t(pricingFeature("job-ads").values[tierKeyFromOwnerTier(claim.tier)])}
                 onChanged={loadFreeAds}
               />
             )}
@@ -706,8 +709,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 />
               ) : (
                 <PremiumLocked
-                  title="Featured Review Spotlight"
-                  description="Pin one of your published reviews to the top of your company page, with a Featured label."
+                  title={t("Featured Review Spotlight")}
+                  description={t("Pin one of your published reviews to the top of your company page, with a Featured label.")}
                   onStartUpgrade={setPendingUpgradeTier}
                   onOpenPricing={() => setShowPricing(true)}
                 />
@@ -730,17 +733,16 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 (the API refuses the company login too). */}
             {pendingUpgradeTier && companyAccount && (
               <div role="status" className="mt-3 rounded-2xl bg-surface-muted/60 p-4 text-sm">
-                <p className="font-semibold text-foreground">Membership plans are bought from the owner&apos;s own account.</p>
+                <p className="font-semibold text-foreground">{t("Membership plans are bought from the owner's own account.")}</p>
                 <p className="mt-1 text-muted-foreground">
-                  Sign in with the company owner&apos;s own email to change the plan. This company login can still buy
-                  featured job ads, ad space and reports.
+                  {t("Sign in with the company owner's own email to change the plan. This company login can still buy featured job ads, ad space and reports.")}
                 </p>
                 <button
                   type="button"
                   onClick={() => setPendingUpgradeTier(null)}
                   className="mt-3 rounded-full bg-surface px-4 py-1.5 text-sm font-medium text-foreground shadow-xs transition hover:bg-border/70"
                 >
-                  OK
+                  {t("OK")}
                 </button>
               </div>
             )}
@@ -774,9 +776,10 @@ function CompanyTabs({
   selectedId: string;
   onSelect: (companyId: string) => void;
 }) {
+  const t = useT();
   return (
     <nav
-      aria-label="Your companies"
+      aria-label={t("Your companies")}
       className="mb-6 flex flex-row gap-1 overflow-x-auto rounded-full bg-surface-muted/70 p-1.5"
     >
       {companies.map((c) => {
@@ -799,6 +802,7 @@ function CompanyTabs({
 
 export default function MyCompaniesPage() {
   const { isAuthenticated, isLoading: authLoading, companyAccount } = useAuth();
+  const t = useT();
   const [claims, setClaims] = useState<MyCompanyClaim[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Which company is open. Starts from ?company= (notification links, the
@@ -828,7 +832,7 @@ export default function MyCompaniesPage() {
       const data = await apiGet<MyCompanyClaim[]>("/me/company-claims");
       setClaims(data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't load your claims.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't load your claims."));
     }
   }, [isAuthenticated]);
 
@@ -841,7 +845,7 @@ export default function MyCompaniesPage() {
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Log in to see companies you own or have claimed.</p>
+        <p className="text-sm text-muted-foreground">{t("Log in to see companies you own or have claimed.")}</p>
       </div>
     );
   }
@@ -855,23 +859,22 @@ export default function MyCompaniesPage() {
           <>
             <h1 className="mb-1 text-4xl leading-tight text-foreground">{companyAccount.companyName}</h1>
             <p className="mb-6 text-sm text-muted-foreground">
-              Signed in with the company login. Messages from reviewers are in the chat box at the bottom right.
+              {t("Signed in with the company login. Messages from reviewers are in the chat box at the bottom right.")}
             </p>
           </>
         ) : (
           <>
-            <h1 className="mb-1 text-4xl leading-tight text-foreground">My companies</h1>
+            <h1 className="mb-1 text-4xl leading-tight text-foreground">{t("My companies")}</h1>
             <p className="mb-6 text-sm text-muted-foreground">
-              Companies you&apos;ve claimed, and their approval status. Search a workplace and use &ldquo;Claim this
-              company&rdquo; on its page to add one here.
+              {t("Companies you've claimed, and their approval status. Search a workplace and use “Claim this company” on its page to add one here.")}
             </p>
           </>
         )}
 
         {error && <p className="mb-4 text-sm text-red-600 dark:text-red-300">{error}</p>}
-        {claims === null && <p className="text-sm text-muted-foreground">Loading...</p>}
+        {claims === null && <p className="text-sm text-muted-foreground">{t("Loading...")}</p>}
         {claims !== null && claims.length === 0 && (
-          <p className="text-sm text-muted-foreground">You haven&apos;t claimed any companies yet.</p>
+          <p className="text-sm text-muted-foreground">{t("You haven't claimed any companies yet.")}</p>
         )}
 
         {/* The legal-name gate is about the owner's own account - a company
@@ -888,7 +891,7 @@ export default function MyCompaniesPage() {
 
         {otherClaims.length > 0 && (
           <div className={openCompany ? "mt-8" : ""}>
-            {openCompany && <h2 className="mb-3 text-sm font-semibold text-foreground">Other claims</h2>}
+            {openCompany && <h2 className="mb-3 text-sm font-semibold text-foreground">{t("Other claims")}</h2>}
             <div className="flex flex-col gap-4 compact:gap-2">
               {otherClaims.map((claim) => (
                 <div
@@ -899,7 +902,7 @@ export default function MyCompaniesPage() {
                     {claim.companyName}
                   </Link>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[claim.claimStatus]}`}>
-                    {claim.claimStatus === "PENDING" ? "Pending review" : "Not approved"}
+                    {claim.claimStatus === "PENDING" ? t("Pending review") : t("Not approved")}
                   </span>
                 </div>
               ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useT } from "@/lib/i18n/client";
 
 // Shown when an owner tries to change their banner but their membership
 // tier doesn't include custom banners. Either opened up-front (the "Change
@@ -20,6 +21,7 @@ export function BannerLockedDialog({
   onClose: () => void;
   onSeePlans: () => void;
 }) {
+  const t = useT();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -44,7 +46,7 @@ export function BannerLockedDialog({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("Close")}
           className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,13 +64,10 @@ export function BannerLockedDialog({
         </div>
 
         <h2 id="banner-locked-title" className="text-lg font-bold text-foreground">
-          Custom banners need a membership upgrade
+          {t("Custom banners need a membership upgrade")}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Your profile currently shows a default banner the system picked automatically from your
-          primary work-type. Uploading your own banner image needs a{" "}
-          <strong className="font-semibold text-foreground">Starter</strong>{" "}membership or higher — you
-          can&apos;t change the system-assigned default banner on the Free plan.
+          {t("Your profile currently shows a default banner the system picked automatically from your primary work-type. Uploading your own banner image needs a Starter membership or higher - you can't change the system-assigned default banner on the Free plan.")}
         </p>
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row-reverse">
@@ -77,14 +76,14 @@ export function BannerLockedDialog({
             onClick={onSeePlans}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
           >
-            See Plans
+            {t("See Plans")}
           </button>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-surface-muted"
           >
-            Maybe later
+            {t("Maybe later")}
           </button>
         </div>
       </div>

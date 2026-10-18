@@ -26,7 +26,7 @@ test("starts unticked and saves the owner's choice straight away", async () => {
 
   const box = await screen.findByRole("checkbox", { name: /Show company owner's name during messaging/ });
   expect(get).toHaveBeenCalledWith(`/my-companies/${COMPANY}/messaging-name`);
-  await screen.findByText(/Tick to answer with your name \("Ahmet Yılmaz"\)/);
+  await screen.findByText(/Tick to answer with your name \(“Ahmet Yılmaz”\)/);
   expect(box).not.toBeChecked();
 
   await userEvent.click(box);
@@ -38,5 +38,5 @@ test("starts unticked and saves the owner's choice straight away", async () => {
 test("says what reviewers see once ticked", async () => {
   get.mockResolvedValue({ showNameInMessages: true, ownerName: "Ahmet Yılmaz" });
   render(<OwnerNameInMessagesToggle companyId={COMPANY} />);
-  expect(await screen.findByText(/reviewers see "Ahmet Yılmaz"/)).toBeInTheDocument();
+  expect(await screen.findByText(/reviewers see “Ahmet Yılmaz”/)).toBeInTheDocument();
 });

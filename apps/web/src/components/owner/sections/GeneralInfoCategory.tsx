@@ -9,6 +9,7 @@ import { BannerUploader } from "@/components/owner/BannerUploader";
 import { BannerLockedDialog } from "@/components/owner/BannerLockedDialog";
 import { CompanyWorkCard, type CompanyWorkCardData } from "@/components/company/CompanyWorkCard";
 import { canUseBanner } from "@/lib/pricingTiers";
+import { useT } from "@/lib/i18n/client";
 
 const PAID_TIER_PRICES: { tier: "STARTER" | "PRO" | "ENTERPRISE"; label: string; price: string }[] = [
   { tier: "STARTER", label: "Starter", price: "299,99₺" },
@@ -61,9 +62,10 @@ export interface GeneralInfoCategoryProps {
 }
 
 function DashboardBox({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
+  const t = useT();
   return (
     <div className={`relative rounded-2xl bg-surface p-7 shadow-xs ${className}`}>
-      <h3 className="mb-3 font-semibold text-foreground">{title}</h3>
+      <h3 className="mb-3 font-semibold text-foreground">{t(title)}</h3>
       {children}
     </div>
   );
@@ -73,6 +75,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
   const bannerAllowed = canUseBanner(props.claim.tier) && props.hasActivePaidTier;
   const workplaceTypesLocked = props.detail?.company.workplaceTypesLocked ?? false;
   const [bannerDialogOpen, setBannerDialogOpen] = useState(false);
+  const t = useT();
 
   // workplaceTypes is stored as one ordered array; item 0 is the primary
   // (required) work-type and item 1, if present, the secondary (optional).
@@ -109,7 +112,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             <CompanyWorkCard company={livePreview} />
           </div>
           <p className="max-w-[280px] text-right text-[11px] leading-snug text-muted-foreground">
-            This is how your company will appear to job seekers browsing the site.
+            {t("This is how your company will appear to job seekers browsing the site.")}
           </p>
         </div>
 
@@ -118,7 +121,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             preview. */}
         <div className="flex flex-col gap-3 sm:pr-72">
           <label className="text-xs font-medium text-muted-foreground">
-            Company name
+            {t("Company name")}
             <input
               value={props.name}
               onChange={(e) => props.setName(e.target.value)}
@@ -130,7 +133,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             {/* Owner-only terminology: employees never see "primary /
                 secondary", only the bold/normal emphasis it produces on the
                 public cards. */}
-            <p className="text-xs font-medium text-muted-foreground">Primary Work-Type</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("Primary Work-Type")}</p>
             <div className="mt-1">
               <SingleSelectDropdown
                 value={primaryType}
@@ -143,7 +146,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
               />
             </div>
             <p className="mt-2 text-xs font-medium text-muted-foreground">
-              Secondary Work-Type <span className="text-muted-foreground/70">(optional)</span>
+              {t("Secondary Work-Type")} <span className="text-muted-foreground/70">{t("(optional)")}</span>
             </p>
             <div className="mt-1">
               <SingleSelectDropdown
@@ -160,10 +163,10 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
               disabled={props.workplaceTypesSaving || workplaceTypesLocked}
               className="mt-2 self-start rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Save work types
+              {t("Save work types")}
             </button>
             {workplaceTypesLocked && (
-              <p className="mt-1.5 text-xs text-muted-foreground">Please mail us to change your work-types.</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">{t("Please mail us to change your work-types.")}</p>
             )}
             {props.workplaceTypesStatus && (
               <p className="mt-1.5 text-xs text-green-700 dark:text-green-400">{props.workplaceTypesStatus}</p>
@@ -174,14 +177,14 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
           </div>
 
           <label className="mt-2 text-xs font-medium text-muted-foreground">
-            Sector / Industry <span className="text-muted-foreground/70">(optional)</span>
+            {t("Sector / Industry")} <span className="text-muted-foreground/70">{t("(optional)")}</span>
             <div className="mt-1">
               <SingleSelectDropdown value={props.category} options={props.sectorOptions} placeholder="Sector" onChange={props.setCategory} />
             </div>
           </label>
 
           <div className="text-xs font-medium text-muted-foreground">
-            Company Logo
+            {t("Company Logo")}
             <div className="mt-1">
               <CompanyLogoUploader
                 uploadPath={`/my-companies/${props.companyId}/logo`}
@@ -192,7 +195,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             </div>
           </div>
 
-          <label className="mt-2 text-xs font-medium text-muted-foreground">Headcount Range / Location</label>
+          <label className="mt-2 text-xs font-medium text-muted-foreground">{t("Headcount Range / Location")}</label>
           <div className="grid grid-cols-2 gap-2">
             <SingleSelectDropdown
               value={props.city}
@@ -221,13 +224,13 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
               onChange={(e) => props.setIsHiring(e.target.checked)}
               className="h-4 w-4 rounded border-border"
             />
-            We&apos;re currently hiring (show this company on the Jobs page)
+            {t("We're currently hiring (show this company on the Jobs page)")}
           </label>
 
           {props.hasActivePaidTier ? (
             <>
               <label className="mt-2 text-xs font-medium text-muted-foreground">
-                About / Description
+                {t("About / Description")}
                 <textarea
                   value={props.description}
                   onChange={(e) => props.setDescription(e.target.value)}
@@ -236,7 +239,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
                 />
               </label>
               <label className="text-xs font-medium text-muted-foreground">
-                Website
+                {t("Website")}
                 <input
                   value={props.website}
                   onChange={(e) => props.setWebsite(e.target.value)}
@@ -248,17 +251,17 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
           ) : (
             <div className="mt-2 rounded-lg border border-dashed border-border p-3">
               <p className="text-xs text-muted-foreground">
-                Description, website, and the Premium Features menu unlock on a paid tier.
+                {t("Description, website, and the Premium Features menu unlock on a paid tier.")}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {PAID_TIER_PRICES.map((t) => (
+                {PAID_TIER_PRICES.map((p) => (
                   <button
-                    key={t.tier}
+                    key={p.tier}
                     type="button"
-                    onClick={() => props.onStartUpgrade(t.tier)}
+                    onClick={() => props.onStartUpgrade(p.tier)}
                     className="rounded-lg border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
                   >
-                    {t.label} — {t.price}
+                    {p.label} - {p.price}
                   </button>
                 ))}
               </div>
@@ -271,7 +274,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
               hidden outright, so a lower-tier owner sees what they're
               missing instead of nothing at all. */}
           <div className="mt-2">
-            <p className="text-xs font-medium text-muted-foreground">Banner image</p>
+            <p className="text-xs font-medium text-muted-foreground">{t("Banner image")}</p>
             <div className="mt-1">
               {bannerAllowed ? (
                 <BannerUploader
@@ -282,15 +285,14 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
               ) : (
                 <div className="rounded-lg border border-dashed border-border bg-surface-muted/60 p-3">
                   <p className="text-xs text-muted-foreground">
-                    Your profile shows a default banner chosen from your primary work-type. Uploading
-                    your own image is a Pro / Enterprise feature.
+                    {t("Your profile shows a default banner chosen from your primary work-type. Uploading your own image is a Pro / Enterprise feature.")}
                   </p>
                   <button
                     type="button"
                     onClick={() => setBannerDialogOpen(true)}
                     className="mt-2 rounded-lg border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-950"
                   >
-                    Change banner image
+                    {t("Change banner image")}
                   </button>
                 </div>
               )}
@@ -302,7 +304,7 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
             disabled={props.generalInfoSaving}
             className="mt-2 self-start rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
-            Save changes
+            {t("Save changes")}
           </button>
           {props.generalInfoStatus && <p className="mt-2 text-sm text-green-700 dark:text-green-400">{props.generalInfoStatus}</p>}
           {props.generalInfoError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{props.generalInfoError}</p>}

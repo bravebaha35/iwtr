@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { PublicReview } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { SingleSelectDropdown } from "@/components/Dropdown";
+import { useT } from "@/lib/i18n/client";
 
 function excerpt(review: PublicReview): string {
   const text = review.generalThoughts ?? "(no comment)";
@@ -36,6 +37,7 @@ export function FeaturedReviewCategory({
   error: string | null;
 }) {
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -55,23 +57,22 @@ export function FeaturedReviewCategory({
 
   return (
     <div className="rounded-2xl bg-surface p-7 shadow-xs">
-      <h3 className="mb-1 font-semibold text-foreground">Featured Review Spotlight</h3>
+      <h3 className="mb-1 font-semibold text-foreground">{t("Featured Review Spotlight")}</h3>
       <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
-        Pick one of your published reviews. It is pinned to the top of the reviews on your company page with a
-        &ldquo;Featured&rdquo; label, so visitors see it first.
+        {t("Pick one of your published reviews. It is pinned to the top of the reviews on your company page with a “Featured” label, so visitors see it first.")}
       </p>
 
       {reviews === null ? (
-        <p className="text-sm text-muted-foreground">Loading your reviews...</p>
+        <p className="text-sm text-muted-foreground">{t("Loading your reviews...")}</p>
       ) : reviews.length === 0 ? (
-        <p className="text-sm text-muted-foreground">You don&apos;t have any published reviews to feature yet.</p>
+        <p className="text-sm text-muted-foreground">{t("You don't have any published reviews to feature yet.")}</p>
       ) : (
         <div className="max-w-2xl">
           <SingleSelectDropdown
-            ariaLabel="Review to feature"
+            ariaLabel={t("Review to feature")}
             value={featuredReviewId}
             onChange={setFeaturedReviewId}
-            placeholder="Choose a published review to feature"
+            placeholder={t("Choose a published review to feature")}
             options={reviews.map((r) => ({ value: r.id, label: excerpt(r) }))}
           />
           {chosen && (
@@ -86,7 +87,7 @@ export function FeaturedReviewCategory({
               disabled={saving || !featuredReviewId || featuredReviewId === savedFeaturedReviewId}
               className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
-              Pin this review
+              {t("Pin this review")}
             </button>
             {savedFeaturedReviewId && (
               <button
@@ -98,12 +99,12 @@ export function FeaturedReviewCategory({
                 disabled={saving}
                 className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-muted disabled:opacity-50"
               >
-                Unpin
+                {t("Unpin")}
               </button>
             )}
           </div>
           {savedFeaturedReviewId && (
-            <p className="mt-2 text-xs text-muted-foreground">A review is pinned on your company page right now.</p>
+            <p className="mt-2 text-xs text-muted-foreground">{t("A review is pinned on your company page right now.")}</p>
           )}
         </div>
       )}

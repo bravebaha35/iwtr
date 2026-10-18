@@ -2,6 +2,8 @@
 
 import { SettingsNavList } from "@/components/layout/SettingsNav";
 import { SOCIAL_QUESTIONS_ENABLED } from "@/lib/socialQuestionsFlag";
+import { useT } from "@/lib/i18n/client";
+import { plainT, type TFn } from "@/lib/i18n/core";
 
 // Everyday sections every owner has, on every plan.
 const STANDARD_SECTIONS = [
@@ -57,8 +59,9 @@ export function OwnerDashboardSidePanel({
   freeAdsLeft?: number | null;
   questionsWaiting?: number | null;
 }) {
+  const t = useT();
   const notes: Partial<Record<OwnerDashboardCategory, string | null>> = {
-    "job-postings": freeAdsLeft === null ? null : freeAdsLeftText(freeAdsLeft),
+    "job-postings": freeAdsLeft === null ? null : freeAdsLeftText(freeAdsLeft, t),
     questions: questionsWaiting ? `${questionsWaiting} waiting for you` : null,
   };
   const items = [...STANDARD_SECTIONS, ...PREMIUM_SECTIONS]
@@ -73,6 +76,6 @@ export function OwnerDashboardSidePanel({
 }
 
 /** "2 free ads left this month" - the same words in the side list and in the Job Postings section. */
-export function freeAdsLeftText(n: number): string {
-  return `${n} free ad${n === 1 ? "" : "s"} left this month`;
+export function freeAdsLeftText(n: number, t: TFn = plainT): string {
+  return t(n === 1 ? "{n} free ad left this month" : "{n} free ads left this month", { n });
 }

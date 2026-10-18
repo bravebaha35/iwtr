@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { BannerUploadResult } from "@iwtr/shared-types";
 import { apiUpload, ApiError } from "@/lib/api-client";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Premium Features box's banner image field — unlike CompanyLogoUploader,
@@ -23,6 +24,7 @@ export function BannerUploader({
   onChange: (url: string) => void;
 }) {
   const [uploading, setUploading] = useState(false);
+  const t = useT();
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -36,7 +38,7 @@ export function BannerUploader({
       const result = await apiUpload<BannerUploadResult>(uploadPath, formData);
       onChange(result.url);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't upload that file.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't upload that file."));
     } finally {
       setUploading(false);
     }
@@ -46,7 +48,7 @@ export function BannerUploader({
     <div className="flex flex-col gap-2">
       {value.trim() && (
         // eslint-disable-next-line @next/next/no-img-element -- arbitrary owner-supplied URL, not a static/known-domain asset
-        <img src={value} alt="Banner preview" className="h-20 w-full rounded-lg border border-border object-cover" />
+        <img src={value} alt={t("Banner preview")} className="h-20 w-full rounded-lg border border-border object-cover" />
       )}
       <div className="flex items-center gap-2">
         <input
@@ -66,12 +68,12 @@ export function BannerUploader({
           disabled={uploading}
           className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted disabled:opacity-50"
         >
-          {uploading ? "Uploading..." : "Choose image..."}
+          {uploading ? t("Uploading...") : t("Choose image...")}
         </button>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="or paste an https:// URL"
+          placeholder={t("or paste an https:// URL")}
           className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
         />
       </div>

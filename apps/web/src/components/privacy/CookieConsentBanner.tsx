@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { setConsent, useConsent } from "@/lib/consent";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Bottom-fixed, edge-to-edge consent bar. Only analytics depends on it
@@ -11,6 +12,7 @@ import { setConsent, useConsent } from "@/lib/consent";
  */
 export function CookieConsentBanner() {
   const consent = useConsent();
+  const t = useT();
   // Rendered on the server too (consent unknown = undefined), so the bar is
   // part of the first paint instead of popping in after JavaScript loads.
   // For a visitor who already chose, layout.tsx's boot script marks <html>
@@ -20,15 +22,14 @@ export function CookieConsentBanner() {
   return (
     <section
       id="cookie-consent"
-      aria-label="Cookie consent"
+      aria-label={t("Cookie consent")}
       className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface text-foreground"
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm leading-snug">
-          We use essential cookies to keep you signed in. With your OK we&apos;d also measure how public pages are
-          used — never on your account pages or while you write a review.{" "}
+          {t("We use essential cookies to keep you signed in. With your OK we'd also measure how public pages are used - never on your account pages or while you write a review.")}{" "}
           <Link href="/privacy" className="font-semibold underline underline-offset-2">
-            Read our privacy policy
+            {t("Read our privacy policy")}
           </Link>
           .
         </p>
@@ -38,14 +39,14 @@ export function CookieConsentBanner() {
             onClick={() => setConsent("declined")}
             className="rounded-2xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface-muted"
           >
-            Decline
+            {t("Decline")}
           </button>
           <button
             type="button"
             onClick={() => setConsent("accepted")}
             className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
           >
-            Accept
+            {t("Accept")}
           </button>
         </div>
       </div>

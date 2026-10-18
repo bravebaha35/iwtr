@@ -5,6 +5,7 @@ import { validateSourceImageForCrop, LOGO_MAX_FILE_SIZE_BYTES, type LogoUploadRe
 import { apiUpload, ApiError } from "@/lib/api-client";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { LogoCropper } from "@/components/LogoCropper";
+import { useT } from "@/lib/i18n/client";
 
 type LogoMode = "upload" | "url";
 
@@ -64,6 +65,7 @@ export function CompanyLogoUploader({
   onChange: (url: string) => void;
 }) {
   const [mode, setMode] = useState<LogoMode>("url");
+  const t = useT();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
@@ -76,12 +78,12 @@ export function CompanyLogoUploader({
       const { width, height } = await readImageDimensions(file);
       const check = validateSourceImageForCrop({ mimeType: file.type, sizeBytes: file.size, width, height });
       if (!check.valid) {
-        setError(check.error);
+        setError(t(check.error));
         return;
       }
       setPendingCropFile(file);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't read that image.");
+      setError(err instanceof Error ? t(err.message) : t("Couldn't read that image."));
     }
   }
 
@@ -95,7 +97,7 @@ export function CompanyLogoUploader({
       const result = await apiUpload<LogoUploadResult>(uploadPath, formData);
       onChange(result.url);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't upload that file.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't upload that file."));
     } finally {
       setUploading(false);
     }
@@ -108,7 +110,7 @@ export function CompanyLogoUploader({
           <svg viewBox="-8 0 32 32" className="h-3.5 w-3.5" fill="currentColor">
             <path d="M226,155 L226,175 C226,178.313 223.313,181 220,181 C216.687,181 214,178.313 214,175 L214,157 C214,154.791 215.791,153 218,153 C220.209,153 222,154.791 222,157 L222,175 C222,176.104 221.104,177 220,177 C218.896,177 218,176.104 218,175 L218,159 L216,159 L216,175 C216,177.209 217.791,179 220,179 C222.209,179 224,177.209 224,175 L224,157 C224,153.687 221.313,151 218,151 C214.687,151 212,153.687 212,157 L212,176 C212.493,179.945 215.921,183 220,183 C224.079,183 227.507,179.945 228,176 L228,155 L226,155" />
           </svg>
-          Upload from PC
+          {t("Upload from PC")}
         </button>
         <button type="button" onClick={() => setMode("url")} className={pillClass(mode === "url")}>
           <svg viewBox="0 -0.5 21 21" className="h-3.5 w-3.5" fill="currentColor">
@@ -118,7 +120,7 @@ export function CompanyLogoUploader({
               </g>
             </g>
           </svg>
-          Paste a URL
+          {t("Paste a URL")}
         </button>
       </div>
 
@@ -142,7 +144,7 @@ export function CompanyLogoUploader({
             disabled={uploading}
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted disabled:opacity-50"
           >
-            {uploading ? "Uploading..." : "Choose PNG file..."}
+            {uploading ? t("Uploading...") : t("Choose PNG file...")}
           </button>
         </div>
       ) : (
@@ -160,8 +162,7 @@ export function CompanyLogoUploader({
       {error && <p className="text-xs text-red-600 dark:text-red-300">{error}</p>}
 
       <p className="text-[11px] text-muted-foreground">
-        PNG, under {LOGO_MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB. You&apos;ll be able to crop it to a square after
-        choosing a file.
+        {t("PNG, under {mb}MB. You'll be able to crop it to a square after choosing a file.", { mb: LOGO_MAX_FILE_SIZE_BYTES / (1024 * 1024) })}
       </p>
 
       {pendingCropFile && (

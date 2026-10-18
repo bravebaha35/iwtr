@@ -6,6 +6,8 @@ import type { BenchmarkReportJob } from "@iwtr/shared-types";
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 import { SETTLE_EASE } from "@/lib/motion/easings";
 import { announceNewNotifications } from "@/lib/notification-events";
+import { useI18n, useT } from "@/lib/i18n/client";
+import { intlLocale } from "@/lib/i18n/core";
 
 const POLL_MS = 3_000;
 
@@ -37,11 +39,12 @@ export function downloadHref(companyId: string, jobId: string) {
  */
 function GeneratingBar({ status }: { status: BenchmarkReportJob["status"] }) {
   const reduceMotion = useReducedMotion();
+  const t = useT();
   const target = status === "QUEUED" ? 0.35 : status === "RUNNING" ? 0.9 : 1;
   return (
     <div
       role="progressbar"
-      aria-label="Generating report"
+      aria-label={t("Generating report")}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(target * 100)}
@@ -74,6 +77,7 @@ export function SectorBenchmarkTile({
   city: string | null;
 }) {
   const [jobs, setJobs] = useState<BenchmarkReportJob[] | null>(null);
+  const { t, locale } = useI18n();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingIds = useRef<Set<string>>(new Set());
@@ -119,7 +123,7 @@ export function SectorBenchmarkTile({
       pendingIds.current.add(job.id);
       setJobs((prev) => [job, ...(prev ?? [])]);
     } catch (err) {
-      setError(err instanceof ApiError ? friendlyReportError(err.message) : "Couldn't start the report. Please try again.");
+      setError(err instanceof ApiError ? t(friendlyReportError(err.message)) : t("Couldn't start the report. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -128,8 +132,7 @@ export function SectorBenchmarkTile({
   if (!isEnterprise) {
     return (
       <p className="text-sm text-muted-foreground">
-        Salary ranges, benefits and the questions your whole sector agrees and disagrees on, as a PDF. Available on
-        the Enterprise plan.
+        {t("Salary ranges, benefits and the questions your whole sector agrees and disagrees on, as a PDF. Available on the Enterprise plan.")}
       </p>
     );
   }
@@ -137,9 +140,9 @@ export function SectorBenchmarkTile({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">
-        Salary ranges, benefits, the 10 questions your sector agrees and disagrees on most, and its risk of staff
-        leaving - compared across companies in your sector{city ? ` in ${city}` : " in your city"}. Built only from
-        anonymous data, and only when enough people and companies are behind every figure.
+        {city
+          ? t("Salary ranges, benefits, the 10 questions your sector agrees and disagrees on most, and its risk of staff leaving - compared across companies in your sector in {city}. Built only from anonymous data, and only when enough people and companies are behind every figure.", { city })
+          : t("Salary ranges, benefits, the 10 questions your sector agrees and disagrees on most, and its risk of staff leaving - compared across companies in your sector in your city. Built only from anonymous data, and only when enough people and companies are behind every figure.")}
       </p>
       {error && <p className="text-sm text-red-700 dark:text-red-300">{error}</p>}
 
@@ -149,15 +152,15 @@ export function SectorBenchmarkTile({
             <li key={job.id} className="flex flex-col gap-1.5 py-2">
               <div className="flex items-baseline justify-between gap-3 text-sm">
                 <span className="font-medium text-foreground">
-                  {job.sectorCategory}{job.city ? ` · ${job.city}` : ""}
+                  {t(job.sectorCategory)}{job.city ? ` · ${job.city}` : ""}
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {new Date(job.createdAt).toLocaleDateString()}
+                  {new Date(job.createdAt).toLocaleDateString(intlLocale(locale))}
                 </span>
               </div>
               {isPending(job) && <GeneratingBar status={job.status} />}
               {job.status === "READY" && job.expiresAt && new Date(job.expiresAt) < new Date() && (
-                <p className="text-xs text-muted-foreground">Download expired (reports are kept for 7 days).</p>
+                <p className="text-xs text-muted-foreground">{t("Download expired (reports are kept for 7 days).")}</p>
               )}
               {job.status === "READY" && !(job.expiresAt && new Date(job.expiresAt) < new Date()) && (
                 <a
@@ -166,11 +169,11 @@ export function SectorBenchmarkTile({
                   rel="noopener noreferrer"
                   className="self-start text-sm font-semibold text-brand-700 underline underline-offset-2 dark:text-brand-300"
                 >
-                  Open PDF
+                  {t("Open PDF")}
                 </a>
               )}
               {job.status === "FAILED" && (
-                <p className="text-xs text-red-700 dark:text-red-300">{job.errorMessage ? friendlyReportError(job.errorMessage) : "This report failed."}</p>
+                <p className="text-xs text-red-700 dark:text-red-300">{job.errorMessage ? t(friendlyReportError(job.errorMessage)) : t("This report failed.")}</p>
               )}
             </li>
           ))}
@@ -184,7 +187,7 @@ export function SectorBenchmarkTile({
           disabled={submitting || hasPending}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
         >
-          {hasPending ? "Generating…" : "Generate Report"}
+          {hasPending ? t("Generating…") : t("Generate Report")}
         </button>
       </div>
     </div>

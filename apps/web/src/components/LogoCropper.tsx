@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LOGO_RECOMMENDED_DIMENSION_PX } from "@iwtr/shared-types";
 import { baseScaleFor, clampOffset, recenterOffsetOnZoom, sourceRectFor } from "@/lib/cropMath";
+import { useT } from "@/lib/i18n/client";
 
 const VIEWPORT_PX = 280;
 
@@ -25,6 +26,7 @@ export function LogoCropper({
   onCancel: () => void;
 }) {
   const imgRef = useRef<HTMLImageElement>(null);
+  const t = useT();
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -119,7 +121,7 @@ export function LogoCropper({
         className="flex flex-col items-center gap-3 rounded-2xl bg-surface shadow-xs p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-sm font-medium text-foreground">Drag to reposition, use the slider to zoom</p>
+        <p className="text-sm font-medium text-foreground">{t("Drag to reposition, use the slider to zoom")}</p>
         <div
           className="relative touch-none overflow-hidden rounded-lg border border-border bg-surface-muted"
           style={{ width: VIEWPORT_PX, height: VIEWPORT_PX }}
@@ -155,7 +157,7 @@ export function LogoCropper({
           onChange={(e) => onZoomChange(Number(e.target.value))}
           disabled={!natural}
           className="w-full"
-          aria-label="Zoom"
+          aria-label={t("Zoom")}
         />
         <div className="flex gap-2 self-end">
           <button
@@ -163,7 +165,7 @@ export function LogoCropper({
             onClick={onCancel}
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -171,7 +173,7 @@ export function LogoCropper({
             disabled={!natural || exporting}
             className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
-            {exporting ? "Saving..." : "Use this crop"}
+            {exporting ? t("Saving...") : t("Use this crop")}
           </button>
         </div>
       </div>

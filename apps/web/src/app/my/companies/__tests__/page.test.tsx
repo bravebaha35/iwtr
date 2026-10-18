@@ -263,9 +263,9 @@ test("on the Free tier a premium section shows what it does and the plans that u
   await user.click(screen.getByRole("button", { name: "Featured Review Spotlight" }));
   const locked = screen.getByRole("heading", { name: /Featured Review Spotlight/, level: 3 }).parentElement as HTMLElement;
   expect(within(locked).getByText(/Pin one of your published reviews/)).toBeInTheDocument();
-  expect(within(locked).getByRole("button", { name: /^Starter — /})).toBeInTheDocument();
-  expect(within(locked).getByRole("button", { name: /^Pro — /})).toBeInTheDocument();
-  expect(within(locked).getByRole("button", { name: /^Enterprise — /})).toBeInTheDocument();
+  expect(within(locked).getByRole("button", { name: /^Starter - /})).toBeInTheDocument();
+  expect(within(locked).getByRole("button", { name: /^Pro - /})).toBeInTheDocument();
+  expect(within(locked).getByRole("button", { name: /^Enterprise - /})).toBeInTheDocument();
 });
 
 test("the tier label opens a closeable note about the Verified Employer Badge", async () => {

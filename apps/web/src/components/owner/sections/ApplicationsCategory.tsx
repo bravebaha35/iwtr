@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
+import { intlLocale } from "@/lib/i18n/core";
 import type { JobApplicationListItem } from "@iwtr/shared-types";
 import { apiGet, apiGetBlob, apiPost } from "@/lib/api-client";
 
 export function ApplicationsCategory({ companyId }: { companyId: string }) {
   const [applications, setApplications] = useState<JobApplicationListItem[] | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const { t, locale } = useI18n();
 
   useEffect(() => {
     let cancelled = false;
@@ -45,12 +48,12 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
       // shortly after rather than leaking one blob URL per click.
       setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     } catch {
-      setPdfError("Couldn't open that CV.");
+      setPdfError(t("Couldn't open that CV."));
     }
   }
 
-  if (applications === null) return <p className="text-sm text-muted-foreground">Loading...</p>;
-  if (applications.length === 0) return <p className="text-sm text-muted-foreground">No applications yet.</p>;
+  if (applications === null) return <p className="text-sm text-muted-foreground">{t("Loading...")}</p>;
+  if (applications.length === 0) return <p className="text-sm text-muted-foreground">{t("No applications yet.")}</p>;
 
   return (
     <div className="flex flex-col gap-2">
@@ -64,17 +67,17 @@ export function ApplicationsCategory({ companyId }: { companyId: string }) {
             <div className="min-w-0">
               <p className="truncate text-sm font-bold">{a.applicantDisplayName}</p>
               <p className="truncate text-xs text-muted-foreground">
-                Applied to {a.jobTitle} · {new Date(a.createdAt).toLocaleDateString()}
+                {t("Applied to {job}", { job: a.jobTitle })} · {new Date(a.createdAt).toLocaleDateString(intlLocale(locale))}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {a.viewedAt === null && (
                 <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] font-bold uppercase">
-                  New
+                  {t("New")}
                 </span>
               )}
               <button type="button" onClick={() => viewCv(a)} className="text-xs font-bold underline">
-                View CV
+                {t("View CV")}
               </button>
             </div>
           </li>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n, useT } from "@/lib/i18n/client";
 import { useCallback, useEffect, useState } from "react";
 import type { OwnedCompany, ScheduledSocialPost, ScheduledSocialPostList, SocialPostKind } from "@iwtr/shared-types";
 import { apiDelete, apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
@@ -27,6 +28,7 @@ function Row({ post, onChanged, readOnly }: { post: ScheduledSocialPost; onChang
   const [time, setTime] = useState(() => localInputValue(new Date(post.publishAt)));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t, locale } = useI18n();
 
   async function run(work: () => Promise<unknown>, fallback: string) {
     setBusy(true);
@@ -36,14 +38,14 @@ function Row({ post, onChanged, readOnly }: { post: ScheduledSocialPost; onChang
       setMode("idle");
       onChanged();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : fallback);
+      setError(err instanceof ApiError ? t(err.message) : t(fallback));
     } finally {
       setBusy(false);
     }
   }
 
   const failed = post.status === "FAILED";
-  const text = post.title ?? post.caption ?? `${KIND_LABEL[post.kind]} post`;
+  const text = post.title ?? post.caption ?? t("{kind} post", { kind: t(KIND_LABEL[post.kind]) });
   return (
     <li className="flex flex-col gap-2 border-t border-border py-4 first:border-t-0 first:pt-0">
       <div className="flex min-w-0 items-start gap-3">
@@ -55,19 +57,19 @@ function Row({ post, onChanged, readOnly }: { post: ScheduledSocialPost; onChang
         )}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground">
-            {failed ? "Did not go out" : formatScheduledTime(post.publishAt)}
-            <span className="font-normal text-muted-foreground"> &middot; {KIND_LABEL[post.kind]}</span>
+            {failed ? t("Did not go out") : formatScheduledTime(post.publishAt, locale)}
+            <span className="font-normal text-muted-foreground"> &middot; {t(KIND_LABEL[post.kind])}</span>
           </p>
           <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{text}</p>
           {post.pollOptions.length > 0 && <p className="mt-0.5 truncate text-xs text-muted-foreground">{post.pollOptions.join(" / ")}</p>}
-          {failed && post.failureReason && <p className="mt-1 text-[13px] text-red-600 dark:text-red-300">{post.failureReason}</p>}
+          {failed && post.failureReason && <p className="mt-1 text-[13px] text-red-600 dark:text-red-300">{t(post.failureReason)}</p>}
         </div>
       </div>
 
       {mode === "idle" && !readOnly && (
         <div className="flex flex-wrap gap-1.5 pl-[3.75rem]">
           <button type="button" onClick={() => setMode("time")} disabled={busy} className={quietButton}>
-            {failed ? "Pick a new time" : "Change time"}
+            {failed ? t("Pick a new time") : t("Change time")}
           </button>
           <button
             type="button"
@@ -75,10 +77,10 @@ function Row({ post, onChanged, readOnly }: { post: ScheduledSocialPost; onChang
             disabled={busy}
             className={quietButton}
           >
-            Post now
+            {t("Post now")}
           </button>
           <button type="button" onClick={() => setMode("delete")} disabled={busy} className={quietButton}>
-            Delete
+            {t("Delete")}
           </button>
         </div>
       )}
@@ -87,7 +89,7 @@ function Row({ post, onChanged, readOnly }: { post: ScheduledSocialPost; onChang
         <div className="flex flex-wrap items-center gap-2 pl-[3.75rem]">
           <input
             type="datetime-local"
-            aria-label="New date and time"
+            aria-label={t("New date and time")}
             value={time}
             onChange={(e) => setTime(e.target.value)}
             className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground"
@@ -98,27 +100,27 @@ function Row({ post, onChanged, readOnly }: { post: ScheduledSocialPost; onChang
             onClick={() => void run(() => apiPatch(`/social/scheduled-posts/${post.id}`, { publishAt: new Date(time).toISOString() }), "Couldn't change the time.")}
             className="rounded-full bg-brand-600 px-4 py-1 text-[13px] font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50"
           >
-            Save
+            {t("Save")}
           </button>
           <button type="button" onClick={() => setMode("idle")} className="text-[13px] text-muted-foreground hover:text-foreground">
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
       )}
 
       {mode === "delete" && (
         <div className="flex flex-wrap items-center gap-2 pl-[3.75rem]">
-          <span className="text-[13px] text-foreground">Delete this post? It will not go out.</span>
+          <span className="text-[13px] text-foreground">{t("Delete this post? It will not go out.")}</span>
           <button
             type="button"
             disabled={busy}
             onClick={() => void run(() => apiDelete(`/social/scheduled-posts/${post.id}`), "Couldn't delete that.")}
             className="rounded-full bg-red-600 px-4 py-1 text-[13px] font-semibold text-white transition hover:bg-red-700 active:scale-[0.98] disabled:opacity-50"
           >
-            Delete
+            {t("Delete")}
           </button>
           <button type="button" onClick={() => setMode("idle")} className="text-[13px] text-muted-foreground hover:text-foreground">
-            Keep it
+            {t("Keep it")}
           </button>
         </div>
       )}
@@ -148,6 +150,7 @@ export function ScheduledPostsPanel({
   const [list, setList] = useState<ScheduledSocialPostList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
+  const t = useT();
 
   const load = useCallback(() => {
     apiGet<ScheduledSocialPostList>(`/social/company-scheduled/${company.companyId}`)
@@ -155,7 +158,7 @@ export function ScheduledPostsPanel({
         setList(next);
         setError(null);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load the scheduled posts."));
+      .catch((err) => setError(err instanceof ApiError ? t(err.message) : t("Couldn't load the scheduled posts.")));
   }, [company.companyId]);
 
   useEffect(() => {
@@ -174,15 +177,16 @@ export function ScheduledPostsPanel({
 
   return (
     <div className="rounded-2xl bg-surface p-7 shadow-xs">
-      <h3 className="font-semibold text-foreground">Scheduled posts</h3>
+      <h3 className="font-semibold text-foreground">{t("Scheduled posts")}</h3>
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
         {readOnly
-          ? "Posts written to go out later, and when. Scheduling them is done from the company owner's own account."
-          : "Write a post now and pick when it goes out. Until then nobody sees it."}
+          ? t("Posts written to go out later, and when. Scheduling them is done from the company owner's own account.")
+          : t("Write a post now and pick when it goes out. Until then nobody sees it.")}
         {onPlan && (
           <>
             {" "}
-            Your {planNameForOwnerTier(list.tier)} plan keeps up to {list.limit} waiting; <span className="font-semibold text-foreground">{list.waiting} waiting now</span>.
+            {t("Your {plan} plan keeps up to {n} waiting;", { plan: t(planNameForOwnerTier(list.tier)), n: list.limit })}{" "}
+            <span className="font-semibold text-foreground">{t("{n} waiting now", { n: list.waiting })}</span>.
           </>
         )}
       </p>
@@ -192,9 +196,9 @@ export function ScheduledPostsPanel({
 
       {list && !onPlan && (
         <p className="mt-4 text-sm text-foreground">
-          Posting later is part of the Starter plan and above.{" "}
+          {t("Posting later is part of the Starter plan and above.")}{" "}
           <button type="button" onClick={onOpenPricing} className="font-semibold text-brand-600 hover:underline dark:text-brand-400">
-            Compare plans
+            {t("Compare plans")}
           </button>
         </p>
       )}
@@ -207,9 +211,9 @@ export function ScheduledPostsPanel({
             disabled={full}
             className="rounded-full bg-brand-600 px-5 py-1.5 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50"
           >
-            Schedule a post
+            {t("Schedule a post")}
           </button>
-          {full && <p className="mt-2 text-[13px] text-muted-foreground">That is the most your plan keeps waiting. Delete one, or wait for one to go out.</p>}
+          {full && <p className="mt-2 text-[13px] text-muted-foreground">{t("That is the most your plan keeps waiting. Delete one, or wait for one to go out.")}</p>}
         </div>
       )}
 
@@ -235,7 +239,7 @@ export function ScheduledPostsPanel({
           ))}
         </ul>
       )}
-      {onPlan && list.posts.length === 0 && !writing && <p className="mt-4 text-sm text-muted-foreground">Nothing is waiting to go out.</p>}
+      {onPlan && list.posts.length === 0 && !writing && <p className="mt-4 text-sm text-muted-foreground">{t("Nothing is waiting to go out.")}</p>}
     </div>
   );
 }

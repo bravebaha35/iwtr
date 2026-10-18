@@ -5,33 +5,35 @@ import type { CompanyDetail, ReplyAllowance, WorkplaceType } from "@iwtr/shared-
 import { scoreBandLabel } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
+import { useI18n, useT } from "@/lib/i18n/client";
+import { intlLocale, type Locale } from "@/lib/i18n/core";
 
-function formatDay(day: string): string {
+function formatDay(day: string, locale: Locale): string {
   const [y, m, d] = day.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(intlLocale(locale), { day: "numeric", month: "long", timeZone: "UTC" });
 }
 
 // How many public replies are left this month on the owner's plan.
 function MonthlyReplies({ allowance }: { allowance: ReplyAllowance | null }) {
+  const { t, locale } = useI18n();
   if (!allowance) return null;
   const unlimited = allowance.limit === null;
   const used = allowance.usedThisMonth;
   const fraction = unlimited ? 0 : Math.min(1, used / Math.max(1, allowance.limit ?? 1));
   return (
-    <section aria-label="Monthly comment responses" className="mb-6 rounded-lg border border-border p-4">
-      <h4 className="mb-1 text-sm font-semibold text-foreground">Monthly comment responses</h4>
+    <section aria-label={t("Monthly comment responses")} className="mb-6 rounded-lg border border-border p-4">
+      <h4 className="mb-1 text-sm font-semibold text-foreground">{t("Monthly comment responses")}</h4>
       {unlimited ? (
         <p className="text-sm text-muted-foreground">
-          Your plan includes unlimited replies. You&apos;ve replied to {used} review{used === 1 ? "" : "s"} this month.
+          {t(used === 1 ? "Your plan includes unlimited replies. You've replied to {n} review this month." : "Your plan includes unlimited replies. You've replied to {n} reviews this month.", { n: used })}
         </p>
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">
-              {allowance.remaining} of {allowance.limit} replies left
+              {t("{left} of {limit} replies left", { left: allowance.remaining ?? 0, limit: allowance.limit ?? 0 })}
             </span>{" "}
-            this month on your plan. The count starts over on {formatDay(allowance.resetsOn)}. Editing a reply you
-            already posted doesn&apos;t use one up.
+            {t("this month on your plan. The count starts over on {date}. Editing a reply you already posted doesn't use one up.", { date: formatDay(allowance.resetsOn, locale) })}
           </p>
           <div className="mt-2 h-2 w-full max-w-md overflow-hidden rounded-full bg-surface-muted">
             <div className="h-full rounded-full bg-brand-600" style={{ width: `${fraction * 100}%` }} />
@@ -56,6 +58,7 @@ export function ReviewsRatingsCategory({
 }) {
   const aggregate = detail?.aggregate;
   const [allowance, setAllowance] = useState<ReplyAllowance | null>(null);
+  const t = useT();
 
   const loadAllowance = useCallback(() => {
     apiGet<ReplyAllowance>(`/my-companies/${companyId}/reply-allowance`)
@@ -69,7 +72,7 @@ export function ReviewsRatingsCategory({
 
   return (
     <div className="rounded-2xl bg-surface p-7 shadow-xs">
-      <h3 className="mb-4 font-semibold text-foreground">Ratings</h3>
+      <h3 className="mb-4 font-semibold text-foreground">{t("Ratings")}</h3>
 
       {aggregate && aggregate.reviewCount > 0 ? (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -82,16 +85,15 @@ export function ReviewsRatingsCategory({
           ].map((row) => (
             <div key={row.label} className="rounded-lg border border-border p-3 text-center">
               <p className="font-grotesk text-lg font-bold tabular-nums text-foreground">{row.value.toFixed(1)}</p>
-              <p className="text-[11px] text-muted-foreground">{row.label}</p>
+              <p className="text-[11px] text-muted-foreground">{t(row.label)}</p>
             </div>
           ))}
           <p className="col-span-2 self-center text-sm text-muted-foreground sm:col-span-5">
-            {scoreBandLabel(aggregate.overallAvg)} · {aggregate.reviewCount} review
-            {aggregate.reviewCount === 1 ? "" : "s"}
+            {t(scoreBandLabel(aggregate.overallAvg))} · {t(aggregate.reviewCount === 1 ? "{n} review" : "{n} reviews", { n: aggregate.reviewCount })}
           </p>
         </div>
       ) : (
-        <p className="mb-6 text-sm text-muted-foreground">No reviews yet.</p>
+        <p className="mb-6 text-sm text-muted-foreground">{t("No reviews yet.")}</p>
       )}
 
       <MonthlyReplies allowance={allowance} />

@@ -12,6 +12,8 @@ import {
 import { apiGet, apiPost, ApiError } from "@/lib/api-client";
 import { IyzicoCheckoutEmbed } from "@/components/IyzicoCheckoutEmbed";
 import { announceNewNotifications } from "@/lib/notification-events";
+import { useI18n } from "@/lib/i18n/client";
+import { intlLocale, type TFn } from "@/lib/i18n/core";
 
 const POLL_MS = 3_000;
 
@@ -43,23 +45,26 @@ export function hrReportDownloadHref(companyId: string, jobId: string) {
   return `/api/proxy/my-companies/${companyId}/hr-analytics-report/${jobId}/download`;
 }
 
-function formatDay(isoDay: string) {
-  return new Date(`${isoDay}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
+function formatDay(isoDay: string, tag: string) {
+  return new Date(`${isoDay}T00:00:00Z`).toLocaleDateString(tag, { day: "numeric", month: "long", timeZone: "UTC" });
 }
 
 /** One line on what the next click will do. */
-function allowanceNote(allowance: HrReportAllowance): string {
+function allowanceNote(allowance: HrReportAllowance, t: TFn, tag: string): string {
   switch (allowance.mode) {
     case "INCLUDED":
-      return "Included in your Enterprise plan.";
+      return t("Included in your Enterprise plan.");
     case "MONTHLY_QUOTA":
-      return "Your Pro plan includes 1 report a month. You have 1 left this month.";
+      return t("Your Pro plan includes 1 report a month. You have 1 left this month.");
     case "PAID_CREDIT":
-      return "Your last bought report couldn't be built, so you can build it again at no charge.";
+      return t("Your last bought report couldn't be built, so you can build it again at no charge.");
     case "PAYMENT_REQUIRED":
       return allowance.quotaRemaining === 0
-        ? `You've used this month's report. It comes back on ${formatDay(allowance.quotaResetsOn!)}; an extra report is ${HR_REPORT_PRICE_LABEL}.`
-        : `One report is ${HR_REPORT_PRICE_LABEL}. The Pro plan includes one every month.`;
+        ? t("You've used this month's report. It comes back on {date}; an extra report is {price}.", {
+            date: formatDay(allowance.quotaResetsOn!, tag),
+            price: HR_REPORT_PRICE_LABEL,
+          })
+        : t("One report is {price}. The Pro plan includes one every month.", { price: HR_REPORT_PRICE_LABEL });
   }
 }
 
@@ -71,6 +76,7 @@ function allowanceNote(allowance: HrReportAllowance): string {
  */
 function BuildingPages({ status }: { status: HrReportJob["status"] }) {
   const reduceMotion = useReducedMotion();
+  const { t } = useI18n();
   const running = status === "RUNNING";
   return (
     <div role="status" className="flex items-center gap-3">
@@ -98,7 +104,7 @@ function BuildingPages({ status }: { status: HrReportJob["status"] }) {
         })}
       </div>
       <span className="text-sm text-muted-foreground">
-        {running ? "Laying out your pages…" : "Gathering your reviewers' answers…"}
+        {running ? t("Laying out your pages…") : t("Gathering your reviewers' answers…")}
       </span>
     </div>
   );
@@ -111,9 +117,10 @@ function BillingForm({
   billing: typeof emptyBilling;
   onChange: (key: keyof typeof emptyBilling, value: string) => void;
 }) {
+  const { t } = useI18n();
   const field = (key: keyof typeof emptyBilling, label: string, wide = false, type = "text") => (
     <label className={`flex flex-col gap-1 text-xs text-muted-foreground ${wide ? "sm:col-span-2" : ""}`}>
-      {label}
+      {t(label)}
       <input
         type={type}
         value={billing[key]}
@@ -143,6 +150,8 @@ function BillingForm({
  * The server makes every one of these decisions again; this only explains them.
  */
 export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
+  const { t, locale } = useI18n();
+  const tag = intlLocale(locale);
   const [overview, setOverview] = useState<HrReportOverview | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -214,7 +223,7 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
         void load().then(apply).catch(() => {});
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't start the report. Please try again.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't start the report. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -243,18 +252,15 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">
-        Your company as your reviewers see it, in two pages: your Vibe Flags and why you earned each one, your Risk
-        Score with every past job posting&apos;s effect on it, and every survey question as percentages across
-        Corporate Culture, Leadership &amp; Management, Infrastructure &amp; Resources, Work-Life Balance and
-        Organizational Stability. Built only from anonymous answers.
+        {t("Your company as your reviewers see it, in two pages: your Vibe Flags and why you earned each one, your Risk Score with every past job posting's effect on it, and every survey question as percentages across Corporate Culture, Leadership & Management, Infrastructure & Resources, Work-Life Balance and Organizational Stability. Built only from anonymous answers.")}
       </p>
 
-      {loadFailed && <p className="text-sm text-red-700 dark:text-red-300">Couldn&apos;t load your reports. Refresh to try again.</p>}
-      {!overview && !loadFailed && <div className="h-4 w-2/3 animate-pulse rounded bg-surface-muted" aria-label="Loading" />}
+      {loadFailed && <p className="text-sm text-red-700 dark:text-red-300">{t("Couldn't load your reports. Refresh to try again.")}</p>}
+      {!overview && !loadFailed && <div className="h-4 w-2/3 animate-pulse rounded bg-surface-muted" aria-label={t("Loading")} />}
 
       {allowance && (
         <p className="rounded-lg bg-surface-muted px-3 py-2 text-sm text-foreground">
-          {allowance.eligible ? allowanceNote(allowance) : allowance.ineligibleReason}
+          {allowance.eligible ? allowanceNote(allowance, t, tag) : allowance.ineligibleReason && t(allowance.ineligibleReason)}
         </p>
       )}
 
@@ -265,12 +271,12 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
           {overview.jobs.map((job) => (
             <li key={job.id} className="flex flex-col gap-1.5 py-2">
               <div className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="font-medium text-foreground">{ACCESS_LABEL[job.access]}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{new Date(job.createdAt).toLocaleDateString()}</span>
+                <span className="font-medium text-foreground">{t(ACCESS_LABEL[job.access])}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{new Date(job.createdAt).toLocaleDateString(tag)}</span>
               </div>
               {isBuilding(job) && <BuildingPages status={job.status} />}
               {job.status === "READY" && isExpired(job) && (
-                <p className="text-xs text-muted-foreground">Download expired (reports are kept for 7 days).</p>
+                <p className="text-xs text-muted-foreground">{t("Download expired (reports are kept for 7 days).")}</p>
               )}
               {job.status === "READY" && !isExpired(job) && (
                 <a
@@ -279,11 +285,11 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
                   rel="noopener noreferrer"
                   className="self-start text-sm font-semibold text-brand-700 underline underline-offset-2 dark:text-brand-300"
                 >
-                  Open PDF
+                  {t("Open PDF")}
                 </a>
               )}
               {job.status === "FAILED" && (
-                <p className="text-xs text-red-700 dark:text-red-300">{job.errorMessage ?? "This report failed."}</p>
+                <p className="text-xs text-red-700 dark:text-red-300">{job.errorMessage ? t(job.errorMessage) : t("This report failed.")}</p>
               )}
             </li>
           ))}
@@ -293,7 +299,7 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
       {checkout ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
           <p className="text-sm text-foreground">
-            Complete the {HR_REPORT_PRICE_LABEL} payment below. Your report starts building as soon as it goes through.
+            {t("Complete the {price} payment below. Your report starts building as soon as it goes through.", { price: HR_REPORT_PRICE_LABEL })}
           </p>
           <IyzicoCheckoutEmbed checkoutFormContent={checkout} />
           <button
@@ -305,12 +311,12 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
             }}
             className="self-end rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-surface-muted"
           >
-            Close
+            {t("Close")}
           </button>
         </div>
       ) : billingOpen && pays ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
-          <p className="text-sm text-foreground">Billing details, for the payment and your invoice.</p>
+          <p className="text-sm text-foreground">{t("Billing details, for the payment and your invoice.")}</p>
           <BillingForm billing={billing} onChange={(key, value) => setBilling((b) => ({ ...b, [key]: value }))} />
           <div className="flex justify-end gap-2">
             <button
@@ -318,7 +324,7 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
               onClick={() => setBillingOpen(false)}
               className="rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-surface-muted"
             >
-              Cancel
+              {t("Cancel")}
             </button>
             <button
               type="button"
@@ -326,7 +332,7 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
               disabled={!billingComplete || submitting}
               className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
             >
-              {submitting ? "Opening payment…" : `Pay ${HR_REPORT_PRICE_LABEL}`}
+              {submitting ? t("Opening payment…") : t("Pay {price}", { price: HR_REPORT_PRICE_LABEL })}
             </button>
           </div>
         </div>
@@ -339,12 +345,12 @@ export function HrAnalyticsReportTile({ companyId }: { companyId: string }) {
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
           >
             {building
-              ? "Building…"
+              ? t("Building…")
               : pays
-                ? `Buy report for ${HR_REPORT_PRICE_LABEL}`
+                ? t("Buy report for {price}", { price: HR_REPORT_PRICE_LABEL })
                 : allowance?.mode === "PAID_CREDIT"
-                  ? "Build it again"
-                  : "Generate Report"}
+                  ? t("Build it again")
+                  : t("Generate Report")}
           </button>
         </div>
       )}

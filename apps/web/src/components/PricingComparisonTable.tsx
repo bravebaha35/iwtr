@@ -3,6 +3,7 @@
 import type { OwnerTier } from "@iwtr/shared-types";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { pricingFeature } from "@/lib/pricingTiers";
+import { useT } from "@/lib/i18n/client";
 
 // B2B corporate pricing comparison — Free/Starter/Pro/Enterprise. All copy
 // below is mapped verbatim from the CEO-finalized 4-tier matrix; nothing
@@ -24,29 +25,40 @@ interface PricingRow {
 }
 
 function PriceCell({ price, annualNote }: { price: string; annualNote?: string }) {
+  const t = useT();
   return (
     <div>
       <span className="text-lg font-bold text-foreground">{price}</span>
-      {annualNote && <p className="mt-1 text-xs leading-snug text-muted-foreground">{annualNote}</p>}
+      {annualNote && <p className="mt-1 text-xs leading-snug text-muted-foreground">{t(annualNote)}</p>}
     </div>
   );
 }
 
 // The same check-mark a company shows next to its name, in this tier's colour.
 function BadgeCell({ tier, value }: { tier: OwnerTier; value: string }) {
+  const t = useT();
   return (
     <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
       <CompanyVerificationTick badgeTier={tier} claimed size={18} />
-      {value}
+      {t(value)}
     </span>
   );
+}
+
+// A plain word inside the ROWS table, translated when it renders.
+function Word({ text }: { text: string }) {
+  return <>{useT()(text)}</>;
 }
 
 const ROWS: PricingRow[] = [
   {
     label: "Price",
     values: {
-      free: <span className="text-lg font-bold text-foreground">Free</span>,
+      free: (
+        <span className="text-lg font-bold text-foreground">
+          <Word text="Free" />
+        </span>
+      ),
       starter: (
         <PriceCell price="299,99₺" annualNote="If paid annually, it's only ₺2,999.99 instead of ₺3,599.88!" />
       ),
@@ -86,7 +98,8 @@ const ROWS: PricingRow[] = [
     values: {
       free: (
         <span>
-          No<sup className="ml-0.5 text-brand-600 dark:text-brand-400">*</sup>
+          <Word text="No" />
+          <sup className="ml-0.5 text-brand-600 dark:text-brand-400">*</sup>
         </span>
       ),
       starter: pricingFeature("job-ads").values.starter,
@@ -116,18 +129,19 @@ const TIER_HEADERS: { key: keyof TierValue; label: string }[] = [
 ];
 
 export function PricingComparisonTable({ onClose }: { onClose: () => void }) {
+  const t = useT();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
       <div className="relative flex w-full max-w-[1600px] flex-col rounded-xl border border-border bg-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-6 py-5">
           <div>
-            <h2 className="text-xl font-bold text-foreground">Pricing</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Compare what each membership tier includes.</p>
+            <h2 className="text-xl font-bold text-foreground">{t("Pricing")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("Compare what each membership tier includes.")}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("Close")}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -149,14 +163,14 @@ export function PricingComparisonTable({ onClose }: { onClose: () => void }) {
             <thead>
               <tr className="sticky top-0 z-10 bg-surface">
                 <th className="border-b border-border px-4 py-4 text-left align-bottom text-[13px] font-semibold text-foreground">
-                  Feature
+                  {t("Feature")}
                 </th>
                 {TIER_HEADERS.map((tier) => (
                   <th
                     key={tier.key}
                     className="border-b border-border border-l border-border px-4 py-4 text-left align-bottom text-base font-bold text-foreground"
                   >
-                    {tier.label}
+                    {t(tier.label)}
                   </th>
                 ))}
               </tr>
@@ -164,13 +178,13 @@ export function PricingComparisonTable({ onClose }: { onClose: () => void }) {
             <tbody>
               {ROWS.map((row) => (
                 <tr key={row.label} className="border-b border-border">
-                  <td className="px-4 py-4 align-top text-sm font-semibold text-foreground">{row.label}</td>
+                  <td className="px-4 py-4 align-top text-sm font-semibold text-foreground">{t(row.label)}</td>
                   {TIER_HEADERS.map((tier) => (
                     <td
                       key={tier.key}
                       className="border-l border-border px-4 py-4 align-top text-sm leading-relaxed text-foreground"
                     >
-                      {row.values[tier.key]}
+                      {typeof row.values[tier.key] === "string" ? t(row.values[tier.key] as string) : row.values[tier.key]}
                     </td>
                   ))}
                 </tr>
@@ -179,8 +193,7 @@ export function PricingComparisonTable({ onClose }: { onClose: () => void }) {
           </table>
 
           <p className="px-6 py-5 text-xs leading-relaxed text-muted-foreground">
-            * For &apos;Posting Featured Job Ads&apos; on the Free Membership, companies can get as much as they
-            want for an additional separate price.
+            {t("* For 'Posting Featured Job Ads' on the Free Membership, companies can get as much as they want for an additional separate price.")}
           </p>
         </div>
       </div>

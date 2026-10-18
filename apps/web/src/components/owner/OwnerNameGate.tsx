@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ownerNameSchema, type EmployerProfileView } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, ApiError } from "@/lib/api-client";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Every company owner gives their legal name. New owners give it while
@@ -13,6 +14,7 @@ import { apiGet, apiPatch, ApiError } from "@/lib/api-client";
  */
 export function OwnerNameGate({ children }: { children: ReactNode }) {
   const { refreshOnboardingStatus } = useAuth();
+  const t = useT();
   const [hasName, setHasName] = useState<boolean | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -36,7 +38,7 @@ export function OwnerNameGate({ children }: { children: ReactNode }) {
 
   async function save() {
     if (!ownerNameSchema.safeParse(firstName).success || !ownerNameSchema.safeParse(lastName).success) {
-      setError("Enter your real first and last name (letters only).");
+      setError(t("Enter your real first and last name (letters only)."));
       return;
     }
     setSaving(true);
@@ -49,29 +51,28 @@ export function OwnerNameGate({ children }: { children: ReactNode }) {
       await refreshOnboardingStatus();
       setHasName(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't save your name.");
+      setError(err instanceof ApiError ? t(err.message) : t("Couldn't save your name."));
     } finally {
       setSaving(false);
     }
   }
 
-  if (hasName === null) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (hasName === null) return <p className="text-sm text-muted-foreground">{t("Loading...")}</p>;
   if (hasName) return <>{children}</>;
 
   const inputClass = "rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground";
   return (
     <div className="max-w-xl rounded-2xl bg-surface shadow-xs p-5">
-      <h2 className="text-base font-semibold text-foreground">Add your name to continue</h2>
+      <h2 className="text-base font-semibold text-foreground">{t("Add your name to continue")}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Every company owner on I Worked There gives their legal name. Reviewers only see it if you choose to show it
-        (under Contact &amp; Social Media); otherwise you answer as &ldquo;Company representative&rdquo;.
+        {t("Every company owner on I Worked There gives their legal name. Reviewers only see it if you choose to show it (under Contact & Social Media); otherwise you answer as “Company representative”.")}
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <input
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
-          placeholder="First name"
-          aria-label="First name"
+          placeholder={t("First name")}
+          aria-label={t("First name")}
           autoComplete="given-name"
           maxLength={60}
           className={inputClass}
@@ -79,8 +80,8 @@ export function OwnerNameGate({ children }: { children: ReactNode }) {
         <input
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
-          placeholder="Last name"
-          aria-label="Last name"
+          placeholder={t("Last name")}
+          aria-label={t("Last name")}
           autoComplete="family-name"
           maxLength={60}
           className={inputClass}
@@ -92,7 +93,7 @@ export function OwnerNameGate({ children }: { children: ReactNode }) {
         disabled={saving}
         className="mt-3 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
       >
-        Save and continue
+        {t("Save and continue")}
       </button>
     </div>
   );
