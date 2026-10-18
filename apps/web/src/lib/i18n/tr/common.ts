@@ -173,7 +173,7 @@ const common: Record<string, string> = {
   "Other": "Diğer",
   "Franchise": "Franchise",
   "Telecom": "Telekom",
-  "Supermarket": "Süpermarket",
+  "Supermarket": "Market",
   "Manufacturing": "Üretim",
   "Aerospace": "Havacılık ve Uzay",
   "Clothing Retail": "Giyim Perakende",

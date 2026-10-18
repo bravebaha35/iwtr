@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { Logo } from "@/components/Logo";
 import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { KVKKModal } from "@/components/legal/KVKKModal";
 import { NoticeTakedownModal } from "@/components/legal/NoticeTakedownModal";
@@ -102,60 +102,44 @@ export function GlobalFooter() {
     [ANONYMITY_HREF]: () => setShowAnonymity(true),
   };
 
-  const linkClass =
-    "inline-block bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 text-[15px] text-footer-foreground/70 transition-[color,background-size] duration-300 ease-out hover:bg-[length:100%_1px] hover:text-footer-foreground focus-visible:bg-[length:100%_1px] focus-visible:text-footer-foreground focus-visible:outline-none motion-reduce:transition-none";
-
   return (
-    // A dark sheet with rounded top corners, laid over the end of the page.
-    <footer className="mt-auto rounded-t-[2rem] border-t border-white/[0.07] bg-footer">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-8 gap-y-12 px-6 pb-14 pt-16 sm:px-8 lg:grid-cols-12 lg:gap-x-10">
-        <div className="col-span-2 lg:col-span-4">
-          <Link href="/" className="group inline-flex items-center gap-3.5">
-            <Image
-              src="/brand-mark.png"
-              alt=""
-              width={96}
-              height={96}
-              sizes="48px"
-              className="h-12 w-12 shrink-0 object-contain transition-transform duration-500 ease-out group-hover:-rotate-6 motion-reduce:transition-none"
-            />
-            <span className="font-display text-[1.75rem] leading-none tracking-tight text-footer-foreground">I Worked There</span>
-          </Link>
-        </div>
-
+    <footer className="mt-auto border-t border-white/10 bg-footer">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 py-12 sm:grid-cols-3">
         {FOOTER_COLUMNS.map((column) => (
-          <nav
-            key={column.title}
-            aria-label={t(column.title)}
-            className={column.title === "Legal" ? "col-span-2 sm:col-span-1 lg:col-span-4" : "col-span-1 lg:col-span-2"}
-          >
-            <h2 className="font-display text-sm font-semibold text-footer-foreground/50">{t(column.title)}</h2>
-            <ul className="mt-5 space-y-3.5">
+          <div key={column.title}>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-footer-foreground">{t(column.title)}</h2>
+            <ul className="mt-4 space-y-3">
               {column.links.map((link) => {
                 const openPopup = popupOpeners[link.href];
-                return (
+                return openPopup ? (
                   <li key={link.label}>
-                    {openPopup ? (
-                      <button type="button" onClick={openPopup} className={`${linkClass} text-left`}>
-                        {t(link.label)}
-                      </button>
-                    ) : (
-                      <Link href={link.href} className={linkClass}>
-                        {t(link.label)}
-                      </Link>
-                    )}
+                    <button
+                      type="button"
+                      onClick={openPopup}
+                      className="text-sm text-footer-foreground/75 transition hover:text-footer-foreground"
+                    >
+                      {t(link.label)}
+                    </button>
+                  </li>
+                ) : (
+                  <li key={link.label}>
+                    <Link href={link.href} className="text-sm text-footer-foreground/75 transition hover:text-footer-foreground">
+                      {t(link.label)}
+                    </Link>
                   </li>
                 );
               })}
             </ul>
-          </nav>
+          </div>
         ))}
       </div>
 
-      <div className="mx-auto max-w-6xl px-6 sm:px-8">
-        <p className="border-t border-white/10 py-7 text-sm text-footer-foreground/55">
-          &copy; 2026 iworkedthere.com. {t("All rights reserved.")}
-        </p>
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 border-t border-white/10 px-6 py-6 sm:flex-row sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Logo size="sm" />
+          <span className="text-sm font-semibold text-footer-foreground">I Worked There</span>
+        </div>
+        <p className="text-sm text-footer-foreground/75">&copy; 2026 iworkedthere.com. {t("All rights reserved.")}</p>
       </div>
 
       {showPricing && <PricingComparisonTable onClose={() => setShowPricing(false)} />}

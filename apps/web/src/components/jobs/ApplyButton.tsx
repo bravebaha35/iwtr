@@ -59,7 +59,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
     }
     try {
       // Same file as My CV > Download PDF (lib/cvPdf.ts).
-      const pdf = await renderCvPdf(hiddenPreviewRef.current);
+      const pdf = await renderCvPdf(hiddenPreviewRef.current, t("Made in iworkedthere.com"));
       const blob: Blob = pdf.output("blob");
 
       setState("sending");
@@ -70,7 +70,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
     } catch {
       setState("error");
     }
-  }, [jobPostingId]);
+  }, [jobPostingId, t]);
 
   useEffect(() => {
     if (pendingGenerationRef.current && profile) {

@@ -248,7 +248,8 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   from shared-types `CERTIFICATE_CATALOG` or typed; issuer, month, optional list-only notes) and `User.cvPhotoUrl`
   (POST/DELETE `me/cv-photo`; the URL is never taken from the client). All three appear only on the CV. `CvPreview` is
   always laid out at A4 width (`CV_PAGE_WIDTH_PX`) and shown scaled by `CvPage`; every PDF (Apply, and My CV > Download
-  PDF) comes from `lib/cvPdf.ts`. My Ratings is a tab under My CV now (`MyRatingsPanel`); `/me/reviews` redirects there.
+  PDF) comes from `lib/cvPdf.ts`, which stamps the "Made in iworkedthere.com" footer onto the bottom of every page
+  (`lib/cvPdfFooter.ts`; no beaver watermark any more). My Ratings is a tab under My CV now (`MyRatingsPanel`); `/me/reviews` redirects there.
 - A job ad (and the Jobs page itself) only shows for a company with an approved owner: `HIRING_COMPANY_WHERE` in
   `companies/company-visibility.ts`. A new public JobPosting read must use it. Demo seeds once wrote ads onto unclaimed
   companies; those stay hidden.
@@ -336,8 +337,10 @@ alone keeps DM Serif Display (`.cv-document`).
   notifications bell is a symbol with no label beside the theme switch, with a red counter that clears (and is
   saved as read) the moment its panel is opened. The sort controls (RS / A-Z / Rating) are plain words with a
   coloured bar under the one in use, right next to the search field (`SearchSortBox`); no "Sort" label.
-  Sidebar width and gaps are locked by tests (`SidebarShell`); its order is Work-Type (+ Sector), Location,
-  (Jobs: Create job posting, Position), Rating, Risk Score.
+  Sidebar width and gaps are locked by tests (`SidebarShell`); its order is (Jobs: Create !) Work-Type (+ Sector),
+  Rating, Risk Score, Location, (Jobs: Position). Location (`CityDistrictPicker`) is one city at a time, then any of
+  that city's districts (2026-10-19). Every inner scroll area hides its scrollbar (globals.css `body *`); only the page
+  keeps one.
 - Work-Type is four tiles (`WorkTypeTiles`): the name, and an object for that work in the bottom corner (the
   owner's own art in `public/`: "Office QS" pencil, "Hybrid QS" headset, "Service QS" hands, "Manual-Labour QS"
   hammer) - grey at rest; picked, the tile takes its collar colour as a soft wash plus a short bar (`collarTileTone`).

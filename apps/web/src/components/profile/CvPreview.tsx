@@ -399,10 +399,13 @@ export function CvPreview({
         </div>
       </div>
 
-      <footer className="flex items-center px-12 py-4" style={{ borderTop: `1px solid ${RULE}` }}>
+      {/* The page footer, as it appears at the bottom of every PDF page. In
+          the PDF it is stamped onto each page instead (lib/cvPdfFooter.ts),
+          so this copy is left out while the PDF is being made. */}
+      <footer className="cv-page-footer flex items-center px-12 pb-5 pt-6">
         {/* eslint-disable-next-line @next/next/no-img-element -- photographed by html2canvas */}
-        <img src="/realicon.png" alt="" className="mr-2 h-4 w-4" />
-        <p className="text-[10px] font-semibold" style={{ color: MUTED }}>
+        <img src="/realicon.png" alt="" className="mr-2 h-6 w-6 shrink-0 object-contain" />
+        <p className="text-[11px] font-semibold leading-none" style={{ color: MUTED }}>
           {t("Made in iworkedthere.com")}
         </p>
       </footer>

@@ -1,18 +1,19 @@
-import { loadWatermarkDataUrl, stampCvWatermark } from "@/lib/cvPdfWatermark";
+import { renderCvFooterImage, stampCvFooter, type PdfLike } from "@/lib/cvPdfFooter";
 
 // The jsPDF instance html2pdf.js hands back, as far as this file uses it.
-type CvPdf = Parameters<typeof stampCvWatermark>[0] & {
+type CvPdf = PdfLike & {
   output(type: "blob"): Blob;
   save(filename: string): void;
 };
 
 /**
- * Turns a rendered CvPreview element into an A4 PDF, with the beaver mark
- * stamped on every page. One function for both the PDF sent with a job
+ * Turns a rendered CvPreview element into an A4 PDF, with the
+ * "Made in iworkedthere.com" footer at the bottom of every page
+ * (`footerLabel`, already translated). One function for both the PDF sent with a job
  * application (ApplyButton) and the one a member downloads from My CV, so
  * the two are always the same file.
  */
-export async function renderCvPdf(element: HTMLElement): Promise<CvPdf> {
+export async function renderCvPdf(element: HTMLElement, footerLabel: string): Promise<CvPdf> {
   // Two frames: let the browser lay the element out (and paint the photo)
   // before html2canvas measures it.
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -33,16 +34,15 @@ export async function renderCvPdf(element: HTMLElement): Promise<CvPdf> {
   } = {
     filename: "cv.pdf",
     // Top margin so a second page does not start flush against the edge;
-    // a deep bottom margin keeps the beaver mark (stamped in the bottom-left
-    // corner, lib/cvPdfWatermark.ts) clear of the text.
-    margin: [8, 0, 26, 0],
+    // the bottom margin is the band the page footer is stamped into.
+    margin: [8, 0, 16, 0],
     image: { type: "jpeg", quality: 0.95 },
     // Sharper text; useCORS lets the CV photo (served by the API) be drawn.
     html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
     jsPDF: { format: "a4", unit: "mm" },
     pagebreak: { mode: ["css", "legacy"] },
   };
-  const watermark = await loadWatermarkDataUrl();
+  const footer = await renderCvFooterImage(footerLabel);
   element.classList.add("cv-printing");
   let pdf: CvPdf;
   try {
@@ -50,7 +50,7 @@ export async function renderCvPdf(element: HTMLElement): Promise<CvPdf> {
   } finally {
     element.classList.remove("cv-printing");
   }
-  stampCvWatermark(pdf, watermark);
+  stampCvFooter(pdf, footer);
   return pdf;
 }
 

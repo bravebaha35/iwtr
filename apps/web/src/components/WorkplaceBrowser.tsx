@@ -219,12 +219,18 @@ export function WorkplaceBrowser() {
       ? initialFilters.maxRiskScore
       : 3,
   );
+  // One city at a time (saved filters from before may hold several: keep
+  // the first city, and only districts of that city).
   const [selectedCities, setSelectedCities] = useState<string[]>(() =>
-    Array.isArray(initialFilters.selectedCities) ? initialFilters.selectedCities : [],
+    Array.isArray(initialFilters.selectedCities) ? initialFilters.selectedCities.slice(0, 1) : [],
   );
-  const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>(() =>
-    Array.isArray(initialFilters.selectedDistrictKeys) ? initialFilters.selectedDistrictKeys : [],
-  );
+  const [selectedDistrictKeys, setSelectedDistrictKeys] = useState<string[]>(() => {
+    if (!Array.isArray(initialFilters.selectedDistrictKeys)) return [];
+    if (Array.isArray(initialFilters.selectedCities) && initialFilters.selectedCities.length > 0) return [];
+    const keys = initialFilters.selectedDistrictKeys as string[];
+    const city = keys[0]?.split("::")[0];
+    return keys.filter((k) => k.split("::")[0] === city);
+  });
   const [query, setQuery] = useState(() => initialFilters.query ?? "");
   // The page of cards on screen, plus the totals (see GET /companies/browse).
   const [result, setResult] = useState<CompanyBrowseResult | null>(null);
@@ -473,13 +479,7 @@ export function WorkplaceBrowser() {
 
   // Single-select: picking a different city replaces whichever one was
   // chosen before, rather than adding to a set of cities.
-  function toggleCity(city: string) {
-    setSelectedCities((prev) => (prev.includes(city) ? [] : [city]));
-  }
 
-  function toggleDistrict(key: string) {
-    setSelectedDistrictKeys((prev) => (prev.includes(key) ? prev.filter((v) => v !== key) : [...prev, key]));
-  }
 
   function resetLocation() {
     setSelectedCities([]);
@@ -516,17 +516,6 @@ export function WorkplaceBrowser() {
               </div>
             </div>
 
-            {/* Location sits right under Work-Type; Rating and Risk Score follow. */}
-            <CityDistrictPicker
-              selectedCities={selectedCities}
-              selectedDistrictKeys={selectedDistrictKeys}
-              onToggleCity={toggleCity}
-              onToggleDistrict={toggleDistrict}
-              onReset={resetLocation}
-              onNearMe={requestNearMe}
-              nearMeLoading={geoRequesting}
-              nearMeActive={geo !== null && geo !== "denied"}
-            />
 
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -594,6 +583,20 @@ export function WorkplaceBrowser() {
             </div>
 
             <RiskScoreFilter value={maxRiskScore} onChange={setMaxRiskScore} />
+
+            {/* Order: Work-Type, Rating, Risk Score, then Location (one city at a time). */}
+            <CityDistrictPicker
+              selectedCities={selectedCities}
+              selectedDistrictKeys={selectedDistrictKeys}
+              onChange={({ cities, districtKeys }) => {
+                setSelectedCities(cities);
+                setSelectedDistrictKeys(districtKeys);
+              }}
+              onReset={resetLocation}
+              onNearMe={requestNearMe}
+              nearMeLoading={geoRequesting}
+              nearMeActive={geo !== null && geo !== "denied"}
+            />
           </SidebarShell>
 
           {/* Results */}

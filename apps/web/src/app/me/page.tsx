@@ -415,7 +415,7 @@ function ProfilePageContent() {
       // Wait for the off-screen full-size copy to mount.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       if (!cvPrintRef.current) throw new Error("not mounted");
-      const pdf = await renderCvPdf(cvPrintRef.current);
+      const pdf = await renderCvPdf(cvPrintRef.current, t("Made in iworkedthere.com"));
       pdf.save(cvFileName(displayNameDraft || profile?.displayName));
     } catch {
       setCvDownloadError(t("Couldn't make the PDF. Please try again."));

@@ -74,6 +74,17 @@ const cv: Record<string, string> = {
   "Skills": "Yetenekler",
   "Phone": "Telefon",
 
+  // Location filter (one city, then its districts)
+  "Choose a city": "Bir il seç",
+  "Choose another city": "Başka bir il seç",
+  "Cities": "İller",
+  "Districts": "İlçeler",
+  "{n} chosen": "{n} seçili",
+  "Search {city} districts...": "{city} ilçelerinde ara...",
+  "All of {city}": "Tüm {city}",
+  "No district by that name.": "Bu adda bir ilçe yok.",
+  "No city or district by that name.": "Bu adda bir il veya ilçe yok.",
+
   // Chat window
   "Make conversation bigger": "Sohbeti büyüt",
   "Make conversation smaller": "Sohbeti küçült",

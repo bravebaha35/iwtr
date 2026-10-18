@@ -26,27 +26,18 @@
   display: none; /* Chrome/Safari/new Edge */
 }
 
-/* Opposite of .no-scrollbar — a slim but real, draggable scrollbar thumb for
-   the one place a list runs long enough (SingleSelectDropdown's search
-   results, e.g. 250 countries) that people need something to grab and drag
-   rather than hunting with the wheel. Colored from the theme vars so it's
-   never the flat, theme-blind gray a bare native scrollbar would draw. */
+/* Every scrollable box (dropdowns, lists, panels, the chat) scrolls with an
+   invisible scrollbar (2026-10-19, the owner's choice): the wheel, trackpad,
+   touch and keyboard all still scroll it. Only the page itself keeps its
+   scrollbar. .thin-scrollbar is kept as a name for the places that used it. */
+body *,
 .thin-scrollbar {
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: var(--border) transparent;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
 }
+body *::-webkit-scrollbar,
 .thin-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-.thin-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.thin-scrollbar::-webkit-scrollbar-thumb {
-  background-color: var(--border);
-  border-radius: 9999px;
-}
-.thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: var(--muted-foreground);
+  display: none; /* Chrome/Safari/new Edge */
 }
 
 /* "Riverbank" (2026-10-12) - the beaver's habitat, read as a place rather
@@ -217,9 +208,17 @@ h4,
   letter-spacing: 0;
 }
 
-/* While a CV is photographed for its PDF (lib/cvPdf.ts adds .cv-printing),
-   html2canvas draws a chip's words a few pixels lower than the browser does;
-   lift them back to the middle. */
+/* While a CV is photographed for its PDF, lib/cvPdf.ts adds .cv-printing:
+   - the on-screen page is held at A4 height; the PDF cuts its own pages
+   - the footer is stamped onto every PDF page instead (lib/cvPdfFooter.ts)
+   - html2canvas draws a chip's words a few pixels lower than the browser
+     does; lift them back to the middle */
+.cv-printing .cv-document {
+  min-height: 0 !important;
+}
+.cv-printing .cv-page-footer {
+  display: none;
+}
 .cv-printing .cv-chip {
   line-height: 14px !important;
   padding-bottom: 6px;

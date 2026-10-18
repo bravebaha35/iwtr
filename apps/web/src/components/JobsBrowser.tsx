@@ -523,13 +523,7 @@ export function JobsBrowser() {
     setPositions((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   }
 
-  function toggleCity(city: string) {
-    setSelectedCities((prev) => (prev.includes(city) ? [] : [city]));
-  }
 
-  function toggleDistrict(key: string) {
-    setSelectedDistrictKeys((prev) => (prev.includes(key) ? prev.filter((v) => v !== key) : [...prev, key]));
-  }
 
   function resetLocation() {
     setSelectedCities([]);
@@ -604,30 +598,7 @@ export function JobsBrowser() {
               </div>
             </div>
 
-            {/* Location sits right under Work-Type; Rating and Risk Score follow. */}
-            <CityDistrictPicker
-              selectedCities={selectedCities}
-              selectedDistrictKeys={selectedDistrictKeys}
-              onToggleCity={toggleCity}
-              onToggleDistrict={toggleDistrict}
-              onReset={resetLocation}
-              onNearMe={requestNearMe}
-              nearMeLoading={geoRequesting}
-              nearMeActive={geo !== null && geo !== "denied"}
-            />
 
-            {/* Position: the same buttons an owner ticks when posting a job.
-                Any number can be on; a posting hiring for any one of them
-                is listed. */}
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[13px] font-semibold text-foreground">{t("Position")}</h2>
-                <RewindButton onClick={() => setPositions([])} active={positions.length > 0} title="Clear Position filter" />
-              </div>
-              <div className="rounded-2xl bg-surface p-1.5 shadow-xs">
-                <PositionPicker selected={positions} onToggle={togglePosition} />
-              </div>
-            </div>
 
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -680,6 +651,33 @@ export function JobsBrowser() {
             </div>
 
             <RiskScoreFilter value={maxRiskScore} onChange={setMaxRiskScore} />
+
+            {/* Order: Work-Type, Rating, Risk Score, then Location (one city at a time). */}
+            <CityDistrictPicker
+              selectedCities={selectedCities}
+              selectedDistrictKeys={selectedDistrictKeys}
+              onChange={({ cities, districtKeys }) => {
+                setSelectedCities(cities);
+                setSelectedDistrictKeys(districtKeys);
+              }}
+              onReset={resetLocation}
+              onNearMe={requestNearMe}
+              nearMeLoading={geoRequesting}
+              nearMeActive={geo !== null && geo !== "denied"}
+            />
+
+            {/* Position: the same buttons an owner ticks when posting a job.
+                Any number can be on; a posting hiring for any one of them
+                is listed. */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[13px] font-semibold text-foreground">{t("Position")}</h2>
+                <RewindButton onClick={() => setPositions([])} active={positions.length > 0} title="Clear Position filter" />
+              </div>
+              <div className="rounded-2xl bg-surface p-1.5 shadow-xs">
+                <PositionPicker selected={positions} onToggle={togglePosition} />
+              </div>
+            </div>
           </SidebarShell>
 
           {/* Results */}
