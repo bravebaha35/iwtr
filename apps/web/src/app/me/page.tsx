@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,10 +33,14 @@ import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { PhoneNumberInput } from "@/components/PhoneNumberInput";
 import { ChangePasswordForm } from "@/components/profile/ChangePasswordForm";
 import { AccountOptionsPanel } from "@/components/profile/AccountOptionsPanel";
-import { CvPreview } from "@/components/profile/CvPreview";
+import { CvPage, CvPreview } from "@/components/profile/CvPreview";
+import { ReferencesPanel } from "@/components/profile/ReferencesPanel";
+import { CertificatesSection } from "@/components/profile/CertificatesSection";
+import { MyRatingsPanel } from "@/components/profile/MyRatingsPanel";
+import { cvFileName, renderCvPdf } from "@/lib/cvPdf";
 import { SidebarContentRow } from "@/components/layout/SidebarShell";
 import { SettingsNav } from "@/components/layout/SettingsNav";
-import { PROFILE_TABS, type ProfileTabKey } from "@/components/profile/profileTabs";
+import { PROFILE_TABS, profileTabsFor, type ProfileTabKey } from "@/components/profile/profileTabs";
 import { useI18n } from "@/lib/i18n/client";
 import { intlLocale, languageName, type Locale } from "@/lib/i18n/core";
 
@@ -94,6 +98,9 @@ function ProfilePageContent() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("customize");
   const [cvFullscreen, setCvFullscreen] = useState(false);
+  const [cvDownloading, setCvDownloading] = useState(false);
+  const [cvDownloadError, setCvDownloadError] = useState<string | null>(null);
+  const cvPrintRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
   // Lets ApplyButton.tsx's CV gate land a member directly on this tab
@@ -399,6 +406,24 @@ function ProfilePageContent() {
     }
   }
 
+  // My CV > Download PDF: the same file an employer gets with an application.
+  async function downloadCv() {
+    if (cvDownloading) return;
+    setCvDownloadError(null);
+    setCvDownloading(true);
+    try {
+      // Wait for the off-screen full-size copy to mount.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      if (!cvPrintRef.current) throw new Error("not mounted");
+      const pdf = await renderCvPdf(cvPrintRef.current);
+      pdf.save(cvFileName(displayNameDraft || profile?.displayName));
+    } catch {
+      setCvDownloadError(t("Couldn't make the PDF. Please try again."));
+    } finally {
+      setCvDownloading(false);
+    }
+  }
+
   async function savePersonalWorkInfo() {
     setPersonalSaving(true);
     setPersonalError(null);
@@ -624,6 +649,23 @@ function ProfilePageContent() {
     }
   }
 
+  // The CV preview shows the unsaved display name and public-sector tick too.
+  const cvProfile: MyProfile | null = profile
+    ? { ...profile, displayName: displayNameDraft.trim() || null, isPublicEmployee: isPublicEmployeeDraft }
+    : null;
+  // My CV > "What's on your CV": each line opens the tab where it is filled in.
+  const cvChecklist: { label: string; done: boolean; tab: TabKey }[] = profile
+    ? [
+        { label: "Profile summary", done: !!profile.customExperienceText, tab: "personal" },
+        { label: "Experience", done: (employment?.length ?? 0) > 0, tab: "education" },
+        { label: "Education", done: profile.education.length > 0, tab: "education" },
+        { label: "Certificates", done: profile.certificates.length > 0, tab: "personal" },
+        { label: "Languages", done: profile.languages.length > 0, tab: "personal" },
+        { label: "Skills", done: profile.skills.length > 0, tab: "personal" },
+        { label: "References", done: profile.references.length > 0, tab: "references" },
+      ]
+    : [];
+
   if (authLoading) return null;
 
   if (!isAuthenticated) {
@@ -658,7 +700,12 @@ function ProfilePageContent() {
         )
       ) : (
         <SidebarContentRow>
-          <SettingsNav label="Profile sections" items={PROFILE_TABS} active={activeTab} onChange={setActiveTab} />
+          <SettingsNav
+            label="Profile sections"
+            items={profileTabsFor(role === "COMPANY_OWNER")}
+            active={activeTab}
+            onChange={setActiveTab}
+          />
 
           <div className="min-w-0 flex-1">
         <div className="flex flex-col gap-6">
@@ -914,6 +961,15 @@ function ProfilePageContent() {
               <p className="mt-2 text-xs text-muted-foreground">{t("Saved as you pick, and shown on your CV.")}</p>
               {languagesError && <p className="mt-1 text-sm text-red-600 dark:text-red-300">{languagesError}</p>}
             </div>
+
+            {role !== "COMPANY_OWNER" && (
+              <div className="mt-4 border-t border-border pt-4">
+                <CertificatesSection
+                  certificates={profile.certificates}
+                  onChange={(certificates) => setProfile((p) => (p ? { ...p, certificates } : p))}
+                />
+              </div>
+            )}
 
             <div className="mt-4 border-t border-border pt-4">
               <p className="mb-2 text-xs font-medium text-muted-foreground">{t("What kind of work?")}</p>
@@ -1428,26 +1484,87 @@ function ProfilePageContent() {
           </>
           )}
 
+          {activeTab === "references" && role !== "COMPANY_OWNER" && (
+            <ReferencesPanel
+              references={profile.references}
+              onChange={(references) => setProfile((p) => (p ? { ...p, references } : p))}
+            />
+          )}
+
+          {activeTab === "ratings" && role !== "COMPANY_OWNER" && <MyRatingsPanel />}
+
           {activeTab === "cv" && (
           <>
-          <div className="rounded-2xl bg-surface shadow-xs p-5">
-            <h2 className="mb-3 font-semibold text-foreground">{t("My CV")}</h2>
-            <div className="flex flex-col gap-6 sm:flex-row">
-              <div className="flex-1 flex flex-col gap-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground">{t("Display name")}</label>
-                  <p className="text-xs text-muted-foreground">
-                    {t("Optional. Shown on your CV and in the site header instead of your anonymous handle (unless you ticked “Show my username in the top-right corner” on Customize). Your reviews always stay under your anonymous handle regardless of this setting.")}
-                  </p>
+          <div className="rounded-2xl bg-surface p-5 shadow-xs sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-foreground">{t("My CV")}</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("Built from your profile. This is what an employer receives when you press Apply.")}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCvFullscreen(true)}
+                  aria-label={t("View CV fullscreen")}
+                  className="flex items-center gap-1.5 rounded-lg bg-surface-muted px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-border/60"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                  </svg>
+                  {t("Full screen")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void downloadCv()}
+                  disabled={cvDownloading}
+                  className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-60"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 4v11M7 10.5l5 5 5-5M5 20h14" />
+                  </svg>
+                  {cvDownloading ? t("Preparing...") : t("Download PDF")}
+                </button>
+              </div>
+            </div>
+            {cvDownloadError && <p className="mt-2 text-sm text-red-600 dark:text-red-300">{cvDownloadError}</p>}
+
+            <div className="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-2">
+              {/* Left: who the CV is from */}
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="cv-display-name" className="text-xs font-semibold text-foreground">
+                    {t("Display name")}
+                  </label>
                   <input
+                    id="cv-display-name"
                     type="text"
                     maxLength={80}
                     value={displayNameDraft}
                     onChange={(e) => setDisplayNameDraft(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    {t("Optional. Shown on your CV and in the site header instead of your anonymous handle (unless you ticked “Show my username in the top-right corner” on Customize). Your reviews always stay under your anonymous handle regardless of this setting.")}
+                  </p>
                 </div>
-                <label className="flex items-center gap-2 text-sm">
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-foreground">{t("CV photo")}</p>
+                  <div className="flex items-start gap-4">
+                    <AvatarPhotoUploader
+                      target="cv"
+                      value={profile.cvPhotoUrl}
+                      onChange={(url) => setProfile((p) => (p ? { ...p, cvPhotoUrl: url } : p))}
+                    />
+                    <p className="rounded-lg bg-surface-muted/70 px-3 py-2 text-xs text-muted-foreground">
+                      {t("Your photo is only shown on the CV that is sent to the jobs you apply for. It never appears anywhere else on the site: your reviews and comments keep your anonymous avatar.")}
+                    </p>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
                     checked={isPublicEmployeeDraft}
@@ -1455,75 +1572,124 @@ function ProfilePageContent() {
                   />
                   {t("I am a public sector employee")}
                 </label>
+              </div>
+
+              {/* Right: what goes on it */}
+              <div className="flex flex-col gap-6">
                 <div>
-                  <p className="text-sm font-medium text-foreground">{t("Contact details on my CV")}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs font-semibold text-foreground">{t("Contact details on my CV")}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     {t("Off by default: your email and phone number are never sent to an employer unless you turn these on yourself.")}
                   </p>
-                  <label className="mt-2 flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={showEmailOnCv}
-                      onChange={(e) => toggleShowEmailOnCv(e.target.checked)}
-                    />
+                  <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                    <input type="checkbox" checked={showEmailOnCv} onChange={(e) => toggleShowEmailOnCv(e.target.checked)} />
                     {t("Include my email on my CV")}
                   </label>
-                  <label className="mt-1 flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={showPhoneOnCv}
-                      onChange={(e) => toggleShowPhoneOnCv(e.target.checked)}
-                    />
+                  <label className="mt-1 flex items-center gap-2 text-sm text-foreground">
+                    <input type="checkbox" checked={showPhoneOnCv} onChange={(e) => toggleShowPhoneOnCv(e.target.checked)} />
                     {t("Include my phone number on my CV")}
                   </label>
                 </div>
-                <button
-                  type="button"
-                  onClick={saveCv}
-                  disabled={cvSaving}
-                  className="self-start rounded-full border border-border bg-sidebar px-4 py-2 text-sm font-bold text-sidebar-foreground transition disabled:opacity-50"
-                >
-                  {cvSaving ? t("Saving...") : t("Save CV")}
-                </button>
-                {cvStatus && <p className="text-sm text-green-700 dark:text-green-400">{cvStatus}</p>}
-                {cvError && <p className="text-sm text-red-600 dark:text-red-300">{cvError}</p>}
+
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{t("What's on your CV")}</p>
+                  <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2">
+                    {cvChecklist.map((item) => (
+                      <li key={item.label}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab(item.tab)}
+                          className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-surface-muted"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${
+                              item.done ? "bg-brand-600 text-white" : "border border-border"
+                            }`}
+                          >
+                            {item.done && (
+                              <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12.5l4.5 4.5L19 7.5" />
+                              </svg>
+                            )}
+                          </span>
+                          <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{t(item.label)}</span>
+                          <span className="ml-auto text-xs text-brand-600 opacity-0 transition group-hover:opacity-100 dark:text-brand-400">
+                            {item.done ? t("Edit") : t("Add")}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <div className="flex-1">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t("How it looks")}</p>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border/70 pt-5">
+              <button
+                type="button"
+                onClick={saveCv}
+                disabled={cvSaving}
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50"
+              >
+                {cvSaving ? t("Saving...") : t("Save CV")}
+              </button>
+              {cvStatus && <p className="text-sm text-green-700 dark:text-green-400">{cvStatus}</p>}
+              {cvError && <p className="text-sm text-red-600 dark:text-red-300">{cvError}</p>}
+            </div>
+          </div>
+
+          {/* The CV itself, as large as the column allows. */}
+          <div className="rounded-2xl bg-surface-muted/70 p-3 sm:p-6">
+            <div className="mx-auto max-w-[52rem] overflow-hidden rounded-[4px] shadow-lg ring-1 ring-black/5">
+              <CvPage>
+                <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
+              </CvPage>
+            </div>
+          </div>
+
+          {cvFullscreen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("My CV")}
+              className="fixed inset-0 z-50 overflow-y-auto bg-black/70 px-4 py-10 backdrop-blur-sm"
+              onClick={() => setCvFullscreen(false)}
+            >
+              <div className="relative mx-auto w-full max-w-[52rem]" onClick={(e) => e.stopPropagation()}>
+                <div className="mb-3 flex justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => setCvFullscreen(true)}
-                    title={t("View fullscreen")}
-                    aria-label={t("View CV fullscreen")}
-                    className="rounded p-1 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground"
+                    onClick={() => void downloadCv()}
+                    disabled={cvDownloading}
+                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-60"
+                  >
+                    {cvDownloading ? t("Preparing...") : t("Download PDF")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCvFullscreen(false)}
+                    aria-label={t("Close")}
+                    className="rounded-lg bg-white/10 p-1.5 text-white transition hover:bg-white/20"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                      <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
-                <CvPreview profile={profile} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
+                <div className="overflow-hidden rounded-[4px] shadow-2xl">
+                  <CvPage>
+                    <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
+                  </CvPage>
+                </div>
               </div>
             </div>
-          </div>
-          {cvFullscreen && (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
-              onClick={() => setCvFullscreen(false)}
-            >
-              <div className="relative max-h-full w-full max-w-2xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  onClick={() => setCvFullscreen(false)}
-                  aria-label={t("Close")}
-                  className="absolute -top-10 right-0 rounded-full p-1 text-white transition hover:bg-white/10"
-                >
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-                <CvPreview profile={profile} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} forPrint />
+          )}
+          {/* Full-size copy, off screen, only while a PDF is being made. */}
+          {cvDownloading && (
+            <div style={{ position: "fixed", left: "-9999px", top: 0 }} aria-hidden="true">
+              <div ref={cvPrintRef}>
+                <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
               </div>
             </div>
           )}

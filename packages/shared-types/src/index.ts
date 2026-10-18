@@ -1,5 +1,6 @@
 export * from "./schemas/auth";
 export * from "./schemas/user";
+export * from "./schemas/cv";
 export * from "./schemas/skill";
 export * from "./schemas/language";
 export * from "./schemas/workplaceType";

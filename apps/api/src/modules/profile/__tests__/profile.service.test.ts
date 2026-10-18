@@ -272,6 +272,8 @@ describe("CV profile fields", () => {
       educationHistory: { findMany: jest.fn().mockResolvedValue([]) },
       userSkill: { findMany: jest.fn().mockResolvedValue([]) },
       sector: { findUnique: jest.fn() },
+      memberReference: { findMany: jest.fn().mockResolvedValue([]) },
+      memberCertificate: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const piiVault = { getMyIdentity: jest.fn().mockResolvedValue(null) };
     const phoneVerification = { getMyPhoneNumber: jest.fn().mockResolvedValue(null) };
@@ -282,6 +284,8 @@ describe("CV profile fields", () => {
     expect(result.displayName).toBe("Ada");
     expect(result.isPublicEmployee).toBe(true);
     expect(result.customExperienceText).toBe("Freelance work");
+    expect(result.references).toEqual([]);
+    expect(result.certificates).toEqual([]);
   });
 });
 

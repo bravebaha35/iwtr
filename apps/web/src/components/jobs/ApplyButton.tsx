@@ -14,7 +14,7 @@ import {
   getHasSeenApplyCvPrompt,
   markSeenApplyCvPrompt,
 } from "@/lib/cvDisclosurePrefs";
-import { loadWatermarkDataUrl, stampCvWatermark } from "@/lib/cvPdfWatermark";
+import { renderCvPdf } from "@/lib/cvPdf";
 import { useT } from "@/lib/i18n/client";
 
 // Renders the actual CvPreview off-screen (never visible to the user as a
@@ -58,36 +58,8 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
       return;
     }
     try {
-      // A React state update commits to the DOM synchronously, but the
-      // browser hasn't necessarily painted/laid out that commit yet on the
-      // very first frame after mount. Waiting two animation frames gives
-      // html2canvas a DOM it has actually rendered at least once before it
-      // measures it, instead of reading a 0x0 box.
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      });
-
-      const html2pdf = (await import("html2pdf.js")).default;
-      // html2pdf.js's bundled type declaration doesn't list `pagebreak`
-      // (an option the library does support at runtime — see its README),
-      // so it's added here via a local intersection type on top of
-      // whatever `.set()` actually accepts, rather than widening the call
-      // to `any` or hand-maintaining a separate ambient .d.ts for one field.
-      const pdfOptions: Parameters<InstanceType<typeof html2pdf.Worker>["set"]>[0] & {
-        pagebreak?: { mode: Array<"avoid-all" | "css" | "legacy"> };
-      } = {
-        filename: "cv.pdf",
-        jsPDF: { format: "a4" },
-        // A CV with several employment entries plus a long free-text block
-        // can be taller than one A4 page — without this it's silently cut
-        // off at one page instead of spanning multiple.
-        pagebreak: { mode: ["css", "legacy"] },
-      };
-      // Beaver logo stamped onto the bottom-left corner of every finished
-      // page at 50% opacity (see lib/cvPdfWatermark.ts).
-      const watermark = await loadWatermarkDataUrl();
-      const pdf = await html2pdf().set(pdfOptions).from(hiddenPreviewRef.current).toPdf().get("pdf");
-      stampCvWatermark(pdf, watermark);
+      // Same file as My CV > Download PDF (lib/cvPdf.ts).
+      const pdf = await renderCvPdf(hiddenPreviewRef.current);
       const blob: Blob = pdf.output("blob");
 
       setState("sending");
@@ -204,7 +176,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
       {/* Positioned off-screen, not display:none, so html2pdf.js can still
           measure real layout. */}
       {profile && (
-        <div style={{ position: "fixed", left: "-9999px", top: 0, width: "210mm" }} aria-hidden="true">
+        <div style={{ position: "fixed", left: "-9999px", top: 0 }} aria-hidden="true">
           <div ref={hiddenPreviewRef}>
             <CvPreview
               profile={profile}

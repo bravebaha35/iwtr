@@ -217,6 +217,14 @@ h4,
   letter-spacing: 0;
 }
 
+/* While a CV is photographed for its PDF (lib/cvPdf.ts adds .cv-printing),
+   html2canvas draws a chip's words a few pixels lower than the browser does;
+   lift them back to the middle. */
+.cv-printing .cv-chip {
+  line-height: 14px !important;
+  padding-bottom: 6px;
+}
+
 /* Tailwind's preflight leaves <button> at the browser default arrow cursor
    (only <a href> gets a pointer natively) — override that site-wide so every
    clickable control shows a pointing hand, without having to remember

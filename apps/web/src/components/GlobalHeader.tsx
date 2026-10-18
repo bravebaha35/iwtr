@@ -15,7 +15,7 @@ import { navItemActiveClass, navItemClass, navItemLabelClass } from "@/component
 import { useT } from "@/lib/i18n/client";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
-// uses (Home, Messages, Dashboard/My Ratings, Jobs, IWT Social — Notifications is its
+// uses (Home, Dashboard, Jobs, IWT Social — Notifications is its
 // own component since it also owns a dropdown). `disabled` is for IWT
 // Social: present and visible, but inert until that feature exists.
 function NavIconLink({
@@ -127,27 +127,21 @@ export function GlobalHeader() {
             </svg>
           </NavIconLink>
 
-          {showAccountControls &&
-            (role === "COMPANY_OWNER" ? (
-              <NavIconLink href="/my/companies" label={t("Dashboard")} title={t("Company dashboard")} active={pathname.startsWith("/my/companies")}>
-                {/* dashboard-tile-solid, svgrepo.com/show/445068 — fill
-                    swapped for currentColor so it inherits this link's
-                    light/dark text color instead of a color baked into the
-                    source file. */}
-                <svg viewBox="0 0 48 48" className="h-5 w-5" fill="currentColor">
-                  <path d="M20,30H8a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V32a2,2,0,0,0-2-2Z" />
-                  <path d="M20,4H8A2,2,0,0,0,6,6V24a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
-                  <path d="M40,4H28a2,2,0,0,0-2,2V16a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
-                  <path d="M40,22H28a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V24a2,2,0,0,0-2-2Z" />
-                </svg>
-              </NavIconLink>
-            ) : (
-              <NavIconLink href="/me/reviews" label={t("My Ratings")} title={t("The reviews you've submitted")} active={pathname.startsWith("/me/reviews")}>
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              </NavIconLink>
-            ))}
+          {/* Members find My Ratings in Edit Profile, right under My CV. */}
+          {showAccountControls && role === "COMPANY_OWNER" && (
+            <NavIconLink href="/my/companies" label={t("Dashboard")} title={t("Company dashboard")} active={pathname.startsWith("/my/companies")}>
+              {/* dashboard-tile-solid, svgrepo.com/show/445068 — fill
+                  swapped for currentColor so it inherits this link's
+                  light/dark text color instead of a color baked into the
+                  source file. */}
+              <svg viewBox="0 0 48 48" className="h-5 w-5" fill="currentColor">
+                <path d="M20,30H8a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V32a2,2,0,0,0-2-2Z" />
+                <path d="M20,4H8A2,2,0,0,0,6,6V24a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
+                <path d="M40,4H28a2,2,0,0,0-2,2V16a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V6a2,2,0,0,0-2-2Z" />
+                <path d="M40,22H28a2,2,0,0,0-2,2V42a2,2,0,0,0,2,2H40a2,2,0,0,0,2-2V24a2,2,0,0,0-2-2Z" />
+              </svg>
+            </NavIconLink>
+          )}
 
           {showAccountControls && (
             <NavIconLink href="/jobs" label={isCompanyOwner ? t("Hire now !") : t("Jobs")} title={isCompanyOwner ? t("Post a job") : t("Jobs")} active={pathname.startsWith("/jobs")}>

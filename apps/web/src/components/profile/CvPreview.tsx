@@ -1,18 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { languageLabel, type EduLevel, type MyEmploymentEntry, type MyProfile } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
-import { Avatar } from "@/components/Avatar";
+import { jobPositionLabel } from "@/lib/jobPositions";
+import { RichText } from "@/components/RichText";
 import { useI18n } from "@/lib/i18n/client";
-import { languageName, type TFn } from "@/lib/i18n/core";
+import { intlLocale, languageName, type Locale, type TFn } from "@/lib/i18n/core";
 
-function formatRange(startDate: string | null, endDate: string | null, t: TFn): string {
-  const start = startDate ? new Date(startDate).getFullYear() : "?";
-  const end = endDate ? new Date(endDate).getFullYear() : t("Present");
-  return `${start} - ${end}`;
-}
+// The A4 page width in CSS pixels (210 mm at 96 dpi). The CV is always laid
+// out at this width - on screen it is scaled down (CvPage), in the PDF it is
+// printed as is - so the preview and the PDF wrap every line the same way.
+export const CV_PAGE_WIDTH_PX = 794;
+
+// Colours are plain hex on purpose: this element is photographed by
+// html2canvas for the PDF, and html2canvas can't read Tailwind v4's oklch()
+// palette. The same snapshot also rules out, in this file only:
+//   - `gap-*` on flex/grid containers (dropped silently): use margins / space-*
+//   - negative margins on flex rows (overlaps in the PDF)
+//   - `truncate` / `line-clamp` (wrong box heights, overlapping lines)
+// Every one of these looked fine live and broke only in the real PDF.
+const INK = "#18241b"; // deep pine text
+const MUTED = "#5b6659";
+const FAINT = "#8a9387";
+const RULE = "#d9ddd4";
+const ACCENT = "#8b5a2b"; // Wood, the site's one accent
+const SIDE_BG = "#f1f3ee";
 
 const EDU_LEVEL_LABELS: Record<EduLevel, string> = {
   ELEMENTARY: "Elementary School",
@@ -20,110 +34,130 @@ const EDU_LEVEL_LABELS: Record<EduLevel, string> = {
   COLLEGE: "College",
 };
 
-function formatEducationDetail(
-  level: EduLevel,
-  faculty: string | null | undefined,
-  department: string | null | undefined,
-  graduationYear: number | null | undefined,
-  t: TFn,
-): string {
-  return [t(EDU_LEVEL_LABELS[level]), faculty, department, graduationYear ? t("Class of {year}", { year: graduationYear }) : null]
-    .filter(Boolean)
-    .join(" · ");
+function monthYear(iso: string | null, locale: Locale): string | null {
+  if (!iso) return null;
+  const [y, m] = iso.split("-").map(Number);
+  if (!y) return null;
+  return new Date(Date.UTC(y, (m || 1) - 1, 1)).toLocaleDateString(intlLocale(locale), {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
-// The single source of truth for what a CV looks like — both the live
-// preview on /me and Task 6's PDF generation render this exact component
-// (html2pdf.js snapshots this component's DOM node directly), so the PDF a
-// company receives always matches what the applicant saw on screen.
-//
-// Every color below is an arbitrary hex value (e.g. bg-[#fafafa]) rather
-// than Tailwind's named zinc-*/slate-* palette utility. This is required,
-// not stylistic: Tailwind v4's default palette compiles those utility names
-// to oklch() colors, and html2canvas (the library html2pdf.js uses to
-// snapshot this component) throws "Attempting to parse an unsupported color
-// function" on any oklch() value — which silently broke every Apply click,
-// since the throw landed in a bare catch. The hex values used here are the
-// real Tailwind v3-era sRGB stops for the same color-stop names, so the
-// rendered look is unchanged. Do not swap these back to named
-// zinc-*/slate-* utilities, and do not add new zinc-*/slate-* classes to
-// this file — only CvPreview.tsx is ever snapshotted by html2canvas.
-//
-// Second html2canvas constraint, same reasoning: this version of html2canvas
-// does not support the CSS `gap` property on flex/grid containers (it's
-// silently dropped, collapsing every gapped child to zero spacing — this is
-// what made the avatar and name overlap in the rendered PDF even though the
-// live on-screen preview, which never goes through html2canvas, looked
-// correct). Use `space-x-*`/`space-y-*` (margin-based) for spacing in this
-// file instead of `gap-*`, never `gap-*` itself.
-//
-// Third html2canvas constraint, same failure signature: a *negative* margin
-// on a `flex flex-wrap` container (a common trick to emulate `gap` — negate
-// the container's edge margin, give each child the positive margin back)
-// also renders correctly live but overlaps neighboring content in the actual
-// generated PDF. For a wrapping row that needs both horizontal and vertical
-// spacing, give each child a plain trailing `mr-*`/`mb-*` instead — the
-// harmless cost is unused trailing margin after the last item, not a broken
-// PDF.
-//
-// Fourth html2canvas constraint, the one that actually caused a second,
-// distinct avatar/name overlap found during Task 11 verification — separate
-// from the `gap-*` overlap described in the second constraint above, which
-// was an earlier incident in an earlier session with a different cause (the
-// third constraint above was a real but separate risk fixed at the same
-// time, not this bug's cause either): Tailwind's `truncate` (overflow-hidden
-// + white-space-nowrap + text-overflow-ellipsis) on the name `<h1>` makes
-// html2canvas miscompute its box height, so the sibling contact/location
-// `<p>` lines render on top of it in the actual generated PDF — confirmed by
-// isolating a bare `<h1>`+`<p>` pair with no avatar, no flex/table wrapper,
-// nothing else involved. The live on-screen preview never shows this. The
-// fix covers all three elements in that block — the `<h1>` and both the
-// contactLine/locationLine `<p>` tags — since a final whole-branch review
-// confirmed the same overlap reproduces between the two `<p>` lines
-// themselves when both are non-empty (e.g. email disclosure opted in) and
-// both still carried `truncate`. Do not add `truncate` back to any of the
-// three; a very long name/line wrapping to a second line is the harmless
-// cost of avoiding it.
+function dateRange(start: string | null, end: string | null, t: TFn, locale: Locale): string {
+  const from = monthYear(start, locale);
+  const to = monthYear(end, locale) ?? t("Present");
+  return from ? `${from} - ${to}` : to;
+}
+
+// Newest job first; a job with no end date is the current one.
+function byMostRecent(a: MyEmploymentEntry, b: MyEmploymentEntry): number {
+  const endA = a.endDate ?? "9999";
+  const endB = b.endDate ?? "9999";
+  if (endA !== endB) return endB.localeCompare(endA);
+  return (b.startDate ?? "").localeCompare(a.startDate ?? "");
+}
+
+function SectionTitle({ children, side = false }: { children: ReactNode; side?: boolean }) {
+  return (
+    <h2
+      className="pb-1.5 text-[15px] leading-tight"
+      style={{ color: INK, borderBottom: `1px solid ${side ? "#d3d8cd" : RULE}` }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+// One block the PDF must not cut across two pages.
+const KEEP_TOGETHER = { breakInside: "avoid" as const, pageBreakInside: "avoid" as const };
+
+/** One row: title and date on a line, the place under it. */
+function Entry({ title, date, subtitle }: { title: string; date: string | null; subtitle: string }) {
+  return (
+    <>
+      <div className="flex items-baseline justify-between">
+        <p className="min-w-0 flex-1 break-words pr-4 text-[13.5px] font-semibold" style={{ color: INK }}>
+          {title}
+        </p>
+        {date && (
+          <p className="shrink-0 text-[11.5px] tabular-nums" style={{ color: MUTED }}>
+            {date}
+          </p>
+        )}
+      </div>
+      {subtitle && (
+        <p className="mt-0.5 break-words text-[12.5px]" style={{ color: MUTED }}>
+          {subtitle}
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
+ * A titled list. The title travels with the first entry, so a page break
+ * never leaves a heading alone at the bottom of a page; every entry is kept
+ * whole.
+ */
+function CvSection({
+  title,
+  side = false,
+  items,
+  spacing = "mt-4",
+}: {
+  title: string;
+  side?: boolean;
+  items: { key: string; node: ReactNode }[];
+  spacing?: string;
+}) {
+  if (items.length === 0) return null;
+  const [first, ...rest] = items;
+  return (
+    <section>
+      <div style={KEEP_TOGETHER}>
+        <SectionTitle side={side}>{title}</SectionTitle>
+        <div className="mt-3">{first.node}</div>
+      </div>
+      {rest.map((item) => (
+        <div key={item.key} className={spacing} style={KEEP_TOGETHER}>
+          {item.node}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/**
+ * The CV: one source for the on-screen preview (Edit Profile > My CV), the
+ * PDF a member downloads, and the PDF sent with a job application
+ * (ApplyButton). Everything on it is the member's own data from Edit
+ * Profile; the anonymous avatar never appears - only the CV photo, if the
+ * member added one.
+ */
 export function CvPreview({
   profile,
   employment: employmentProp,
   id,
   showEmail = false,
   showPhone = false,
-  forPrint = false,
 }: {
   profile: MyProfile;
-  // Optional pre-fetched employment history. Only ApplyButton.tsx's hidden
-  // snapshot instance passes this: it fetches /me/employment-history itself
-  // (in parallel with /me/profile, before ever mounting this component) so
-  // the PDF snapshot never races this component's own fetch below. The live
-  // preview on /me omits this prop and keeps the self-fetch behavior.
+  // Pre-fetched by ApplyButton so its PDF snapshot never races the fetch
+  // below. The preview on /me leaves it out and fetches its own.
   employment?: MyEmploymentEntry[];
   id?: string;
-  // Both default OFF — see Fix 2 in the 2026-09-16 final-review fix report.
-  // profile.email/profile.phoneNumber are decrypted, self-view-only account
-  // fields the member never explicitly typed for this purpose, so neither
-  // is ever rendered unless the member has opted in via the checkboxes on
-  // /me's "My CV" tab (lib/cvDisclosurePrefs.ts). ApplyButton.tsx's hidden
-  // snapshot instance must be passed the same two values the member last
-  // saw checked on /me, so the PDF a company receives always matches what
-  // was on screen.
+  // Both off unless the member ticked them on My CV (lib/cvDisclosurePrefs).
   showEmail?: boolean;
   showPhone?: boolean;
-  // When true, drop the fixed aspect-ratio + scroll box used for the
-  // on-screen preview and render at natural height instead. html2canvas
-  // snapshots this element's box exactly as laid out, with no scrolling, so
-  // the on-screen aspect-ratio box would otherwise silently clip a long CV.
-  // ApplyButton.tsx's hidden snapshot instance always passes this as true.
+  // Kept for callers; the page is always laid out at full A4 width now.
   forPrint?: boolean;
 }) {
   const [employmentState, setEmploymentState] = useState<MyEmploymentEntry[]>(employmentProp ?? []);
   const { t, locale } = useI18n();
 
   useEffect(() => {
-    // A caller that already fetched employment history (ApplyButton, to
-    // avoid racing its own snapshot against this component's own fetch)
-    // opts this effect out entirely.
     if (employmentProp) return;
     let cancelled = false;
     apiGet<MyEmploymentEntry[]>("/me/employment-history")
@@ -138,136 +172,279 @@ export function CvPreview({
     };
   }, [employmentProp]);
 
-  const employment = employmentProp ?? employmentState;
+  const employment = [...(employmentProp ?? employmentState)].sort(byMostRecent);
   const name = profile.displayName?.trim() || t("Your name here");
-  const contactLine = [showEmail ? profile.email : null, showPhone ? profile.phoneNumber : null]
-    .filter(Boolean)
-    .join(" · ");
-  // "Where the member is based" — no birthplace field exists anywhere in the
-  // system (deliberately: it would need new encrypted PiiVault storage, same
-  // protection level as national ID, for a cosmetic CV line), so this is the
-  // member's current location instead, already collected at onboarding.
   const locationLine = [profile.district, profile.city, profile.country].filter(Boolean).join(", ");
-  const education = profile.education;
-  const workTypeLabel = profile.workType ? t(workplaceTypeLabel(profile.workType)) : null;
-  // Picked on Edit Profile > Personal Information; always on the CV.
+  const headline = [
+    profile.workType ? t(workplaceTypeLabel(profile.workType)) : null,
+    profile.sector ? t(profile.sector.label) : null,
+  ]
+    .filter(Boolean)
+    .join("  /  ");
   const languages = (profile.languages ?? []).map((code) => languageName(code, languageLabel(code), locale));
+  const references = profile.references ?? [];
+  const certificates = profile.certificates ?? [];
+  const contact = [
+    showEmail && profile.email ? { label: t("Email"), value: profile.email } : null,
+    showPhone && profile.phoneNumber ? { label: t("Phone"), value: profile.phoneNumber } : null,
+  ].filter((c): c is { label: string; value: string } => c !== null);
+  const born = profile.birthDate ? new Date(profile.birthDate).getFullYear() : null;
 
   return (
     <div
       id={id}
-      className={`cv-document relative flex w-full flex-col border border-[#1e293b] bg-[#fafafa] p-6 font-jakarta text-[#0f172a] dark:bg-[#fafafa] dark:text-[#0f172a]${
-        forPrint ? "" : " aspect-[1/1.414] overflow-y-auto"
-      }`}
+      className="cv-document flex flex-col bg-[#ffffff] font-sans"
+      style={{ width: CV_PAGE_WIDTH_PX, minHeight: Math.round(CV_PAGE_WIDTH_PX * 1.414), color: INK }}
     >
-      <section>
-        <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">
-          {t("Personal Information")}
-        </h2>
-        <div className="mt-3 flex items-center space-x-4">
-          <Avatar avatarKey={profile.avatarKey} avatarGradient={profile.avatarGradient} size="md" />
-          <div className="min-w-0">
-            {/* No `truncate` on any of the three elements in this block
-                (h1, contactLine `<p>`, locationLine `<p>`), even though a
-                very long value can now wrap to a second line: html2canvas
-                cannot compute a text element's box height correctly when
-                `truncate` (overflow-hidden + nowrap + ellipsis) is applied,
-                and silently renders the next sibling on top of it in the
-                actual generated PDF — confirmed by isolating h1+p alone
-                with no avatar/flex involved at all. This reproduces from
-                `truncate` itself, not from the font-grotesk face or this
-                specific text size. The live on-screen preview never shows
-                this; only a real Apply-generated PDF does. `break-words`
-                (overflow-wrap: break-word) is used instead on all three so
-                an unbroken long string still can't overflow the CV's
-                width — it doesn't involve overflow-hidden or nowrap, so it
-                doesn't reintroduce this bug. */}
-            <h1 className="break-words font-grotesk text-2xl font-bold leading-tight">{name}</h1>
-            {contactLine && <p className="break-words text-sm text-[#475569]">{contactLine}</p>}
-            {locationLine && <p className="break-words text-sm text-[#475569]">{locationLine}</p>}
-          </div>
-        </div>
-        {/* Per-item trailing margin (mr-6, mb-1), not a negative-margin
-            container: an earlier version of this row used a -ml-6 -mt-1
-            wrapper with positive per-item offsetting margins to emulate
-            gap on a flex-wrap row. That rendered correctly live but
-            overlapped the avatar in the actual generated PDF - html2canvas
-            doesn't lay out negative margins on a flex container the way the
-            browser does, confirmed by comparing the live DOM (correct)
-            against a real Apply-generated PDF (broken) at the same width.
-            Trailing margin on every item, including the last, is the
-            harmless cost of avoiding that. */}
-        <div className="mt-3 flex flex-wrap text-sm text-[#475569]">
-          {profile.birthDate && <span className="mr-6 mb-1">{t("Born {year}", { year: new Date(profile.birthDate).getFullYear() })}</span>}
-          {workTypeLabel && <span className="mr-6 mb-1">{workTypeLabel}</span>}
-          {profile.sector && <span className="mr-6 mb-1">{t(profile.sector.label)}</span>}
-        </div>
-        {profile.isPublicEmployee && (
-          <span className="mt-2 inline-block rounded-full border border-[#1e293b] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-            {t("Public Sector Employee")}
-          </span>
+      {/* Header */}
+      <header className="flex items-start px-12 pb-7 pt-11">
+        {profile.cvPhotoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- html2canvas can't read next/image output
+          <img
+            src={profile.cvPhotoUrl}
+            alt=""
+            crossOrigin="anonymous"
+            className="mr-7 shrink-0 object-cover"
+            style={{ width: 112, height: 132, borderRadius: 6 }}
+          />
         )}
-        {profile.skills.length > 0 && (
-          <div className="mt-3 flex flex-wrap">
-            {profile.skills.map((s) => (
-              <span
-                key={s.id}
-                className="mr-1.5 mb-1.5 rounded-full border border-[#1e293b] px-2 py-0.5 text-[11px] font-medium"
-              >
-                {s.name}
-              </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="break-words text-[38px] leading-[1.08]" style={{ color: INK }}>
+            {name}
+          </h1>
+          {headline && (
+            <p className="mt-2 break-words text-[14px] font-medium" style={{ color: ACCENT }}>
+              {headline}
+            </p>
+          )}
+          {locationLine && (
+            <p className="mt-1 break-words text-[13px]" style={{ color: MUTED }}>
+              {locationLine}
+            </p>
+          )}
+          {profile.isPublicEmployee && (
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: MUTED }}>
+              {t("Public Sector Employee")}
+            </p>
+          )}
+        </div>
+        {contact.length > 0 && (
+          <div className="ml-6 shrink-0 text-right">
+            {contact.map((c) => (
+              <div key={c.label} className="mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: FAINT }}>
+                  {c.label}
+                </p>
+                <p className="break-words text-[12.5px]" style={{ color: INK }}>
+                  {c.value}
+                </p>
+              </div>
             ))}
           </div>
         )}
-        {languages.length > 0 && (
-          <p className="mt-2 break-words text-sm">
-            <span className="font-bold">{t("Languages:")}</span> {languages.join(", ")}
-          </p>
-        )}
-        {profile.customExperienceText && (
-          <p className="mt-3 whitespace-pre-wrap text-sm">{profile.customExperienceText}</p>
-        )}
-      </section>
+      </header>
+      <div className="mx-12" style={{ height: 3, backgroundColor: ACCENT }} />
 
-      <hr className="my-8 border-t border-[#1e293b]" />
+      {/* Body: main column + side column. Plain divs, not main/aside: the
+          CV sits inside the page's own main area. */}
+      <div className="flex flex-1 items-stretch">
+        <div className="min-w-0 flex-1 space-y-7 pb-10 pl-12 pr-8 pt-8">
+          {profile.customExperienceText && (
+            <section>
+              <SectionTitle>{t("Profile")}</SectionTitle>
+              <p className="mt-3 whitespace-pre-wrap break-words text-[12.5px] leading-[1.6]" style={{ color: INK }}>
+                {profile.customExperienceText}
+              </p>
+            </section>
+          )}
 
-      {education.length > 0 && (
-        <>
-          <section>
-            <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">{t("Education")}</h2>
-            <ul className="mt-2 flex flex-col space-y-2">
-              {education.map((e) => (
-                <li key={e.id} className="text-sm">
-                  <p className="font-bold">{e.institutionName}</p>
-                  <p className="text-xs text-[#475569]">
-                    {formatEducationDetail(e.level, e.faculty, e.department, e.graduationYear, t)}
+          {employment.length === 0 ? (
+            <section style={KEEP_TOGETHER}>
+              <SectionTitle>{t("Experience")}</SectionTitle>
+              <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+                {t("Nothing added yet.")}
+              </p>
+            </section>
+          ) : (
+            <CvSection
+              title={t("Experience")}
+              items={employment.map((e) => ({
+                key: e.id,
+                node: (
+                  <Entry
+                    title={e.jobTitle ?? t("Employee")}
+                    date={dateRange(e.startDate, e.endDate, t, locale)}
+                    subtitle={e.rawCompanyName}
+                  />
+                ),
+              }))}
+            />
+          )}
+
+          <CvSection
+            title={t("Education")}
+            spacing="mt-3.5"
+            items={[...profile.education].reverse().map((e) => ({
+              key: e.id,
+              node: (
+                <Entry
+                  title={e.institutionName}
+                  date={e.graduationYear ? String(e.graduationYear) : null}
+                  subtitle={[t(EDU_LEVEL_LABELS[e.level]), e.faculty, e.department].filter(Boolean).join(", ")}
+                />
+              ),
+            }))}
+          />
+
+          <CvSection
+            title={t("Certificates")}
+            spacing="mt-3.5"
+            items={certificates.map((c) => ({
+              key: c.id,
+              node: (
+                <>
+                  <Entry title={c.name} date={monthYear(c.issuedMonth, locale)} subtitle={c.issuer} />
+                  {c.description && (
+                    <RichText
+                      text={c.description}
+                      as="p"
+                      className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-[1.55]"
+                    />
+                  )}
+                </>
+              ),
+            }))}
+          />
+        </div>
+
+        <div className="shrink-0 space-y-7 pb-10 pl-7 pr-10 pt-8" style={{ width: 268, backgroundColor: SIDE_BG }}>
+          {(born || profile.workType || profile.sector) && (
+            <section style={KEEP_TOGETHER}>
+              <SectionTitle side>{t("Details")}</SectionTitle>
+              <dl className="mt-3 space-y-2.5 text-[12px]">
+                {born && (
+                  <div>
+                    <dt style={{ color: FAINT }}>{t("Born")}</dt>
+                    <dd style={{ color: INK }}>{born}</dd>
+                  </div>
+                )}
+                {profile.workType && (
+                  <div>
+                    <dt style={{ color: FAINT }}>{t("Kind of work")}</dt>
+                    <dd style={{ color: INK }}>{t(workplaceTypeLabel(profile.workType))}</dd>
+                  </div>
+                )}
+                {profile.sector && (
+                  <div>
+                    <dt style={{ color: FAINT }}>{t("Sector")}</dt>
+                    <dd style={{ color: INK }}>{t(profile.sector.label)}</dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          )}
+
+          {languages.length > 0 && (
+            <section style={KEEP_TOGETHER}>
+              <SectionTitle side>{t("Languages")}</SectionTitle>
+              <ul className="mt-3 space-y-1.5 text-[12.5px]" style={{ color: INK }}>
+                {languages.map((l) => (
+                  <li key={l}>{l}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {profile.skills.length > 0 && (
+            <section style={KEEP_TOGETHER}>
+              <SectionTitle side>{t("Skills")}</SectionTitle>
+              <div className="mt-3 flex flex-wrap">
+                {profile.skills.map((s) => (
+                  // A fixed height and line height: html2canvas otherwise
+                  // draws the words lower in the box than the browser does.
+                  <span
+                    key={s.id}
+                    className="cv-chip mb-1.5 mr-1.5 inline-block rounded-[4px] px-2 text-[11px] font-medium"
+                    style={{ height: 22, lineHeight: "20px", backgroundColor: "#ffffff", color: INK, border: "1px solid #d3d8cd" }}
+                  >
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <CvSection
+            title={t("References")}
+            side
+            spacing="mt-3.5"
+            items={references.map((r) => ({
+              key: r.id,
+              node: (
+                <div className="text-[12px]">
+                  <p className="break-words font-semibold" style={{ color: INK }}>
+                    {r.firstName} {r.lastName}
                   </p>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <hr className="my-8 border-t border-[#1e293b]" />
-        </>
-      )}
+                  <p style={{ color: MUTED }}>{t(jobPositionLabel(r.position))}</p>
+                  {r.email && (
+                    <p className="break-all" style={{ color: MUTED }}>
+                      {r.email}
+                    </p>
+                  )}
+                  {r.phoneNumber && <p style={{ color: MUTED }}>{r.phoneNumber}</p>}
+                </div>
+              ),
+            }))}
+          />
+        </div>
+      </div>
 
-      <section>
-        <h2 className="font-grotesk text-xs font-bold uppercase tracking-wide text-[#475569]">{t("Employment History")}</h2>
-        <ul className="mt-2 flex flex-col space-y-2">
-          {employment.length === 0 && <li className="text-sm text-[#64748b]">{t("Nothing added yet.")}</li>}
-          {employment.map((e) => (
-            <li key={e.id} className="text-sm">
-              <p className="font-bold">{e.jobTitle ?? t("Employee")} - {e.rawCompanyName}</p>
-              <p className="text-xs text-[#475569]">{formatRange(e.startDate, e.endDate, t)}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <footer className="mt-8 flex flex-col items-start border-t border-[#1e293b] pt-3">
-        {/* eslint-disable-next-line @next/next/no-img-element -- snapshotted by html2canvas, which can't resolve next/image's optimized/lazy output */}
-        <img src="/realicon.png" alt="I Worked There" className="h-6 w-6" />
-        <p className="mt-1 text-[10px] font-bold text-[#0f172a]">{t("Made in iworkedthere.com")}</p>
+      <footer className="flex items-center px-12 py-4" style={{ borderTop: `1px solid ${RULE}` }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- photographed by html2canvas */}
+        <img src="/realicon.png" alt="" className="mr-2 h-4 w-4" />
+        <p className="text-[10px] font-semibold" style={{ color: MUTED }}>
+          {t("Made in iworkedthere.com")}
+        </p>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * The CV page shrunk to fit its box, so the preview shows exactly what the
+ * PDF will look like, line breaks included.
+ */
+export function CvPage({ children, className = "" }: { children: ReactNode; className?: string }) {
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const [inner, setInner] = useState<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(0.5);
+  const [height, setHeight] = useState(0);
+
+  // Measured before the first paint, so the page never shows at zero height.
+  useLayoutEffect(() => {
+    if (!box || !inner) return;
+    const update = () => {
+      const s = Math.min(1, box.clientWidth / CV_PAGE_WIDTH_PX);
+      setScale(s);
+      setHeight(inner.offsetHeight * s);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(box);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [box, inner]);
+
+  return (
+    <div ref={setBox} className={`w-full ${className}`}>
+      <div style={{ height, position: "relative", overflow: "hidden" }}>
+        <div
+          ref={setInner}
+          style={{ width: CV_PAGE_WIDTH_PX, transform: `scale(${scale})`, transformOrigin: "top left", position: "absolute", top: 0, left: 0 }}
+        >
+          {children}
+        </div>
+      </div>
     </div>
   );
 }

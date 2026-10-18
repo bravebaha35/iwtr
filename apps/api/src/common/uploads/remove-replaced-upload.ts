@@ -1,7 +1,7 @@
 import { unlink } from "fs/promises";
 import { join } from "path";
 
-export type UploadFolder = "company-logos" | "company-banners" | "employer-avatars";
+export type UploadFolder = "company-logos" | "company-banners" | "employer-avatars" | "cv-photos";
 
 // Only names this API itself writes (a random UUID plus an image extension),
 // so a stored URL can never point the delete outside its folder.

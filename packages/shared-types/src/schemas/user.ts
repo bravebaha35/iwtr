@@ -2,6 +2,7 @@ import { z } from "zod";
 import { workplaceTypeSchema } from "./workplaceType";
 import { sectorSchema, skillSchema } from "./skill";
 import { languageCodeSchema, MAX_LANGUAGES_PER_MEMBER } from "./language";
+import { memberCertificateSchema, memberReferenceSchema } from "./cv";
 
 export const userRoleSchema = z.enum(["MEMBER", "ADMIN", "COMPANY_OWNER"]);
 export type UserRole = z.infer<typeof userRoleSchema>;
@@ -238,6 +239,10 @@ export const myProfileSchema = z.object({
   workType: workplaceTypeSchema.nullable(),
   sector: sectorSchema.nullable(),
   skills: z.array(skillSchema).max(10),
+  // Shown only on the member's CV (see User.cvPhotoUrl).
+  cvPhotoUrl: z.string().nullable().default(null),
+  references: z.array(memberReferenceSchema).default([]),
+  certificates: z.array(memberCertificateSchema).default([]),
 });
 export type MyProfile = z.infer<typeof myProfileSchema>;
 

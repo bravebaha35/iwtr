@@ -16,6 +16,8 @@ import { PiiVaultService } from "../pii-vault/pii-vault.service";
 import { PhoneVerificationService } from "../phone-verification/phone-verification.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { workTypeFromAvatarKey } from "../reviews/randomized-identity.util";
+import { removeReplacedUpload } from "../../common/uploads/remove-replaced-upload";
+import { toCertificate, toReference } from "./member-cv.service";
 
 const PASSWORD_SALT_ROUNDS = 12;
 
@@ -78,12 +80,15 @@ export class ProfileService {
 
   async getMyProfile(userId: string): Promise<MyProfile> {
     const user = await this.requireActiveUser(userId);
-    const [educationRaw, identity, phoneNumber, userSkills, sector] = await Promise.all([
+    const [educationRaw, identity, phoneNumber, userSkills, sector, references, certificates] = await Promise.all([
       this.prisma.educationHistory.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
       this.piiVault.getMyIdentity(userId),
       this.phoneVerification.getMyPhoneNumber(userId),
       this.prisma.userSkill.findMany({ where: { userId }, include: { skill: true } }),
       user.sectorId ? this.prisma.sector.findUnique({ where: { id: user.sectorId } }) : Promise.resolve(null),
+      this.prisma.memberReference.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
+      // Newest certificate first, the way a CV lists them.
+      this.prisma.memberCertificate.findMany({ where: { userId }, orderBy: [{ issuedMonth: "desc" }, { createdAt: "desc" }] }),
     ]);
     const education = [...educationRaw].sort(byEduLevel);
 
@@ -115,6 +120,9 @@ export class ProfileService {
       birthDate: identity?.birthDate ?? null,
       phoneNumber,
       email: user.email,
+      cvPhotoUrl: user.cvPhotoUrl,
+      references: references.map(toReference),
+      certificates: certificates.map(toCertificate),
     };
   }
 
@@ -344,7 +352,9 @@ export class ProfileService {
   // User by design) is cleaned up explicitly in the same transaction since
   // nothing would cascade into it.
   async deleteAccount(userId: string): Promise<void> {
-    await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    // References and certificates go with the user row (onDelete: Cascade);
+    // the CV photo file is removed from disk once the account is gone.
+    const { cvPhotoUrl } = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
     const publishedCompanyIds = await this.prisma.$transaction(async (tx) => {
       const reviews = await tx.review.findMany({
@@ -383,5 +393,6 @@ export class ProfileService {
     // independent of every other's, so run them concurrently instead of one
     // at a time.
     await Promise.all(publishedCompanyIds.map((companyId) => this.reviews.recomputeAggregate(companyId)));
+    await removeReplacedUpload(cvPhotoUrl, null, "cv-photos", async () => false);
   }
 }

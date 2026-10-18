@@ -243,6 +243,16 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   may pick a username again (2026-10-15). Owner Customize is one box: avatar, username, own picture instead of avatar.
 - `company-reports/` — the Report button on a company page (fixed reasons, one open report per member per
   company) and the admin queue on `/admin/content`.
+- **CV extras (2026-10-18)**: `profile/member-cv.*` owns `MemberReference` (Edit Profile > References, max 5, position is
+  a `JobPosition`, needs an email or a phone), `MemberCertificate` (Personal Information > Certificates, max 15, picked
+  from shared-types `CERTIFICATE_CATALOG` or typed; issuer, month, optional list-only notes) and `User.cvPhotoUrl`
+  (POST/DELETE `me/cv-photo`; the URL is never taken from the client). All three appear only on the CV. `CvPreview` is
+  always laid out at A4 width (`CV_PAGE_WIDTH_PX`) and shown scaled by `CvPage`; every PDF (Apply, and My CV > Download
+  PDF) comes from `lib/cvPdf.ts`. My Ratings is a tab under My CV now (`MyRatingsPanel`); `/me/reviews` redirects there.
+- A job ad (and the Jobs page itself) only shows for a company with an approved owner: `HIRING_COMPANY_WHERE` in
+  `companies/company-visibility.ts`. A new public JobPosting read must use it. Demo seeds once wrote ads onto unclaimed
+  companies; those stay hidden.
+- The chat dock's panels can be enlarged (button between minimise and close); an enlarged panel counts as two.
 
 ### Data model (`apps/api/prisma/schema.prisma`)
 

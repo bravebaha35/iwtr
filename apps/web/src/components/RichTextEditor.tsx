@@ -157,6 +157,7 @@ export function RichTextEditor({
   id,
   className = "",
   ariaLabel,
+  inlineStyles = true,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -166,6 +167,8 @@ export function RichTextEditor({
   // On the wrapper (toolbar + box): give it a height and the box fills it.
   className?: string;
   ariaLabel?: string;
+  // false: list buttons only, no Bold / Italic (a certificate's notes).
+  inlineStyles?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const t = useT();
@@ -207,6 +210,7 @@ export function RichTextEditor({
   }
 
   function format(command: "bold" | "italic") {
+    if (!inlineStyles) return;
     ref.current?.focus();
     if (typeof document.execCommand === "function") document.execCommand(command);
     emit();
@@ -287,6 +291,8 @@ export function RichTextEditor({
       className={`flex flex-col overflow-hidden rounded-xl border border-border bg-surface transition focus-within:border-brand-600 dark:focus-within:border-brand-400 ${className}`}
     >
       <div className="flex flex-wrap items-center gap-0.5 border-b border-border/70 px-1.5 py-1">
+        {inlineStyles && (
+        <>
         <button type="button" onMouseDown={keep} onClick={() => format("bold")} aria-pressed={active.b} title={t("Bold (Ctrl+B)")} className={`${toolButton} ${active.b ? on : off}`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" />
@@ -300,6 +306,8 @@ export function RichTextEditor({
           {t("Italic")}
         </button>
         <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
+        </>
+        )}
         <button type="button" onMouseDown={keep} onClick={() => toggle("bullet")} title={t("Bullet list")} className={`${toolButton} ${off}`}>
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M9 6h11M9 12h11M9 18h11" />

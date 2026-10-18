@@ -4,12 +4,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   // Prisma CLI (db push/pull) connects as the table owner; the running API
   // uses DATABASE_URL, a limited role Row-Level Security applies to.
   directUrl = env("DIRECT_URL")
-  schemas  = ["public", "pii"]
+  schemas   = ["public", "pii"]
 }
 
 // ===================== public schema =====================
@@ -270,6 +270,10 @@ model User {
   // company on file"). Sanitized server-side (ProfileService.updateProfile,
   // Task 3) before storage; always rendered as plain text, never HTML.
   customExperienceText String?
+  // The member's own photo, shown only on the CV they send when applying to
+  // a job (and their own CV preview). Never shown anywhere public on the
+  // site: reviews and IWT Social keep the anonymous avatar.
+  cvPhotoUrl           String?
   // HMAC of the E.164 phone number verified via OTP during onboarding — kept
   // indefinitely (like PiiVault.tcKimlikNoHash) purely to flag duplicate
   // accounts on the same phone for admin review. A collision NEVER blocks
@@ -297,6 +301,8 @@ model User {
   updatedAt            DateTime       @updatedAt
 
   educationHistory           EducationHistory[]
+  cvReferences               MemberReference[]
+  certificates               MemberCertificate[]
   employmentHistory          EmploymentHistory[]
   reviews                    Review[]
   reviewVotes                ReviewVote[]
@@ -321,7 +327,7 @@ model User {
   socialAnswers              SocialAnswer[]              @relation("SocialAnswerAuthor")
   socialAnswerVotes          SocialAnswerVote[]          @relation("SocialAnswerVoter")
   socialQuestionReports      SocialQuestionReport[]      @relation("SocialQuestionReporter")
-  socialComments            SocialComment[]             @relation("SocialCommentAuthor")
+  socialComments             SocialComment[]             @relation("SocialCommentAuthor")
   socialPostLikes            SocialPostLike[]            @relation("SocialPostLiker")
   socialCommentVotes         SocialCommentVote[]         @relation("SocialCommentVoter")
   companyFollows             CompanyFollow[]
@@ -452,6 +458,43 @@ model Sector {
   @@schema("public")
 }
 
+// A reference from a member's past work (Edit Profile > References), printed
+// on their CV. Someone else's contact details: only the member themselves
+// and the employers they send their CV to ever see it.
+model MemberReference {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName   String
+  lastName    String
+  position    JobPosition
+  email       String?
+  phoneNumber String?
+  createdAt   DateTime    @default(now())
+
+  @@index([userId])
+  @@schema("public")
+}
+
+// A certificate on a member's profile (Edit Profile > Personal Information),
+// printed on their CV. `name` is usually picked from CERTIFICATE_CATALOG in
+// shared-types but can be typed freely.
+model MemberCertificate {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  issuer      String
+  // "YYYY-MM"
+  issuedMonth String
+  // Plain text with the job-description list conventions (lib/richText.ts).
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@schema("public")
+}
+
 model EducationHistory {
   id              String   @id @default(uuid())
   userId          String
@@ -559,19 +602,19 @@ model Company {
   // (OwnerService.updateMyCompany) — free tier, not Plus-gated like
   // description/website. All nullable: most existing companies won't have
   // these filled in until an owner claims and fills them out.
-  contactEmail String?
+  contactEmail  String?
   // Optional 2nd and 3rd public contact emails (e.g. HR and careers
   // inboxes), shown under the main one on the company page.
   contactEmail2 String?
   contactEmail3 String?
-  contactPhone String?
-  facebookUrl  String?
-  instagramUrl String?
-  whatsappUrl  String?
-  xUrl         String?
-  linkedinUrl  String?
-  youtubeUrl   String?
-  glassdoorUrl String?
+  contactPhone  String?
+  facebookUrl   String?
+  instagramUrl  String?
+  whatsappUrl   String?
+  xUrl          String?
+  linkedinUrl   String?
+  youtubeUrl    String?
+  glassdoorUrl  String?
 
   // Premium Features box (owner dashboard) — paid-tier-gated same as
   // description/website above. bannerImageUrl: a wide banner image, separate
@@ -590,23 +633,23 @@ model Company {
   hiddenAt  DateTime?
   riskScore Int       @default(0)
 
-  employmentHistories  EmploymentHistory[]
-  reviews              Review[]
-  owners               CompanyOwner[]
-  aggregate            CompanyAggregateScore?
-  companyNarratives    CompanyNarrative[]
-  ownerContactMessages OwnerContactMessage[]
-  replies              CompanyReply[]
-  jobPostings          JobPosting[]
-  jobApplications      JobApplication[]
-  socialPosts          SocialPost[]
-  socialDays           CompanySocialDay[]
-  scheduledSocialPosts ScheduledSocialPost[]
-  socialQuestions      SocialQuestion[]
-  followers            CompanyFollow[]
-  benchmarkReportJobs  BenchmarkReportJob[]
+  employmentHistories   EmploymentHistory[]
+  reviews               Review[]
+  owners                CompanyOwner[]
+  aggregate             CompanyAggregateScore?
+  companyNarratives     CompanyNarrative[]
+  ownerContactMessages  OwnerContactMessage[]
+  replies               CompanyReply[]
+  jobPostings           JobPosting[]
+  jobApplications       JobApplication[]
+  socialPosts           SocialPost[]
+  socialDays            CompanySocialDay[]
+  scheduledSocialPosts  ScheduledSocialPost[]
+  socialQuestions       SocialQuestion[]
+  followers             CompanyFollow[]
+  benchmarkReportJobs   BenchmarkReportJob[]
   hrAnalyticsReportJobs HrAnalyticsReportJob[]
-  reviewConversations  ReviewConversation[]
+  reviewConversations   ReviewConversation[]
 
   // name: helps the case-insensitive exact-match duplicate check
   // (CompaniesService.createByAdmin/updateMyCompany) and ORDER BY name — a
@@ -943,18 +986,18 @@ enum ConversationSide {
 // Timestamps are day-precision (same re-identification reasoning as
 // Review.createdAt); ordering and unread state use message seq instead.
 model ReviewConversation {
-  id                  String            @id @default(uuid())
-  reviewId            String            @unique
-  review              Review            @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  id                  String                      @id @default(uuid())
+  reviewId            String                      @unique
+  review              Review                      @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   companyId           String
-  company             Company           @relation(fields: [companyId], references: [id])
+  company             Company                     @relation(fields: [companyId], references: [id])
   reviewerUserId      String
-  reviewer            User              @relation(fields: [reviewerUserId], references: [id])
+  reviewer            User                        @relation(fields: [reviewerUserId], references: [id])
   endedAt             DateTime?
   endedBy             ConversationSide?
-  reviewerLastReadSeq Int               @default(0)
-  companyLastReadSeq  Int               @default(0)
-  createdAt           DateTime          @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+  reviewerLastReadSeq Int                         @default(0)
+  companyLastReadSeq  Int                         @default(0)
+  createdAt           DateTime                    @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
   messages            ReviewConversationMessage[]
 
   @@index([companyId])
@@ -1153,9 +1196,9 @@ model InvestorApiKey {
 }
 
 model RefreshToken {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
+  id             String        @id @default(uuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
   // Looked up by this value on every single refresh (AuthService.refresh)
   // and logout — the single hottest query in this whole schema for any
   // logged-in session (refresh is reactive only, triggered by the web
@@ -1163,11 +1206,11 @@ model RefreshToken {
   // proactive refresh timer) — and it had no unique constraint or index at
   // all before this. @@unique rather than a plain @@index since a collision
   // genuinely should never happen (SHA-256 of 48 random bytes).
-  tokenHash   String    @unique
-  deviceLabel String?
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  tokenHash      String        @unique
+  deviceLabel    String?
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime      @default(now())
   // Set only for a session opened with a company's shared login (see
   // CompanyLogin): the refresh keeps that session limited to the company.
   // Deleting the login ends every such session.
@@ -1218,47 +1261,47 @@ model CompanyLogin {
 // personal account. When they do the post is retained (it belongs to the
 // Company, not the person) and only the audit-only author link detaches.
 model SocialPost {
-  id           String   @id @default(uuid())
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id])
-  authorUserId String?
-  authorUser   User?    @relation("SocialPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  id                String         @id @default(uuid())
+  companyId         String
+  company           Company        @relation(fields: [companyId], references: [id])
+  authorUserId      String?
+  authorUser        User?          @relation("SocialPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
   // Server-produced compressed WebP URLs under /uploads/social/ (see
   // social-image.util.ts) - never client-supplied URLs. Instagram-style
   // multi-photo carousel: 1 to MAX_SOCIAL_POST_IMAGES (social-image.util.ts),
   // ordered as uploaded.
-  imageUrls    String[] @default([])
+  imageUrls         String[]       @default([])
   // Optional "Tell us what you think !" text, run through
   // ModerationService.checkContent before persist (hard-reject on violation).
-  caption      String?
-  createdAt    DateTime @default(now())
+  caption           String?
+  createdAt         DateTime       @default(now())
   // Set while this is the company's pinned post (at most one per company -
   // SocialService.togglePin unpins the others): it leads the company's own
   // feed in the default order.
-  pinnedAt     DateTime?
+  pinnedAt          DateTime?
   // Set when the owner changes the caption after posting ("Edited" label).
-  editedAt     DateTime?
+  editedAt          DateTime?
   // What kind of post this is. PHOTO and UPDATE are the plain ones (with and
   // without photos); the others carry the extra fields below.
-  kind         SocialPostKind @default(PHOTO)
+  kind              SocialPostKind @default(PHOTO)
   // EVENT and MILESTONE: the headline ("Open day at the Manisa plant").
-  title          String?
+  title             String?
   // EVENT only. The event's own date and place - content the company
   // publishes, so it is shown exactly, unlike createdAt.
-  eventStartsAt  DateTime?
-  eventLocation  String?
+  eventStartsAt     DateTime?
+  eventLocation     String?
   // POLL only: voting closes at this moment.
-  pollEndsAt     DateTime?
+  pollEndsAt        DateTime?
   // HIRING only: the job ad this post is about. SetNull so the post outlives
   // the ad's row (it then reads as "position filled").
-  jobPostingId   String?
-  jobPosting     JobPosting? @relation(fields: [jobPostingId], references: [id], onDelete: SetNull)
+  jobPostingId      String?
+  jobPosting        JobPosting?    @relation(fields: [jobPostingId], references: [id], onDelete: SetNull)
   // Width / height of each image in imageUrls, same order, so the page can
   // hold the right space before a photo arrives. Empty on older posts.
-  imageAspectRatios Float[] @default([])
+  imageAspectRatios Float[]        @default([])
   // How many times members have had this post on their screen. A bare
   // counter: who looked is never stored (see SocialInsightsService.recordViews).
-  viewCount         Int     @default(0)
+  viewCount         Int            @default(0)
 
   comments             SocialComment[]
   likes                SocialPostLike[]
@@ -1534,14 +1577,14 @@ model SocialCommentVote {
 // userId]), so two deleted likers on one post just leave two (postId, NULL)
 // rows - still correct.
 model SocialPostLike {
-  id        String     @id @default(uuid())
+  id        String         @id @default(uuid())
   postId    String
-  post      SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post      SocialPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String?
-  user      User?      @relation("SocialPostLiker", fields: [userId], references: [id], onDelete: SetNull)
+  user      User?          @relation("SocialPostLiker", fields: [userId], references: [id], onDelete: SetNull)
   // Which of the reactions this is; one reaction per member per post.
   reaction  SocialReaction @default(LIKE)
-  createdAt DateTime   @default(now())
+  createdAt DateTime       @default(now())
 
   @@unique([postId, userId])
   @@index([userId])
@@ -1571,21 +1614,21 @@ enum SocialQuestionVisibility {
 }
 
 model SocialQuestion {
-  id             String              @id @default(uuid())
-  companyId      String?
-  company        Company?            @relation(fields: [companyId], references: [id])
-  workType       WorkplaceType?
-  authorUserId   String?
-  authorUser     User?               @relation("SocialQuestionAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
-  body           String
-  identityMode   CommentIdentityMode @default(PERSONAL_CHOSEN)
-  randomUsername String?
-  visibility     SocialQuestionVisibility @default(PUBLIC)
-  createdAt      DateTime            @default(now())
+  id                  String                   @id @default(uuid())
+  companyId           String?
+  company             Company?                 @relation(fields: [companyId], references: [id])
+  workType            WorkplaceType?
+  authorUserId        String?
+  authorUser          User?                    @relation("SocialQuestionAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  body                String
+  identityMode        CommentIdentityMode      @default(PERSONAL_CHOSEN)
+  randomUsername      String?
+  visibility          SocialQuestionVisibility @default(PUBLIC)
+  createdAt           DateTime                 @default(now())
   // Same report path as a comment (SocialQuestionsService.report): crossing
   // 3 reports plus a content-filter match queues it for an admin; nothing is
   // ever removed without a person looking.
-  flaggedForReview    Boolean @default(false)
+  flaggedForReview    Boolean                  @default(false)
   flaggedReviewReason String?
 
   answers SocialAnswer[]
@@ -1606,17 +1649,17 @@ model SocialQuestion {
 // the answer is written: the member had that company in their employment
 // history. It is the only thing the badge reveals.
 model SocialAnswer {
-  id             String              @id @default(uuid())
-  questionId     String
-  question       SocialQuestion      @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  authorUserId   String?
-  authorUser     User?               @relation("SocialAnswerAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
-  body           String
-  identityMode   CommentIdentityMode @default(PERSONAL_CHOSEN)
-  randomUsername String?
-  workedThere    Boolean             @default(false)
-  createdAt      DateTime            @default(now())
-  flaggedForReview    Boolean @default(false)
+  id                  String              @id @default(uuid())
+  questionId          String
+  question            SocialQuestion      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorUserId        String?
+  authorUser          User?               @relation("SocialAnswerAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  body                String
+  identityMode        CommentIdentityMode @default(PERSONAL_CHOSEN)
+  randomUsername      String?
+  workedThere         Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  flaggedForReview    Boolean             @default(false)
   flaggedReviewReason String?
 
   votes   SocialAnswerVote[]
@@ -1915,20 +1958,20 @@ enum BenefitKey {
 // SectorBenchmarkService, and only ever as k-anonymous percentile bands;
 // never returned to any client, including the reviewer's own edit form.
 model SalarySubmission {
-  id               String       @id @default(uuid())
-  reviewId         String       @unique
-  review           Review       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  userId           String
-  companyId        String
+  id                    String       @id @default(uuid())
+  reviewId              String       @unique
+  review                Review       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId                String
+  companyId             String
   // Exact monthly net TL. Null when only benefits were given.
-  monthlyNetSalary Int?
-  benefits         BenefitKey[]
+  monthlyNetSalary      Int?
+  benefits              BenefitKey[]
   // Current UTC year at insert/replace; reports partition by it.
-  salaryYear       Int
+  salaryYear            Int
   kvkkCommercialConsent Boolean
   // Day precision, same reason as Review.createdAt (DAY_PRECISION_DEFAULT).
   // Deliberately no @updatedAt: that would record the exact moment of edit.
-  createdAt        DateTime     @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+  createdAt             DateTime     @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
 
   @@index([companyId, salaryYear])
   @@schema("public")
@@ -1949,9 +1992,9 @@ enum HrAnalyticsReportStatus {
 // How a report was paid for — decided once, at request time
 // (decideHrReportAccess in hr-analytics-report.access.ts).
 enum HrAnalyticsReportAccess {
-  PLAN          // Enterprise: included
+  PLAN // Enterprise: included
   MONTHLY_QUOTA // Pro: the one included report this calendar month
-  PAID          // a 199,99 TL one-off purchase
+  PAID // a 199,99 TL one-off purchase
 
   @@schema("public")
 }
