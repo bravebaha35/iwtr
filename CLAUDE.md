@@ -293,6 +293,21 @@ sees it; the review form's spam trap (`lib/formTrap.ts`: hidden field + minimum 
 bot submission never reaches `apps/api` or any log. Analytics may only load via `components/privacy/AnalyticsLoader`
 — consent-gated, public pages only, and switched off while the review form is open (`lib/analyticsPolicy.ts`).
 
+**English / Turkish (`lib/i18n/`, 2026-10-17)**: no library. The English text in the component is the key; `t("...")`
+(client: `useT()` / `useI18n()`, server: `await getTranslator()`) looks it up in the Turkish dictionary
+(`lib/i18n/tr/*.ts`, one file per area, merged in `tr/index.ts`) and falls back to the English. Variables are
+`{name}` placeholders, plurals go through `tp(n, one, many)`, and a word that needs two Turkish wordings gets a
+context key (`"Saved@@tab"`, `"Post@@column"` - the part after `@@` is dropped in English). The choice is the
+`iwtr-lang` cookie (Edit Profile > Account Options > Language), read in the root layout. Generic pieces (Dropdown,
+WordTabs, FilterPillGroup, SettingsNav, SidebarPanel, DashboardBox, PremiumLocked) translate their own labels, so
+callers pass English. Plain helpers take a `t: TFn` argument (default `plainT`); dates/numbers use
+`intlLocale(locale)`. **A new visible string must be wrapped in `t()` and added to the matching `tr/` file**, with
+wording from Turkish job sites (Kariyer.net: "iş ilanı", "başvur", informal "sen"). Left in English on purpose until
+the owner translates them: the Questions feature, everything below Rating Breakdown on the company page (Vibe Flags
+text, details, reviews list, claim panel), the survey questions/answers, admin pages and the legal pages. User
+content and API-built text (captions, company names, narratives) is never translated. Plan names Starter / Pro /
+Enterprise stay English; Free is "Ücretsiz".
+
 ### Visual design ("Riverbank", 2026-10-12)
 
 All colour, type, radius and shadow tokens live in `apps/web/src/app/globals.css`; never hard-code a brand
