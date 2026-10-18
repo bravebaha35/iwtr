@@ -249,7 +249,11 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   (POST/DELETE `me/cv-photo`; the URL is never taken from the client). All three appear only on the CV. `CvPreview` is
   always laid out at A4 width (`CV_PAGE_WIDTH_PX`) and shown scaled by `CvPage`; every PDF (Apply, and My CV > Download
   PDF) comes from `lib/cvPdf.ts`, which stamps the "Made in iworkedthere.com" footer onto the bottom of every page
-  (`lib/cvPdfFooter.ts`; no beaver watermark any more). My Ratings is a tab under My CV now (`MyRatingsPanel`); `/me/reviews` redirects there.
+  (`lib/cvPdfFooter.ts`; no beaver watermark any more). The CV is two sheets: sheet 1 = header, Profile and Skills
+  with the grey side column (Details, Languages, References); sheet 2 (`.cv-sheet-2`, always a new PDF page) = Experience,
+  Certificates, Education full width. "What's on your CV" ticks switch parts off (`getCvHiddenSections`, browser storage
+  like the email/phone choices; ApplyButton reads them too). My Ratings is a tab under My CV now (`MyRatingsPanel`);
+  `/me/reviews` redirects there.
 - A job ad (and the Jobs page itself) only shows for a company with an approved owner: `HIRING_COMPANY_WHERE` in
   `companies/company-visibility.ts`. A new public JobPosting read must use it. Demo seeds once wrote ads onto unclaimed
   companies; those stay hidden.
@@ -332,14 +336,16 @@ alone keeps DM Serif Display (`.cv-document`).
   sections are the same kind of tonal panel (`rounded-2xl bg-surface shadow-xs`). Only form inputs keep a
   1px border. Chips and secondary buttons are tonal (`bg-surface-muted`), not outlined.
 - **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`), the red/green
-  Rating and RS sort states (`SortButtons.tsx`), score-band colours, tier ticks, and the gold featured outline.
+  Rating and RS sort states (`SortButtons.tsx`), score-band colours, tier ticks, and the
+  featured job outline - grass green `#3b6b54`, no glow (was gold until 2026-10-19). The footer band is `#0d2b1f`.
 - Header is one 64px line; the current page is marked by a Wood bar (`components/layout/navItem.ts`). The
   notifications bell is a symbol with no label beside the theme switch, with a red counter that clears (and is
   saved as read) the moment its panel is opened. The sort controls (RS / A-Z / Rating) are plain words with a
   coloured bar under the one in use, right next to the search field (`SearchSortBox`); no "Sort" label.
   Sidebar width and gaps are locked by tests (`SidebarShell`); its order is (Jobs: Create !) Work-Type (+ Sector),
-  Rating, Risk Score, Location, (Jobs: Position). Location (`CityDistrictPicker`) is one city at a time, then any of
-  that city's districts (2026-10-19). Every inner scroll area hides its scrollbar (globals.css `body *`); only the page
+  Rating, Risk Score, Location, (Jobs: Position, a pill dropdown of ticks). Location (`CityDistrictPicker`) is country,
+  then one city (dropdowns), then that city's districts as a full tick list with "All" (2026-10-19). On Jobs, Following
+  (one horizontal row with arrows) and Saved Posts (a bookmark button) sit beside the page title, not in the sidebar. Every inner scroll area hides its scrollbar (globals.css `body *`); only the page
   keeps one.
 - Work-Type is four tiles (`WorkTypeTiles`): the name, and an object for that work in the bottom corner (the
   owner's own art in `public/`: "Office QS" pencil, "Hybrid QS" headset, "Service QS" hands, "Manual-Labour QS"

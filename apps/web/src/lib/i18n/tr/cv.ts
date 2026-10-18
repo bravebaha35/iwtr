@@ -56,10 +56,16 @@ const cv: Record<string, string> = {
   "Built from your profile. This is what an employer receives when you press Apply.":
     "Profilinden oluşturulur. Başvur'a bastığında işverene giden CV budur.",
   "CV photo": "CV fotoğrafı",
+  "Upload photo": "Fotoğraf yükle",
+  "Photo must be a PNG, JPEG or WebP file.": "Fotoğraf PNG, JPEG veya WebP olmalı.",
   "Your photo is only shown on the CV that is sent to the jobs you apply for. It never appears anywhere else on the site: your reviews and comments keep your anonymous avatar.":
     "Fotoğrafın yalnızca başvurduğun ilanlara gönderilen CV'de görünür. Sitenin başka hiçbir yerinde görünmez: değerlendirmelerin ve yorumların anonim avatarınla kalır.",
   "What's on your CV": "CV'nde neler var",
   "Profile summary": "Profil özeti",
+  "Shown on your CV - press to leave it out": "CV'nde görünüyor - çıkarmak için bas",
+  "Left out of your CV - press to show it": "CV'nde yok - eklemek için bas",
+  "Show earlier companies": "Önceki şirketleri göster",
+  "Show more companies": "Diğer şirketleri göster",
   "Full screen": "Tam ekran",
   "Download PDF": "PDF indir",
   "Preparing...": "Hazırlanıyor...",
@@ -76,14 +82,9 @@ const cv: Record<string, string> = {
 
   // Location filter (one city, then its districts)
   "Choose a city": "Bir il seç",
-  "Choose another city": "Başka bir il seç",
-  "Cities": "İller",
   "Districts": "İlçeler",
   "{n} chosen": "{n} seçili",
-  "Search {city} districts...": "{city} ilçelerinde ara...",
-  "All of {city}": "Tüm {city}",
-  "No district by that name.": "Bu adda bir ilçe yok.",
-  "No city or district by that name.": "Bu adda bir il veya ilçe yok.",
+  "All ({n} chosen)": "Tümü ({n} seçili)",
 
   // Chat window
   "Make conversation bigger": "Sohbeti büyüt",

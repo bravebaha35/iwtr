@@ -68,7 +68,7 @@ body *::-webkit-scrollbar,
   --sidebar-foreground: #1c2620;
   /* The footer is the one band that stays dark in both themes (see
      GlobalFooter.tsx): deep pine. */
-  --footer: #1f3326;
+  --footer: #0d2b1f;
   --footer-foreground: #f1f2ec;
   /* Cool, green-leaning shadow tint used by the --shadow-* scale below. */
   --shadow-tint: 28 38 32;
@@ -83,7 +83,7 @@ body *::-webkit-scrollbar,
   --border: #3d4740;
   --sidebar: #20261f;
   --sidebar-foreground: #ecefe6;
-  --footer: #121813;
+  --footer: #0d2b1f;
   --footer-foreground: #ecefe6;
   --shadow-tint: 0 0 0;
 }
@@ -214,7 +214,17 @@ h4,
    - html2canvas draws a chip's words a few pixels lower than the browser
      does; lift them back to the middle */
 .cv-printing .cv-document {
+  gap: 0 !important;
+}
+.cv-printing .cv-sheet {
   min-height: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+/* Sheet 1 fills its PDF page, so the grey side column runs to the bottom
+   (A4 minus the PDF's top and bottom margins, lib/cvPdf.ts). */
+.cv-printing .cv-sheet:first-child {
+  min-height: 1000px !important;
 }
 .cv-printing .cv-page-footer {
   display: none;
@@ -288,15 +298,12 @@ progress {
   outline-color: var(--color-brand-300);
 }
 
-/* Boosted ("featured") job cards on the Jobs page: the same gold as the
-   featured review's outline, a little thicker, with a soft gold glow. Same
-   look in both themes. */
+/* Boosted ("featured") job cards on the Jobs page: a grass-green outline,
+   no glow (the owner's choice, 2026-10-19). Same look in both themes. */
 .boosted-card {
   border-width: 2px;
-  border-color: #fbbf24;
-  box-shadow:
-    0 0 0 1px rgba(251, 191, 36, 0.25),
-    0 0 18px rgba(251, 191, 36, 0.35);
+  border-color: #3b6b54;
+  box-shadow: none;
 }
 
 /* The beaver reaction picker on an IWT Social post: it lifts into place from

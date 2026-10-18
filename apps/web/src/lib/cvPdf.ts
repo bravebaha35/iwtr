@@ -30,7 +30,7 @@ export async function renderCvPdf(element: HTMLElement, footerLabel: string): Pr
   // html2pdf.js's own type declaration leaves out `pagebreak` and some
   // html2canvas options it does support, hence the intersection type.
   const options: Parameters<InstanceType<typeof html2pdf.Worker>["set"]>[0] & {
-    pagebreak?: { mode: Array<"avoid-all" | "css" | "legacy"> };
+    pagebreak?: { mode: Array<"avoid-all" | "css" | "legacy">; before?: string };
   } = {
     filename: "cv.pdf",
     // Top margin so a second page does not start flush against the edge;
@@ -40,7 +40,8 @@ export async function renderCvPdf(element: HTMLElement, footerLabel: string): Pr
     // Sharper text; useCORS lets the CV photo (served by the API) be drawn.
     html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
     jsPDF: { format: "a4", unit: "mm" },
-    pagebreak: { mode: ["css", "legacy"] },
+    // Sheet 2 (work history, certificates, education) always starts a page.
+    pagebreak: { mode: ["css", "legacy"], before: ".cv-sheet-2" },
   };
   const footer = await renderCvFooterImage(footerLabel);
   element.classList.add("cv-printing");

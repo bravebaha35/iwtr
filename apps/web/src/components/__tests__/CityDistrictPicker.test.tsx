@@ -21,42 +21,42 @@ function Harness({ onChange }: { onChange?: (next: LocationSelection) => void })
   );
 }
 
+async function pickCity(name: string) {
+  await userEvent.click(screen.getByRole("button", { name: "City" }));
+  await userEvent.click(screen.getByRole("button", { name }));
+}
+
 describe("CityDistrictPicker", () => {
   it("picks one city, then narrows to that city's districts only", async () => {
     const onChange = jest.fn();
     render(<Harness onChange={onChange} />);
-    await userEvent.type(screen.getByRole("combobox", { name: "Choose a city" }), "izmir");
-    await userEvent.click(screen.getByRole("option", { name: "İzmir" }));
+    expect(screen.queryByText("Districts")).not.toBeInTheDocument();
+
+    await pickCity("İzmir");
     expect(onChange).toHaveBeenLastCalledWith({ cities: ["İzmir"], districtKeys: [] });
 
-    // Only İzmir's districts are offered now, with "All of İzmir" on.
-    expect(screen.getByRole("button", { name: "All of İzmir" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByRole("button", { name: "Çankaya" })).not.toBeInTheDocument();
+    // Only İzmir's districts, as a full tick list, with "All" on.
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("checkbox", { name: "Çankaya" })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Buca" }));
-    await userEvent.click(screen.getByRole("button", { name: "Bornova" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Buca" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Bornova" }));
     expect(onChange).toHaveBeenLastCalledWith({ cities: [], districtKeys: ["İzmir::Buca", "İzmir::Bornova"] });
+    expect(screen.getByRole("checkbox", { name: "Buca" })).toHaveAttribute("aria-checked", "true");
 
-    // Unticking the last district goes back to the whole city.
-    await userEvent.click(screen.getByRole("button", { name: "Buca" }));
-    await userEvent.click(screen.getByRole("button", { name: "Bornova" }));
+    // "All" goes back to the whole city.
+    await userEvent.click(screen.getByRole("button", { name: "All (2 chosen)" }));
     expect(onChange).toHaveBeenLastCalledWith({ cities: ["İzmir"], districtKeys: [] });
   });
 
-  it("finds a district by name from the city box", async () => {
+  it("a second city replaces the first, districts and all", async () => {
     const onChange = jest.fn();
     render(<Harness onChange={onChange} />);
-    await userEvent.type(screen.getByRole("combobox", { name: "Choose a city" }), "buca");
-    await userEvent.click(screen.getByRole("option", { name: /Buca.*İzmir/ }));
-    expect(onChange).toHaveBeenLastCalledWith({ cities: [], districtKeys: ["İzmir::Buca"] });
-  });
-
-  it("swaps to another city with the X", async () => {
-    const onChange = jest.fn();
-    render(<Harness onChange={onChange} />);
-    await userEvent.type(screen.getByRole("combobox", { name: "Choose a city" }), "ankara");
-    await userEvent.click(screen.getByRole("option", { name: "Ankara" }));
-    await userEvent.click(screen.getByRole("button", { name: "Choose another city" }));
-    expect(screen.getByRole("combobox", { name: "Choose a city" })).toBeInTheDocument();
+    await pickCity("İzmir");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Buca" }));
+    await userEvent.click(screen.getByRole("button", { name: "City" }));
+    await userEvent.click(screen.getByRole("button", { name: "Ankara" }));
+    expect(onChange).toHaveBeenLastCalledWith({ cities: ["Ankara"], districtKeys: [] });
+    expect(screen.getByRole("checkbox", { name: "Çankaya" })).toBeInTheDocument();
   });
 });

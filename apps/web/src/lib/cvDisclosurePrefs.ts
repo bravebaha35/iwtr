@@ -81,3 +81,28 @@ export function getHasSeenApplyCvPrompt(): boolean {
 export function markSeenApplyCvPrompt(): void {
   setFlag(HAS_SEEN_APPLY_PROMPT_KEY, true);
 }
+
+// My CV > "What's on your CV": parts of the CV the member switched off. Kept
+// in this browser like the email/phone choices above, and read by both the
+// preview and ApplyButton, so the PDF an employer gets matches the preview.
+export const CV_SECTIONS = ["profile", "skills", "languages", "references", "experience", "certificates", "education"] as const;
+export type CvSectionKey = (typeof CV_SECTIONS)[number];
+const HIDDEN_SECTIONS_KEY = "iwtr:cv-hidden-sections";
+
+export function getCvHiddenSections(): CvSectionKey[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HIDDEN_SECTIONS_KEY) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((s): s is CvSectionKey => (CV_SECTIONS as readonly string[]).includes(s)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function setCvHiddenSections(sections: CvSectionKey[]): void {
+  try {
+    if (sections.length === 0) localStorage.removeItem(HIDDEN_SECTIONS_KEY);
+    else localStorage.setItem(HIDDEN_SECTIONS_KEY, JSON.stringify(sections));
+  } catch {
+    // Same as setFlag: a locked-down browser just forgets the choice.
+  }
+}

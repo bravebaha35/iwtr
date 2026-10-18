@@ -16,6 +16,9 @@ export const AVATAR_MAX_SOURCE_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 export const AVATAR_MAX_UPLOAD_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 
 const AVATAR_MIME_TYPES = ["image/png", "image/jpeg"];
+// What a member may pick to crop from: phones often save WebP. The cropper
+// always turns the result into a JPEG, so the upload itself stays PNG/JPEG.
+export const AVATAR_SOURCE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 export interface AvatarFileMeta {
   mimeType: string;
@@ -31,8 +34,8 @@ export interface AvatarFileMeta {
 export function validateSourceImageForAvatarCrop(
   meta: AvatarFileMeta,
 ): { valid: true } | { valid: false; error: string } {
-  if (!AVATAR_MIME_TYPES.includes(meta.mimeType)) {
-    return { valid: false, error: "Photo must be a PNG or JPEG file." };
+  if (!AVATAR_SOURCE_MIME_TYPES.includes(meta.mimeType)) {
+    return { valid: false, error: "Photo must be a PNG, JPEG or WebP file." };
   }
   if (meta.sizeBytes > AVATAR_MAX_SOURCE_FILE_SIZE_BYTES) {
     return {

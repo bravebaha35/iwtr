@@ -20,7 +20,16 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client";
 import { avatarLabel } from "@/lib/avatars";
-import { getCvShowEmail, getCvShowPhone, markCvSaved, setCvShowEmail, setCvShowPhone } from "@/lib/cvDisclosurePrefs";
+import {
+  getCvHiddenSections,
+  getCvShowEmail,
+  getCvShowPhone,
+  markCvSaved,
+  setCvHiddenSections,
+  setCvShowEmail,
+  setCvShowPhone,
+  type CvSectionKey,
+} from "@/lib/cvDisclosurePrefs";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
 import { WorkTypePicker } from "@/components/WorkTypePicker";
@@ -149,6 +158,8 @@ function ProfilePageContent() {
   // mount instead, in the effect below.
   const [showEmailOnCv, setShowEmailOnCv] = useState(false);
   const [showPhoneOnCv, setShowPhoneOnCv] = useState(false);
+  // Parts of the CV switched off in "What's on your CV" (same storage).
+  const [hiddenCvSections, setHiddenCvSections] = useState<CvSectionKey[]>([]);
 
   // Feedback lives right next to the button that triggered it, not buried at
   // the bottom of a long page — each section gets its own status/error pair.
@@ -277,7 +288,16 @@ function ProfilePageContent() {
   useEffect(() => {
     setShowEmailOnCv(getCvShowEmail());
     setShowPhoneOnCv(getCvShowPhone());
+    setHiddenCvSections(getCvHiddenSections());
   }, []);
+
+  function toggleCvSection(section: CvSectionKey) {
+    setHiddenCvSections((prev) => {
+      const next = prev.includes(section) ? prev.filter((s) => s !== section) : [...prev, section];
+      setCvHiddenSections(next);
+      return next;
+    });
+  }
 
   function toggleShowEmailOnCv(checked: boolean) {
     setShowEmailOnCv(checked);
@@ -653,16 +673,18 @@ function ProfilePageContent() {
   const cvProfile: MyProfile | null = profile
     ? { ...profile, displayName: displayNameDraft.trim() || null, isPublicEmployee: isPublicEmployeeDraft }
     : null;
-  // My CV > "What's on your CV": each line opens the tab where it is filled in.
-  const cvChecklist: { label: string; done: boolean; tab: TabKey }[] = profile
+  // My CV > "What's on your CV": a tick per part of the CV. A part with
+  // something in it can be switched off and on; an empty one links to the
+  // tab where it is filled in.
+  const cvChecklist: { key: CvSectionKey; label: string; filled: boolean; tab: TabKey }[] = profile
     ? [
-        { label: "Profile summary", done: !!profile.customExperienceText, tab: "personal" },
-        { label: "Experience", done: (employment?.length ?? 0) > 0, tab: "education" },
-        { label: "Education", done: profile.education.length > 0, tab: "education" },
-        { label: "Certificates", done: profile.certificates.length > 0, tab: "personal" },
-        { label: "Languages", done: profile.languages.length > 0, tab: "personal" },
-        { label: "Skills", done: profile.skills.length > 0, tab: "personal" },
-        { label: "References", done: profile.references.length > 0, tab: "references" },
+        { key: "profile", label: "Profile summary", filled: !!profile.customExperienceText, tab: "personal" },
+        { key: "skills", label: "Skills", filled: profile.skills.length > 0, tab: "personal" },
+        { key: "languages", label: "Languages", filled: profile.languages.length > 0, tab: "personal" },
+        { key: "references", label: "References", filled: profile.references.length > 0, tab: "references" },
+        { key: "experience", label: "Experience", filled: (employment?.length ?? 0) > 0, tab: "education" },
+        { key: "certificates", label: "Certificates", filled: profile.certificates.length > 0, tab: "personal" },
+        { key: "education", label: "Education", filled: profile.education.length > 0, tab: "education" },
       ]
     : [];
 
@@ -1594,32 +1616,47 @@ function ProfilePageContent() {
                 <div>
                   <p className="text-xs font-semibold text-foreground">{t("What's on your CV")}</p>
                   <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2">
-                    {cvChecklist.map((item) => (
-                      <li key={item.label}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab(item.tab)}
-                          className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-surface-muted"
-                        >
-                          <span
-                            aria-hidden="true"
-                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${
-                              item.done ? "bg-brand-600 text-white" : "border border-border"
+                    {cvChecklist.map((item) => {
+                      const on = item.filled && !hiddenCvSections.includes(item.key);
+                      return (
+                        <li key={item.key} className="group flex items-center gap-1 rounded-lg pr-1 transition hover:bg-surface-muted">
+                          <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={on}
+                            disabled={!item.filled}
+                            onClick={() => toggleCvSection(item.key)}
+                            title={item.filled ? (on ? t("Shown on your CV - press to leave it out") : t("Left out of your CV - press to show it")) : undefined}
+                            className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-1.5 text-left text-sm disabled:cursor-default"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] transition ${
+                                on ? "bg-brand-600 text-white" : item.filled ? "bg-surface ring-1 ring-inset ring-border" : "border border-dashed border-border"
+                              }`}
+                            >
+                              {on && (
+                                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M5 12.5l4.5 4.5L19 7.5" />
+                                </svg>
+                              )}
+                            </span>
+                            <span className={`min-w-0 ${on ? "text-foreground" : "text-muted-foreground"} ${item.filled && !on ? "line-through decoration-muted-foreground/50" : ""}`}>
+                              {t(item.label)}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab(item.tab)}
+                            className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs text-brand-600 transition hover:underline dark:text-brand-400 ${
+                              item.filled ? "opacity-0 group-hover:opacity-100 focus-visible:opacity-100" : ""
                             }`}
                           >
-                            {item.done && (
-                              <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M5 12.5l4.5 4.5L19 7.5" />
-                              </svg>
-                            )}
-                          </span>
-                          <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{t(item.label)}</span>
-                          <span className="ml-auto text-xs text-brand-600 opacity-0 transition group-hover:opacity-100 dark:text-brand-400">
-                            {item.done ? t("Edit") : t("Add")}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                            {item.filled ? t("Edit") : t("Add")}
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               </div>
@@ -1641,9 +1678,9 @@ function ProfilePageContent() {
 
           {/* The CV itself, as large as the column allows. */}
           <div className="rounded-2xl bg-surface-muted/70 p-3 sm:p-6">
-            <div className="mx-auto max-w-[52rem] overflow-hidden rounded-[4px] shadow-lg ring-1 ring-black/5">
+            <div className="mx-auto max-w-[52rem]">
               <CvPage>
-                <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
+                <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} hiddenSections={hiddenCvSections} />
               </CvPage>
             </div>
           </div>
@@ -1677,9 +1714,9 @@ function ProfilePageContent() {
                     </svg>
                   </button>
                 </div>
-                <div className="overflow-hidden rounded-[4px] shadow-2xl">
+                <div>
                   <CvPage>
-                    <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
+                    <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} hiddenSections={hiddenCvSections} />
                   </CvPage>
                 </div>
               </div>
@@ -1689,7 +1726,7 @@ function ProfilePageContent() {
           {cvDownloading && (
             <div style={{ position: "fixed", left: "-9999px", top: 0 }} aria-hidden="true">
               <div ref={cvPrintRef}>
-                <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} />
+                <CvPreview profile={cvProfile ?? profile} employment={employment ?? undefined} showEmail={showEmailOnCv} showPhone={showPhoneOnCv} hiddenSections={hiddenCvSections} />
               </div>
             </div>
           )}

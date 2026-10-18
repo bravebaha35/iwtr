@@ -96,8 +96,8 @@ it("says when the featured row was topped up from the same region", async () => 
   const row = await screen.findByRole("region", { name: "Featured jobs" });
   expect(within(row).queryByText(/same region/)).not.toBeInTheDocument();
 
-  await userEvent.type(screen.getByRole("combobox", { name: "Choose a city" }), "izmir");
-  await userEvent.click(screen.getByRole("option", { name: "İzmir" }));
+  await userEvent.click(screen.getByRole("button", { name: "City" }));
+  await userEvent.click(screen.getByRole("button", { name: "İzmir" }));
   expect(await within(row).findByText(/Fewer than 4 featured ads in İzmir.*same region .Ege./)).toBeInTheDocument();
   expect(screen.getByText(/No companies in İzmir are looking for people.*from the same region/)).toBeInTheDocument();
 });

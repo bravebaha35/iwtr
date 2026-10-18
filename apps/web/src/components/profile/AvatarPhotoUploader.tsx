@@ -119,7 +119,7 @@ export function AvatarPhotoUploader({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/png,image/jpeg"
+        accept="image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -173,6 +173,18 @@ export function AvatarPhotoUploader({
       )}
       </div>
 
+      {/* The CV photo also gets a plain button: an empty circle alone didn't
+          read as "click to upload". */}
+      {target === "cv" && (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="whitespace-nowrap rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-60"
+        >
+          {uploading ? t("Uploading...") : value ? t("Change photo") : t("Upload photo")}
+        </button>
+      )}
       {error && <p className="max-w-[200px] text-center text-xs text-red-600 dark:text-red-300">{error}</p>}
       <p className="text-[11px] text-muted-foreground">{t("Recommended 800x800")}</p>
 

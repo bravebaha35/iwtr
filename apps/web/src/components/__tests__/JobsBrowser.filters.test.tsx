@@ -44,13 +44,14 @@ it("the Sector list takes several ticks at once", async () => {
   await waitFor(() => expect(lastBrowse()).toContain("categories=Agriculture|Construction"));
 });
 
-it("the Position buttons filter the job list", async () => {
+it("the Position dropdown filters the job list", async () => {
   const user = userEvent.setup();
   render(<JobsBrowser />);
   await waitFor(() => expect(browsePaths().length).toBeGreaterThan(0));
 
-  await user.click(screen.getByRole("checkbox", { name: "Intern" }));
-  await user.click(screen.getByRole("checkbox", { name: "Specialist" }));
+  await user.click(screen.getByRole("button", { name: "Position" }));
+  await user.click(screen.getByRole("option", { name: "Intern" }));
+  await user.click(screen.getByRole("option", { name: "Specialist" }));
   await waitFor(() => expect(lastBrowse()).toContain("positions=INTERN,SPECIALIST"));
   expect(await screen.findByText(/No job posting is hiring for the ticked position/)).toBeInTheDocument();
 });

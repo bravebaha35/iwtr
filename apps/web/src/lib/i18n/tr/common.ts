@@ -79,6 +79,7 @@ const common: Record<string, string> = {
   "Clear ({n} ticked)": "Temizle ({n} seçili)",
   "selected": "seçili",
   "sectors": "sektör",
+  "positions": "pozisyon",
   "Sort": "Sırala",
   "Sort by Risk Score": "Risk Puanına göre sırala",
   "Showing highest Risk Score first": "En yüksek Risk Puanı önce gösteriliyor",

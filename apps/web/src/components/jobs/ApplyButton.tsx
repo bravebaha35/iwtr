@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { CvPreview } from "@/components/profile/CvPreview";
 import {
   getCvShowEmail,
+  getCvHiddenSections,
   getCvShowPhone,
   getHasSavedCv,
   getHasSeenApplyCvPrompt,
@@ -183,6 +184,7 @@ export function ApplyButton({ jobPostingId }: { jobPostingId: string }) {
               employment={employment}
               showEmail={getCvShowEmail()}
               showPhone={getCvShowPhone()}
+              hiddenSections={getCvHiddenSections()}
               forPrint
             />
           </div>

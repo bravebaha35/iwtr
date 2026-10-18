@@ -371,20 +371,22 @@ export function JobCard({
               logo already sits above, overlapping the banner, so this row is
               name-only. */}
           <div className="flex items-start justify-between gap-2">
-            <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-2">
+            <Link href={`/companies/${company.slug}`} className="flex min-w-0 flex-1 items-center gap-1.5">
+              {/* `truncate`, not line-clamp: a clamped box keeps its full
+                  width, which pushed the tick far from a shortened name. */}
               <span
                 title={compact ? company.name : undefined}
-                className={`${compact ? "line-clamp-1" : "line-clamp-2"} min-w-0 font-display text-lg leading-snug text-foreground`}
+                className={`${compact ? "truncate" : "line-clamp-2"} min-w-0 font-display text-lg leading-snug text-foreground`}
               >
                 {company.name}
               </span>
-              {/* Beside the name, not inside it: a long name that gets cut
-                  short must never take the tick with it. */}
+              {/* Right after the name, same size as on the rating page; a
+                  long name that gets cut short never takes the tick with it. */}
               <CompanyVerificationTick
                 badgeTier={company.badgeTier}
                 claimed={company.hasApprovedOwner}
-                size={14}
-                className="-ml-0.5 shrink-0"
+                size={15}
+                className="shrink-0"
               />
             </Link>
 

@@ -24,7 +24,7 @@ import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { sectorsForWorkplaceTypes } from "@/lib/sectors";
 import { type CategoryGroup, CategoryGroupFilter } from "@/lib/categoryGroups";
 import { WorkTypeTiles } from "@/components/WorkTypeTiles";
-import { PositionPicker } from "@/components/jobs/PositionPicker";
+import { JOB_POSITIONS } from "@/lib/jobPositions";
 import { RewindButton } from "@/components/RewindButton";
 import { MultiSelectDropdown } from "@/components/Dropdown";
 import { CityDistrictPicker } from "@/components/CityDistrictPicker";
@@ -235,6 +235,11 @@ function jobsParams(f: {
 // SocialSidebar's version since the click behavior is genuinely different,
 // matching this file's own standing near-duplicate policy (see the
 // file-header comment above).
+/**
+ * The companies the member follows, as one horizontal row above the results
+ * (pick one to see only its jobs). Arrows appear at the ends when the row is
+ * longer than the space it has.
+ */
 function FollowingFilterList({
   selectedCompanyId,
   onSelect,
@@ -244,30 +249,71 @@ function FollowingFilterList({
 }) {
   const { companies, loading } = useFollowedCompanies();
   const t = useT();
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const update = () =>
+      setEdges({ start: el.scrollLeft > 4, end: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      observer?.disconnect();
+    };
+  }, [companies.length]);
+
+  function scrollBy(direction: 1 | -1) {
+    const el = scrollerRef.current;
+    if (el) el.scrollBy({ left: direction * Math.max(200, el.clientWidth * 0.7), behavior: "smooth" });
+  }
+
+  const arrow =
+    "absolute top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-foreground shadow-md ring-1 ring-border transition hover:bg-surface-muted";
 
   return (
-    <div>
-      <h2 className="mb-2 text-[13px] font-semibold text-foreground">{t("Following")}</h2>
-      <div className="thin-scrollbar flex h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-surface-muted/60 p-1.5">
-        {loading && <p className="p-1.5 text-xs text-muted-foreground">{t("Loading...")}</p>}
-        {!loading && companies.length === 0 && (
-          <p className="p-1.5 text-xs text-muted-foreground">{t("You're not following any companies yet.")}</p>
-        )}
-        {companies.map((c) => (
-          <button
-            key={c.companyId}
-            type="button"
-            onClick={() => onSelect(selectedCompanyId === c.companyId ? null : c.companyId)}
-            aria-pressed={selectedCompanyId === c.companyId}
-            className={`shrink-0 truncate rounded-md px-1.5 py-1 text-left text-sm transition ${
-              selectedCompanyId === c.companyId
-                ? "bg-brand-600 font-semibold text-white"
-                : "text-foreground hover:bg-surface-muted"
-            }`}
-          >
-            {c.companyName}
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <h2 className="shrink-0 text-[13px] font-semibold text-foreground">{t("Following")}</h2>
+      <div className="relative min-w-0 flex-1">
+        <div ref={scrollerRef} className="no-scrollbar flex gap-1.5 overflow-x-auto scroll-smooth py-1">
+          {loading && <p className="px-1 py-1.5 text-xs text-muted-foreground">{t("Loading...")}</p>}
+          {!loading && companies.length === 0 && (
+            <p className="px-1 py-1.5 text-xs text-muted-foreground">{t("You're not following any companies yet.")}</p>
+          )}
+          {companies.map((c) => (
+            <button
+              key={c.companyId}
+              type="button"
+              onClick={() => onSelect(selectedCompanyId === c.companyId ? null : c.companyId)}
+              aria-pressed={selectedCompanyId === c.companyId}
+              className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition ${
+                selectedCompanyId === c.companyId
+                  ? "bg-brand-600 font-semibold text-white"
+                  : "bg-surface-muted text-foreground hover:bg-border/70"
+              }`}
+            >
+              {c.companyName}
+            </button>
+          ))}
+        </div>
+        {edges.start && (
+          <button type="button" onClick={() => scrollBy(-1)} aria-label={t("Show earlier companies")} className={`${arrow} -left-2`}>
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m15 6-6 6 6 6" />
+            </svg>
           </button>
-        ))}
+        )}
+        {edges.end && (
+          <button type="button" onClick={() => scrollBy(1)} aria-label={t("Show more companies")} className={`${arrow} -right-2`}>
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -536,34 +582,37 @@ export function JobsBrowser() {
     <div className="flex w-full items-start justify-center gap-6 px-4 py-8">
       <AdSlot />
 
-      <div className="w-full max-w-[1600px]">
-        <div className="mb-8">
-          <h1 className="text-4xl leading-tight text-foreground">{t("Jobs")}</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">
-            {t("Open roles at companies currently looking for people, with the same ratings and reviews as the homepage.")}
-          </p>
+      <div className="w-full min-w-0 max-w-[1600px]">
+        <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:gap-8">
+          <div className="shrink-0">
+            <h1 className="text-4xl leading-tight text-foreground">{t("Jobs")}</h1>
+            <p className="mt-1 text-[15px] text-muted-foreground">
+              {t("Open roles at companies currently looking for people, with the same ratings and reviews as the homepage.")}
+            </p>
+          </div>
+          {/* Members: the companies they follow in one row, and their saved
+              posts behind the bookmark at the end. */}
+          {canSave && (
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <FollowingFilterList selectedCompanyId={selectedCompanyId} onSelect={setSelectedCompanyId} />
+              <button
+                type="button"
+                onClick={() => setSavedView((v) => !v)}
+                aria-pressed={savedView}
+                aria-label={t("Saved Posts")}
+                title={t("Saved Posts")}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${
+                  savedView ? "bg-brand-600 text-white" : "bg-surface-muted text-foreground hover:bg-border/70"
+                }`}
+              >
+                <BookmarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          )}
         </div>
 
         <SidebarContentRow>
           <SidebarShell>
-            {canSave && (
-              <>
-                <FollowingFilterList selectedCompanyId={selectedCompanyId} onSelect={setSelectedCompanyId} />
-                <button
-                  type="button"
-                  onClick={() => setSavedView((v) => !v)}
-                  aria-pressed={savedView}
-                  className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-                    savedView
-                      ? "border-brand-600 bg-brand-600 text-white"
-                      : "border-transparent bg-surface-muted text-foreground hover:bg-border/70"
-                  }`}
-                >
-                  <BookmarkIcon className="h-4 w-4" />
-                  {t("Saved Posts")}
-                </button>
-              </>
-            )}
             {/* Employers only: the first thing in the sidebar, above Work-Type. */}
             {isCompanyOwner && (
               <button
@@ -666,7 +715,7 @@ export function JobsBrowser() {
               nearMeActive={geo !== null && geo !== "denied"}
             />
 
-            {/* Position: the same buttons an owner ticks when posting a job.
+            {/* Position: the same levels an owner ticks when posting a job.
                 Any number can be on; a posting hiring for any one of them
                 is listed. */}
             <div>
@@ -674,9 +723,18 @@ export function JobsBrowser() {
                 <h2 className="text-[13px] font-semibold text-foreground">{t("Position")}</h2>
                 <RewindButton onClick={() => setPositions([])} active={positions.length > 0} title="Clear Position filter" />
               </div>
-              <div className="rounded-2xl bg-surface p-1.5 shadow-xs">
-                <PositionPicker selected={positions} onToggle={togglePosition} />
-              </div>
+              {/* A pill like Sector: opens a tick list, stays open while
+                  ticking, closes on a click anywhere else. */}
+              <MultiSelectDropdown
+                values={positions}
+                options={JOB_POSITIONS}
+                placeholder="Position"
+                countNoun="positions"
+                onToggle={(value) => togglePosition(value as JobPosition)}
+                onClear={() => setPositions([])}
+                searchable={false}
+                maxHeightClassName="max-h-none"
+              />
             </div>
           </SidebarShell>
 
@@ -729,7 +787,7 @@ export function JobsBrowser() {
                 )}
                 {featured.length > 0 && (
                   <section aria-label={t("Featured jobs")} className={`transition-opacity ${loading ? "opacity-60" : ""}`}>
-                    <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                    <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#3b6b54] dark:text-[#7fb59a]">
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                         <path d="M12 0c.6 5.6 2.4 7.4 12 12-9.6 4.6-11.4 6.4-12 12-.6-5.6-2.4-7.4-12-12 9.6-4.6 11.4-6.4 12-12Z" />
                       </svg>

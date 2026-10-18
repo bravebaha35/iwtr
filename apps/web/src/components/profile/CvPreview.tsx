@@ -6,6 +6,7 @@ import { apiGet } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { jobPositionLabel } from "@/lib/jobPositions";
 import { RichText } from "@/components/RichText";
+import type { CvSectionKey } from "@/lib/cvDisclosurePrefs";
 import { useI18n } from "@/lib/i18n/client";
 import { intlLocale, languageName, type Locale, type TFn } from "@/lib/i18n/core";
 
@@ -13,6 +14,11 @@ import { intlLocale, languageName, type Locale, type TFn } from "@/lib/i18n/core
 // out at this width - on screen it is scaled down (CvPage), in the PDF it is
 // printed as is - so the preview and the PDF wrap every line the same way.
 export const CV_PAGE_WIDTH_PX = 794;
+// An A4 sheet's height at that width.
+const A4_HEIGHT_PX = Math.round(CV_PAGE_WIDTH_PX * 1.414);
+// One white sheet of paper on screen. In the PDF the shadow and the fixed
+// height go (globals.css, .cv-printing).
+const SHEET = "cv-sheet flex flex-col rounded-[4px] bg-[#ffffff] shadow-[0_6px_28px_rgba(20,30,22,0.16)]";
 
 // Colours are plain hex on purpose: this element is photographed by
 // html2canvas for the PDF, and html2canvas can't read Tailwind v4's oklch()
@@ -142,6 +148,7 @@ export function CvPreview({
   id,
   showEmail = false,
   showPhone = false,
+  hiddenSections = [],
 }: {
   profile: MyProfile;
   // Pre-fetched by ApplyButton so its PDF snapshot never races the fetch
@@ -153,6 +160,8 @@ export function CvPreview({
   showPhone?: boolean;
   // Kept for callers; the page is always laid out at full A4 width now.
   forPrint?: boolean;
+  // Sections the member switched off on My CV (lib/cvDisclosurePrefs).
+  hiddenSections?: CvSectionKey[];
 }) {
   const [employmentState, setEmploymentState] = useState<MyEmploymentEntry[]>(employmentProp ?? []);
   const { t, locale } = useI18n();
@@ -190,225 +199,249 @@ export function CvPreview({
   ].filter((c): c is { label: string; value: string } => c !== null);
   const born = profile.birthDate ? new Date(profile.birthDate).getFullYear() : null;
 
+  const show = (section: CvSectionKey) => !hiddenSections.includes(section);
+  const footer = (
+    // At the bottom of each sheet on screen. In the PDF it is stamped onto
+    // every page instead (lib/cvPdfFooter.ts), so this copy is left out then.
+    <footer className="cv-page-footer mt-auto flex items-center px-12 pb-5 pt-6">
+      {/* eslint-disable-next-line @next/next/no-img-element -- photographed by html2canvas */}
+      <img src="/realicon.png" alt="" className="mr-2 h-6 w-6 shrink-0 object-contain" />
+      <p className="text-[11px] font-semibold leading-none" style={{ color: MUTED }}>
+        {t("Made in iworkedthere.com")}
+      </p>
+    </footer>
+  );
+  const hasDetails = born !== null || profile.workType !== null || profile.sector !== null;
+  const showSkills = show("skills") && profile.skills.length > 0;
+  const showLanguages = show("languages") && languages.length > 0;
+  const showReferences = show("references") && references.length > 0;
+  const hasSecondSheet = show("experience") || (show("certificates") && certificates.length > 0) || (show("education") && profile.education.length > 0);
+
   return (
-    <div
-      id={id}
-      className="cv-document flex flex-col bg-[#ffffff] font-sans"
-      style={{ width: CV_PAGE_WIDTH_PX, minHeight: Math.round(CV_PAGE_WIDTH_PX * 1.414), color: INK }}
-    >
-      {/* Header */}
-      <header className="flex items-start px-12 pb-7 pt-11">
-        {profile.cvPhotoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- html2canvas can't read next/image output
-          <img
-            src={profile.cvPhotoUrl}
-            alt=""
-            crossOrigin="anonymous"
-            className="mr-7 shrink-0 object-cover"
-            style={{ width: 112, height: 132, borderRadius: 6 }}
-          />
-        )}
-        <div className="min-w-0 flex-1">
-          <h1 className="break-words text-[38px] leading-[1.08]" style={{ color: INK }}>
-            {name}
-          </h1>
-          {headline && (
-            <p className="mt-2 break-words text-[14px] font-medium" style={{ color: ACCENT }}>
-              {headline}
-            </p>
-          )}
-          {locationLine && (
-            <p className="mt-1 break-words text-[13px]" style={{ color: MUTED }}>
-              {locationLine}
-            </p>
-          )}
-          {profile.isPublicEmployee && (
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: MUTED }}>
-              {t("Public Sector Employee")}
-            </p>
-          )}
-        </div>
-        {contact.length > 0 && (
-          <div className="ml-6 shrink-0 text-right">
-            {contact.map((c) => (
-              <div key={c.label} className="mb-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: FAINT }}>
-                  {c.label}
-                </p>
-                <p className="break-words text-[12.5px]" style={{ color: INK }}>
-                  {c.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </header>
-      <div className="mx-12" style={{ height: 3, backgroundColor: ACCENT }} />
-
-      {/* Body: main column + side column. Plain divs, not main/aside: the
-          CV sits inside the page's own main area. */}
-      <div className="flex flex-1 items-stretch">
-        <div className="min-w-0 flex-1 space-y-7 pb-10 pl-12 pr-8 pt-8">
-          {profile.customExperienceText && (
-            <section>
-              <SectionTitle>{t("Profile")}</SectionTitle>
-              <p className="mt-3 whitespace-pre-wrap break-words text-[12.5px] leading-[1.6]" style={{ color: INK }}>
-                {profile.customExperienceText}
-              </p>
-            </section>
-          )}
-
-          {employment.length === 0 ? (
-            <section style={KEEP_TOGETHER}>
-              <SectionTitle>{t("Experience")}</SectionTitle>
-              <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
-                {t("Nothing added yet.")}
-              </p>
-            </section>
-          ) : (
-            <CvSection
-              title={t("Experience")}
-              items={employment.map((e) => ({
-                key: e.id,
-                node: (
-                  <Entry
-                    title={e.jobTitle ?? t("Employee")}
-                    date={dateRange(e.startDate, e.endDate, t, locale)}
-                    subtitle={e.rawCompanyName}
-                  />
-                ),
-              }))}
+    <div id={id} className="cv-document flex flex-col gap-6 font-sans" style={{ width: CV_PAGE_WIDTH_PX, color: INK }}>
+      {/* Sheet 1: who the member is - the profile and skills, with the grey
+          side column (details, languages, references). The side column is
+          on this sheet only. */}
+      <div className={SHEET} style={{ minHeight: A4_HEIGHT_PX }}>
+        <header className="flex items-start px-12 pb-7 pt-9">
+          {profile.cvPhotoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- html2canvas can't read next/image output
+            <img
+              src={profile.cvPhotoUrl}
+              alt=""
+              crossOrigin="anonymous"
+              className="mr-7 shrink-0 object-cover"
+              style={{ width: 112, height: 132, borderRadius: 6 }}
             />
           )}
-
-          <CvSection
-            title={t("Education")}
-            spacing="mt-3.5"
-            items={[...profile.education].reverse().map((e) => ({
-              key: e.id,
-              node: (
-                <Entry
-                  title={e.institutionName}
-                  date={e.graduationYear ? String(e.graduationYear) : null}
-                  subtitle={[t(EDU_LEVEL_LABELS[e.level]), e.faculty, e.department].filter(Boolean).join(", ")}
-                />
-              ),
-            }))}
-          />
-
-          <CvSection
-            title={t("Certificates")}
-            spacing="mt-3.5"
-            items={certificates.map((c) => ({
-              key: c.id,
-              node: (
-                <>
-                  <Entry title={c.name} date={monthYear(c.issuedMonth, locale)} subtitle={c.issuer} />
-                  {c.description && (
-                    <RichText
-                      text={c.description}
-                      as="p"
-                      className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-[1.55]"
-                    />
-                  )}
-                </>
-              ),
-            }))}
-          />
-        </div>
-
-        <div className="shrink-0 space-y-7 pb-10 pl-7 pr-10 pt-8" style={{ width: 268, backgroundColor: SIDE_BG }}>
-          {(born || profile.workType || profile.sector) && (
-            <section style={KEEP_TOGETHER}>
-              <SectionTitle side>{t("Details")}</SectionTitle>
-              <dl className="mt-3 space-y-2.5 text-[12px]">
-                {born && (
-                  <div>
-                    <dt style={{ color: FAINT }}>{t("Born")}</dt>
-                    <dd style={{ color: INK }}>{born}</dd>
-                  </div>
-                )}
-                {profile.workType && (
-                  <div>
-                    <dt style={{ color: FAINT }}>{t("Kind of work")}</dt>
-                    <dd style={{ color: INK }}>{t(workplaceTypeLabel(profile.workType))}</dd>
-                  </div>
-                )}
-                {profile.sector && (
-                  <div>
-                    <dt style={{ color: FAINT }}>{t("Sector")}</dt>
-                    <dd style={{ color: INK }}>{t(profile.sector.label)}</dd>
-                  </div>
-                )}
-              </dl>
-            </section>
-          )}
-
-          {languages.length > 0 && (
-            <section style={KEEP_TOGETHER}>
-              <SectionTitle side>{t("Languages")}</SectionTitle>
-              <ul className="mt-3 space-y-1.5 text-[12.5px]" style={{ color: INK }}>
-                {languages.map((l) => (
-                  <li key={l}>{l}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {profile.skills.length > 0 && (
-            <section style={KEEP_TOGETHER}>
-              <SectionTitle side>{t("Skills")}</SectionTitle>
-              <div className="mt-3 flex flex-wrap">
-                {profile.skills.map((s) => (
-                  // A fixed height and line height: html2canvas otherwise
-                  // draws the words lower in the box than the browser does.
-                  <span
-                    key={s.id}
-                    className="cv-chip mb-1.5 mr-1.5 inline-block rounded-[4px] px-2 text-[11px] font-medium"
-                    style={{ height: 22, lineHeight: "20px", backgroundColor: "#ffffff", color: INK, border: "1px solid #d3d8cd" }}
-                  >
-                    {s.name}
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <CvSection
-            title={t("References")}
-            side
-            spacing="mt-3.5"
-            items={references.map((r) => ({
-              key: r.id,
-              node: (
-                <div className="text-[12px]">
-                  <p className="break-words font-semibold" style={{ color: INK }}>
-                    {r.firstName} {r.lastName}
+          <div className="min-w-0 flex-1">
+            <h1 className="break-words text-[38px] leading-[1.08]" style={{ color: INK }}>
+              {name}
+            </h1>
+            {headline && (
+              <p className="mt-2 break-words text-[14px] font-medium" style={{ color: ACCENT }}>
+                {headline}
+              </p>
+            )}
+            {locationLine && (
+              <p className="mt-1 break-words text-[13px]" style={{ color: MUTED }}>
+                {locationLine}
+              </p>
+            )}
+            {profile.isPublicEmployee && (
+              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: MUTED }}>
+                {t("Public Sector Employee")}
+              </p>
+            )}
+          </div>
+          {contact.length > 0 && (
+            <div className="ml-6 shrink-0 text-right">
+              {contact.map((c) => (
+                <div key={c.label} className="mb-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: FAINT }}>
+                    {c.label}
                   </p>
-                  <p style={{ color: MUTED }}>{t(jobPositionLabel(r.position))}</p>
-                  {r.email && (
-                    <p className="break-all" style={{ color: MUTED }}>
-                      {r.email}
-                    </p>
-                  )}
-                  {r.phoneNumber && <p style={{ color: MUTED }}>{r.phoneNumber}</p>}
+                  <p className="break-words text-[12.5px]" style={{ color: INK }}>
+                    {c.value}
+                  </p>
                 </div>
-              ),
-            }))}
-          />
+              ))}
+            </div>
+          )}
+        </header>
+        <div className="mx-12" style={{ height: 3, backgroundColor: ACCENT }} />
+
+        {/* Plain divs, not main/aside: the CV sits inside the page's own main area. */}
+        <div className="flex flex-1 items-stretch">
+          <div className="min-w-0 flex-1 space-y-7 pb-6 pl-12 pr-8 pt-8">
+            {show("profile") && profile.customExperienceText && (
+              <section>
+                <SectionTitle>{t("Profile")}</SectionTitle>
+                <p className="mt-3 whitespace-pre-wrap break-words text-[12.5px] leading-[1.6]" style={{ color: INK }}>
+                  {profile.customExperienceText}
+                </p>
+              </section>
+            )}
+
+            {showSkills && (
+              <section style={KEEP_TOGETHER}>
+                <SectionTitle>{t("Skills")}</SectionTitle>
+                <div className="mt-3 flex flex-wrap">
+                  {profile.skills.map((s) => (
+                    // A fixed height and line height: html2canvas otherwise
+                    // draws the words lower in the box than the browser does.
+                    <span
+                      key={s.id}
+                      className="cv-chip mb-1.5 mr-1.5 inline-block rounded-[4px] px-2.5 text-[11.5px] font-medium"
+                      style={{ height: 24, lineHeight: "22px", backgroundColor: SIDE_BG, color: INK, border: "1px solid #d3d8cd" }}
+                    >
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <div className="shrink-0 space-y-7 pb-6 pl-7 pr-10 pt-8" style={{ width: 268, backgroundColor: SIDE_BG }}>
+            {hasDetails && (
+              <section style={KEEP_TOGETHER}>
+                <SectionTitle side>{t("Details")}</SectionTitle>
+                <dl className="mt-3 space-y-2.5 text-[12px]">
+                  {born && (
+                    <div>
+                      <dt style={{ color: FAINT }}>{t("Born")}</dt>
+                      <dd style={{ color: INK }}>{born}</dd>
+                    </div>
+                  )}
+                  {profile.workType && (
+                    <div>
+                      <dt style={{ color: FAINT }}>{t("Kind of work")}</dt>
+                      <dd style={{ color: INK }}>{t(workplaceTypeLabel(profile.workType))}</dd>
+                    </div>
+                  )}
+                  {profile.sector && (
+                    <div>
+                      <dt style={{ color: FAINT }}>{t("Sector")}</dt>
+                      <dd style={{ color: INK }}>{t(profile.sector.label)}</dd>
+                    </div>
+                  )}
+                </dl>
+              </section>
+            )}
+
+            {showLanguages && (
+              <section style={KEEP_TOGETHER}>
+                <SectionTitle side>{t("Languages")}</SectionTitle>
+                <ul className="mt-3 space-y-1.5 text-[12.5px]" style={{ color: INK }}>
+                  {languages.map((l) => (
+                    <li key={l}>{l}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {showReferences && (
+              <CvSection
+                title={t("References")}
+                side
+                spacing="mt-3.5"
+                items={references.map((r) => ({
+                  key: r.id,
+                  node: (
+                    <div className="text-[12px]">
+                      <p className="break-words font-semibold" style={{ color: INK }}>
+                        {r.firstName} {r.lastName}
+                      </p>
+                      <p style={{ color: MUTED }}>{t(jobPositionLabel(r.position))}</p>
+                      {r.email && (
+                        <p className="break-all" style={{ color: MUTED }}>
+                          {r.email}
+                        </p>
+                      )}
+                      {r.phoneNumber && <p style={{ color: MUTED }}>{r.phoneNumber}</p>}
+                    </div>
+                  ),
+                }))}
+              />
+            )}
+          </div>
         </div>
+        {footer}
       </div>
 
-      {/* The page footer, as it appears at the bottom of every PDF page. In
-          the PDF it is stamped onto each page instead (lib/cvPdfFooter.ts),
-          so this copy is left out while the PDF is being made. */}
-      <footer className="cv-page-footer flex items-center px-12 pb-5 pt-6">
-        {/* eslint-disable-next-line @next/next/no-img-element -- photographed by html2canvas */}
-        <img src="/realicon.png" alt="" className="mr-2 h-6 w-6 shrink-0 object-contain" />
-        <p className="text-[11px] font-semibold leading-none" style={{ color: MUTED }}>
-          {t("Made in iworkedthere.com")}
-        </p>
-      </footer>
+      {/* Sheet 2 onwards: the record - work history, certificates and
+          education across the whole width, no side column. Always starts
+          on a new page in the PDF. */}
+      {hasSecondSheet && (
+        <div className={`${SHEET} cv-sheet-2`} style={{ minHeight: A4_HEIGHT_PX, breakBefore: "page", pageBreakBefore: "always" }}>
+          <div className="flex-1 space-y-8 px-12 pb-10 pt-11">
+            {show("experience") &&
+              (employment.length === 0 ? (
+                <section style={KEEP_TOGETHER}>
+                  <SectionTitle>{t("Experience")}</SectionTitle>
+                  <p className="mt-3 text-[12.5px]" style={{ color: FAINT }}>
+                    {t("Nothing added yet.")}
+                  </p>
+                </section>
+              ) : (
+                <CvSection
+                  title={t("Experience")}
+                  items={employment.map((e) => ({
+                    key: e.id,
+                    node: (
+                      <Entry
+                        title={e.jobTitle ?? t("Employee")}
+                        date={dateRange(e.startDate, e.endDate, t, locale)}
+                        subtitle={e.rawCompanyName}
+                      />
+                    ),
+                  }))}
+                />
+              ))}
+
+            {show("certificates") && (
+              <CvSection
+                title={t("Certificates")}
+                spacing="mt-3.5"
+                items={certificates.map((c) => ({
+                  key: c.id,
+                  node: (
+                    <>
+                      <Entry title={c.name} date={monthYear(c.issuedMonth, locale)} subtitle={c.issuer} />
+                      {c.description && (
+                        <RichText
+                          text={c.description}
+                          as="p"
+                          className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-[1.55]"
+                        />
+                      )}
+                    </>
+                  ),
+                }))}
+              />
+            )}
+
+            {show("education") && (
+              <CvSection
+                title={t("Education")}
+                spacing="mt-3.5"
+                items={[...profile.education].reverse().map((e) => ({
+                  key: e.id,
+                  node: (
+                    <Entry
+                      title={e.institutionName}
+                      date={e.graduationYear ? String(e.graduationYear) : null}
+                      subtitle={[t(EDU_LEVEL_LABELS[e.level]), e.faculty, e.department].filter(Boolean).join(", ")}
+                    />
+                  ),
+                }))}
+              />
+            )}
+          </div>
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
@@ -432,6 +465,7 @@ export function CvPage({ children, className = "" }: { children: ReactNode; clas
       setHeight(inner.offsetHeight * s);
     };
     update();
+    if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(update);
     observer.observe(box);
     observer.observe(inner);
