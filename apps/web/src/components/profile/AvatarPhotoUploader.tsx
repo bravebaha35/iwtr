@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { validateSourceImageForAvatarCrop, type AvatarPhotoUploadResult } from "@iwtr/shared-types";
 import { apiUpload, apiPatch, apiDelete, ApiError } from "@/lib/api-client";
 import { AvatarPhotoCropper } from "@/components/profile/AvatarPhotoCropper";
@@ -60,6 +60,7 @@ export function AvatarPhotoUploader({
   const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
   const t = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   async function handleFilePicked(file: File | undefined) {
     if (!file) return;
@@ -116,11 +117,17 @@ export function AvatarPhotoUploader({
 
   return (
     <div className="flex flex-col items-center gap-2">
+      {/* Visually hidden (not display:none) and opened through its <label>
+          below: the most dependable way to bring up the file window in
+          every browser. */}
       <input
         ref={fileInputRef}
+        id={inputId}
         type="file"
         accept="image/png,image/jpeg,image/webp"
-        className="hidden"
+        disabled={uploading}
+        className="sr-only"
+        tabIndex={-1}
         onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = "";
@@ -128,12 +135,21 @@ export function AvatarPhotoUploader({
         }}
       />
       <div className="relative">
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploading}
-        aria-label={t("Change photo")}
-        className="group relative h-24 w-24 overflow-hidden rounded-full border border-border bg-surface-muted disabled:opacity-60"
+      <label
+        htmlFor={inputId}
+        role="button"
+        tabIndex={0}
+        aria-label={value ? t("Change photo") : t("Upload photo")}
+        title={value ? t("Change photo") : t("Upload photo")}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        className={`group relative block h-24 w-24 cursor-pointer overflow-hidden rounded-full border border-border bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 ${
+          uploading ? "pointer-events-none opacity-60" : ""
+        }`}
       >
         {value ? (
           // Arbitrary uploaded photo, not a static/remote asset next/image
@@ -156,7 +172,19 @@ export function AvatarPhotoUploader({
             </svg>
           )}
         </span>
-      </button>
+      </label>
+      {/* Always-visible pencil, so the photo reads as something to press. */}
+      {!uploading && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-brand-600 text-white shadow-sm"
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </span>
+      )}
       {value && (
         <button
           type="button"
@@ -173,18 +201,6 @@ export function AvatarPhotoUploader({
       )}
       </div>
 
-      {/* The CV photo also gets a plain button: an empty circle alone didn't
-          read as "click to upload". */}
-      {target === "cv" && (
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="whitespace-nowrap rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-60"
-        >
-          {uploading ? t("Uploading...") : value ? t("Change photo") : t("Upload photo")}
-        </button>
-      )}
       {error && <p className="max-w-[200px] text-center text-xs text-red-600 dark:text-red-300">{error}</p>}
       <p className="text-[11px] text-muted-foreground">{t("Recommended 800x800")}</p>
 
