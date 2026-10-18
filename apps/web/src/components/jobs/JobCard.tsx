@@ -377,13 +377,15 @@ export function JobCard({
                 className={`${compact ? "line-clamp-1" : "line-clamp-2"} min-w-0 font-display text-lg leading-snug text-foreground`}
               >
                 {company.name}
-                <CompanyVerificationTick
-                  badgeTier={company.badgeTier}
-                  claimed={company.hasApprovedOwner}
-                  size={14}
-                  className="ml-1.5"
-                />
               </span>
+              {/* Beside the name, not inside it: a long name that gets cut
+                  short must never take the tick with it. */}
+              <CompanyVerificationTick
+                badgeTier={company.badgeTier}
+                claimed={company.hasApprovedOwner}
+                size={14}
+                className="-ml-0.5 shrink-0"
+              />
             </Link>
 
             <div className="flex shrink-0 items-center gap-1.5">

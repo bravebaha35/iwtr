@@ -1467,7 +1467,12 @@ describe("SocialService.getPost / rail / companySummary", () => {
     expect(rail.photos).toEqual([{ postId: "p1", url: "/a.webp" }]);
     // An ad past its live window is not "hiring now".
     expect(rail.openRoles).toEqual([{ jobPostingId: "j1", jobTitle: "Role j1", workType: "OFFICE" }]);
-    expect(prisma.jobPosting.findMany.mock.calls[0][0].where).toEqual({ companyId: "c1", status: "PUBLISHED" });
+    // Only a company with an approved owner can have live job ads.
+    expect(prisma.jobPosting.findMany.mock.calls[0][0].where).toEqual({
+      companyId: "c1",
+      status: "PUBLISHED",
+      company: { hiddenAt: null, owners: { some: { claimStatus: "APPROVED" } } },
+    });
     expect(prisma.socialQuestion.findMany.mock.calls[0][0].where).toEqual({ companyId: "c1", visibility: "PUBLIC", answers: { none: {} } });
     expect(rail.openQuestions).toEqual([{ questionId: "q1", body: "Is there a shuttle?" }]);
 

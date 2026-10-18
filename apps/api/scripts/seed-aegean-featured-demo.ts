@@ -1,3 +1,6 @@
+// NOTE (2026-10-18): job ads only show for a company with an approved owner
+// (HIRING_COMPANY_WHERE in companies/company-visibility.ts). Ads this script
+// writes onto an unclaimed company stay hidden until someone claims it.
 // Dev-only: a few made-up hiring companies in the other Aegean provinces,
 // each with two Featured (boosted) job ads, so the Jobs page's "fewer than
 // 4 featured ads in the chosen city -> top up from the same region" rule

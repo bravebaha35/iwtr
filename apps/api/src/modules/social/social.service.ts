@@ -36,7 +36,7 @@ import {
 } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "../moderation/moderation.service";
-import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "../companies/company-visibility";
+import { HIRING_COMPANY_WHERE, PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "../companies/company-visibility";
 import { pickRandomDisplayUsername } from "../reviews/randomized-identity.util";
 import { daysRemaining, shouldLazyReshare } from "../job-postings/job-postings.util";
 import { processSocialImage } from "./social-image.util";
@@ -474,7 +474,7 @@ export class SocialService {
       // A few more than shown, so several fresh ads from one company still
       // leave room for others once cut down to one per company.
       this.prisma.jobPosting.findMany({
-        where: { status: "PUBLISHED", createdAt: { gte: hiringSince }, company: PUBLIC_COMPANY_WHERE },
+        where: { status: "PUBLISHED", createdAt: { gte: hiringSince }, company: HIRING_COMPANY_WHERE },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: RAIL_LIST_LIMIT * 6,
         select: { id: true, jobTitle: true, companyId: true, company: { select: { slug: true, name: true, mainPhotoUrl: true } } },
@@ -567,7 +567,7 @@ export class SocialService {
       }),
       // A few more than shown: ads past their live window are dropped below.
       this.prisma.jobPosting.findMany({
-        where: { companyId, status: "PUBLISHED" },
+        where: { companyId, status: "PUBLISHED", company: HIRING_COMPANY_WHERE },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: COMPANY_RAIL_ROLES * 3,
         select: {

@@ -1,3 +1,6 @@
+// NOTE (2026-10-18): job ads only show for a company with an approved owner
+// (HIRING_COMPANY_WHERE in companies/company-visibility.ts). Ads this script
+// writes onto an unclaimed company stay hidden until someone claims it.
 // Dev-only "what will it feel like live" seed for the fictional demo
 // companies (every company that isn't a real-brand "<Brand> <City> Şubeleri"
 // branch row from seed-nationwide-brands.ts — i.e. the Demo / Numune /

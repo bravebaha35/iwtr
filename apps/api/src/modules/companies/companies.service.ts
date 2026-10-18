@@ -26,7 +26,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { shouldLazyReshare, daysRemaining } from "../job-postings/job-postings.util";
-import { PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "./company-visibility";
+import { HIRING_COMPANY_WHERE, PUBLIC_COMPANY_WHERE, assertCompanyVisibleOrThrow } from "./company-visibility";
 import { toPublicCompany } from "./company-public.util";
 import { categoryGroupWhere, sortBrowseRows, visibleBrowseRows } from "./company-browse.util";
 import { pickFeatured } from "./featured-jobs.util";
@@ -261,8 +261,10 @@ export class CompaniesService {
       // Only the /jobs page sends includeJobTitles, and only it should be
       // scoped to isHiring companies — the rating homepage's plain
       // GET /companies (no flag) keeps returning every company regardless
-      // of this toggle, exactly as before this field existed.
-      ...(query.includeJobTitles ? { isHiring: true } : {}),
+      // of this toggle, exactly as before this field existed. Only a company
+      // with an approved owner can be hiring: isHiring is the owner's switch,
+      // and demo seeds once set it on unclaimed companies.
+      ...(query.includeJobTitles ? { isHiring: true, owners: { some: { claimStatus: "APPROVED" as const } } } : {}),
       ...locationFilter,
     };
   }
@@ -464,7 +466,7 @@ export class CompaniesService {
     const [matches, postingRows, featured] = await Promise.all([
       this.prisma.company.findMany({
         // Under a Position filter, only companies with such a posting.
-        where: positions.length > 0 ? { AND: [companyWhere, { jobPostings: { some: postingWhere } }] } : companyWhere,
+        where: positions.length > 0 ? { AND: [companyWhere, { jobPostings: { some: postingWhere } }, HIRING_COMPANY_WHERE] } : companyWhere,
         select: {
           id: true,
           name: true,
@@ -475,7 +477,7 @@ export class CompaniesService {
         orderBy: { name: "asc" },
       }),
       this.prisma.jobPosting.findMany({
-        where: { company: companyWhere, ...postingWhere },
+        where: { company: { AND: [companyWhere, HIRING_COMPANY_WHERE] }, ...postingWhere },
         select: {
           id: true,
           companyId: true,
@@ -552,7 +554,7 @@ export class CompaniesService {
   async employerAd(): Promise<EmployerAd> {
     const running = await this.prisma.jobPosting.findMany({
       where: {
-        company: { ...PUBLIC_COMPANY_WHERE },
+        company: { ...HIRING_COMPANY_WHERE },
         status: "PUBLISHED",
         boostAdSpace: true,
         boostExpiresAt: { gt: new Date() },
@@ -633,6 +635,7 @@ export class CompaniesService {
             this.buildSearchWhere({ ...query, cities: undefined, districtKeys: undefined, includeJobTitles: true }),
             categoryGroupWhere(query.categoryGroup),
             query.companyId ? { id: query.companyId } : {},
+            HIRING_COMPANY_WHERE,
           ],
         },
         status: "PUBLISHED",
@@ -685,7 +688,7 @@ export class CompaniesService {
       // `search` already drops hidden companies, but gate the posting read
       // itself too so a hidden company's job cards can never leak here
       // regardless of how the caller built `companyIds`.
-      where: { company: { ...PUBLIC_COMPANY_WHERE }, companyId: { in: companyIds }, status: "PUBLISHED" },
+      where: { company: { ...HIRING_COMPANY_WHERE }, companyId: { in: companyIds }, status: "PUBLISHED" },
       select: {
         id: true,
         companyId: true,
