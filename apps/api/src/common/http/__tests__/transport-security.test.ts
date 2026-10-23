@@ -1,4 +1,4 @@
-import { transportSecurity } from "../transport-security";
+import { transportSecurity, trustProxySetting } from "../transport-security";
 
 function run(opts: { production: boolean; proto?: string; host?: string; url?: string }) {
   const headers: Record<string, string> = {};
@@ -45,5 +45,30 @@ describe("transportSecurity", () => {
   it("never redirects in local development", () => {
     const { next } = run({ production: false, proto: "http" });
     expect(next).toHaveBeenCalled();
+  });
+});
+
+describe("API response hardening", () => {
+  it("forbids anything it sends from running scripts or being framed", () => {
+    const { headers } = run({ production: false });
+    expect(headers["content-security-policy"]).toContain("default-src 'none'");
+    expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+  });
+});
+
+describe("trustProxySetting", () => {
+  it("trusts only this machine by default", () => {
+    expect(trustProxySetting(undefined)).toBe("loopback");
+    expect(trustProxySetting("  ")).toBe("loopback");
+  });
+
+  it("accepts a hop count or address ranges", () => {
+    expect(trustProxySetting("2")).toBe(2);
+    expect(trustProxySetting("10.0.0.0/8")).toBe("10.0.0.0/8");
+    expect(trustProxySetting("false")).toBe(false);
+  });
+
+  it('refuses "true", which would believe any caller', () => {
+    expect(() => trustProxySetting("true")).toThrow();
   });
 });

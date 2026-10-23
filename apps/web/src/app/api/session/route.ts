@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { forwardedForHeaders } from "@/lib/clientIp";
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
@@ -25,7 +26,7 @@ export async function GET() {
   }
 
   const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
-  const refreshed = refreshToken ? await refreshTokens(refreshToken) : null;
+  const refreshed = refreshToken ? await refreshTokens(refreshToken, forwardedForHeaders(await headers())) : null;
 
   if (refreshed) {
     const claims = decodeAccessTokenClaims(refreshed.accessToken);

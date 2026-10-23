@@ -5,11 +5,19 @@ import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 import { PrismaExceptionFilter } from "./common/filters/prisma-exception.filter";
-import { transportSecurity } from "./common/http/transport-security";
+import { transportSecurity, trustProxySetting } from "./common/http/transport-security";
 import { isProductionEnv } from "./config/env";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Whose X-Forwarded-For to believe for req.ip (rate limits, the 5651
+  // traffic log). apps/web passes the visitor's address in it (see
+  // apps/web/src/lib/clientIp.ts); a header from anyone else is ignored.
+  // Default "loopback": web and API on the same machine. Behind a host's
+  // proxy, or with web on another machine, set API_TRUST_PROXY to that
+  // address range or hop count (Express "trust proxy" syntax).
+  app.set("trust proxy", trustProxySetting(process.env.API_TRUST_PROXY));
+  app.disable("x-powered-by");
   // HSTS on every response, and HTTP -> HTTPS redirects in production (see
   // transport-security.ts).
   app.use(transportSecurity({ production: isProductionEnv() }));

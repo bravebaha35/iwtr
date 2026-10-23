@@ -13,6 +13,10 @@ export function transportSecurity(opts: { production: boolean }) {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "no-referrer");
+    // The API answers with JSON, PDFs and uploaded images, never a page, so
+    // nothing it sends may run scripts, load anything or be framed.
+    res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
 
     const proto = String(req.headers["x-forwarded-proto"] ?? "").split(",")[0].trim();
     if (opts.production && proto === "http") {
@@ -21,4 +25,20 @@ export function transportSecurity(opts: { production: boolean }) {
     }
     next();
   };
+}
+
+/**
+ * Express "trust proxy" value from API_TRUST_PROXY: a hop count ("1"),
+ * "false", or address names/ranges ("loopback", "10.0.0.0/8, ...").
+ * Unset means "loopback": only the web server on this same machine.
+ * "true" (believe anyone) is deliberately not accepted: any caller could
+ * then pick the address their requests are logged and rate-limited under.
+ */
+export function trustProxySetting(raw: string | undefined): boolean | number | string {
+  const value = (raw ?? "").trim();
+  if (value === "") return "loopback";
+  if (value === "true") throw new Error('API_TRUST_PROXY="true" would believe any caller\'s X-Forwarded-For. Give a hop count or address range.');
+  if (value === "false") return false;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value;
 }

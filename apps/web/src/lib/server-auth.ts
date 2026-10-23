@@ -59,7 +59,12 @@ export function refreshCookieOptions() {
 const REFRESH_REUSE_GRACE_MS = 30_000;
 const inFlightRefreshes = new Map<string, Promise<AuthTokensResponse | null>>();
 
-export function refreshTokens(refreshToken: string): Promise<AuthTokensResponse | null> {
+// forwardHeaders: the visitor's address from lib/clientIp.ts (forwardedForHeaders),
+// so apps/api rate-limits and logs per visitor rather than per web server.
+export function refreshTokens(
+  refreshToken: string,
+  forwardHeaders: Record<string, string> = {},
+): Promise<AuthTokensResponse | null> {
   const existing = inFlightRefreshes.get(refreshToken);
   if (existing) return existing;
 
@@ -67,7 +72,7 @@ export function refreshTokens(refreshToken: string): Promise<AuthTokensResponse 
     try {
       const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...forwardHeaders },
         body: JSON.stringify({ refreshToken }),
         cache: "no-store",
       });
@@ -102,10 +107,11 @@ export async function exchangeCredentialsForSession(
     | "auth/dev-member-login"
     | "auth/company-login",
   body: string,
+  forwardHeaders: Record<string, string> = {},
 ): Promise<NextResponse> {
   const upstream = await fetch(`${API_BASE_URL}/${upstreamPath}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...forwardHeaders },
     body,
     cache: "no-store",
   });
@@ -136,10 +142,13 @@ export async function exchangeCredentialsForSession(
 // all yet — that gets passed straight through to the browser as-is (no
 // cookies to set), so AuthModal can show the 6-digit code step and then
 // call /api/auth/verify-admin-otp once it has one.
-export async function exchangeLoginForSession(body: string): Promise<NextResponse> {
+export async function exchangeLoginForSession(
+  body: string,
+  forwardHeaders: Record<string, string> = {},
+): Promise<NextResponse> {
   const upstream = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...forwardHeaders },
     body,
     cache: "no-store",
   });

@@ -79,3 +79,27 @@ it("returns nothing to the browser that carries the token or the user id", async
   expect(body).not.toContain(ACCESS_TOKEN);
   expect(body).not.toContain(USER_ID);
 });
+
+it("passes the visitor's address on for ordinary traffic (rate limits, the 5651 log)", async () => {
+  const req = new NextRequest("http://localhost:3000/api/proxy/companies/acme", {
+    method: "GET",
+    headers: { cookie: `iwtr_access=${ACCESS_TOKEN}`, "x-forwarded-for": "6.6.6.6, 203.0.113.7" },
+  });
+  const { GET } = await import("../route");
+  await GET(req, { params: Promise.resolve({ path: ["companies", "acme"] }) });
+
+  const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+  expect(init.headers).toEqual({ Authorization: `Bearer ${ACCESS_TOKEN}`, "X-Forwarded-For": "203.0.113.7" });
+});
+
+it("never passes the address on for conversation traffic either", async () => {
+  const req = new NextRequest("http://localhost:3000/api/proxy/me/conversations", {
+    method: "GET",
+    headers: { cookie: `iwtr_access=${ACCESS_TOKEN}`, "x-forwarded-for": "203.0.113.7" },
+  });
+  const { GET } = await import("../route");
+  await GET(req, { params: Promise.resolve({ path: ["me", "conversations"] }) });
+
+  const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+  expect(init.headers).toEqual({ Authorization: `Bearer ${ACCESS_TOKEN}` });
+});

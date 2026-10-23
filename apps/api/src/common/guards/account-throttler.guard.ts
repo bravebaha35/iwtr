@@ -2,12 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { ThrottlerGuard } from "@nestjs/throttler";
 
 /**
- * Which rate-limit bucket a request counts against. Every browser request
- * reaches this API through apps/web's same-origin proxy, so req.ip is the
- * web server's address for everyone — keying by it put every signed-in
- * user in one shared bucket (5 reviews a minute for the whole site) and
- * tied rate limiting to network addresses. A signed-in caller is bucketed
- * by account instead. The token is only decoded here, not verified:
+ * Which rate-limit bucket a request counts against. A signed-in caller is
+ * bucketed by account, so limits follow the person, not a network address.
+ * Everyone else by req.ip: the visitor's address, which apps/web passes on
+ * (see main.ts "trust proxy") - except on review and conversation traffic,
+ * where it is deliberately removed and req.ip is the web server's. The token is only decoded here, not verified:
  * JwtAuthGuard still rejects a forged one, and a forged `sub` could only
  * ever put its sender in a bucket of their own.
  */

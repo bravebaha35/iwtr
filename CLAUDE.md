@@ -51,14 +51,20 @@ cd packages/shared-types && pnpm exec tsc     # or `pnpm dev` for tsc --watch
 
 ```bash
 cd apps/api
-pnpm exec prisma generate                 # regenerate Prisma Client after a schema change
-pnpm exec prisma db push                  # sync schema to the dev DB directly (no migration files yet —
-                                           # `prisma migrate dev` doesn't work non-interactively in this
-                                           # environment, so db push is the working pattern for now)
+pnpm db:migration <lower_snake_name>      # after editing schema.prisma: writes prisma/migrations/<ts>_<name>/,
+                                           # applies it, regenerates the client, re-runs setup-db-roles
+pnpm db:status                            # is this database in step with prisma/migrations?
+pnpm db:deploy                            # a server/fresh DB: apply pending migrations + grants/RLS
 ```
 
-No test suite exists yet in this repo (`pnpm test` is wired through Turborepo but there is nothing for it
-to run). There is no CI config yet either.
+Schema changes go through migration files since 2026-10-24 (`0_init` is the baseline of the whole schema;
+the dev DB was marked as having it). **Never `prisma db push` again** - it changes the DB without a file, and
+the next `db:migration` then refuses (`migrate status` out of step). Read each generated SQL file before
+committing: a column rename comes out as drop + add (data loss) and must be edited into a RENAME.
+`dbgenerated(...)` defaults must be written exactly the way Postgres prints them back (e.g.
+`date_trunc('day'::text, ...)`), or every diff repeats them.
+
+Tests: jest in `apps/api` and `apps/web` (`pnpm exec jest` in each; ~930 API, ~400 web). No CI config yet.
 
 ## Architecture
 
@@ -308,6 +314,23 @@ sees it; the review form's spam trap (`lib/formTrap.ts`: hidden field + minimum 
 bot submission never reaches `apps/api` or any log. Analytics may only load via `components/privacy/AnalyticsLoader`
 — consent-gated, public pages only, and switched off while the review form is open (`lib/analyticsPolicy.ts`).
 
+**Visitor address (2026-10-24)**: the proxy route and the `api/auth/*` + `api/session` handlers pass the visitor's IP
+to `apps/api` as `X-Forwarded-For` (`lib/clientIp.ts`: the entry `WEB_TRUSTED_PROXY_HOPS` from the right, default 1),
+so rate limits and the 5651 `TrafficLog` are per visitor. Never for review/conversation traffic (`isAnonymousTraffic`
+is checked again in the route, on top of proxy.ts's stripping). The API believes the header only from
+`API_TRUST_PROXY` (default "loopback"; "true" refuses to boot). `TrafficLogPurgeWorker` deletes rows older than
+`TRAFFIC_LOG_RETENTION_DAYS` (clamped 365-730, default 730 - lawyer picks the figure).
+
+**Security headers**: the web's Content-Security-Policy is built in `next.config.ts` (no nonces on purpose - they
+would make every page dynamic; 'unsafe-inline' scripts, but sources limited to self, iyzico, the API origin and the
+analytics origin). A new third-party script, frame or connection must be added there or the browser blocks it.
+The API sends `default-src 'none'` on everything (`common/http/transport-security.ts`).
+
+**Error screens**: three full-page ones, sharing `components/errors/ErrorScreen.tsx` - `not-found.tsx` (404),
+`error.tsx` (a page crashed; header/footer stay, "Try again") and `global-error.tsx` (the root layout itself failed;
+self-contained, both languages inline). Their pictures are set in `lib/errorScreens.ts`; null = an empty panel
+keeping the space until the owner's art arrives.
+
 **English / Turkish (`lib/i18n/`, 2026-10-17)**: no library. The English text in the component is the key; `t("...")`
 (client: `useT()` / `useI18n()`, server: `await getTranslator()`) looks it up in the Turkish dictionary
 (`lib/i18n/tr/*.ts`, one file per area, merged in `tr/index.ts`) and falls back to the English. Variables are
@@ -376,8 +399,8 @@ alone keeps DM Serif Display (`.cv-document`).
   pipes run against *every* parameter, including custom decorators, so a schema meant only for the body
   will also fail-validate the current-user object and produce misleading "field is required" errors.
 - **`prisma migrate dev` does not work non-interactively** in this environment ("Prisma Migrate has
-  detected that the environment is non-interactive, which is not supported"). Use `prisma db push` for
-  schema changes during local development instead.
-- Regenerating the Prisma client (`prisma generate` / `prisma db push`) can fail with `EPERM` on Windows if
+  detected that the environment is non-interactive, which is not supported"). `pnpm db:migration`
+  (scripts/new-migration.ts) does the same job without a prompt.
+- Regenerating the Prisma client (`prisma generate` / `pnpm db:migration`) can fail with `EPERM` on Windows if
   a running `apps/api` dev process still has the query engine `.dll` loaded — stop the dev server (or kill
   stray `node.exe` processes) before regenerating, then restart it.

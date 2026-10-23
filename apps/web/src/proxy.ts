@@ -72,8 +72,9 @@ function isTrappedSubmission(req: NextRequest): boolean {
 }
 
 // Review and private-conversation traffic: the two flows where who's
-// talking must never be recoverable.
-function isAnonymousTraffic(pathname: string): boolean {
+// talking must never be recoverable. The proxy route handler checks this
+// again before passing on a visitor's address (lib/clientIp.ts).
+export function isAnonymousTraffic(pathname: string): boolean {
   return (
     pathname.startsWith("/api/proxy/reviews") ||
     pathname.startsWith("/api/proxy/conversations") ||

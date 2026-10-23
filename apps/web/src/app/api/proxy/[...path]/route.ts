@@ -7,6 +7,8 @@ import {
   refreshCookieOptions,
   refreshTokens,
 } from "@/lib/server-auth";
+import { forwardedForHeaders } from "@/lib/clientIp";
+import { isAnonymousTraffic } from "@/proxy";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/v1";
 
@@ -52,6 +54,10 @@ async function proxy(req: NextRequest, path: string[]) {
   // parse the body at all.
   const body = hasBody ? await req.arrayBuffer() : undefined;
   const contentType = req.headers.get("content-type");
+  // The visitor's address, for per-visitor rate limits and the 5651 log.
+  // Never for review and conversation traffic: src/proxy.ts already removed
+  // it from those requests, and this check makes sure even if it hadn't.
+  const forwardFor = isAnonymousTraffic(req.nextUrl.pathname) ? {} : forwardedForHeaders(req.headers);
 
   const send = (accessToken: string | undefined) =>
     fetch(targetUrl, {
@@ -59,6 +65,7 @@ async function proxy(req: NextRequest, path: string[]) {
       headers: {
         ...(hasBody && contentType ? { "Content-Type": contentType } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...forwardFor,
       },
       body,
       cache: "no-store",
@@ -69,7 +76,7 @@ async function proxy(req: NextRequest, path: string[]) {
 
   if (upstream.status === 401) {
     const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
-    const refreshed = refreshToken ? await refreshTokens(refreshToken) : null;
+    const refreshed = refreshToken ? await refreshTokens(refreshToken, forwardFor) : null;
 
     if (refreshed) {
       upstream = await send(refreshed.accessToken);
