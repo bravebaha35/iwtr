@@ -183,6 +183,13 @@ const common: Record<string, string> = {
   "Software": "Yazılım",
   "Following@@button": "Takip ediliyor",
   "Saved@@tab": "Kaydedilenler",
+  // Error screen (app/error.tsx)
+  "Something went wrong": "Bir şeyler ters gitti",
+  "This page stopped working.": "Bu sayfa çalışmayı durdurdu.",
+  "It's on our side, not yours. Try again, and if it keeps happening, come back in a few minutes.":
+    "Sorun bizde, sende değil. Tekrar dene; yine olursa birkaç dakika sonra geri gel.",
+  "Try again": "Tekrar dene",
+  "Go to the homepage": "Ana sayfaya git",
 };
 
 export default common;
