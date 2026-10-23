@@ -10,7 +10,9 @@
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "db:migration": "ts-node scripts/new-migration.ts",
+    "db:deploy": "prisma migrate deploy && ts-node scripts/setup-db-roles.ts",
+    "db:status": "prisma migrate status"
   },
   "dependencies": {
     "@iwtr/shared-types": "workspace:*",

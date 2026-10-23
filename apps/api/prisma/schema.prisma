@@ -889,7 +889,7 @@ model Review {
   // their desk). The truncation happens in the database default itself, so
   // no code path can store more; publishedAt is set in code via
   // common/time/day-precision.util.ts's toUtcDay.
-  createdAt   DateTime  @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+  createdAt   DateTime  @default(dbgenerated("date_trunc('day'::text, (now() AT TIME ZONE 'UTC'::text))"))
   publishedAt DateTime?
 
   votes               ReviewVote[]
@@ -997,7 +997,7 @@ model ReviewConversation {
   endedBy             ConversationSide?
   reviewerLastReadSeq Int                         @default(0)
   companyLastReadSeq  Int                         @default(0)
-  createdAt           DateTime                    @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+  createdAt           DateTime                    @default(dbgenerated("date_trunc('day'::text, (now() AT TIME ZONE 'UTC'::text))"))
   messages            ReviewConversationMessage[]
 
   @@index([companyId])
@@ -1018,7 +1018,7 @@ model ReviewConversationMessage {
   authorUserId   String?
   authorUser     User?              @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
   content        String
-  createdAt      DateTime           @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+  createdAt      DateTime           @default(dbgenerated("date_trunc('day'::text, (now() AT TIME ZONE 'UTC'::text))"))
 
   @@index([conversationId, seq])
   @@schema("public")
@@ -1124,7 +1124,7 @@ model ModerationQueueItem {
   // Day precision (DAY_PRECISION_DEFAULT on Review) — it's created in the
   // same instant as the review it queues, so an exact time here would leak
   // the review's.
-  createdAt       DateTime    @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+  createdAt       DateTime    @default(dbgenerated("date_trunc('day'::text, (now() AT TIME ZONE 'UTC'::text))"))
   resolvedAt      DateTime?
 
   // AdminQueueService.list filters by status alone on every load of the
@@ -1971,7 +1971,7 @@ model SalarySubmission {
   kvkkCommercialConsent Boolean
   // Day precision, same reason as Review.createdAt (DAY_PRECISION_DEFAULT).
   // Deliberately no @updatedAt: that would record the exact moment of edit.
-  createdAt             DateTime     @default(dbgenerated("date_trunc('day', (now() AT TIME ZONE 'UTC'))"))
+  createdAt             DateTime     @default(dbgenerated("date_trunc('day'::text, (now() AT TIME ZONE 'UTC'::text))"))
 
   @@index([companyId, salaryYear])
   @@schema("public")
