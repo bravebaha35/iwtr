@@ -1,4 +1,11 @@
 import "@testing-library/jest-dom";
+import { configure } from "@testing-library/react";
+
+// GitHub's CI machines are several times slower than a dev laptop: give
+// findBy*/waitFor up to 5 s (not the default 1 s) and each test 20 s, so a
+// page that loads fake data a little slower there does not fail a test.
+configure({ asyncUtilTimeout: 5000 });
+jest.setTimeout(20000);
 
 
 // jsdom has no IntersectionObserver — used by SocialFeed's infinite scroll.
