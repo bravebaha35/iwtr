@@ -34,6 +34,8 @@ it("marks the picked group with the site's one selection colour", () => {
   render(<CategoryGroupFilter value="LOGISTICS" onChange={() => {}} />);
   const picked = screen.getByRole("radio", { name: "Logistics" });
   expect(picked).toHaveAttribute("aria-checked", "true");
-  expect(picked).toHaveClass("bg-brand-600", "text-white");
-  expect(screen.getByRole("radio", { name: "Firms" })).not.toHaveClass("bg-brand-600");
+  // A tab strip: the picked group gets Wood text and a Wood bar, no filled box.
+  expect(picked).toHaveClass("text-brand-700", "after:bg-brand-600");
+  expect(picked).not.toHaveClass("bg-brand-600");
+  expect(screen.getByRole("radio", { name: "Firms" })).not.toHaveClass("after:bg-brand-600");
 });

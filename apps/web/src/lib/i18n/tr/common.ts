@@ -3,6 +3,7 @@
 const common: Record<string, string> = {
   "{label} - coming soon": "{label} - yakında",
   "No names. No HR. Just what it's really like to work there.": "İsim yok. İK yok. Sadece orada çalışmanın gerçek hali.",
+  "Hear it straight from real references !": "Gerçek referanslardan, doğrudan !",
   "Home": "Ana Sayfa",
   "Dashboard": "Panel",
   "Company dashboard": "Şirket paneli",

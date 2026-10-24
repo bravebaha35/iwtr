@@ -218,9 +218,7 @@ h4,
 
 /* While a CV is photographed for its PDF, lib/cvPdf.ts adds .cv-printing:
    - the on-screen page is held at A4 height; the PDF cuts its own pages
-   - the footer is stamped onto every PDF page instead (lib/cvPdfFooter.ts)
-   - html2canvas draws a chip's words a few pixels lower than the browser
-     does; lift them back to the middle */
+   - the footer is stamped onto every PDF page instead (lib/cvPdfFooter.ts) */
 .cv-printing .cv-document {
   gap: 0 !important;
 }
@@ -229,17 +227,13 @@ h4,
   box-shadow: none !important;
   border-radius: 0 !important;
 }
-/* Sheet 1 fills its PDF page, so the grey side column runs to the bottom
-   (A4 minus the PDF's top and bottom margins, lib/cvPdf.ts). */
-.cv-printing .cv-sheet:first-child {
-  min-height: 1000px !important;
+/* Sheet 2 follows straight on instead of starting a new page (lib/cvPdf.ts). */
+.cv-flowing .cv-sheet-2 {
+  break-before: auto !important;
+  page-break-before: auto !important;
 }
 .cv-printing .cv-page-footer {
   display: none;
-}
-.cv-printing .cv-chip {
-  line-height: 14px !important;
-  padding-bottom: 6px;
 }
 
 /* Tailwind's preflight leaves <button> at the browser default arrow cursor
@@ -306,18 +300,21 @@ progress {
   outline-color: var(--color-brand-300);
 }
 
-/* Boosted ("featured") job cards on the Jobs page (2026-10-19, Taste pass):
-   no loud outline. A thin warm Wood hairline, a soft Wood-tinted shadow that
-   lifts the card a little, a Wood star tab in the banner corner (JobCard),
-   and a slow sheen of light across the banner every 7 seconds - the one
-   motion, there to draw the eye to paid ads. Still under reduced motion. */
+/* Boosted ("featured") job cards on the Jobs page (2026-10-24, Taste pass):
+   a clear solid Wood outline (no glow, no corner badge), a soft Wood-tinted
+   shadow that lifts the card a little, and a slow sheen of light across the
+   banner every 7 seconds - the one motion, there to draw the eye to paid
+   ads. Still under reduced motion. */
 .boosted-card {
-  border-width: 1px;
-  border-color: color-mix(in srgb, var(--color-brand-500) 55%, transparent);
+  border-width: 1.5px;
+  border-color: var(--color-brand-500);
   box-shadow:
     0 1px 2px rgba(72, 47, 22, 0.08),
     0 14px 32px -16px rgba(139, 90, 43, 0.45);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dark .boosted-card {
+  border-color: color-mix(in srgb, var(--color-brand-400) 80%, transparent);
 }
 .boosted-card:hover {
   transform: translateY(-2px);

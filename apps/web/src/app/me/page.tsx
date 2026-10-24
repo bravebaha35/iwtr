@@ -430,13 +430,18 @@ function ProfilePageContent() {
   async function downloadCv() {
     if (cvDownloading) return;
     setCvDownloadError(null);
+    // A CV needs a name: without one the PDF would say "Your name here".
+    if (!(displayNameDraft || profile?.displayName || "").trim()) {
+      setCvDownloadError(t("Add your display name above first."));
+      return;
+    }
     setCvDownloading(true);
     try {
       // Wait for the off-screen full-size copy to mount.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       if (!cvPrintRef.current) throw new Error("not mounted");
       const pdf = await renderCvPdf(cvPrintRef.current, t("Made in iworkedthere.com"));
-      pdf.save(cvFileName(displayNameDraft || profile?.displayName));
+      pdf.save(cvFileName(displayNameDraft || profile?.displayName, locale));
     } catch {
       setCvDownloadError(t("Couldn't make the PDF. Please try again."));
     } finally {

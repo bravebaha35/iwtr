@@ -83,6 +83,7 @@ const cv: Record<string, string> = {
   // Location filter (one city, then its districts)
   "Choose a city": "Bir il seç",
   "Districts": "İlçeler",
+  "Choose a city first": "Önce bir il seç",
   "{n} chosen": "{n} seçili",
   "{n} districts": "{n} ilçe",
   "{city} districts": "{city} ilçeleri",

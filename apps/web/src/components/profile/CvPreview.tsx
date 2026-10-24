@@ -65,6 +65,28 @@ function byMostRecent(a: MyEmploymentEntry, b: MyEmploymentEntry): number {
   return (b.startDate ?? "").localeCompare(a.startDate ?? "");
 }
 
+/**
+ * One block of the side column: a grey panel holding a single section. Each
+ * panel is kept whole on one PDF page, so a long page 1 never leaves a strip
+ * of grey behind on page 2 (one full-height grey column used to).
+ */
+function SidePanel({ children }: { children: ReactNode }) {
+  return (
+    <section className="rounded-[6px] px-5 pb-5 pt-4" style={{ backgroundColor: SIDE_BG, ...KEEP_TOGETHER }}>
+      {children}
+    </section>
+  );
+}
+
+// The profile text as separate paragraphs (split on blank lines), each kept
+// whole, so the PDF never cuts a line of text in half across two pages.
+function paragraphs(text: string): string[] {
+  return text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 function SectionTitle({ children, side = false }: { children: ReactNode; side?: boolean }) {
   return (
     <h2
@@ -88,7 +110,7 @@ function Entry({ title, date, subtitle }: { title: string; date: string | null; 
           {title}
         </p>
         {date && (
-          <p className="shrink-0 text-[11.5px] tabular-nums" style={{ color: MUTED }}>
+          <p className="shrink-0 text-[11.5px]" style={{ color: MUTED }}>
             {date}
           </p>
         )}
@@ -276,36 +298,39 @@ export function CvPreview({
           <div className="min-w-0 flex-1 space-y-7 pb-6 pl-12 pr-8 pt-8">
             {show("profile") && profile.customExperienceText && (
               <section>
-                <SectionTitle>{t("Profile")}</SectionTitle>
-                <p className="mt-3 whitespace-pre-wrap break-words text-[12.5px] leading-[1.6]" style={{ color: INK }}>
-                  {profile.customExperienceText}
-                </p>
+                {paragraphs(profile.customExperienceText).map((para, i) => (
+                  <div key={i} className={i === 0 ? "" : "mt-3"} style={KEEP_TOGETHER}>
+                    {i === 0 && <SectionTitle>{t("Profile")}</SectionTitle>}
+                    <p
+                      className={`${i === 0 ? "mt-3 " : ""}whitespace-pre-wrap break-words text-[12.5px] leading-[1.6]`}
+                      style={{ color: INK }}
+                    >
+                      {para}
+                    </p>
+                  </div>
+                ))}
               </section>
             )}
 
             {showSkills && (
               <section style={KEEP_TOGETHER}>
                 <SectionTitle>{t("Skills")}</SectionTitle>
-                <div className="mt-3 flex flex-wrap">
+                {/* A plain two-column list: boxed chips came out of the PDF
+                    with their words sitting low in the box. */}
+                <ul className="mt-3 flex flex-wrap text-[12.5px] leading-[1.45]" style={{ color: INK }}>
                   {profile.skills.map((s) => (
-                    // A fixed height and line height: html2canvas otherwise
-                    // draws the words lower in the box than the browser does.
-                    <span
-                      key={s.id}
-                      className="cv-chip mb-1.5 mr-1.5 inline-block rounded-[4px] px-2.5 text-[11.5px] font-medium"
-                      style={{ height: 24, lineHeight: "22px", backgroundColor: SIDE_BG, color: INK, border: "1px solid #d3d8cd" }}
-                    >
+                    <li key={s.id} className="mb-1.5 break-words pr-4" style={{ width: "50%" }}>
                       {s.name}
-                    </span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </section>
             )}
           </div>
 
-          <div className="shrink-0 space-y-7 pb-6 pl-7 pr-10 pt-8" style={{ width: 268, backgroundColor: SIDE_BG }}>
+          <div className="shrink-0 space-y-4 pb-6 pr-12 pt-8" style={{ width: 290 }}>
             {hasDetails && (
-              <section style={KEEP_TOGETHER}>
+              <SidePanel>
                 <SectionTitle side>{t("Details")}</SectionTitle>
                 <dl className="mt-3 space-y-2.5 text-[12px]">
                   {born && (
@@ -327,29 +352,25 @@ export function CvPreview({
                     </div>
                   )}
                 </dl>
-              </section>
+              </SidePanel>
             )}
 
             {showLanguages && (
-              <section style={KEEP_TOGETHER}>
+              <SidePanel>
                 <SectionTitle side>{t("Languages")}</SectionTitle>
                 <ul className="mt-3 space-y-1.5 text-[12.5px]" style={{ color: INK }}>
                   {languages.map((l) => (
                     <li key={l}>{l}</li>
                   ))}
                 </ul>
-              </section>
+              </SidePanel>
             )}
 
             {showReferences && (
-              <CvSection
-                title={t("References")}
-                side
-                spacing="mt-3.5"
-                items={references.map((r) => ({
-                  key: r.id,
-                  node: (
-                    <div className="text-[12px]">
+              <SidePanel>
+                <SectionTitle side>{t("References")}</SectionTitle>
+                {references.map((r, i) => (
+                    <div key={r.id} className={`text-[12px] ${i === 0 ? "mt-3" : "mt-3.5"}`}>
                       <p className="break-words font-semibold" style={{ color: INK }}>
                         {r.firstName} {r.lastName}
                       </p>
@@ -361,9 +382,8 @@ export function CvPreview({
                       )}
                       {r.phoneNumber && <p style={{ color: MUTED }}>{r.phoneNumber}</p>}
                     </div>
-                  ),
-                }))}
-              />
+                ))}
+              </SidePanel>
             )}
           </div>
         </div>

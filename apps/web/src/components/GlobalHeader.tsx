@@ -73,6 +73,8 @@ export function GlobalHeader() {
   const isCompanyOwner = useIsCompanyOwner();
   const t = useT();
 
+  if (!isAuthenticated) return <LoggedOutHeader onOpenAuth={openAuthModal} home={pathname === "/"} />;
+
   return (
     // One 64px line in the page's own colour (slightly see-through over
     // scrolling content) with a single hairline under it, not a white bar.
@@ -87,7 +89,7 @@ export function GlobalHeader() {
           <span className="hidden font-display text-xl text-foreground min-[420px]:inline">I Worked There</span>
         </Link>
         <span className="hidden border-l border-border pl-4 text-sm text-muted-foreground xl:inline">
-          {t("No names. No HR. Just what it's really like to work there.")}
+          {t("Hear it straight from real references !")}
         </span>
       </div>
 
@@ -226,19 +228,51 @@ export function GlobalHeader() {
           </div>
         )}
 
-        {/* Logged-out visitor's equivalent of the avatar/edit-profile slot
-            above — there's no profile to edit without an account, so this
-            opens AuthModal (mounted globally in layout.tsx) instead. */}
-        {!isAuthenticated && (
+      </div>
+    </header>
+  );
+}
+
+// A visitor without an account sees the intro page, so the bar holds only
+// what they need there: the name, the tagline, the theme switch and the way
+// in. No page links (the intro already says what the site is) and no hairline:
+// on the homepage it sits on the same column as the intro below it, as part of
+// the page rather than an app toolbar.
+function LoggedOutHeader({ onOpenAuth, home }: { onOpenAuth: (mode: "login" | "register") => void; home: boolean }) {
+  const t = useT();
+  return (
+    <header className="sticky top-0 z-40 h-16 bg-background/90 backdrop-blur-md">
+      <div
+        className={`flex h-full items-center gap-3 sm:gap-4 ${
+          home ? "mx-auto w-full max-w-[1400px] px-4 sm:px-8" : "pl-14 pr-3 sm:pl-20 sm:pr-8"
+        }`}
+      >
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Logo size="md" />
+          <span className="hidden font-display text-xl text-foreground min-[420px]:inline">I Worked There</span>
+        </Link>
+        <span className="hidden border-l border-border pl-4 text-sm text-muted-foreground xl:inline">
+          {t("Hear it straight from real references !")}
+        </span>
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+          <div className="mr-1 sm:mr-2">
+            <ThemeToggle />
+          </div>
           <button
             type="button"
-            onClick={() => openAuthModal()}
-            className="shrink-0 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
+            onClick={() => onOpenAuth("login")}
+            className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            <span className="sm:hidden">{t("Join")}</span>
-            <span className="hidden sm:inline">{t("Login/Register")}</span>
+            {t("Log in")}
           </button>
-        )}
+          <button
+            type="button"
+            onClick={() => onOpenAuth("register")}
+            className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
+          >
+            {t("Register")}
+          </button>
+        </div>
       </div>
     </header>
   );

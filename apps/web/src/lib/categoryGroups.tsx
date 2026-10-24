@@ -125,10 +125,15 @@ export const CATEGORY_GROUP_BUTTONS: { value: CategoryGroup; label: string; icon
   { value: "OIL_ENERGY", label: "Oil & Energy", icon: OilDropIcon },
 ];
 
-// The Quick Select control — shared by the rating homepage, the Jobs page
+// The Quick Select control - shared by the rating homepage, the Jobs page
 // and IWT Social's sidebar. All 7 groups are always on screen with their
 // names: a horizontal row on the rating/jobs pages, a vertical list in the
 // Social sidebar. Picking the active group again clears the filter.
+//
+// The row is a tab strip, not a set of buttons: icon and word on the page
+// itself, one hairline under the whole row, and the picked group marked the
+// way the header marks the current page (Wood text and a Wood bar on that
+// hairline). It scrolls sideways on narrow screens instead of wrapping.
 export function CategoryGroupFilter({
   value,
   onChange,
@@ -150,7 +155,11 @@ export function CategoryGroupFilter({
       role="radiogroup"
       aria-label={t("Filter by category group")}
       aria-orientation={orientation}
-      className={`flex ${vertical ? "flex-col items-stretch gap-0.5 rounded-xl" : "flex-row flex-wrap items-center gap-2 rounded-full"} ${
+      className={`flex ${
+        vertical
+          ? "flex-col items-stretch gap-0.5 rounded-xl"
+          : "no-scrollbar flex-row items-stretch overflow-x-auto rounded-lg border-b border-border/70"
+      } ${
         highlighted ? "highlight-pulse" : ""
       }`}
     >
@@ -164,17 +173,19 @@ export function CategoryGroupFilter({
             role="radio"
             aria-checked={checked}
             onClick={() => onChange(checked ? null : opt.value)}
-            className={`flex items-center text-sm font-medium transition active:scale-[0.98] ${
-              vertical ? "h-9 w-full gap-2.5 rounded-lg px-2 text-left" : "h-10 gap-2 rounded-full border px-3.5"
-            } ${
-              checked
-                ? "border-brand-600 bg-brand-600 text-white"
-                : vertical
-                  ? "text-foreground/80 hover:bg-surface-muted hover:text-foreground"
-                  : "border-transparent bg-surface-muted/70 text-foreground/80 hover:bg-surface-muted hover:text-foreground"
-            }`}
+            className={
+              vertical
+                ? `flex h-9 w-full items-center gap-2.5 rounded-lg px-2 text-left text-sm font-medium transition active:scale-[0.98] ${
+                    checked ? "bg-brand-600 text-white" : "text-foreground/80 hover:bg-surface-muted hover:text-foreground"
+                  }`
+                : `relative flex h-11 shrink-0 items-center gap-2 px-3 text-sm font-medium transition-colors first:pl-1 after:absolute after:inset-x-3 after:-bottom-px after:h-[2px] after:rounded-full after:transition-colors first:after:left-1 ${
+                    checked
+                      ? "text-brand-700 after:bg-brand-600 dark:text-brand-300 dark:after:bg-brand-400"
+                      : "text-muted-foreground after:bg-transparent hover:text-foreground hover:after:bg-border"
+                  }`
+            }
           >
-            <Icon className={`shrink-0 ${vertical ? "h-[18px] w-[18px]" : "h-5 w-5"}`} />
+            <Icon className="h-[18px] w-[18px] shrink-0" />
             <span className="whitespace-nowrap">{t(opt.label)}</span>
           </button>
         );

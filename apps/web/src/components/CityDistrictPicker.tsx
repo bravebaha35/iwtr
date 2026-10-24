@@ -146,18 +146,21 @@ export function CityDistrictPicker({
           )}
         </div>
 
-        {province && (
+        {isTurkey && (
           <div className="relative mt-1.5">
-            {/* Districts: a dropdown like the two above. Open, the city's
-                districts sit side by side as tick chips; it stays open while
-                ticking and closes on a click anywhere else. */}
+            {/* Districts: a dropdown like the two above, always shown so the
+                three steps are visible, but greyed out until a city is picked.
+                Open, the city's districts sit side by side as tick chips; it
+                stays open while ticking and closes on a click anywhere else. */}
             <button
               type="button"
-              onClick={() => setDistrictsOpen((o) => !o)}
+              onClick={() => province && setDistrictsOpen((o) => !o)}
+              disabled={!province}
+              title={province ? undefined : t("Choose a city first")}
               aria-haspopup="dialog"
               aria-expanded={districtsOpen}
               aria-label={t("Districts")}
-              className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted"
+              className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-left text-xs font-medium text-foreground hover:bg-surface-muted disabled:cursor-not-allowed disabled:bg-surface-muted/60 disabled:opacity-55 disabled:hover:bg-surface-muted/60"
             >
               <span className={`min-w-0 truncate ${chosen.size > 0 ? "text-foreground" : "text-muted-foreground"}`}>
                 {chosen.size === 0
@@ -168,7 +171,7 @@ export function CityDistrictPicker({
               </span>
               <span className={`shrink-0 text-[10px] text-muted-foreground transition-transform ${districtsOpen ? "rotate-180" : ""}`}>▾</span>
             </button>
-            {districtsOpen && (
+            {districtsOpen && province && (
               <>
                 <div className="fixed inset-0 z-[65]" onClick={() => setDistrictsOpen(false)} />
                 <div

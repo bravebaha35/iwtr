@@ -226,11 +226,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadSession],
   );
 
+  // Signing out always lands on the intro page, with a full page load so
+  // nothing of the signed-in session (open page, cached lists, chat dock)
+  // stays on screen.
   const logout = useCallback(() => {
     setIsAuthenticated(false);
     setRole(null);
     setOnboardingStatus(null);
-    void fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    void fetch("/api/auth/logout", { method: "POST" })
+      .catch(() => {})
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full load on purpose (see above)
+      .finally(() => window.location.assign("/"));
   }, []);
 
   const openAuthModal = useCallback((mode?: "login" | "register") => {

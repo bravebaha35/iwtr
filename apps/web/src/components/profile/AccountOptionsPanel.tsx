@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiPost, apiDelete } from "@/lib/api-client";
 import { useI18n } from "@/lib/i18n/client";
@@ -10,20 +9,23 @@ import { EmailConfirmGate } from "@/components/profile/EmailConfirmGate";
 
 type PendingAction = "freeze" | "delete" | null;
 
+// Each language is written in its own name, so it can be found whichever
+// one the page is in now.
 const LANGUAGE_CHOICES: { value: Locale; label: string }[] = [
   { value: "en", label: "English" },
-  { value: "tr", label: "Turkish" },
+  { value: "tr", label: "Türkçe" },
 ];
 
 // The site's language for this browser (a cookie, like the theme), applied
-// the moment one is picked. The picked one is the Wood "selected" fill.
+// the moment one is picked. Plain words with an underline, the same as the
+// sort words beside the search field: thin at rest, thick Wood when picked.
 function LanguagePanel() {
   const { locale, setLocale, switching, t } = useI18n();
   return (
     <div className="rounded-2xl bg-surface shadow-xs p-5">
       <h2 className="mb-1 font-semibold text-foreground">{t("Language")}</h2>
-      <p className="mb-3 text-sm text-muted-foreground">{t("Choose your language.")}</p>
-      <div role="radiogroup" aria-label={t("Language")} className="flex flex-wrap gap-2">
+      <p className="mb-2 text-sm text-muted-foreground">{t("Choose your language.")}</p>
+      <div role="radiogroup" aria-label={t("Language")} className="-ml-3 flex flex-wrap items-center">
         {LANGUAGE_CHOICES.map((choice) => {
           const selected = locale === choice.value;
           return (
@@ -34,11 +36,14 @@ function LanguagePanel() {
               aria-checked={selected}
               disabled={switching}
               onClick={() => !selected && setLocale(choice.value)}
-              className={`min-w-28 rounded-full px-5 py-2 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-60 ${
-                selected ? "bg-brand-600 text-white" : "bg-surface-muted text-foreground hover:bg-border/70"
+              lang={choice.value}
+              className={`flex h-10 items-center px-3 text-sm font-semibold underline underline-offset-[6px] transition-[color,text-decoration-color] disabled:opacity-60 ${
+                selected
+                  ? "cursor-default text-brand-700 decoration-2 decoration-brand-600 dark:text-brand-300 dark:decoration-brand-400"
+                  : "text-muted-foreground decoration-1 decoration-muted-foreground/40 hover:text-foreground hover:decoration-foreground/60"
               }`}
             >
-              {t(choice.label)}
+              {choice.label}
             </button>
           );
         })}
@@ -54,19 +59,16 @@ function LanguagePanel() {
 export function AccountOptionsPanel({ email }: { email: string | null }) {
   const { logout } = useAuth();
   const { t } = useI18n();
-  const router = useRouter();
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
   async function confirmFreeze() {
     await apiPost("/me/freeze", {});
     logout();
-    router.push("/");
   }
 
   async function confirmDelete() {
     await apiDelete("/me");
     logout();
-    router.push("/");
   }
 
   if (pendingAction && email) {
