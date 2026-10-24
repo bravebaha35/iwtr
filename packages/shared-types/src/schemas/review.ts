@@ -415,11 +415,10 @@ export const companySurveyStatsSchema = z.object({
 });
 export type CompanySurveyStats = z.infer<typeof companySurveyStatsSchema>;
 
-// GET /companies/:slug/vibe-flags — the Dual-Opposite Flag Aggregation
-// Engine's response (see apps/api/src/modules/flags/flag-calculator.service.ts).
-// Each category always contributes exactly 2 flags (one per question
-// cluster), never both a green and its opposite red for the same cluster —
-// only the color/label the engine actually resolved to. Deliberately never
+// GET /companies/:slug/vibe-flags - Workplace Vibe Flags v2 (see
+// apps/api/src/modules/flags/flag-calculator.service.ts). A category gives
+// 0-2 flags (one per theme slot, "cluster"), only where reviewers clearly
+// agree, and greens are capped by the work type's score. Deliberately never
 // carries agreeCount/disagreeCount or any other per-question detail; that
 // stays on companySurveyStatsSchema above.
 export const flagColorSchema = z.enum(["GREEN", "RED"]);
@@ -444,16 +443,17 @@ export const yellowVibeFlagSchema = z.object({
   id: z.string(),
   workplaceType: workplaceTypeSchema,
   label: z.string(),
-  // Plain-English "why" shown on hover/focus of the flag's ❓ in the UI.
+  // Plain-English "why" shown under the flag in the UI.
   explanation: z.string(),
+  // A "split opinions" signal carries its parts so the page can translate it.
+  split: z.object({ topic: z.string(), green: z.string(), red: z.string() }).optional(),
 });
 export type YellowVibeFlag = z.infer<typeof yellowVibeFlagSchema>;
 
 export const companyWorkplaceVibeFlagsSchema = z.object({
   workplaceType: workplaceTypeSchema,
   totalReviews: z.number().int().min(0),
-  // Empty when totalReviews is 0 — a workplace type nobody has reviewed yet
-  // gets no flags rather than 10 default-red ones.
+  // Empty until 3 people have reviewed this work type.
   flags: z.array(vibeFlagSchema),
   yellowFlags: z.array(yellowVibeFlagSchema),
 });

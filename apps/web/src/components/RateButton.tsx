@@ -465,7 +465,7 @@ export function RateButton({
                   <div className="flex flex-col gap-4">
                     {questionsFor(currentCategory.key).map((q) => (
                       <div key={q.id} className="border-t border-border pt-3">
-                        <p className="mb-2 text-sm text-foreground">{q.text}</p>
+                        <p className="mb-2 text-sm text-foreground">{t(q.text)}</p>
                         <AnswerButtons
                           value={answers[q.id]}
                           onChange={(answer) => setAnswers((prev) => ({ ...prev, [q.id]: answer }))}

@@ -61,7 +61,8 @@ describe("HrAnalyticsReportDataService.build", () => {
     expect(data.skippedWorkTypes).toEqual(["Service"]);
     const leadership = data.workTypes[0].categories.find((c) => c.title === "Leadership & Management")!;
     expect(leadership.questions[0]).toMatchObject({ healthyPercent: 33, unhealthyPercent: 67, skippedPercent: 0 });
-    expect(data.workTypes[0].flags.length).toBeGreaterThanOrEqual(10);
+    // v2 flags: only where reviewers clearly agree, greens capped by score (not always 10).
+    expect(data.workTypes[0].flags.length).toBeGreaterThan(0);
 
     const json = JSON.stringify(data);
     expect(json).not.toMatch(/"\w*count"|totalReviews|reviewId|userId|questionId|createdAt/i);

@@ -64,16 +64,18 @@ export function computeTurnoverRisk(
   baselineQuestions: QuestionTally[],
   totalReviewsInWindow: number,
 ): TurnoverRiskAssessment {
+  // Share of the hazard themes (2 categories x 2 themes) that read red.
+  // A theme without enough answers, or in the middle ground, is not red.
   const hazardRate = (questions: QuestionTally[]): number => {
-    const flags = HAZARD_CATEGORIES.flatMap((category) =>
-      flagCalculator.computeCategoryFlags(
+    const evaluations = HAZARD_CATEGORIES.flatMap((category) =>
+      flagCalculator.evaluateCategory(
         workplaceType,
         category,
         questions.filter((q) => q.questionId.includes(`.${category}.`)),
       ),
     );
-    const redCount = flags.filter((f) => f.color === "RED").length;
-    return flags.length === 0 ? 0 : redCount / flags.length;
+    const redCount = evaluations.filter((e) => e.verdict === "RED").length;
+    return evaluations.length === 0 ? 0 : redCount / evaluations.length;
   };
 
   const recentQuarterHazardRate = hazardRate(recentQuarterQuestions);

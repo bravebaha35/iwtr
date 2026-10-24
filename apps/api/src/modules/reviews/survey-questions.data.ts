@@ -16,6 +16,14 @@ export interface SurveyQuestion {
  * client only ever sees the question text via the stripped public shape
  * (getPublicQuestions below).
  *
+ * Question set v2 (2026-10-24, the owner's revised list). Three questions
+ * changed meaning to their opposite and their stored answers were flipped
+ * once to match (scripts/migrate-survey-v2.ts): OFFICE.corporateCulture.5,
+ * OFFICE.stability.1, SERVICE.stability.1. Two healthy answers were
+ * corrected (OFFICE.corporateCulture.1 and OFFICE.leadership.1 are "NO").
+ * The Turkish wording lives in apps/web (lib/i18n/tr/survey.ts), keyed by
+ * the English text, so a text change here must be made there too.
+ *
  * `id` is deterministic (`${workplaceType}.${category}.${n}`) so it stays
  * stable across app restarts/edits — a review's stored surveyAnswers are
  * keyed by these ids.
@@ -23,13 +31,13 @@ export interface SurveyQuestion {
 const SURVEY_QUESTIONS: Record<WorkplaceType, SurveyQuestion[]> = {
   OFFICE: [
     // Corporate Culture
-    q("OFFICE", "corporateCulture", 1, "Is staying late or sitting at your desk past official hours rewarded over actual work output?", "YES"),
+    q("OFFICE", "corporateCulture", 1, "Is staying late or sitting at your desk past official hours rewarded over actual work output?", "NO"),
     q("OFFICE", "corporateCulture", 2, "Have you personally witnessed office politics or favoritism dictate promotions over merit?", "NO"),
     q("OFFICE", "corporateCulture", 3, "Can employees openly criticize company decisions in meetings without fear of retaliation?", "YES"),
     q("OFFICE", "corporateCulture", 4, "Does company management actually practice the corporate values they preach publicly?", "YES"),
-    q("OFFICE", "corporateCulture", 5, "Is credit-stealing or backstabbing common within your team?", "NO"),
+    q("OFFICE", "corporateCulture", 5, "Is team collaboration supportive and is individual work appropriately recognized?", "YES"),
     // Leadership & Management
-    q("OFFICE", "leadership", 1, "Does middle management actively micromanage your daily tasks?", "YES"),
+    q("OFFICE", "leadership", 1, "Does middle management actively micromanage your daily tasks?", "NO"),
     q("OFFICE", "leadership", 2, "When a project fails, do leaders take responsibility instead of blaming subordinates?", "YES"),
     q("OFFICE", "leadership", 3, "Do managers provide actionable, constructive feedback rather than vague performance reviews?", "YES"),
     q("OFFICE", "leadership", 4, "Are major leadership decisions communicated transparently before taking effect?", "YES"),
@@ -47,8 +55,8 @@ const SURVEY_QUESTIONS: Record<WorkplaceType, SurveyQuestion[]> = {
     q("OFFICE", "workLifeBalance", 4, "Does management allow flexibility for personal or medical appointments during the day?", "YES"),
     q("OFFICE", "workLifeBalance", 5, "Does management track physical seat time or online status icons over actual deliverables?", "NO"),
     // Organizational Stability
-    q("OFFICE", "stability", 1, "Has your department experienced high turnover or silent firings in the past 12 months?", "NO"),
-    q("OFFICE", "stability", 2, "Does the company frequently change its strategic direction or pivot chaotically?", "NO"),
+    q("OFFICE", "stability", 1, "Has your department maintained clear transparency regarding team retention and organizational changes over the past 12 months?", "YES"),
+    q("OFFICE", "stability", 2, "Does the company frequently change its strategic direction?", "NO"),
     q("OFFICE", "stability", 3, "Are salary reviews and compensation adjustments conducted on a predictable schedule?", "YES"),
     q("OFFICE", "stability", 4, "Does the company actively fund career growth or internal job promotions?", "YES"),
     q("OFFICE", "stability", 5, "Do you feel confident your job will still exist at this company 12 months from now?", "YES"),
@@ -65,7 +73,7 @@ const SURVEY_QUESTIONS: Record<WorkplaceType, SurveyQuestion[]> = {
     q("HYBRID_REMOTE", "leadership", 2, "Are virtual team meetings run with clear agendas and kept within set time limits?", "YES"),
     q("HYBRID_REMOTE", "leadership", 3, "Does your manager respond to messages and support requests within a reasonable timeframe?", "YES"),
     q("HYBRID_REMOTE", "leadership", 4, "Does leadership actively step in when a remote employee shows clear signs of burnout?", "YES"),
-    q("HYBRID_REMOTE", "leadership", 5, "Is company leadership honest and transparent during virtual town halls and written updates?", "YES"),
+    q("HYBRID_REMOTE", "leadership", 5, "Is company leadership honest and transparent during virtual meetings and written updates?", "YES"),
     // Infrastructure & Resources
     q("HYBRID_REMOTE", "infrastructure", 1, "Did the company provide a proper stipend or high-quality hardware for your remote setup?", "YES"),
     q("HYBRID_REMOTE", "infrastructure", 2, "Are cloud tools, VPNs, and internal software reliable and fast to access?", "YES"),
@@ -82,7 +90,7 @@ const SURVEY_QUESTIONS: Record<WorkplaceType, SurveyQuestion[]> = {
     q("HYBRID_REMOTE", "stability", 1, "Is there constant management talk or threats of forced Return-to-Office mandates?", "NO"),
     q("HYBRID_REMOTE", "stability", 2, "Are remote employees paid equally compared to in-office peers in the same role?", "YES"),
     q("HYBRID_REMOTE", "stability", 3, "Do fully remote workers have equal access to mentorship and career advancement?", "YES"),
-    q("HYBRID_REMOTE", "stability", 4, "Is company financial performance communicated clearly and honestly to remote staff?", "YES"),
+    q("HYBRID_REMOTE", "stability", 4, "Are high-level departmental goals and performance expectations communicated clearly to remote staff?", "YES"),
     q("HYBRID_REMOTE", "stability", 5, "Are you worried your remote role might be offshored or eliminated without warning?", "NO"),
   ],
   SERVICE: [
@@ -111,16 +119,16 @@ const SURVEY_QUESTIONS: Record<WorkplaceType, SurveyQuestion[]> = {
     q("SERVICE", "workLifeBalance", 4, "Is overtime strictly voluntary rather than forced on short notice under threat of penalties?", "YES"),
     q("SERVICE", "workLifeBalance", 5, "Does management respect your personal schedule commitments outside of work?", "YES"),
     // Organizational Stability
-    q("SERVICE", "stability", 1, "Have you ever experienced wage theft, stolen tips, or unrecorded work hours at this job?", "NO"),
+    q("SERVICE", "stability", 1, "Are compensation, overtime, and tip payouts calculated transparently and communicated clearly?", "YES"),
     q("SERVICE", "stability", 2, "Are tips, commissions, or bonuses paid out accurately and transparently?", "YES"),
     q("SERVICE", "stability", 3, "Is the workplace constantly understaffed due to high employee turnover?", "NO"),
     q("SERVICE", "stability", 4, "Is there a clear, realistic path to advance from floor staff to supervisor roles?", "YES"),
-    q("SERVICE", "stability", 5, "Do you feel confident this business location will remain open and financially solvent?", "YES"),
+    q("SERVICE", "stability", 5, "Do you feel confident about your long-term job security at this specific business location?", "YES"),
   ],
   MANUAL_LABOUR: [
     // Corporate Culture
     q("MANUAL_LABOUR", "corporateCulture", 1, "Is physical health and safety genuinely prioritized over production speed or deadlines?", "YES"),
-    q("MANUAL_LABOUR", "corporateCulture", 2, "Is the job site free from hazing, harassment, and toxic machismo behavior?", "YES"),
+    q("MANUAL_LABOUR", "corporateCulture", 2, "Is the job site free from hazing and harassment?", "YES"),
     q("MANUAL_LABOUR", "corporateCulture", 3, "Does management fully respect labor rights, union standards, and safety regulations?", "YES"),
     q("MANUAL_LABOUR", "corporateCulture", 4, "Are injured workers treated fairly and supported without fear of job retaliation?", "YES"),
     q("MANUAL_LABOUR", "corporateCulture", 5, "Does the crew work as a supportive unit rather than being pitted against each other with metrics?", "YES"),
@@ -141,12 +149,12 @@ const SURVEY_QUESTIONS: Record<WorkplaceType, SurveyQuestion[]> = {
     q("MANUAL_LABOUR", "workLifeBalance", 2, "Can you decline mandatory overtime without threat of termination or disciplinary action?", "YES"),
     q("MANUAL_LABOUR", "workLifeBalance", 3, "Are mandatory hydration and rest breaks strictly enforced throughout the shift?", "YES"),
     q("MANUAL_LABOUR", "workLifeBalance", 4, "Is travel time to distant job sites or temporary locations properly compensated?", "YES"),
-    q("MANUAL_LABOUR", "workLifeBalance", 5, "Does the work pace allow your body sufficient recovery time between shifts?", "YES"),
+    q("MANUAL_LABOUR", "workLifeBalance", 5, "Does your workplace allow your body sufficient recovery time between shifts?", "YES"),
     // Organizational Stability
     q("MANUAL_LABOUR", "stability", 1, "Is your paycheck always 100% accurate, paid on time, and fully accounting for overtime/hazard pay?", "YES"),
-    q("MANUAL_LABOUR", "stability", 2, "Is employment consistent year-round rather than chaotic hire-and-fire cycles?", "YES"),
+    q("MANUAL_LABOUR", "stability", 2, "Does your specific role offer consistent, predictable scheduling and hours throughout the year?", "YES"),
     q("MANUAL_LABOUR", "stability", 3, "Does the company pay for trade training, safety certifications, or skill upgrades?", "YES"),
-    q("MANUAL_LABOUR", "stability", 4, "Does the company hold full workers' compensation and liability insurance?", "YES"),
+    q("MANUAL_LABOUR", "stability", 4, "Does the HR or administrative team handle workplace incident reports and safety paperwork promptly?", "YES"),
     q("MANUAL_LABOUR", "stability", 5, "Do you believe your body can safely sustain working for this company for the next 5 years?", "YES"),
   ],
 };

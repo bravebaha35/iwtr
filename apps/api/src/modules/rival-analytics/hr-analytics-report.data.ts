@@ -6,6 +6,7 @@ import type { CategoryKey, SurveyQuestionStats, WorkplaceType } from "@iwtr/shar
 import { PrismaService } from "../../prisma/prisma.service";
 import { FlagCalculatorService } from "../flags/flag-calculator.service";
 import { YELLOW_FLAG_PAIRS } from "../flags/yellow-flag-pairs.data";
+import { themeQuestionIds, themesFor } from "../flags/flag-themes.data";
 import { getQuestionsFor } from "../reviews/survey-questions.data";
 import { tallyContradictionPairs, tallyQuestions } from "../reviews/survey-tally.util";
 
@@ -164,10 +165,6 @@ export function splitPercent(counts: [number, number, number]): [number, number,
   return floors as [number, number, number];
 }
 
-function questionOrdinal(questionId: string): number {
-  return Number(questionId.slice(questionId.lastIndexOf(".") + 1));
-}
-
 function healthyShare(q: SurveyQuestionStats): number {
   return splitPercent([q.agreeCount, q.disagreeCount, q.preferNotCount])[0];
 }
@@ -316,9 +313,10 @@ export class HrAnalyticsReportDataService {
     const stats = { workplaceType, totalReviews: reviews.length, questions };
 
     const flags: HrReportFlag[] = this.flags.computeVibeFlags(stats).map((flag) => {
-      const cluster = questions.filter(
-        (q) => q.category === flag.category && (flag.cluster === 1 ? questionOrdinal(q.questionId) <= 3 : questionOrdinal(q.questionId) >= 4),
-      );
+      // The questions behind this flag's theme (flags/flag-themes.data.ts).
+      const theme = themesFor(workplaceType, flag.category).find((th) => th.slot === flag.cluster);
+      const ids = theme ? themeQuestionIds(workplaceType, theme) : [];
+      const cluster = questions.filter((q) => ids.includes(q.questionId));
       return {
         tone: flag.color === "GREEN" ? "STRENGTH" : "CONCERN",
         label: flag.label,
@@ -329,6 +327,7 @@ export class HrAnalyticsReportDataService {
       workplaceType,
       reviews.length,
       tallyContradictionPairs(reviews, YELLOW_FLAG_PAIRS[workplaceType]),
+      questions,
     );
     flags.push(...yellow.map((y) => ({ tone: "MIXED" as const, label: y.label, explanation: y.explanation })));
 

@@ -10,6 +10,8 @@ import owner from "./owner";
 import auth from "./auth";
 import countries from "./countries";
 import cv from "./cv";
+import survey from "./survey";
+import flags from "./flags";
 
 // The whole Turkish dictionary. Split by area only to keep each file a
 // readable size; one English text has one Turkish wording site-wide, so a
@@ -30,4 +32,6 @@ export const TR: Dictionary = Object.freeze({
   ...auth,
   ...countries,
   ...cv,
+  ...survey,
+  ...flags,
 });

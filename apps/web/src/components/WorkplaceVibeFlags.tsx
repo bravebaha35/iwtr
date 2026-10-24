@@ -6,6 +6,11 @@ import { apiGet } from "@/lib/api-client";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { mapVibeFlags } from "@/utils/flagMapper";
 import { useWorkTypeView, WorkTypeSlide, WorkTypeSwitcher } from "@/components/companies/WorkTypeView";
+import { useI18n } from "@/lib/i18n/client";
+
+// Flags only once this many people reviewed the work type (the API's
+// MIN_REVIEWS_FOR_FLAGS in flags/flag-calculator.service.ts).
+const MIN_REVIEWS_FOR_FLAGS = 3;
 
 // Short names for the five survey categories, in the order the rows show.
 const CATEGORY_ROWS: { key: CategoryKey; label: string }[] = [
@@ -48,6 +53,7 @@ function SplitGlyph() {
 // flag for a warning. The colour sits in the wash and the glyph; the label
 // stays readable body text in both themes.
 function FlagTile({ flag }: { flag: VibeFlag }) {
+  const { t } = useI18n();
   const good = flag.color === "GREEN";
   return (
     <li
@@ -61,22 +67,28 @@ function FlagTile({ flag }: { flag: VibeFlag }) {
         {good ? <CheckGlyph /> : <FlagGlyph />}
       </span>
       <span className="min-w-0 font-medium">
-        <span className="sr-only">{good ? "Good sign: " : "Warning: "}</span>
-        {flag.label}
+        <span className="sr-only">{good ? t("Good sign: ") : t("Warning: ")}</span>
+        {t(flag.label)}
       </span>
     </li>
   );
 }
 
 function MixedSignal({ flag }: { flag: YellowVibeFlag }) {
+  const { t } = useI18n();
+  // A "split opinions" signal is built from its parts so it can be translated.
+  const label = flag.split ? t("Split opinions on {topic}", { topic: t(flag.split.topic) }) : t(flag.label);
+  const explanation = flag.split
+    ? t('Reviewers are divided: about as many describe "{green}" as "{red}".', { green: t(flag.split.green), red: t(flag.split.red) })
+    : t(flag.explanation);
   return (
     <li className="flex gap-3 rounded-xl bg-amber-500/10 px-3 py-2.5 dark:bg-amber-400/10">
       <span className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400">
         <SplitGlyph />
       </span>
       <span className="min-w-0">
-        <span className="block text-[13px] font-semibold text-foreground">{flag.label}</span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{flag.explanation}</span>
+        <span className="block text-[13px] font-semibold text-foreground">{label}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{explanation}</span>
       </span>
     </li>
   );
@@ -99,6 +111,7 @@ function MixedSignal({ flag }: { flag: YellowVibeFlag }) {
  */
 export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
   const { types, active } = useWorkTypeView();
+  const { t, tp } = useI18n();
   const [data, setData] = useState<CompanyVibeFlags | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -116,7 +129,10 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
       .finally(() => setLoading(false));
   }, [companySlug]);
 
-  const section = data?.byWorkplaceType.find((s) => s.workplaceType === active && s.totalReviews > 0) ?? null;
+  const entry = data?.byWorkplaceType.find((s) => s.workplaceType === active) ?? null;
+  const reviewCount = entry?.totalReviews ?? 0;
+  const section = entry && reviewCount >= MIN_REVIEWS_FOR_FLAGS ? entry : null;
+  const typeLabel = t(workplaceTypeLabel(active));
   const { green, yellow, red } = mapVibeFlags(section);
   const allFlags = [...green, ...red];
   const rows = CATEGORY_ROWS.map((row) => ({
@@ -130,13 +146,13 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
       <div className="mb-4 flex flex-col items-start gap-3">
         {types.length > 1 && <WorkTypeSwitcher className="-ml-1" />}
         <h2 className="text-xl text-foreground">
-          Workplace Vibe Flags
-          {types.length === 1 && <span className="font-normal text-muted-foreground"> for {workplaceTypeLabel(active)}</span>}
+          {t("Workplace Vibe Flags")}
+          {types.length === 1 && <span className="font-normal text-muted-foreground">{t(" for {type}", { type: typeLabel })}</span>}
         </h2>
       </div>
 
       {loadFailed ? (
-        <p className="text-sm text-red-600 dark:text-red-300">Couldn&apos;t load workplace flags right now.</p>
+        <p className="text-sm text-red-600 dark:text-red-300">{t("Couldn't load workplace flags right now.")}</p>
       ) : loading ? (
         <div className="flex flex-col gap-2" aria-hidden="true">
           <div className="h-4 w-48 animate-pulse rounded bg-surface-muted" />
@@ -149,11 +165,22 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
         <WorkTypeSlide>
           {section ? (
             <div className="flex flex-col gap-5">
+              {strip.length === 0 ? (
+                <div className="rounded-2xl bg-surface-muted px-5 py-6">
+                  <p className="text-sm font-semibold text-foreground">{t("No clear signals yet")}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("Reviewers don't clearly agree on any area yet, so no flags are shown.")}
+                  </p>
+                </div>
+              ) : (
+              <>
               <div>
                 <p className="text-sm text-muted-foreground">
-                  <span className="font-semibold tabular-nums text-foreground">{green.length}</span> good sign{green.length === 1 ? "" : "s"},{" "}
-                  <span className="font-semibold tabular-nums text-foreground">{red.length}</span> warning{red.length === 1 ? "" : "s"}
-                  <span className="text-muted-foreground"> from {section.totalReviews} {workplaceTypeLabel(active)} review{section.totalReviews === 1 ? "" : "s"}</span>
+                  <span className="font-semibold tabular-nums text-foreground">{green.length}</span> {tp(green.length, "good sign", "good signs")},{" "}
+                  <span className="font-semibold tabular-nums text-foreground">{red.length}</span> {tp(red.length, "warning", "warnings")}{" "}
+                  <span className="text-muted-foreground">
+                    {tp(section.totalReviews, "from {n} {type} review", "from {n} {type} reviews", { type: typeLabel })}
+                  </span>
                 </p>
                 <div className="mt-2.5 flex gap-1" aria-hidden="true">
                   {strip.map((f) => (
@@ -168,7 +195,7 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
               <dl className="flex flex-col gap-3">
                 {rows.map((row) => (
                   <div key={row.key} className="grid grid-cols-1 gap-1.5 sm:grid-cols-[5.5rem_1fr] sm:items-start sm:gap-3">
-                    <dt className="pt-2.5 text-xs font-semibold text-muted-foreground">{row.label}</dt>
+                    <dt className="pt-2.5 text-xs font-semibold text-muted-foreground">{t(row.label)}</dt>
                     <dd>
                       <ul className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
                         {row.flags.map((f) => (
@@ -179,10 +206,12 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
                   </div>
                 ))}
               </dl>
+              </>
+              )}
 
               {yellow.length > 0 && (
                 <div>
-                  <h3 className="mb-2 text-[13px] font-semibold text-foreground">Mixed signals</h3>
+                  <h3 className="mb-2 text-[13px] font-semibold text-foreground">{t("Mixed signals")}</h3>
                   <ul className="flex flex-col gap-2">
                     {yellow.map((f) => (
                       <MixedSignal key={f.id} flag={f} />
@@ -193,10 +222,25 @@ export function WorkplaceVibeFlags({ companySlug }: { companySlug: string }) {
             </div>
           ) : (
             <div className="rounded-2xl bg-surface-muted px-5 py-6">
-              <p className="text-sm font-semibold text-foreground">No {workplaceTypeLabel(active)} reviews yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Flags for this work type appear once someone who worked here in a {workplaceTypeLabel(active)} role publishes a review.
-              </p>
+              {reviewCount === 0 ? (
+                <>
+                  <p className="text-sm font-semibold text-foreground">{t("No {type} reviews yet", { type: typeLabel })}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("Flags for this work type appear once someone who worked here in a {type} role publishes a review.", { type: typeLabel })}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-foreground">{t("Not enough {type} reviews yet", { type: typeLabel })}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("Flags appear once {min} people who worked here in a {type} role have reviewed it ({n} so far).", {
+                      min: MIN_REVIEWS_FOR_FLAGS,
+                      type: typeLabel,
+                      n: reviewCount,
+                    })}
+                  </p>
+                </>
+              )}
             </div>
           )}
         </WorkTypeSlide>

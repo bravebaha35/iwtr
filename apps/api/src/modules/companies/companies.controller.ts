@@ -85,10 +85,9 @@ export class CompaniesController {
     return this.reviews.getSurveyStats(slug);
   }
 
-  // Dual-Opposite Flag Aggregation Engine (CEO-mandated, replaces the old
-  // points-based WorkplaceVibeFlags system) plus the Yellow Flag
-  // contradiction-pair engine. Only ever returns final, already-resolved
-  // flags (GREEN/RED chart labels, Yellow pair labels) — never the
+  // Workplace Vibe Flags v2 (flags/flag-calculator.service.ts): green/red
+  // theme flags plus mixed signals. Only ever returns final, already-resolved
+  // flags — never the
   // agree/disagree counts (see survey-stats above), the per-pair match
   // counts, or any individual employee's answers, which FlagCalculatorService
   // never even receives.
@@ -100,7 +99,7 @@ export class CompaniesController {
         workplaceType: entry.workplaceType,
         totalReviews: entry.totalReviews,
         flags: this.flagCalculator.computeVibeFlags(entry),
-        yellowFlags: this.flagCalculator.computeYellowFlags(entry.workplaceType, entry.totalReviews, entry.yellowPairMatchCounts),
+        yellowFlags: this.flagCalculator.computeYellowFlags(entry.workplaceType, entry.totalReviews, entry.yellowPairMatchCounts, entry.questions),
       })),
     };
   }

@@ -209,6 +209,16 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   polling). Waiting posts per plan: `SOCIAL_SCHEDULED_POST_LIMITS` (Free 0, 3 / 10 / 15). A new way to create a post must go
   through `prepareNewPost` + `publishPrepared`. None of these routes is opened to the company login. Demo numbers:
   `scripts/seed-social-insights-demo.ts`; real history: `scripts/backfill-social-days.ts`.
+- **Survey v2 + Vibe Flags v2 (2026-10-24)**: the owner's revised question set (`reviews/survey-questions.data.ts`;
+  the healthy answers of OFFICE.corporateCulture.1 and OFFICE.leadership.1 are "NO"). Stored reviews were moved once by
+  `scripts/migrate-survey-v2.ts` (3 opposite-meaning questions flipped, all scores recomputed; AuditLog guard). Scoring is
+  unchanged: one point per healthy answer, "prefer not" scores like a wrong one. Flags (`flags/flag-themes.data.ts` +
+  `flag-calculator.service.ts`): 2 themes per category, each GREEN / RED / nothing; none under 3 reviews; greens capped by
+  the work type's score (under 2 none, 2-3 at most one near-unanimous, 3-4 four, 4+ six); questions that are Turkish
+  legal minimums (`legal`) turn a theme red once 40% report them unmet. Mixed signals = contradiction pairs
+  (`yellow-flag-pairs.data.ts`, a third of reviewers) + "split opinions" themes, max 3. Flag text reports what reviewers
+  say, never a legal verdict or a crime (a test enforces this). Changing a question or flag text means changing its Turkish
+  in apps/web (`tr/survey.ts`, `tr/flags.ts`) and the summary prose in `scripts/seed-summary-patterns.ts`.
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
   matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").
@@ -354,8 +364,10 @@ WordTabs, FilterPillGroup, SettingsNav, SidebarPanel, DashboardBox, PremiumLocke
 callers pass English. Plain helpers take a `t: TFn` argument (default `plainT`); dates/numbers use
 `intlLocale(locale)`. **A new visible string must be wrapped in `t()` and added to the matching `tr/` file**, with
 wording from Turkish job sites (Kariyer.net: "iş ilanı", "başvur", informal "sen"). Left in English on purpose until
-the owner translates them: the Questions feature, everything below Rating Breakdown on the company page (Vibe Flags
-text, details, reviews list, claim panel), the survey questions/answers, admin pages and the legal pages. User
+the owner translates them: the Questions feature, everything below Rating Breakdown on the company page except the
+Vibe Flags block (details, reviews list, claim panel), admin pages and the legal pages. The survey questions are Turkish
+since 2026-10-24 (`tr/survey.ts`, the owner's wording, keyed by the English in survey-questions.data.ts), and so are
+the Vibe Flags (`tr/flags.ts`). User
 content and API-built text (captions, company names, narratives) is never translated. Plan names Starter / Pro /
 Enterprise stay English; Free is "Ücretsiz".
 
