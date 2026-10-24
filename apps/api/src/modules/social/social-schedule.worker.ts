@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 import { SocialScheduleService } from "./social-schedule.service";
 import { SocialInsightsService } from "./social-insights.service";
 
@@ -45,7 +46,7 @@ export class SocialScheduleWorker implements OnModuleInit, OnModuleDestroy {
     try {
       await this.schedule.publishDue();
     } catch (err) {
-      this.logger.error("Publishing scheduled posts failed", err as Error);
+      logAndReport(this.logger, "Publishing scheduled posts failed", err);
     }
     try {
       if (Date.now() - this.lastPrune >= PRUNE_INTERVAL_MS) {
@@ -53,7 +54,7 @@ export class SocialScheduleWorker implements OnModuleInit, OnModuleDestroy {
         await this.insights.pruneOldDays();
       }
     } catch (err) {
-      this.logger.error("Clearing old Insights days failed", err as Error);
+      logAndReport(this.logger, "Clearing old Insights days failed", err);
     } finally {
       this.busy = false;
     }

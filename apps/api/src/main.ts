@@ -1,10 +1,12 @@
 import "dotenv/config";
+// Error monitoring first, so it sees everything that follows (no-op without SENTRY_DSN).
+import "./instrument";
 import "reflect-metadata";
 import { join } from "path";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
-import { PrismaExceptionFilter } from "./common/filters/prisma-exception.filter";
+import { ErrorReportingFilter } from "./common/filters/error-reporting.filter";
 import { transportSecurity, trustProxySetting } from "./common/http/transport-security";
 import { isProductionEnv } from "./config/env";
 
@@ -37,7 +39,9 @@ async function bootstrap() {
   // production deploy (see project notes).
   app.useStaticAssets(join(process.cwd(), "uploads"), { prefix: "/uploads/" });
   app.setGlobalPrefix("v1");
-  app.useGlobalFilters(new PrismaExceptionFilter());
+  // Prisma errors become clean answers (PrismaExceptionFilter, called from
+  // inside), and server-side faults are reported to error monitoring.
+  app.useGlobalFilters(new ErrorReportingFilter(app.getHttpAdapter()));
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
   // eslint-disable-next-line no-console

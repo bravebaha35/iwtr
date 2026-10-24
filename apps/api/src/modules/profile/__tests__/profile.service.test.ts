@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException } from "@nestjs/common";
 import { ProfileService } from "../profile.service";
 
 describe("ProfileService.changePassword", () => {

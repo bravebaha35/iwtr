@@ -1,4 +1,5 @@
 import { HttpException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 import { PrismaService } from "../../prisma/prisma.service";
 import { buildSectorBenchmarkPdf } from "./pdf-report.builder";
 import { SectorBenchmarkService } from "./sector-benchmark.service";
@@ -45,7 +46,7 @@ export class BenchmarkReportWorker implements OnModuleInit, OnModuleDestroy {
         // keep draining until the queue is empty
       }
     } catch (err) {
-      this.logger.error("Benchmark report polling failed", err as Error);
+      logAndReport(this.logger, "Benchmark report polling failed", err);
     } finally {
       this.busy = false;
     }
@@ -86,7 +87,7 @@ export class BenchmarkReportWorker implements OnModuleInit, OnModuleDestroy {
       // lock, if data changed after the request); anything else is ours.
       const errorMessage =
         err instanceof HttpException ? err.message : "Something went wrong while building this report. Please try again.";
-      if (!(err instanceof HttpException)) this.logger.error(`Benchmark report ${next.id} failed`, err as Error);
+      if (!(err instanceof HttpException)) logAndReport(this.logger, `Benchmark report ${next.id} failed`, err);
       await this.prisma.benchmarkReportJob.update({
         where: { id: next.id },
         data: { status: "FAILED", errorMessage, completedAt: new Date() },

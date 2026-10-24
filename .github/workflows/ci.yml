@@ -1,0 +1,98 @@
+# Runs on every push and pull request: the same checks we run by hand, so a
+# change that breaks something shows a red X on GitHub before it ships.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch cancels the run still going for an older one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm's version comes from package.json's "packageManager" field.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma client
+        run: pnpm --filter @iwtr/api exec prisma generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  migrations:
+    name: Migrations match the schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iwtr_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iwtr_ci?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/iwtr_ci?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Builds an empty database from prisma/migrations, then compares it with
+      # schema.prisma. Fails when the schema was changed without a migration
+      # file (apps/api: pnpm db:migration <name>), or the other way round.
+      - name: Apply migrations to an empty database
+        working-directory: apps/api
+        run: pnpm exec prisma migrate deploy
+
+      - name: Compare with schema.prisma
+        working-directory: apps/api
+        run: >-
+          pnpm exec prisma migrate diff
+          --from-url "$DIRECT_URL"
+          --to-schema-datamodel prisma/schema.prisma
+          --exit-code

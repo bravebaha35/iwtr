@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ERROR_PRIMARY_BUTTON, ERROR_SECONDARY_BUTTON, ErrorScreen } from "@/components/errors/ErrorScreen";
 import { ERROR_SCREEN_ART } from "@/lib/errorScreens";
+import { reportError } from "@/lib/monitoring";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -17,6 +18,7 @@ export default function PageError({ error, retry }: { error: Error & { digest?: 
     // Shows up in the browser console; the server logs its own side with the
     // same digest.
     console.error(error);
+    reportError(error);
   }, [error]);
 
   return (
@@ -32,6 +34,7 @@ export default function PageError({ error, retry }: { error: Error & { digest?: 
             {t("Try again")}
           </button>
           {/* A plain link, not the client router: a full load starts clean. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- a full page load on purpose after a crash */}
           <a href="/" className={ERROR_SECONDARY_BUTTON}>
             {t("Go to the homepage")}
           </a>

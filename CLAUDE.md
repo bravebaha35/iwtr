@@ -64,7 +64,17 @@ committing: a column rename comes out as drop + add (data loss) and must be edit
 `dbgenerated(...)` defaults must be written exactly the way Postgres prints them back (e.g.
 `date_trunc('day'::text, ...)`), or every diff repeats them.
 
-Tests: jest in `apps/api` and `apps/web` (`pnpm exec jest` in each; ~930 API, ~400 web). No CI config yet.
+Tests: jest in `apps/api` and `apps/web` (`pnpm exec jest` in each; ~940 API, ~410 web). **CI** (`.github/workflows/ci.yml`) runs
+on every push/PR: lint, typecheck, tests, build, and a migrations check (an empty Postgres built from
+`prisma/migrations` must equal `schema.prisma`). Lint must stay at zero errors (warnings are allowed).
+
+**Error monitoring (Sentry, 2026-10-24)**: off until `SENTRY_DSN` (API) / `NEXT_PUBLIC_SENTRY_DSN` (web) is set. Reports carry
+the error only: `dataCollection` all off, `scrubEvent` (api `src/instrument.ts`, web `lib/monitoring.ts`) drops user,
+request headers/body/query and breadcrumbs. Browser reports go through our own `app/api/monitoring` route (forwards
+only to our own project, so Sentry never sees a visitor IP and CSP needs no outside origin); the browser SDK is loaded
+only when a DSN is set. API: `ErrorReportingFilter` is the one global filter (Prisma errors still answered by
+`PrismaExceptionFilter` inside it); only 5xx-type faults are reported. Background jobs use `logAndReport`.
+Never add session replay, tracing or breadcrumbs - reviewer anonymity.
 
 ## Architecture
 
@@ -256,8 +266,11 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   always laid out at A4 width (`CV_PAGE_WIDTH_PX`) and shown scaled by `CvPage`; every PDF (Apply, and My CV > Download
   PDF) comes from `lib/cvPdf.ts`, which stamps the "Made in iworkedthere.com" footer onto the bottom of every page
   (`lib/cvPdfFooter.ts`; no beaver watermark any more). The CV is two sheets: sheet 1 = header, Profile and Skills
-  with the grey side column (Details, Languages, References); sheet 2 (`.cv-sheet-2`, always a new PDF page) = Experience,
-  Certificates, Education full width. "What's on your CV" ticks switch parts off (`getCvHiddenSections`, browser storage
+  with a side column of grey panels, one per section (Details, Languages, References - each kept whole on one PDF page,
+  never one full-height grey strip, which left grey stubs on page 2); skills are a plain two-column list (boxed chips
+  printed unevenly); the profile is split into paragraphs that never break mid-line. Sheet 2 (`.cv-sheet-2`) =
+  Experience, Certificates, Education full width; it starts a new PDF page unless the whole CV fits on one page or
+  sheet 1 already overflows (`shouldFlowSheets` in cvPdf.ts). Turkish: the tab is "Özgeçmişim", the file "<name> Özgeçmiş.pdf". "What's on your CV" ticks switch parts off (`getCvHiddenSections`, browser storage
   like the email/phone choices; ApplyButton reads them too). My Ratings is a tab under My CV now (`MyRatingsPanel`);
   `/me/reviews` redirects there.
 - A job ad (and the Jobs page itself) only shows for a company with an approved owner: `HIRING_COMPANY_WHERE` in
@@ -360,17 +373,23 @@ alone keeps DM Serif Display (`.cv-document`).
   1px border. Chips and secondary buttons are tonal (`bg-surface-muted`), not outlined.
 - **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`), the red/green
   Rating and RS sort states (`SortButtons.tsx`), score-band colours and tier ticks. A featured job card
-  (`.boosted-card`, 2026-10-19 Taste pass; the gold and the green outlines were both rejected) has a thin Wood hairline,
-  a Wood-tinted shadow, a Wood star tab in the banner corner and a slow sheen over the banner. The footer band is
+  (`.boosted-card`; the gold and green outlines and the corner star badge were all rejected) has a solid 1.5px Wood
+  outline, a Wood-tinted shadow and a slow sheen over the banner. The footer band is
   `#0d2b1f`. Rounded corners are squircles (`corner-shape: squircle` in globals.css; `rounded-full` stays round).
+- Logged out (`LoggedOutHeader` in GlobalHeader.tsx): logo, tagline, theme switch, "Log in" (text) and "Register" (Wood),
+  no page links and no hairline, aligned to the intro page column. The tagline everywhere is "Hear it straight from real
+  references !" (TR "Gerçek referanslardan, doğrudan !"). Logging out does a full load of `/`.
+- Quick Select (Firms, Supermarket, ...; `CategoryGroupFilter` in lib/categoryGroups.tsx) is a tab strip on the
+  homepage and Jobs: icon + word, one hairline under the row, the picked one in Wood with a Wood bar. Account Options >
+  Language is two underlined words (English / Türkçe), like the sort words.
 - Header is one 64px line; the current page is marked by a Wood bar (`components/layout/navItem.ts`). The
   notifications bell is a symbol with no label beside the theme switch, with a red counter that clears (and is
   saved as read) the moment its panel is opened. The sort controls (RS / A-Z / Rating) are plain words with a
   coloured bar under the one in use, right next to the search field (`SearchSortBox`); no "Sort" label.
   Sidebar width and gaps are locked by tests (`SidebarShell`); its order is (Jobs: Create !) Work-Type (+ Sector),
   (Jobs: Position dropdown right under Sector, no header of its own), Rating, Risk Score, Location. Location
-  (`CityDistrictPicker`) is country, then one city, then a Districts dropdown whose panel holds that city's districts as
-  side-by-side chips with one "All" button (2026-10-19). On Jobs, Following (one row of logo + name, no boxes, Wood
+  (`CityDistrictPicker`) is country, then one city, then a Districts dropdown (always shown, greyed out until a city is
+  picked) whose panel holds that city's districts as side-by-side chips with one "All" button. On Jobs, Following (one row of logo + name, no boxes, Wood
   underline when picked, arrows and edge fades) and Saved Posts (a bookmark button) sit beside the page title. The sort
   words are underlined: thin at rest, thick in the sort's colour when in use. Every inner scroll area hides its scrollbar (globals.css `body *`); only the page
   keeps one.

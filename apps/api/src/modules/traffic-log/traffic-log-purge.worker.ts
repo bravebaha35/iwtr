@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 import { TrafficLogService } from "./traffic-log.service";
 
 export const PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -34,7 +35,7 @@ export class TrafficLogPurgeWorker implements OnModuleInit, OnModuleDestroy {
     try {
       await this.trafficLog.purgeExpired();
     } catch (err) {
-      this.logger.error("Deleting expired traffic log records failed", err as Error);
+      logAndReport(this.logger, "Deleting expired traffic log records failed", err);
     }
   }
 }

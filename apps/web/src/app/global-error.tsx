@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { ERROR_PRIMARY_BUTTON, ErrorScreen } from "@/components/errors/ErrorScreen";
 import { ERROR_SCREEN_ART } from "@/lib/errorScreens";
+import { reportError } from "@/lib/monitoring";
 import { LOCALE_COOKIE } from "@/lib/i18n/core";
 import "./globals.css";
 
@@ -49,6 +50,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
 
   useEffect(() => {
     console.error(error);
+    reportError(error);
   }, [error]);
 
   const text = TEXT[lang];

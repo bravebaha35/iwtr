@@ -1,4 +1,5 @@
 import { HttpException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 import { PrismaService } from "../../prisma/prisma.service";
 import { POLL_INTERVAL_MS, REPORT_TTL_MS } from "./benchmark-report.worker";
 import { HrAnalyticsReportDataService } from "./hr-analytics-report.data";
@@ -56,7 +57,7 @@ export class HrAnalyticsReportWorker implements OnModuleInit, OnModuleDestroy {
         // keep draining until the queue is empty
       }
     } catch (err) {
-      this.logger.error("HR report polling failed", err as Error);
+      logAndReport(this.logger, "HR report polling failed", err);
     } finally {
       this.busy = false;
     }
@@ -94,7 +95,7 @@ export class HrAnalyticsReportWorker implements OnModuleInit, OnModuleDestroy {
           : err instanceof ReportTimeout
             ? "This report took too long to build. You can try again; you haven't lost a report."
             : "Something went wrong while building this report. You can try again; you haven't lost a report.";
-      if (!(err instanceof HttpException)) this.logger.error(`HR report ${next.id} failed`, err as Error);
+      if (!(err instanceof HttpException)) logAndReport(this.logger, `HR report ${next.id} failed`, err);
       await this.prisma.hrAnalyticsReportJob.update({
         where: { id: next.id },
         data: { status: "FAILED", errorMessage, completedAt: new Date(), quotaMonth: null },

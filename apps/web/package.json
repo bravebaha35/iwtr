@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@iwtr/shared-types": "workspace:*",
+    "@sentry/nextjs": "11.7.0",
     "flag-icons": "^7.5.0",
     "framer-motion": "^13.3.0",
     "html2pdf.js": "^0.14.0",
