@@ -25,6 +25,7 @@ import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 import { ApplyButton } from "@/components/jobs/ApplyButton";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
+import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { RichText } from "@/components/RichText";
 import { useT } from "@/lib/i18n/client";
 
@@ -307,6 +308,11 @@ export function JobCard({
     moreRef.current?.focus();
   }, []);
   const { savedIds, canSave, toggleSave, loading: savedLoading } = useSavedJobPostings();
+  // A card with no posting to save keeps the bookmark too: there it follows
+  // the company, so the member hears the moment it posts a job (the
+  // COMPANY_HIRING notification) and finds it in the Following row.
+  const { followedIds, canFollow, toggleFollow } = useFollowedCompanies();
+  const isFollowed = followedIds.has(company.id);
   const location = [company.district, company.city].filter(Boolean).join(", ");
   // Every job card shows a banner: the owner's own image when their tier
   // includes custom banners and one is set, otherwise the system default.
@@ -546,6 +552,33 @@ export function JobCard({
               className="-my-1 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40"
             >
               <BookmarkIcon className="h-4 w-4" filled={isSaved} />
+            </button>
+          )}
+          {!posting?.id && (
+            <button
+              type="button"
+              onClick={() =>
+                canFollow &&
+                void toggleFollow(company.id, {
+                  companyName: company.name,
+                  companySlug: company.slug,
+                  mainPhotoUrl: company.mainPhotoUrl,
+                  badgeTier: company.badgeTier,
+                })
+              }
+              disabled={!canFollow}
+              title={
+                !canFollow
+                  ? t("Log in to save")
+                  : isFollowed
+                    ? t("Saved. You'll be told when they post a job.")
+                    : t("Save this company to be told when it posts a job")
+              }
+              aria-label={isFollowed ? t("Remove from saved companies") : t("Save this company")}
+              aria-pressed={isFollowed}
+              className="-my-1 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40"
+            >
+              <BookmarkIcon className="h-4 w-4" filled={isFollowed} />
             </button>
           )}
           <RiskScoreBadge

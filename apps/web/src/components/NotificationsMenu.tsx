@@ -221,9 +221,9 @@ function hrefForNotification(n: AppNotification): string {
     // New post from a followed company -> that company's Social tab.
     case "COMPANY_NEW_SOCIAL_POST":
       return n.companySlug ? `/companies/${n.companySlug}?tab=social` : "/social";
-    // Followed company is hiring -> the hiring page.
+    // Followed company is hiring -> that company's Job Postings tab.
     case "COMPANY_HIRING":
-      return "/jobs";
+      return n.companySlug ? `/companies/${n.companySlug}?tab=jobs` : "/jobs";
     case "JOB_POSTING_PUBLISHED":
     case "JOB_POSTING_NEEDS_INFO":
       return "/jobs";

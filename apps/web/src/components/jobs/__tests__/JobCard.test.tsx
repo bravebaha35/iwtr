@@ -7,6 +7,9 @@ jest.mock("@/lib/api-client");
 jest.mock("@/lib/useSavedJobPostings", () => ({
   useSavedJobPostings: () => ({ savedIds: new Set(), canSave: false, toggleSave: jest.fn() }),
 }));
+jest.mock("@/lib/useFollowedCompanies", () => ({
+  useFollowedCompanies: () => ({ followedIds: new Set(), canFollow: false, toggleFollow: jest.fn() }),
+}));
 jest.mock("@/components/jobs/ApplyButton", () => ({ ApplyButton: () => <button type="button">Apply</button> }));
 
 const company = {

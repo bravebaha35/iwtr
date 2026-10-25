@@ -218,7 +218,7 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   legal minimums (`legal`) turn a theme red once 40% report them unmet. Mixed signals = contradiction pairs
   (`yellow-flag-pairs.data.ts`, a third of reviewers) + "split opinions" themes, max 3. Flag text reports what reviewers
   say, never a legal verdict or a crime (a test enforces this). Changing a question or flag text means changing its Turkish
-  in apps/web (`tr/survey.ts`, `tr/flags.ts`) and the summary prose in `scripts/seed-summary-patterns.ts`.
+  in apps/web (`tr/survey.ts`, `tr/flags.ts`) and its two summary phrases in `company-narrative/summary-phrases.data.ts`.
 - `moderation/profanity-lexicon.ts` + `profanity-matcher.ts` — the curated English/Turkish word list and the
   matcher that undoes spaced/dotted/stretched/star/look-alike spellings. Before adding a word, check it isn't an
   everyday word once typed without Turkish letters (e.g. "sik sik" = "sık sık").
@@ -293,6 +293,16 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `scripts/seed-social-multi-photo-demo.ts`.
 - CV photo: cropped as a 28:33 portrait (`AvatarPhotoCropper shape="portrait"`, 672x792, `validateCvPhotoFile` on the API),
   shown on the CV as a background-image with `cover` - html2canvas 1.4.1 has no object-fit, an <img> gets squashed in the PDF.
+- **Company Summary (2026-10-25, replaces the SummaryPattern engine; that table is left unused)**: "Summary" / "Özet" beside the
+  rating illustration. `company-narrative/summary-composer.ts` writes it in English AND Turkish (`descriptionTr`) from the
+  main work type's survey answers once it has 3 published reviews: an opening for the score band, the top praise and top
+  complaint ("X, followed by Y", from different areas), strongest/weakest area, advice for the weakest area; max 600
+  characters each. Every question has a good and a bad noun phrase in `summary-phrases.data.ts` (Turkish always nominative,
+  so no suffixes; no legal verdicts - a test checks). Band = floor of the Rating Breakdown overall (1-4, 4.0+ together);
+  the stored text (`CompanyNarrative.scoreBand`) is kept until the band changes (owner's decision), not on new reviews.
+- Notifications: COMPANY_HIRING opens `/companies/<slug>?tab=jobs`, a new post the company's Social tab; the company page
+  keys `CompanyProfileTabs` on slug+tab so such a link works while already on a company page. A job card with no posting
+  keeps a bookmark that follows the company (hears when it posts a job).
 - The chat dock's panels can be enlarged (button between minimise and close); an enlarged panel counts as two.
 - **Avatars (2026-10-25)**: the owner's beaver art, 4 per work type per gender (`lib/avatars.ts`). `User.gender`
   (MALE/FEMALE, nullable) is chosen at sign-up in PiiForm and then locked (2026-10-25): `updateProfile` refuses a

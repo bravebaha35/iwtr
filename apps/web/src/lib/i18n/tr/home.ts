@@ -106,6 +106,10 @@ const home: Record<string, string> = {
   ", protected under the Turkish Personal Data Protection Law (KVKK, Law No. 6698). Employers see aggregate scores and anonymous comments only, never who wrote them.": "ve 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında korunur. İşverenler yalnızca toplu puanları ve anonim yorumları görür, kimin yazdığını asla göremez.",
   "Register for free": "Ücretsiz üye ol",
   "Loading": "Yükleniyor",
+  "Saved. You'll be told when they post a job.": "Kaydedildi. İş ilanı yayınladığında haber vereceğiz.",
+  "Save this company to be told when it posts a job": "İş ilanı yayınladığında haber almak için bu şirketi kaydet",
+  "Remove from saved companies": "Kaydedilen şirketlerden çıkar",
+  "Save this company": "Bu şirketi kaydet",
 };
 
 export default home;

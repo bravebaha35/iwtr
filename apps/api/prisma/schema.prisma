@@ -1063,6 +1063,10 @@ model CompanyNarrative {
   company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   workplaceType    WorkplaceType
   description      String // Postgres text; <=600 chars enforced in app code
+  // The same summary in Turkish (summary-composer.ts writes both).
+  descriptionTr    String?
+  // The score band (1-4) it was written for; rewritten when the band changes.
+  scoreBand        Int?
   reviewCountAtGen Int
   model            String // e.g. "claude-haiku-4-5" (= NARRATIVE_MODEL) — mismatch forces regen
   promptVersion    Int // bumped in-repo when the prompt changes materially

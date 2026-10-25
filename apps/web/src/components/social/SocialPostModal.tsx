@@ -160,16 +160,18 @@ export function SocialPostModal({
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 420, damping: 34 }}
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full flex-col overflow-hidden bg-surface shadow-2xl outline-none md:h-[min(88vh,820px)] md:w-auto md:max-w-[min(1240px,94vw)] md:flex-row md:rounded-2xl"
+        // The whole view is sized as photo side + the 380px panel, then capped
+        // to the screen; the photo side gives way first, the panel never does.
+        style={{ "--dialog-w": `min(calc(min(88vh, 820px) * ${stageRatio} + 380px), 94vw)` } as React.CSSProperties}
+        className="flex h-full w-full flex-col overflow-hidden bg-surface shadow-2xl outline-none md:h-[min(88vh,820px)] md:w-[var(--dialog-w)] md:flex-row md:rounded-2xl"
       >
         <div
-          className="relative h-[52vh] w-full shrink-0 bg-neutral-950 md:h-full md:w-[var(--stage-w)] md:max-w-[62vw]"
-          style={{ "--stage-w": `calc(min(88vh, 820px) * ${stageRatio})` } as React.CSSProperties}
+          className="relative h-[52vh] w-full shrink-0 bg-neutral-950 md:h-full md:w-auto md:min-w-0 md:flex-1"
         >
           <PhotoSlider imageUrls={post.imageUrls} alt={alt} index={index} onIndexChange={onIndexChange} variant="stage" />
         </div>
 
-        <div className="flex min-h-0 w-full flex-1 flex-col md:w-[380px] md:flex-none">
+        <div className="flex min-h-0 w-full flex-1 flex-col md:w-[380px] md:flex-none md:shrink-0">
           <header className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
             <Link href={`/companies/${post.companySlug}?tab=social`} className="flex min-w-0 items-center gap-3">
               <CompanyLogo name={post.companyName} mainPhotoUrl={post.companyLogoUrl} size="sm" />

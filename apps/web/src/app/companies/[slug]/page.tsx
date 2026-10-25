@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { isOwnStaticAsset } from "@/lib/imageSource";
-import type { Company, CompanyDetail, CompanyNarrative } from "@iwtr/shared-types";
+import type { CompanyDetail, CompanyNarrative } from "@iwtr/shared-types";
 import { scoreBandLabel } from "@iwtr/shared-types";
 import { apiGetPublic, ApiError } from "@/lib/api-client";
 import { ReviewsList } from "@/components/ReviewsList";
@@ -17,7 +17,7 @@ import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { RatingIllustration } from "@/components/companies/RatingIllustration";
 import { WorkTypeViewProvider } from "@/components/companies/WorkTypeView";
 import { getTranslator } from "@/lib/i18n/server";
-import type { TFn } from "@/lib/i18n/core";
+import type { Locale, TFn } from "@/lib/i18n/core";
 import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
@@ -39,7 +39,19 @@ const CATEGORIES = [
 // empty fixed-size slot (reserved for future design). It has a fixed `lg:`
 // height (set below) so 600 chars of text and the empty state render at the
 // same size.
-function RatingNarrativeBox({ score, narrative, t }: { score: number | null; narrative: CompanyNarrative | null; t: TFn }) {
+function RatingNarrativeBox({
+  score,
+  narrative,
+  t,
+  locale,
+}: {
+  score: number | null;
+  narrative: CompanyNarrative | null;
+  t: TFn;
+  locale: Locale;
+}) {
+  // The API writes the Summary in both languages (summary-composer.ts).
+  const summary = narrative ? (locale === "tr" ? (narrative.descriptionTr ?? narrative.description) : narrative.description) : null;
   const waitingLine =
     narrative && narrative.description === null && narrative.reviewCount >= 1 && narrative.reviewCount <= 2
       ? t(
@@ -58,11 +70,16 @@ function RatingNarrativeBox({ score, narrative, t }: { score: number | null; nar
     <div className="flex flex-col items-center gap-6 font-sans sm:flex-row sm:items-center xl:min-h-[360px] xl:min-w-0 xl:max-w-2xl">
       {/* Drawn for the work type picked in WorkTypeViewProvider (below). */}
       <RatingIllustration score={score} />
-      {narrative?.description ? (
-        <p className="text-center text-[15px] leading-relaxed text-foreground sm:text-left">{narrative.description}</p>
-      ) : waitingLine ? (
-        <p className="text-center text-sm text-muted-foreground sm:text-left">{waitingLine}</p>
-      ) : null}
+      {(summary || waitingLine) && (
+        <div className="min-w-0 text-center sm:text-left">
+          <h2 className="mb-3 text-xl text-foreground">{t("Summary")}</h2>
+          {summary ? (
+            <p className="text-[15px] leading-relaxed text-foreground">{summary}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">{waitingLine}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -105,7 +122,7 @@ export default async function CompanyPage({
 }) {
   const { slug } = await params;
   const { tab, review } = await searchParams;
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
   const initialTab = Array.isArray(tab) ? tab[0] : tab;
   // From a notification link: the review to scroll to and pulse.
   const highlightReviewId = Array.isArray(review) ? review[0] : review;
@@ -212,6 +229,10 @@ export default async function CompanyPage({
             their tab is opened. The global "IWT Social" / "Jobs" links in
             GlobalHeader are a different thing and are left alone. */}
         <CompanyProfileTabs
+          // A new key per company and tab: a link to another tab (a
+          // notification, opened while already on a company page) or to
+          // another company starts on that tab instead of keeping the old one.
+          key={`${slug}:${initialTab ?? "ratings"}`}
           slug={slug}
           initialTab={initialTab}
           company={company}
@@ -235,6 +256,7 @@ export default async function CompanyPage({
                   score={aggregate && aggregate.reviewCount > 0 ? aggregate.overallAvg : null}
                   narrative={narrative}
                   t={t}
+                  locale={locale}
                 />
 
                 <div className="min-w-0 flex-1 font-sans xl:border-l xl:border-border xl:pl-12">

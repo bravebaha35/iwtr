@@ -352,18 +352,18 @@ export function scoreBandLabel(avg: number): string {
   return band?.label ?? "Unsatisfactory";
 }
 
-// GET /companies/:slug/narrative — the company page's rating-narrative box.
-// `description` is: a 450-600 char summary assembled from pre-authored
-// SummaryPattern rows (see PatternGeneratorService) when the primary
-// work-type has 3+ published reviews; a plain numbers-only sentence when 3+
-// reviews but no pattern content is authored yet for that workplaceType;
-// null when under 3 reviews (the box then shows a short "summary appears at
-// 3 reviews" line built from reviewCount). See
-// apps/api/src/modules/company-narrative.
+// GET /companies/:slug/narrative — the company page's Summary. `description`
+// (English) and `descriptionTr` (Turkish) are written by the API's
+// summary-composer.ts from the main work type's survey answers once it has 3+
+// published reviews (null below that; the page then shows a "summary appears
+// at 3 reviews" line built from reviewCount). At most 600 characters each. A
+// summary is kept until the company's overall score moves into another band
+// (under 2 / 2.x / 3.x / 4+). See apps/api/src/modules/company-narrative.
 export const companyNarrativeSchema = z.object({
   workplaceType: workplaceTypeSchema,
   reviewCount: z.number().int().min(0),
   description: z.string().max(600).nullable(),
+  descriptionTr: z.string().max(600).nullable(),
 });
 export type CompanyNarrative = z.infer<typeof companyNarrativeSchema>;
 

@@ -4,13 +4,12 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { assertCompanyVisibleOrThrow } from "../companies/company-visibility";
 import { getQuestionsFor } from "../reviews/survey-questions.data";
 import { tallyQuestions } from "../reviews/survey-tally.util";
-import { FlagCalculatorService } from "../flags/flag-calculator.service";
-import { PatternGeneratorService, type PatternRow } from "./pattern-generator.service";
-import { PATTERN_ENGINE_VERSION, PROMPT_VERSION, buildNumbersLine } from "./numbers-line";
+import { SUMMARY_ENGINE_VERSION, composeSummary, scoreBandFor } from "./summary-composer";
 
-export const MIN_REVIEWS_FOR_AI = 3;
-export const STALE_AFTER_DAYS = 30;
-export const STALE_REVIEW_DELTA = 3;
+export const MIN_REVIEWS_FOR_SUMMARY = 3;
+// Kept for the CompanyNarrative.promptVersion column; bump to rewrite every
+// stored summary after a wording change in summary-phrases.data.ts.
+export const SUMMARY_TEXT_VERSION = 1;
 
 type ReviewScoreRow = {
   surveyAnswers: unknown;
@@ -21,13 +20,21 @@ type ReviewScoreRow = {
   stabilityScore: number;
 };
 
+/**
+ * The company page's Summary (2026-10-25). Built by composeSummary from the
+ * survey answers of the company's main work type, in English and Turkish,
+ * once it has 3 published reviews of that type.
+ *
+ * It is written for the company's score band (the Rating Breakdown's
+ * overall average: under 2, 2.x, 3.x, 4+) and then kept as it is: new
+ * reviews do not change it until the average crosses into another band
+ * (3.7 -> 4.0), which is when it is written again. The owner's decision, so
+ * the summary reads as a settled verdict rather than shifting with every
+ * review.
+ */
 @Injectable()
 export class CompanyNarrativeService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly flagCalculator: FlagCalculatorService,
-    private readonly patternGenerator: PatternGeneratorService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async getNarrative(slug: string): Promise<CompanyNarrative> {
     const company = await this.prisma.company.findUnique({
@@ -38,101 +45,86 @@ export class CompanyNarrativeService {
     assertCompanyVisibleOrThrow(company);
 
     const workplaceType = company.workplaceTypes[0] as WorkplaceType;
+    const empty = { workplaceType, reviewCount: 0, description: null, descriptionTr: null };
 
     const reviewCount = await this.prisma.review.count({
       where: { companyId: company.id, status: "PUBLISHED", workplaceType },
     });
-    if (reviewCount < MIN_REVIEWS_FOR_AI) {
-      return { workplaceType, reviewCount, description: null };
-    }
+    if (reviewCount < MIN_REVIEWS_FOR_SUMMARY) return { ...empty, reviewCount };
 
-    const stored = await this.prisma.companyNarrative.findUnique({
-      where: { companyId_workplaceType: { companyId: company.id, workplaceType } },
-    });
-
-    if (stored && !this.isStale(stored, reviewCount)) {
-      return { workplaceType, reviewCount, description: stored.description };
-    }
-
-    // Only now — past the fresh-row and N<3 early returns — load every
-    // published review row. Each one carries a surveyAnswers JSON blob, so
-    // this is the expensive query the two returns above deliberately skip.
-    const reviews = (await this.prisma.review.findMany({
-      where: { companyId: company.id, status: "PUBLISHED", workplaceType },
-      select: {
-        surveyAnswers: true,
-        corporateCultureScore: true,
-        leadershipScore: true,
-        infrastructureScore: true,
-        workLifeBalanceScore: true,
-        stabilityScore: true,
-      },
-    })) as ReviewScoreRow[];
-
-    const questions = tallyQuestions(reviews.map((r) => ({ surveyAnswers: r.surveyAnswers })), getQuestionsFor(workplaceType));
-    const flags = this.flagCalculator.computeVibeFlags({ workplaceType, totalReviews: reviewCount, questions });
-    const patterns = await this.loadPatterns(workplaceType);
-
-    const assembled = this.patternGenerator.generate({ workplaceType, questions, flags, patterns });
-
-    if (assembled) {
-      await this.prisma.companyNarrative.upsert({
+    const [aggregate, stored] = await Promise.all([
+      this.prisma.companyAggregateScore.findUnique({ where: { companyId: company.id }, select: { overallAvg: true } }),
+      this.prisma.companyNarrative.findUnique({
         where: { companyId_workplaceType: { companyId: company.id, workplaceType } },
-        create: {
-          companyId: company.id,
-          workplaceType,
-          description: assembled,
-          reviewCountAtGen: reviewCount,
-          model: PATTERN_ENGINE_VERSION,
-          promptVersion: PROMPT_VERSION,
+      }),
+    ]);
+
+    // Only now load the published reviews (each carries its survey answers):
+    // a summary still valid for the current band skips this entirely, unless
+    // there is no aggregate row to read the band from.
+    let reviews: ReviewScoreRow[] | null = null;
+    const loadReviews = async () =>
+      (reviews ??= (await this.prisma.review.findMany({
+        where: { companyId: company.id, status: "PUBLISHED", workplaceType },
+        select: {
+          surveyAnswers: true,
+          corporateCultureScore: true,
+          leadershipScore: true,
+          infrastructureScore: true,
+          workLifeBalanceScore: true,
+          stabilityScore: true,
         },
-        update: {
-          description: assembled,
-          reviewCountAtGen: reviewCount,
-          model: PATTERN_ENGINE_VERSION,
-          promptVersion: PROMPT_VERSION,
-          generatedAt: new Date(),
-        },
-      });
-      return { workplaceType, reviewCount, description: assembled };
+      })) as ReviewScoreRow[]);
+
+    const overall = aggregate?.overallAvg ?? overallOf(categoryAverages(await loadReviews()));
+    const band = scoreBandFor(overall);
+
+    if (
+      stored &&
+      stored.model === SUMMARY_ENGINE_VERSION &&
+      stored.promptVersion === SUMMARY_TEXT_VERSION &&
+      stored.scoreBand === band &&
+      stored.descriptionTr
+    ) {
+      return { workplaceType, reviewCount, description: stored.description, descriptionTr: stored.descriptionTr };
     }
 
-    // No SummaryPattern content authored yet for this workplaceType — content
-    // gap, not an error. Serve whatever's cached, else the plain numbers line.
-    if (stored) {
-      return { workplaceType, reviewCount, description: stored.description };
-    }
-    const categories = this.categoryAverages(reviews);
-    const overall =
-      (categories.corporateCulture + categories.leadership + categories.infrastructure + categories.workLifeBalance + categories.stability) / 5;
-    return { workplaceType, reviewCount, description: buildNumbersLine({ workplaceType, overall, categories, reviewCount }) };
-  }
+    const rows = await loadReviews();
+    const questions = tallyQuestions(
+      rows.map((r) => ({ surveyAnswers: r.surveyAnswers })),
+      getQuestionsFor(workplaceType),
+    );
+    const summary = composeSummary({ workplaceType, band, questions, categoryAverages: categoryAverages(rows) });
 
-  private async loadPatterns(workplaceType: WorkplaceType): Promise<PatternRow[]> {
-    const rows = await this.prisma.summaryPattern.findMany({ where: { workplaceType } });
-    return rows.map((r) => ({ id: r.id, category: r.category, qnaKey: r.qnaKey, flagKey: r.flagKey, textBlock: r.textBlock }));
-  }
-
-  private categoryAverages(reviews: ReviewScoreRow[]): Record<CategoryKey, number> {
-    const n = reviews.length;
-    const sum = (pick: (r: ReviewScoreRow) => number) => reviews.reduce((acc, r) => acc + pick(r), 0);
-    return {
-      corporateCulture: sum((r) => r.corporateCultureScore) / n,
-      leadership: sum((r) => r.leadershipScore) / n,
-      infrastructure: sum((r) => r.infrastructureScore) / n,
-      workLifeBalance: sum((r) => r.workLifeBalanceScore) / n,
-      stability: sum((r) => r.stabilityScore) / n,
+    const data = {
+      description: summary.en,
+      descriptionTr: summary.tr,
+      scoreBand: band,
+      reviewCountAtGen: reviewCount,
+      model: SUMMARY_ENGINE_VERSION,
+      promptVersion: SUMMARY_TEXT_VERSION,
     };
+    await this.prisma.companyNarrative.upsert({
+      where: { companyId_workplaceType: { companyId: company.id, workplaceType } },
+      create: { companyId: company.id, workplaceType, ...data },
+      update: { ...data, generatedAt: new Date() },
+    });
+    return { workplaceType, reviewCount, description: summary.en, descriptionTr: summary.tr };
   }
+}
 
-  private isStale(
-    row: { reviewCountAtGen: number; model: string; promptVersion: number; generatedAt: Date },
-    currentReviewCount: number,
-  ): boolean {
-    if (row.model !== PATTERN_ENGINE_VERSION) return true;
-    if (row.promptVersion !== PROMPT_VERSION) return true;
-    if (currentReviewCount - row.reviewCountAtGen >= STALE_REVIEW_DELTA) return true;
-    const ageDays = (Date.now() - row.generatedAt.getTime()) / (1000 * 60 * 60 * 24);
-    return ageDays > STALE_AFTER_DAYS;
-  }
+function categoryAverages(reviews: ReviewScoreRow[]): Record<CategoryKey, number> {
+  const n = Math.max(1, reviews.length);
+  const avg = (pick: (r: ReviewScoreRow) => number) => reviews.reduce((acc, r) => acc + pick(r), 0) / n;
+  return {
+    corporateCulture: avg((r) => r.corporateCultureScore),
+    leadership: avg((r) => r.leadershipScore),
+    infrastructure: avg((r) => r.infrastructureScore),
+    workLifeBalance: avg((r) => r.workLifeBalanceScore),
+    stability: avg((r) => r.stabilityScore),
+  };
+}
+
+function overallOf(c: Record<CategoryKey, number>): number {
+  return (c.corporateCulture + c.leadership + c.infrastructure + c.workLifeBalance + c.stability) / 5;
 }

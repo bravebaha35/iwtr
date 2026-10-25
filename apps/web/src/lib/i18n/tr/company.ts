@@ -81,6 +81,7 @@ const company: Record<string, string> = {
   "Contact": "İletişim",
   "No information provided yet.": "Henüz bilgi eklenmemiş.",
   "Not provided yet.": "Henüz eklenmemiş.",
+  "Summary": "Özet",
 };
 
 export default company;
