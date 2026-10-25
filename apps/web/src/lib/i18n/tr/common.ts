@@ -73,8 +73,6 @@ const common: Record<string, string> = {
   "Female": "Kadın",
   "Gender": "Cinsiyet",
   "Please choose your gender.": "Lütfen cinsiyetini seç.",
-  "Decides which avatars you can pick.": "Hangi avatarları seçebileceğini belirler.",
-  "Decides which avatars you can pick. Changing it switches your avatar to the same one for that gender.": "Hangi avatarları seçebileceğini belirler. Değiştirirsen avatarın, o cinsiyetteki aynı avatarla değişir.",
   "Avatar gender": "Avatar cinsiyeti",
   "Work type of the avatar": "Avatarın çalışma türü",
   "Work type of the username": "Kullanıcı adının çalışma türü",
@@ -200,6 +198,11 @@ const common: Record<string, string> = {
     "Sorun bizde, sende değil. Tekrar dene; yine olursa birkaç dakika sonra geri gel.",
   "Try again": "Tekrar dene",
   "Go to the homepage": "Ana sayfaya git",
+  "Decides which avatars you can pick. It can't be changed later.": "Hangi avatarları seçebileceğini belirler. Sonradan değiştirilemez.",
+  "You can only choose your gender while signing up. If it needs correcting, email us at": "Cinsiyetini yalnızca üye olurken seçebilirsin. Düzeltilmesi gerekiyorsa bize şu adresten e-posta gönder:",
+  "Save your gender? It can't be changed afterwards.": "Cinsiyetin kaydedilsin mi? Sonradan değiştirilemez.",
+  "Choose your gender once. After that it can only be changed by emailing us.": "Cinsiyetini bir kez seç. Sonrasında yalnızca bize e-posta göndererek değiştirilebilir.",
+  "Locked": "Kilitli",
 };
 
 export default common;

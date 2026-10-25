@@ -517,10 +517,9 @@ export function JobCard({
 
       {/* Card footer, below the main content box. Work-type text on the
           left; the save button and the Risk Score right-aligned in the same
-          row (not stacked) — "-" whenever this card has no real, appliable
-          posting behind it (the auto-classified fallback and the "no open
-          roles" empty state both count as no real posting; see
-          RiskScoreBadge). */}
+          row (not stacked). With no real, appliable posting behind the card
+          (the auto-classified fallback, the "no open roles" empty state) there
+          is no Risk Score at all, so the save button sits at the far right. */}
       <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-2.5 compact:px-2 compact:py-1.5">
         <p className="min-w-0 truncate text-xs text-muted-foreground">
           <span className="font-bold">{t(workplaceTypeLabel(cardWorkType))}</span>

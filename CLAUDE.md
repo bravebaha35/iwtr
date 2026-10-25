@@ -286,10 +286,18 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - A job ad (and the Jobs page itself) only shows for a company with an approved owner: `HIRING_COMPANY_WHERE` in
   `companies/company-visibility.ts`. A new public JobPosting read must use it. Demo seeds once wrote ads onto unclaimed
   companies; those stay hidden.
+- IWT Social photos (2026-10-25): `PhotoSlider` (one sliding strip, see-through arrows, dots; the first photo sets the card's
+  frame, max 4:5; the next photo is fetched only once someone is on the strip) and `SocialPostModal` (click a photo:
+  photos left, company / caption / comments / reactions / comment box right, `SocialComments panel`; stacked on phones;
+  report pop-up sits above it at z-[120]). Posts take up to 10 photos (`MAX_SOCIAL_POST_IMAGES`); local demo:
+  `scripts/seed-social-multi-photo-demo.ts`.
+- CV photo: cropped as a 28:33 portrait (`AvatarPhotoCropper shape="portrait"`, 672x792, `validateCvPhotoFile` on the API),
+  shown on the CV as a background-image with `cover` - html2canvas 1.4.1 has no object-fit, an <img> gets squashed in the PDF.
 - The chat dock's panels can be enlarged (button between minimise and close); an enlarged panel counts as two.
 - **Avatars (2026-10-25)**: the owner's beaver art, 4 per work type per gender (`lib/avatars.ts`). `User.gender`
-  (MALE/FEMALE, nullable) is chosen at sign-up in PiiForm and changed under Edit Profile > Personal Information (the
-  server then moves the avatar to the same beaver of that gender, `avatarKeyForGender`); AvatarEditor shows only that
+  (MALE/FEMALE, nullable) is chosen at sign-up in PiiForm and then locked (2026-10-25): `updateProfile` refuses a
+  change (`GENDER_LOCKED_MESSAGE`, "email us") and a beaver of the other gender (`avatarKeyGender`). An account made before
+  sign-up asked may set it once under Personal Information (the avatar moves along, `avatarKeyForGender`); AvatarEditor shows only that
   gender's beavers, with four collar-coloured work-type dots. Keys keep the work-type prefix the API reads: male
   `office_1` (the old keys), female `office_f1`; accounts without a gender fall back to their key (`effectiveGender`).
   A randomized review/comment/answer shows the "secret" beaver of its author's gender (`randomizedIdentityAvatarKey`:
@@ -303,8 +311,9 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - Notifications panel (`NotificationsMenu`): one line icon per kind on a soft tone tile (`KIND_LOOK`), time on the
   right, Wood dot for unread, "Today" / "Earlier" groups. A job card's flags pop-up links to the company page's
   `#vibe-flags` block with the count of mixed signals.
-- Job cards name the Risk Score in one word (`RISK_SCORE_WORDS`): 0 Sensible. / 1 Okay. / 2 Meh. / 3 Caution! (TR Mantıklı.
-  / Olur. / Eh. / Dikkat!), same colours. The company page keeps "Risk Score: n/3".
+- Job cards name the Risk Score in one word (`RISK_SCORE_WORDS`): 0 Reasonable. / 1 Okay. / 2 Meh. / 3 Caution! (TR Mantıklı.
+  / Olur. / Eh. / Dikkat!), same colours. A card with no score (no real posting) shows nothing, the save button takes its
+  place; the company page keeps "Risk Score: n/3" / "-". In Turkish "IWT Social" is "IWT Sosyal" (`t("IWT Social")`).
 - Edit Profile and the owner Dashboard share one side menu (`SettingsNav`): plain text rows on a hairline rail, the picked
   row marked by a sliding Wood bar; a tab row with an underline on phones. No filled pill buttons.
 
@@ -385,7 +394,8 @@ callers pass English. Plain helpers take a `t: TFn` argument (default `plainT`);
 `intlLocale(locale)`. **A new visible string must be wrapped in `t()` and added to the matching `tr/` file**, with
 wording from Turkish job sites (Kariyer.net: "iş ilanı", "başvur", informal "sen"). Left in English on purpose until
 the owner translates them: the Questions feature, everything below Rating Breakdown on the company page except the
-Vibe Flags block (details, reviews list, claim panel), admin pages and the legal pages. The survey questions are Turkish
+Vibe Flags block and Company Details (`components/companies/CompanyDetails.tsx`, label/value rows on hairlines with a
+hairline between it and the flags) - i.e. the reviews list and claim panel, admin pages and the legal pages. The survey questions are Turkish
 since 2026-10-24 (`tr/survey.ts`, the owner's wording, keyed by the English in survey-questions.data.ts; formal "siz", unlike the rest of the site), and so are
 the Vibe Flags (`tr/flags.ts`). User
 content and API-built text (captions, company names, narratives) is never translated. Plan names Starter / Pro /

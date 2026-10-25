@@ -34,7 +34,7 @@ const home: Record<string, string> = {
   "This company has reposted an identical role twice after marking prior postings as filled.": "Bu şirket, önceki ilanları doldu olarak işaretledikten sonra aynı pozisyonu iki kez yeniden yayınladı.",
   "Maximum Risk Score — this company has repeatedly reposted identical roles after marking them filled.": "En yüksek Risk Puanı: bu şirket doldu olarak işaretlediği aynı pozisyonları defalarca yeniden yayınladı.",
   "This company hasn't posted a job opening yet, so there's no repost history to show.": "Bu şirket henüz iş ilanı yayınlamadı, bu yüzden gösterilecek bir yeniden ilan geçmişi yok.",
-  "Sensible.": "Mantıklı.",
+  "Reasonable.": "Mantıklı.",
   "Okay.": "Olur.",
   "Meh.": "Eh.",
   "Caution!": "Dikkat!",

@@ -109,8 +109,8 @@ describe("SocialFeed without waits", () => {
     await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2));
     const photos = screen.getAllByRole("img").filter((img) => img.getAttribute("src")?.startsWith("/u/"));
     expect(photos.map((img) => img.getAttribute("loading"))).toEqual(["eager", "lazy"]);
-    // the photo's own proportions hold its place before it arrives
-    expect(photos[0].style.aspectRatio).toBe("1.5");
+    // the first photo's own proportions hold the slider's place before it arrives
+    expect((photos[0].closest("[style*=aspect-ratio]") as HTMLElement).style.aspectRatio).toBe("1.5");
   });
 
   it("reads the list again when a post has just been published, without a page reload", async () => {

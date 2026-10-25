@@ -282,7 +282,7 @@ export function SocialInsightsPanel({
             <p className="mt-6 border-t border-border pt-6 text-sm text-muted-foreground">
               {t("Nothing to show yet. Once you post on")}{" "}
               <Link href="/social" className="font-semibold text-brand-600 hover:underline dark:text-brand-400">
-                IWT Social
+                {t("IWT Social")}
               </Link>{" "}
               {t("and people see it, the numbers appear here.")}
             </p>

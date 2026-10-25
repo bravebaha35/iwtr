@@ -76,6 +76,11 @@ const company: Record<string, string> = {
   "Company car": "Şirket aracı",
   "Gym membership": "Spor salonu üyeliği",
   "Phone / phone allowance": "Telefon / telefon desteği",
+  "Company Details": "Şirket Bilgileri",
+  "About": "Hakkında",
+  "Contact": "İletişim",
+  "No information provided yet.": "Henüz bilgi eklenmemiş.",
+  "Not provided yet.": "Henüz eklenmemiş.",
 };
 
 export default company;

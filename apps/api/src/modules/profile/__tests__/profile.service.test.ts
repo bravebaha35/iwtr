@@ -164,6 +164,37 @@ describe("ProfileService.updateProfile - company owners", () => {
   });
 });
 
+describe("ProfileService.updateProfile - gender is chosen once", () => {
+  function setup(gender: "MALE" | "FEMALE" | null) {
+    const prisma = {
+      user: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "u1", status: "ACTIVE", role: "MEMBER", gender, avatarKey: "office_2" }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    return { prisma, service: new ProfileService(prisma as any, {} as any, {} as any, {} as any) };
+  }
+
+  it("refuses to change a gender that is already set", async () => {
+    const { prisma, service } = setup("MALE");
+    await expect(service.updateProfile("u1", { gender: "FEMALE" })).rejects.toThrow("iworkedthere@hotmail.com");
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("lets an older account without a gender set it once, moving the avatar along", async () => {
+    const { prisma, service } = setup(null);
+    await service.updateProfile("u1", { gender: "FEMALE" });
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "u1" }, data: { gender: "FEMALE", avatarKey: "office_f2" } });
+  });
+
+  it("refuses a beaver of the other gender", async () => {
+    const { prisma, service } = setup("MALE");
+    await expect(service.updateProfile("u1", { avatarKey: "office_f1" })).rejects.toThrow("isn't available");
+    await service.updateProfile("u1", { avatarKey: "remote_3" });
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "u1" }, data: { avatarKey: "remote_3" } });
+  });
+});
+
 describe("CV profile fields", () => {
   const userId = "u1";
 

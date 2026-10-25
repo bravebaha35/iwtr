@@ -12,7 +12,9 @@ import { usePostSeen } from "@/lib/socialViews";
 import { WorkTypeLabel } from "@/components/WorkTypeLabel";
 import { shortRelativeTime } from "./socialTime";
 import { SocialComments } from "./SocialComments";
-import { ImageLightbox } from "./ImageLightbox";
+import { PhotoSlider } from "./PhotoSlider";
+import { SocialPostModal } from "./SocialPostModal";
+import { BookmarkIcon, CommentIcon, LinkIcon } from "./socialIcons";
 import { ReactionButton } from "./ReactionButton";
 import { SocialPostBody } from "./SocialPostBody";
 import { useI18n, useT } from "@/lib/i18n/client";
@@ -21,36 +23,10 @@ import { intlLocale } from "@/lib/i18n/core";
 const CAPTION_MAX = 1000;
 
 // The tallest a photo is shown in the feed (4:5, the usual portrait cap):
-// anything taller is cropped to it, and opens in full in the lightbox.
+// anything taller is cropped to it, and opens in full in the photo view.
+// The first photo sets the frame for all of a post's photos, like Instagram.
 const MIN_ASPECT_RATIO = 0.8;
 
-// Universally-recognized social glyphs instead of text buttons -
-// speech-bubble/link/bookmark, filled once active. No save *count* is
-// shown next to the bookmark: PublicSocialPost has no such field (SavedPost
-// is a private per-user preference on the API side, never a public tally -
-// see REVIEW.md).
-function CommentIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 4h16v11H8l-4 4Z" />
-    </svg>
-  );
-}
-function BookmarkIcon({ className, filled }: { className?: string; filled: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4-7 4V4.5a1 1 0 0 1 1-1Z" />
-    </svg>
-  );
-}
-function LinkIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
-      <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
-    </svg>
-  );
-}
 function PinIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -59,107 +35,6 @@ function PinIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-function ChevronIcon({ className, direction }: { className?: string; direction: "left" | "right" }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={direction === "left" ? "M15 5 8 12l7 7" : "M9 5l7 7-7 7"} />
-    </svg>
-  );
-}
-
-// Minimum horizontal drag distance (px) before a touch gesture counts as a
-// swipe rather than a tap - low enough to feel responsive, high enough that
-// a slightly wobbly tap on the image itself doesn't flip pages.
-const SWIPE_THRESHOLD_PX = 40;
-
-// Instagram-style photo carousel - a left/right arrow on each side, both
-// vertically centered on the image, plus a touch-swipe gesture. Arrows only
-// render once there's more than one photo; a single-photo post is just a
-// plain image. Flush with the card's edges: the card supplies the corners.
-// Each photo's own proportions hold its space before it has loaded, so the
-// feed never jumps; photos below the first card load as they come near.
-function PostImageCarousel({
-  imageUrls,
-  aspectRatios,
-  alt,
-  priority,
-}: {
-  imageUrls: string[];
-  aspectRatios: number[];
-  alt: string;
-  priority: boolean;
-}) {
-  const [index, setIndex] = useState(0);
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const t = useT();
-  const many = imageUrls.length > 1;
-
-  function go(delta: number) {
-    setIndex((i) => Math.min(imageUrls.length - 1, Math.max(0, i + delta)));
-  }
-
-  return (
-    <div
-      className="relative"
-      onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
-      onTouchEnd={(e) => {
-        if (touchStartX === null) return;
-        const delta = e.changedTouches[0].clientX - touchStartX;
-        if (Math.abs(delta) >= SWIPE_THRESHOLD_PX) go(delta < 0 ? 1 : -1);
-        setTouchStartX(null);
-      }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element -- server-produced WebP under our own /uploads */}
-      <img
-        src={imageUrls[index]}
-        alt={alt}
-        loading={priority ? "eager" : "lazy"}
-        decoding="async"
-        onClick={() => setLightboxOpen(true)}
-        style={aspectRatios[index] ? { aspectRatio: Math.max(aspectRatios[index], MIN_ASPECT_RATIO) } : undefined}
-        className="block w-full cursor-zoom-in bg-surface-muted object-cover"
-      />
-
-      {many && index > 0 && (
-        <button
-          type="button"
-          onClick={() => go(-1)}
-          aria-label={t("Previous photo")}
-          className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
-        >
-          <ChevronIcon className="h-5 w-5" direction="left" />
-        </button>
-      )}
-      {many && index < imageUrls.length - 1 && (
-        <button
-          type="button"
-          onClick={() => go(1)}
-          aria-label={t("Next photo")}
-          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
-        >
-          <ChevronIcon className="h-5 w-5" direction="right" />
-        </button>
-      )}
-      {many && (
-        <span className="absolute right-2 top-2 rounded-full bg-black/45 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white">
-          {index + 1}/{imageUrls.length}
-        </span>
-      )}
-
-      {lightboxOpen && (
-        <ImageLightbox
-          imageUrls={imageUrls}
-          index={index}
-          alt={alt}
-          onIndexChange={setIndex}
-          onClose={() => setLightboxOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
-
 // The "..." menu an approved owner of the post's company gets on the card.
 function OwnerMenu({
   pinned,
@@ -279,6 +154,10 @@ export function SocialPostCard({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [ownerBusy, setOwnerBusy] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
+  // Which photo the card shows, and whether the photo view is open (it
+  // opens on the same photo and hands its position back on close).
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [photoViewOpen, setPhotoViewOpen] = useState(false);
   const { t, locale } = useI18n();
 
   // Leave a reaction, swap it for another, or (the same one again) take it
@@ -476,11 +355,15 @@ export function SocialPostCard({
         <p className="whitespace-pre-wrap px-4 text-[17px] font-semibold leading-snug text-foreground">{post.caption}</p>
       )}
       {post.imageUrls.length > 0 && (
-        <PostImageCarousel
+        <PhotoSlider
           imageUrls={post.imageUrls}
-          aspectRatios={post.imageAspectRatios}
           alt={post.caption ?? post.title ?? t("{name} post", { name: post.companyName })}
+          index={photoIndex}
+          onIndexChange={setPhotoIndex}
+          variant="card"
+          aspectRatio={Math.max(post.imageAspectRatios[0] ?? 1, MIN_ASPECT_RATIO)}
           priority={priority}
+          onPhotoClick={() => setPhotoViewOpen(true)}
         />
       )}
       <SocialPostBody post={post} onChanged={onChanged} />
@@ -579,6 +462,23 @@ export function SocialPostCard({
           <BookmarkIcon className="h-5 w-5" filled={post.savedByMe ?? false} />
         </button>
       </div>
+
+      {photoViewOpen && (
+        <SocialPostModal
+          post={post}
+          index={photoIndex}
+          onIndexChange={setPhotoIndex}
+          onClose={() => setPhotoViewOpen(false)}
+          onReact={(r) => void react(r)}
+          onToggleSave={() => void toggleSave()}
+          onCommentCount={(n) => onChanged?.({ ...post, commentCount: n })}
+          onCopyLink={() => void copyLink()}
+          copied={copied}
+          following={following}
+          showFollowButton={showFollowButton}
+          onFollow={handleFollowClick}
+        />
+      )}
 
       {showComments && (
         <div className="border-t border-border/60">

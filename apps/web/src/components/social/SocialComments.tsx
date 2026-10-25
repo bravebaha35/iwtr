@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type {
   CommentIdentityMode,
   PublicSocialComment,
@@ -360,7 +360,22 @@ function Composer({
   );
 }
 
-export function SocialComments({ postId, onCountChange }: { postId: string; onCountChange: (n: number) => void }) {
+/**
+ * A post's comments with a composer under them. Inline (the feed card) it
+ * shows the last 3 with a toggle for the rest. As a panel (the photo view's
+ * right-hand side) every comment scrolls in the space given, `top` leads the
+ * scrolling part (the caption), and `actions` sits between it and the
+ * composer, which stays at the bottom.
+ */
+export function SocialComments({
+  postId,
+  onCountChange,
+  panel,
+}: {
+  postId: string;
+  onCountChange: (n: number) => void;
+  panel?: { top?: ReactNode; actions?: ReactNode };
+}) {
   const { isAuthenticated, openAuthModal } = useAuth();
   const [comments, setComments] = useState<PublicSocialComment[] | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
@@ -380,7 +395,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
   const [showReportToast, setShowReportToast] = useState(false);
   // Collapsed by default: only the 3 most recent comments show, with a
   // toggle above them to reveal the rest (see the render below).
-  const [showAllComments, setShowAllComments] = useState(false);
+  const [showAllComments, setShowAllComments] = useState(!!panel);
   // Per top-level comment: whether its reply section (existing replies +
   // reply composer) is expanded, and the replies themselves once fetched
   // (undefined = not fetched yet, fetched lazily on first expand).
@@ -560,8 +575,8 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
   const hiddenCount = comments ? Math.max(0, comments.length - 3) : 0;
   const visibleComments = comments ? (showAllComments ? comments : comments.slice(-3)) : [];
 
-  return (
-    <div className="flex flex-col gap-2 border-t border-border p-2">
+  const list = (
+    <>
       {hiddenCount > 0 && (
         <button
           type="button"
@@ -627,20 +642,47 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
           </div>
         </div>
       ))}
+    </>
+  );
+  const composer = (
+    <Composer
+      isAuthenticated={isAuthenticated}
+      openAuthModal={openAuthModal}
+      identityContext={identityContext}
+      selectedMode={selectedMode}
+      onToggleMode={toggleMode}
+      onSubmit={submitComment}
+      placeholder="Add a comment..."
+    />
+  );
 
-      <Composer
-        isAuthenticated={isAuthenticated}
-        openAuthModal={openAuthModal}
-        identityContext={identityContext}
-        selectedMode={selectedMode}
-        onToggleMode={toggleMode}
-        onSubmit={submitComment}
-        placeholder="Add a comment..."
-      />
+  return (
+    <div className={panel ? "flex min-h-0 flex-1 flex-col" : "flex flex-col gap-2 border-t border-border p-2"}>
+      {panel ? (
+        <>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+            {panel.top}
+            {comments === null ? (
+              <p className="text-xs text-muted-foreground">{t("Loading...")}</p>
+            ) : comments.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">{t("No comments yet. Be the first to say something.")}</p>
+            ) : (
+              list
+            )}
+          </div>
+          {panel.actions}
+          <div className="border-t border-border/70 px-4 pb-2 pt-3">{composer}</div>
+        </>
+      ) : (
+        <>
+          {list}
+          {composer}
+        </>
+      )}
 
       {reportTargetId && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 px-4"
           onClick={closeReportModal}
         >
           <div
@@ -694,7 +736,7 @@ export function SocialComments({ postId, onCountChange }: { postId: string; onCo
       )}
 
       {showReportToast && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4">
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[130] flex justify-center px-4">
           <div className="rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-lg">
             {t("Report submitted")}
           </div>

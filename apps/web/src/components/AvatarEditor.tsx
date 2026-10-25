@@ -173,15 +173,32 @@ export function WorkTypeDots({
 export function GenderToggle({
   value,
   onChange,
+  locked = false,
 }: {
   value: AvatarGender | null;
-  onChange: (gender: AvatarGender) => void;
+  onChange?: (gender: AvatarGender) => void;
+  // Chosen at sign-up and fixed since: just the picked one, with a lock.
+  locked?: boolean;
 }) {
   const t = useT();
   const options: { gender: AvatarGender; label: string; tone: string; wash: string }[] = [
     { gender: "MALE", label: "Male", tone: "text-blue-600 dark:text-blue-400", wash: "bg-blue-500/15" },
     { gender: "FEMALE", label: "Female", tone: "text-pink-500 dark:text-pink-400", wash: "bg-pink-500/15" },
   ];
+  if (locked) {
+    const o = options.find((x) => x.gender === value);
+    if (!o) return null;
+    return (
+      <span className={`inline-flex items-center gap-1.5 rounded-full py-1.5 pl-2 pr-3 text-sm font-semibold text-foreground ${o.wash}`}>
+        <span className={o.tone}>{o.gender === "MALE" ? <MaleSymbol /> : <FemaleSymbol />}</span>
+        {t(o.label)}
+        <svg viewBox="0 0 24 24" className="ml-0.5 h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label={t("Locked")}>
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+      </span>
+    );
+  }
   return (
     <div role="radiogroup" aria-label={t("Gender")} className="flex items-center gap-2">
       {options.map((o) => {
@@ -192,7 +209,7 @@ export function GenderToggle({
             type="button"
             role="radio"
             aria-checked={picked}
-            onClick={() => onChange(o.gender)}
+            onClick={() => onChange?.(o.gender)}
             className={`flex items-center gap-1.5 rounded-full py-1.5 pl-2 pr-3.5 text-sm transition ${
               picked ? `${o.wash} font-semibold text-foreground` : "bg-surface-muted text-muted-foreground hover:text-foreground"
             }`}

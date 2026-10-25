@@ -9,6 +9,12 @@ export function baseScaleFor(naturalWidth: number, naturalHeight: number, viewpo
   return viewport / Math.min(naturalWidth, naturalHeight);
 }
 
+// The same "fills the frame" starting zoom for a frame that isn't square
+// (the CV photo's portrait): the image covers both sides of the frame.
+export function coverScaleFor(naturalWidth: number, naturalHeight: number, frameWidth: number, frameHeight: number): number {
+  return Math.max(frameWidth / naturalWidth, frameHeight / naturalHeight);
+}
+
 // Keeps the image's near/far edges from ever leaving a gap inside the
 // viewport — `offset` is the image's left/top position in viewport
 // coordinates, `displayedSize` is that dimension's current on-screen size

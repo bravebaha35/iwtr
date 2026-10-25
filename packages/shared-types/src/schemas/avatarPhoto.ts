@@ -77,5 +77,32 @@ export function validateAvatarPhotoFile(
   return { valid: true };
 }
 
+// The CV photo is a portrait (the CV shows it 112 x 132 px, i.e. 28:33), so
+// the cropper cuts exactly that shape and the CV never has to squash or crop
+// it again. 672 x 792 is that ratio at a print-sharp size.
+export const CV_PHOTO_WIDTH_PX = 672;
+export const CV_PHOTO_HEIGHT_PX = 792;
+
+// Same checks as validateAvatarPhotoFile, but for the CV's portrait shape
+// (a pixel of rounding either way is fine).
+export function validateCvPhotoFile(
+  meta: AvatarFileMeta,
+): { valid: true } | { valid: false; error: string } {
+  if (!AVATAR_MIME_TYPES.includes(meta.mimeType)) {
+    return { valid: false, error: "Photo must be a PNG or JPEG file." };
+  }
+  if (meta.sizeBytes > AVATAR_MAX_UPLOAD_FILE_SIZE_BYTES) {
+    return {
+      valid: false,
+      error: `Photo file is too large — keep it under ${AVATAR_MAX_UPLOAD_FILE_SIZE_BYTES / (1024 * 1024)}MB.`,
+    };
+  }
+  const expectedHeight = (meta.width * CV_PHOTO_HEIGHT_PX) / CV_PHOTO_WIDTH_PX;
+  if (meta.width < 1 || Math.abs(meta.height - expectedHeight) > 2) {
+    return { valid: false, error: "Please crop the photo with the photo cropper first." };
+  }
+  return { valid: true };
+}
+
 export const avatarPhotoUploadResultSchema = z.object({ url: httpUrlSchema });
 export type AvatarPhotoUploadResult = z.infer<typeof avatarPhotoUploadResultSchema>;

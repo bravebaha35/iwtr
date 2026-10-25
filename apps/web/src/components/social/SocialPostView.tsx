@@ -28,7 +28,7 @@ export function SocialPostView({ postId }: { postId: string }) {
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
       <Link href="/social" className="self-start text-sm font-semibold text-muted-foreground transition hover:text-foreground">
-        <span aria-hidden="true">&larr;</span> IWT Social
+        <span aria-hidden="true">&larr;</span> {t("IWT Social")}
       </Link>
 
       {post === undefined && (

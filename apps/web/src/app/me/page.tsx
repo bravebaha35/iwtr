@@ -896,15 +896,33 @@ function ProfilePageContent() {
 
             <div className={`mt-4 border-t border-border pt-4 ${genderSaving ? "opacity-60" : ""}`}>
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("Gender")}</p>
-              <GenderToggle
-                value={profile.gender ?? effectiveGender(null, profile.avatarKey)}
-                onChange={(g) => {
-                  if (!genderSaving && g !== profile.gender) void saveGender(g);
-                }}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("Decides which avatars you can pick. Changing it switches your avatar to the same one for that gender.")}
-              </p>
+              {profile.gender ? (
+                <>
+                  <GenderToggle value={profile.gender} locked />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {t("You can only choose your gender while signing up. If it needs correcting, email us at")}{" "}
+                    <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-600 hover:underline dark:text-brand-400">
+                      {SUPPORT_EMAIL}
+                    </a>
+                    .
+                  </p>
+                </>
+              ) : (
+                // An account made before sign-up asked for it: chosen once, here.
+                <>
+                  <GenderToggle
+                    value={effectiveGender(null, profile.avatarKey)}
+                    onChange={(g) => {
+                      if (genderSaving) return;
+                      if (!window.confirm(t("Save your gender? It can't be changed afterwards."))) return;
+                      void saveGender(g);
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("Choose your gender once. After that it can only be changed by emailing us.")}
+                  </p>
+                </>
+              )}
               {genderError && <p className="mt-1 text-xs text-red-600 dark:text-red-300">{genderError}</p>}
             </div>
 

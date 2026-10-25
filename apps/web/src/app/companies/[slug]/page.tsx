@@ -22,6 +22,7 @@ import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
 import { CompanyActions } from "@/components/companies/CompanyActions";
+import { CompanyDetails } from "@/components/companies/CompanyDetails";
 
 const CATEGORIES = [
   { key: "corporateCultureAvg" as const, label: "Corporate Culture" },
@@ -54,7 +55,7 @@ function RatingNarrativeBox({ score, narrative, t }: { score: number | null; nar
     // illustration on desktop (350px) → lg:h-[360px]. Scoped to lg: so the
     // mobile stacked layout flows; the 0-review empty state holds this same
     // slot.
-    <div className="flex flex-col items-center gap-6 font-sans sm:flex-row sm:items-center lg:min-h-[360px] lg:max-w-2xl lg:shrink-0">
+    <div className="flex flex-col items-center gap-6 font-sans sm:flex-row sm:items-center xl:min-h-[360px] xl:min-w-0 xl:max-w-2xl">
       {/* Drawn for the work type picked in WorkTypeViewProvider (below). */}
       <RatingIllustration score={score} />
       {narrative?.description ? (
@@ -62,90 +63,6 @@ function RatingNarrativeBox({ score, narrative, t }: { score: number | null; nar
       ) : waitingLine ? (
         <p className="text-center text-sm text-muted-foreground sm:text-left">{waitingLine}</p>
       ) : null}
-    </div>
-  );
-}
-
-// "Overall information / Location / Contact & Social Media / Sector" — every
-// field here already comes down on the same CompanyDetail the rest of this
-// page renders from; no separate fetch. Purely presentational, so it's kept
-// local to this file rather than a new component, same as CATEGORIES above.
-function CompanyDetailsBox({ company }: { company: Company }) {
-  const location = [company.district, company.city].filter(Boolean).join(", ");
-
-  const socialLinks: { label: string; href: string; external: boolean }[] = [
-    company.contactEmail ? { label: "Email", href: `mailto:${company.contactEmail}`, external: false } : null,
-    company.contactEmail2 ? { label: "Email 2", href: `mailto:${company.contactEmail2}`, external: false } : null,
-    company.contactEmail3 ? { label: "Email 3", href: `mailto:${company.contactEmail3}`, external: false } : null,
-    company.contactPhone ? { label: "Phone", href: `tel:${company.contactPhone}`, external: false } : null,
-    company.facebookUrl ? { label: "Facebook", href: company.facebookUrl, external: true } : null,
-    company.instagramUrl ? { label: "Instagram", href: company.instagramUrl, external: true } : null,
-    company.whatsappUrl ? { label: "WhatsApp", href: company.whatsappUrl, external: true } : null,
-    company.xUrl ? { label: "X (Twitter)", href: company.xUrl, external: true } : null,
-  ].filter((v): v is { label: string; href: string; external: boolean } => v !== null);
-
-  // Sits beside WorkplaceVibeFlags as a plain column: neither is a box any
-  // more, so there are no bottom edges to line up and both size to content.
-  return (
-    <div className="font-sans">
-      <h2 className="mb-5 text-xl text-foreground">Company Details</h2>
-      <div className="flex flex-col gap-5 text-sm">
-        <div>
-          <h2 className="mb-1 text-[13px] font-semibold text-foreground">
-            Overall Information
-          </h2>
-          {company.description ? (
-            <p className="whitespace-pre-wrap text-foreground">{company.description}</p>
-          ) : (
-            <p className="text-muted-foreground">No information provided yet.</p>
-          )}
-          {company.website && (
-            <a
-              href={company.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 inline-block font-medium text-brand-600 hover:underline dark:text-brand-400"
-            >
-              {company.website}
-            </a>
-          )}
-        </div>
-
-        <div>
-          <h2 className="mb-1 text-[13px] font-semibold text-foreground">Location</h2>
-          <p className="text-foreground">{location || "Not provided yet."}</p>
-        </div>
-
-        <div>
-          <h2 className="mb-1 text-[13px] font-semibold text-foreground">Sector</h2>
-          <p className="text-foreground">{company.category}</p>
-        </div>
-
-        <div>
-          <h2 className="mb-1 text-[13px] font-semibold text-foreground">
-            Contact &amp; Social Media
-          </h2>
-          {socialLinks.length > 0 ? (
-            <ul className="flex flex-col gap-1">
-              {socialLinks.map((s) => (
-                <li key={s.label} className="truncate">
-                  <span className="text-muted-foreground">{s.label}: </span>
-                  <a
-                    href={s.href}
-                    target={s.external ? "_blank" : undefined}
-                    rel={s.external ? "noopener noreferrer" : undefined}
-                    className="font-medium text-brand-600 hover:underline dark:text-brand-400"
-                  >
-                    {s.href.startsWith("mailto:") || s.href.startsWith("tel:") ? s.href.split(":")[1] : s.href}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground">Not provided yet.</p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -313,14 +230,14 @@ export default async function CompanyPage({
                   (SurveyHighlights, the old Q&A detail box) is intentionally
                   not rendered here any more — the component itself is
                   untouched and still available to reuse elsewhere later. */}
-              <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
+              <div className="flex flex-col gap-8 xl:flex-row xl:items-center xl:gap-12">
                 <RatingNarrativeBox
                   score={aggregate && aggregate.reviewCount > 0 ? aggregate.overallAvg : null}
                   narrative={narrative}
                   t={t}
                 />
 
-                <div className="flex-1 font-sans lg:border-l lg:border-border lg:pl-12">
+                <div className="min-w-0 flex-1 font-sans xl:border-l xl:border-border xl:pl-12">
                   <h2 className="mb-4 text-xl text-foreground">{t("Rating Breakdown")}</h2>
                   {aggregate && aggregate.reviewCount > 0 ? (
                     <div className="flex flex-col gap-2.5">
@@ -364,7 +281,11 @@ export default async function CompanyPage({
                 className="grid scroll-mt-24 grid-cols-1 gap-10 border-t border-border pt-10 lg:grid-cols-2 lg:gap-12"
               >
                 <WorkplaceVibeFlags companySlug={slug} />
-                <CompanyDetailsBox company={company} />
+                {/* The same hairline that splits the rating row above: across
+                    the top on phones, down the left side beside the flags. */}
+                <div className="border-t border-border pt-10 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">
+                  <CompanyDetails company={company} t={t} />
+                </div>
               </div>
 
               {/* Full column width — this is the actual review text people

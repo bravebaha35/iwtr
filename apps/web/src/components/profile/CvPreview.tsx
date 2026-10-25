@@ -247,13 +247,22 @@ export function CvPreview({
       <div className={SHEET} style={{ minHeight: A4_HEIGHT_PX }}>
         <header className="flex items-start px-12 pb-7 pt-9">
           {profile.cvPhotoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- html2canvas can't read next/image output
-            <img
-              src={profile.cvPhotoUrl}
-              alt=""
-              crossOrigin="anonymous"
-              className="mr-7 shrink-0 object-cover"
-              style={{ width: 112, height: 132, borderRadius: 6 }}
+            // A background, not an <img>: html2canvas (the PDF) ignores
+            // object-fit and would squash a photo of another shape (older
+            // square uploads) into this box, but it does draw
+            // background-size: cover. New photos are cropped to exactly 28:33.
+            <div
+              aria-hidden="true"
+              className="mr-7 shrink-0"
+              style={{
+                width: 112,
+                height: 132,
+                borderRadius: 6,
+                backgroundImage: `url("${profile.cvPhotoUrl}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+              }}
             />
           )}
           <div className="min-w-0 flex-1">

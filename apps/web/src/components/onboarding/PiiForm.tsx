@@ -94,7 +94,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
           <div>
             <p className="mb-1.5 text-xs text-muted-foreground">{t("Gender")}</p>
             <GenderToggle value={gender} onChange={setGender} />
-            <p className="mt-1 text-xs text-muted-foreground">{t("Decides which avatars you can pick.")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("Decides which avatars you can pick. It can't be changed later.")}</p>
           </div>
 
           <div>

@@ -154,7 +154,7 @@ export function GlobalHeader() {
           )}
 
           {!companyAccount && (
-            <NavIconLink href="/social" label="IWT Social" active={pathname.startsWith("/social")}>
+            <NavIconLink href="/social" label={t("IWT Social")} active={pathname.startsWith("/social")}>
               <IwtSocialIcon className="h-5 w-5" />
             </NavIconLink>
           )}

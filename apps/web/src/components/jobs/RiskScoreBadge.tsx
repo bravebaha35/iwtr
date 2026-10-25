@@ -17,8 +17,10 @@ export const RISK_SCORE_NOTES: Record<number, string> = {
 
 // The one-word name a job card shows for each score (owner's words,
 // 2026-10-25; Turkish: Mantıklı. / Olur. / Eh. / Dikkat!).
+// A card for a company with no real posting shows no Risk Score at all
+// (the save button takes its place); the company page still says "-".
 export const RISK_SCORE_WORDS: Record<number, string> = {
-  0: "Sensible.",
+  0: "Reasonable.",
   1: "Okay.",
   2: "Meh.",
   3: "Caution!",
@@ -58,6 +60,7 @@ export function RiskTriangleIcon({ className }: { className?: string }) {
 
 // "short" is the job-card form: just the score's word ("Meh.") in its colour, no
 // warning icons. Screen readers still hear the full "Risk Score 2 of 3".
+// Renders nothing when there is no score yet.
 export function RiskScoreBadge({
   riskScore,
   className,
@@ -70,17 +73,16 @@ export function RiskScoreBadge({
   const t = useT();
   const note = riskScore === null ? t(NO_OPEN_POSTING_NOTE) : t(RISK_SCORE_NOTES[riskScore]);
   if (short) {
+    if (riskScore === null) return null;
     return (
       <span
         className={`inline-flex text-xs font-semibold ${className ?? ""}`}
         title={note}
       >
-        <span aria-hidden="true" className={riskScore === null ? "text-muted-foreground" : riskScoreColorClass(riskScore)}>
-          {riskScore === null ? `${t("RS")} -` : t(RISK_SCORE_WORDS[riskScore])}
+        <span aria-hidden="true" className={riskScoreColorClass(riskScore)}>
+          {t(RISK_SCORE_WORDS[riskScore])}
         </span>
-        <span className="sr-only">
-          {riskScore === null ? t("Risk Score not available yet") : t("Risk Score {n} of 3", { n: riskScore })}
-        </span>
+        <span className="sr-only">{t("Risk Score {n} of 3", { n: riskScore })}</span>
       </span>
     );
   }

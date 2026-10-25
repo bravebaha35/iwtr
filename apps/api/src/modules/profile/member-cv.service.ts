@@ -7,7 +7,7 @@ import { imageSize } from "image-size";
 import {
   MAX_CERTIFICATES_PER_MEMBER,
   MAX_REFERENCES_PER_MEMBER,
-  validateAvatarPhotoFile,
+  validateCvPhotoFile,
   type AvatarPhotoUploadResult,
   type CertificateInput,
   type MemberCertificate,
@@ -146,7 +146,7 @@ export class MemberCvService {
     if (!file) throw new BadRequestException("No file uploaded.");
 
     const { width, height } = imageSize(file.buffer);
-    const check = validateAvatarPhotoFile({
+    const check = validateCvPhotoFile({
       mimeType: file.mimetype,
       sizeBytes: file.buffer.length,
       width: width ?? 0,

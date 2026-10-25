@@ -52,7 +52,7 @@ describe("JobCard sizes", () => {
   it("the save button sits in the footer, right before the Risk Score", () => {
     render(<JobCard company={company} posting={posting} variant="compact" />);
     const save = screen.getByRole("button", { name: "Save this posting" });
-    const risk = screen.getByText("Sensible.");
+    const risk = screen.getByText("Reasonable.");
     expect(save.parentElement).toContainElement(risk);
     expect(save.compareDocumentPosition(risk) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

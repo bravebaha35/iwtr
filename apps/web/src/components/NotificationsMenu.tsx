@@ -144,11 +144,11 @@ function describeNotification(n: AppNotification, t: TFn): string {
     case "IWT_SOCIAL_UPDATE":
       return t("Check out new updates on 'IWT Social'!");
     case "COMPANY_STATUS_UPDATE":
-      return t("See how {company} doing!", { company });
+      return t("See how {company} is doing!", { company });
     case "COMPANY_NEW_SOCIAL_POST":
-      return t("{company} just posted a new post !", { company });
+      return t("{company} just shared a new post!", { company });
     case "COMPANY_HIRING":
-      return t("{company} hiring now check it out !", { company });
+      return t("{company} is hiring now. Check it out!", { company });
     case "JOB_POSTING_PUBLISHED":
       return t("Your job posting is up!");
     case "COMPANY_REVIEWED":
@@ -174,11 +174,13 @@ function describeNotification(n: AppNotification, t: TFn): string {
         ? t("New application for {job} at {company}.", { job: n.jobTitle, company })
         : t("New application at {company}.", { company });
     case "QUESTION_ANSWERED":
-      return n.companyName ? `Your question to ${n.companyName} has a new answer.` : "Your question has a new answer.";
+      return n.companyName
+        ? t("Your question to {company} has a new answer.", { company: n.companyName })
+        : t("Your question has a new answer.");
     case "COMPANY_QUESTION_ASKED":
       return n.companyName
-        ? `Someone asked ${n.companyName} a question. Answer it, then choose who sees it.`
-        : "Someone asked your company a question.";
+        ? t("Someone asked {company} a question. Answer it, then choose who sees it.", { company: n.companyName })
+        : t("Someone asked your company a question.");
     case "SCHEDULED_POST_FAILED":
       return t("A scheduled post for {company} could not go out. See why, then pick a new time or delete it.", { company });
   }

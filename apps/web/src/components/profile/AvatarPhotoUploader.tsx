@@ -61,6 +61,10 @@ export function AvatarPhotoUploader({
   const t = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
+  // The CV photo is a portrait rectangle on the CV, so it is shown and
+  // cropped as one here too; the employer photo is round everywhere.
+  const portrait = target === "cv";
+  const shapeClass = portrait ? "rounded-xl" : "rounded-full";
 
   async function handleFilePicked(file: File | undefined) {
     if (!file) return;
@@ -147,7 +151,7 @@ export function AvatarPhotoUploader({
             fileInputRef.current?.click();
           }
         }}
-        className={`group relative block h-24 w-24 cursor-pointer overflow-hidden rounded-full border border-border bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 ${
+        className={`group relative block cursor-pointer overflow-hidden ${portrait ? "h-[113px] w-24" : "h-24 w-24"} ${shapeClass} border border-border bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 ${
           uploading ? "pointer-events-none opacity-60" : ""
         }`}
       >
@@ -162,7 +166,7 @@ export function AvatarPhotoUploader({
             <path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6" />
           </svg>
         )}
-        <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+        <span className={`absolute inset-0 flex items-center justify-center ${shapeClass} bg-black/50 opacity-0 transition-opacity group-hover:opacity-100`}>
           {uploading ? (
             <span className="text-xs font-medium text-white">{t("Uploading...")}</span>
           ) : (
@@ -202,11 +206,12 @@ export function AvatarPhotoUploader({
       </div>
 
       {error && <p className="max-w-[200px] text-center text-xs text-red-600 dark:text-red-300">{error}</p>}
-      <p className="text-[11px] text-muted-foreground">{t("Recommended 800x800")}</p>
+      {!portrait && <p className="text-[11px] text-muted-foreground">{t("Recommended 800x800")}</p>}
 
       {pendingCropFile && (
         <AvatarPhotoCropper
           file={pendingCropFile}
+          shape={portrait ? "portrait" : "circle"}
           onConfirm={(blob) => void handleCropConfirmed(blob)}
           onCancel={() => setPendingCropFile(null)}
         />

@@ -1,11 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AVATAR_RECOMMENDED_DIMENSION_PX } from "@iwtr/shared-types";
-import { baseScaleFor, clampOffset, recenterOffsetOnZoom, sourceRectFor } from "@/lib/cropMath";
+import { AVATAR_RECOMMENDED_DIMENSION_PX, CV_PHOTO_HEIGHT_PX, CV_PHOTO_WIDTH_PX } from "@iwtr/shared-types";
+import { clampOffset, coverScaleFor, recenterOffsetOnZoom } from "@/lib/cropMath";
 import { useT } from "@/lib/i18n/client";
 
 const VIEWPORT_PX = 280;
+
+// "circle": the employer photo, shown round everywhere. "portrait": the CV
+// photo, shown on the CV as a 28:33 rounded rectangle - the frame here is
+// that exact shape, so what the member frames is what the CV prints.
+const FRAMES = {
+  circle: { width: VIEWPORT_PX, height: VIEWPORT_PX, outWidth: AVATAR_RECOMMENDED_DIMENSION_PX, outHeight: AVATAR_RECOMMENDED_DIMENSION_PX },
+  portrait: {
+    // 28:33 exactly, like the output.
+    width: 238,
+    height: 280.5,
+    outWidth: CV_PHOTO_WIDTH_PX,
+    outHeight: CV_PHOTO_HEIGHT_PX,
+  },
+} as const;
 // Compressed JPEG quality — chosen for a small file size while staying
 // visually clean for a face-sized photo; not user-configurable.
 const JPEG_QUALITY = 0.82;
@@ -23,11 +37,14 @@ export function AvatarPhotoCropper({
   file,
   onConfirm,
   onCancel,
+  shape = "circle",
 }: {
   file: File;
+  shape?: "circle" | "portrait";
   onConfirm: (blob: Blob) => void;
   onCancel: () => void;
 }) {
+  const frame = FRAMES[shape];
   const imgRef = useRef<HTMLImageElement>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
@@ -49,30 +66,30 @@ export function AvatarPhotoCropper({
     if (!img) return;
     setNatural({ width: img.naturalWidth, height: img.naturalHeight });
     setZoom(1);
-    const base = baseScaleFor(img.naturalWidth, img.naturalHeight, VIEWPORT_PX);
+    const base = coverScaleFor(img.naturalWidth, img.naturalHeight, frame.width, frame.height);
     setOffset({
-      x: (VIEWPORT_PX - img.naturalWidth * base) / 2,
-      y: (VIEWPORT_PX - img.naturalHeight * base) / 2,
+      x: (frame.width - img.naturalWidth * base) / 2,
+      y: (frame.height - img.naturalHeight * base) / 2,
     });
   }
 
-  const scale = natural ? baseScaleFor(natural.width, natural.height, VIEWPORT_PX) * zoom : 1;
+  const scale = natural ? coverScaleFor(natural.width, natural.height, frame.width, frame.height) * zoom : 1;
 
   function clampToBounds(next: { x: number; y: number }, atScale: number): { x: number; y: number } {
     if (!natural) return next;
     return {
-      x: clampOffset({ offset: next.x, displayedSize: natural.width * atScale, viewport: VIEWPORT_PX }),
-      y: clampOffset({ offset: next.y, displayedSize: natural.height * atScale, viewport: VIEWPORT_PX }),
+      x: clampOffset({ offset: next.x, displayedSize: natural.width * atScale, viewport: frame.width }),
+      y: clampOffset({ offset: next.y, displayedSize: natural.height * atScale, viewport: frame.height }),
     };
   }
 
   function onZoomChange(nextZoom: number) {
     if (!natural) return;
     const oldScale = scale;
-    const newScale = baseScaleFor(natural.width, natural.height, VIEWPORT_PX) * nextZoom;
+    const newScale = coverScaleFor(natural.width, natural.height, frame.width, frame.height) * nextZoom;
     const recentered = {
-      x: recenterOffsetOnZoom({ offset: offset.x, oldScale, newScale, viewport: VIEWPORT_PX }),
-      y: recenterOffsetOnZoom({ offset: offset.y, oldScale, newScale, viewport: VIEWPORT_PX }),
+      x: recenterOffsetOnZoom({ offset: offset.x, oldScale, newScale, viewport: frame.width }),
+      y: recenterOffsetOnZoom({ offset: offset.y, oldScale, newScale, viewport: frame.height }),
     };
     setZoom(nextZoom);
     setOffset(clampToBounds(recentered, newScale));
@@ -100,22 +117,14 @@ export function AvatarPhotoCropper({
   function confirm() {
     if (!imgRef.current || !natural) return;
     setExporting(true);
-    const { sx, sy, sSize } = sourceRectFor({ offsetX: offset.x, offsetY: offset.y, scale, viewport: VIEWPORT_PX });
+    // The part of the full-size image inside the frame, drawn at the output size.
+    const sx = -offset.x / scale + 0;
+    const sy = -offset.y / scale + 0;
     const canvas = document.createElement("canvas");
-    canvas.width = AVATAR_RECOMMENDED_DIMENSION_PX;
-    canvas.height = AVATAR_RECOMMENDED_DIMENSION_PX;
+    canvas.width = frame.outWidth;
+    canvas.height = frame.outHeight;
     const ctx = canvas.getContext("2d");
-    ctx?.drawImage(
-      imgRef.current,
-      sx,
-      sy,
-      sSize,
-      sSize,
-      0,
-      0,
-      AVATAR_RECOMMENDED_DIMENSION_PX,
-      AVATAR_RECOMMENDED_DIMENSION_PX,
-    );
+    ctx?.drawImage(imgRef.current, sx, sy, frame.width / scale, frame.height / scale, 0, 0, frame.outWidth, frame.outHeight);
     canvas.toBlob(
       (blob) => {
         setExporting(false);
@@ -134,8 +143,8 @@ export function AvatarPhotoCropper({
       >
         <p className="text-sm font-medium text-foreground">{t("Drag to reposition, use the slider to zoom")}</p>
         <div
-          className="relative touch-none overflow-hidden rounded-full border border-border bg-surface-muted"
-          style={{ width: VIEWPORT_PX, height: VIEWPORT_PX }}
+          className={`relative touch-none overflow-hidden border border-border bg-surface-muted ${shape === "circle" ? "rounded-full" : "rounded-xl"}`}
+          style={{ width: frame.width, height: frame.height }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

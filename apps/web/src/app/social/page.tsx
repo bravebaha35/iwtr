@@ -8,7 +8,7 @@ import { getTranslator } from "@/lib/i18n/server";
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslator();
   return {
-    title: "IWT Social",
+    title: t("IWT Social"),
     description: t("Posts and updates from companies, with anonymous comments from people who worked there."),
   };
 }
@@ -21,6 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 // AnonGate blocks the whole thing behind a Register prompt for a logged-out
 // visitor — same policy as the homepage's WorkplaceBrowser.
 export default async function SocialPage() {
+  const { t } = await getTranslator();
   // No session cookie = certainly logged out: render the register prompt on
   // the server instead of after the browser's session check.
   const jar = await cookies();
@@ -33,7 +34,7 @@ export default async function SocialPage() {
     >
       <div className="w-full px-4 py-8">
         {/* Visible heading removed per design feedback - kept sr-only for a11y/SEO structure. */}
-        <h1 className="sr-only">IWT Social</h1>
+        <h1 className="sr-only">{t("IWT Social")}</h1>
         <SocialShell />
       </div>
     </AnonGate>

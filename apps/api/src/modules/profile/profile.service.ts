@@ -130,6 +130,17 @@ export class ProfileService {
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
     const user = await this.requireActiveUser(userId);
 
+    // Gender is chosen once, at sign-up (decided 2026-10-25). An account made
+    // before sign-up asked for it may set it once; after that only support
+    // can change it, and the avatar must be a beaver of that gender.
+    if (input.gender !== undefined && user.gender !== null && input.gender !== user.gender) {
+      throw new ForbiddenException(GENDER_LOCKED_MESSAGE);
+    }
+    const lockedGender = user.gender ?? null;
+    if (lockedGender && input.avatarKey && avatarKeyGender(input.avatarKey) && avatarKeyGender(input.avatarKey) !== lockedGender) {
+      throw new BadRequestException("That avatar isn't available for your account.");
+    }
+
     // Company owners may pick a username from the same pool as members again
     // (2026-10-15, reversing 2026-09-11). Their header still always shows
     // their real name, so the "show my username in the corner" choice stays
@@ -409,6 +420,16 @@ export class ProfileService {
  * office_2 <-> office_f2: the same beaver of the other gender. Keys that
  * aren't a gendered beaver (none yet, or an unknown key) are left alone.
  */
+export const GENDER_LOCKED_MESSAGE =
+  "Your gender can't be changed here. Email us at iworkedthere@hotmail.com if it needs correcting.";
+
+/** MALE / FEMALE for a gendered beaver key (office_2 / office_f2), null for anything else. */
+export function avatarKeyGender(avatarKey: string): "MALE" | "FEMALE" | null {
+  const m = /^(office|remote|service|manual)_(f?)[0-9]+$/.exec(avatarKey);
+  if (!m) return null;
+  return m[2] ? "FEMALE" : "MALE";
+}
+
 export function avatarKeyForGender(avatarKey: string | null, gender: "MALE" | "FEMALE"): string | null {
   const m = /^(office|remote|service|manual)_f?([0-9]+)$/.exec(avatarKey ?? "");
   if (!m) return avatarKey;

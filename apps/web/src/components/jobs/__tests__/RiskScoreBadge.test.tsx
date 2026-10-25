@@ -12,16 +12,15 @@ describe("RiskScoreBadge, short form (job cards)", () => {
 
   it("keeps each score's own colour", () => {
     const { rerender } = render(<RiskScoreBadge riskScore={0} short />);
-    expect(screen.getByText("Sensible.")).toHaveClass("text-green-700");
+    expect(screen.getByText("Reasonable.")).toHaveClass("text-green-700");
     rerender(<RiskScoreBadge riskScore={1} short />);
     expect(screen.getByText("Okay.")).toHaveClass("text-amber-700");
     rerender(<RiskScoreBadge riskScore={2} short />);
     expect(screen.getByText("Meh.")).toHaveClass("text-orange-700");
   });
 
-  it("shows 'RS -' when there's no real posting yet", () => {
-    render(<RiskScoreBadge riskScore={null} short />);
-    expect(screen.getByText("RS -")).toBeInTheDocument();
-    expect(screen.getByText("Risk Score not available yet")).toHaveClass("sr-only");
+  it("shows nothing when there's no real posting yet", () => {
+    const { container } = render(<RiskScoreBadge riskScore={null} short />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
