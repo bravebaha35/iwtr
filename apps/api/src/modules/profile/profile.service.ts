@@ -96,6 +96,7 @@ export class ProfileService {
       reviewUsername: user.reviewUsername,
       avatarKey: user.avatarKey,
       avatarGradient: user.avatarGradient,
+      gender: user.gender,
       country: user.country,
       city: user.city,
       district: user.district,
@@ -190,7 +191,14 @@ export class ProfileService {
       where: { id: userId },
       data: {
         ...(input.reviewUsername !== undefined ? { reviewUsername: input.reviewUsername } : {}),
-        ...(input.avatarKey !== undefined ? { avatarKey: input.avatarKey } : {}),
+        ...(input.gender !== undefined ? { gender: input.gender } : {}),
+        // A gender change moves the avatar to the same beaver of that gender,
+        // unless a new avatar comes with it.
+        ...(input.avatarKey !== undefined
+          ? { avatarKey: input.avatarKey }
+          : input.gender !== undefined
+            ? { avatarKey: avatarKeyForGender(user.avatarKey, input.gender) }
+            : {}),
         ...(input.avatarGradient !== undefined ? { avatarGradient: input.avatarGradient } : {}),
         ...(input.country !== undefined ? { country: input.country } : {}),
         ...(input.city !== undefined ? { city: input.city } : {}),
@@ -395,4 +403,14 @@ export class ProfileService {
     await Promise.all(publishedCompanyIds.map((companyId) => this.reviews.recomputeAggregate(companyId)));
     await removeReplacedUpload(cvPhotoUrl, null, "cv-photos", async () => false);
   }
+}
+
+/**
+ * office_2 <-> office_f2: the same beaver of the other gender. Keys that
+ * aren't a gendered beaver (none yet, or an unknown key) are left alone.
+ */
+export function avatarKeyForGender(avatarKey: string | null, gender: "MALE" | "FEMALE"): string | null {
+  const m = /^(office|remote|service|manual)_f?([0-9]+)$/.exec(avatarKey ?? "");
+  if (!m) return avatarKey;
+  return gender === "FEMALE" ? `${m[1]}_f${m[2]}` : `${m[1]}_${m[2]}`;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { MemberIdentityMode, SocialQuestionIdentity } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { cachedQuestionIdentity } from "./socialFeedCache";
+import { useT } from "@/lib/i18n/client";
 
 // The member's own anonymous name, read once per visit and shared by the ask
 // box and every answer box. null until it has arrived (or if it can't be
@@ -42,8 +43,10 @@ export function QuestionIdentityPicker({
   // "Ask" or "Answer", for the group's label.
   verb: string;
 }) {
+  // Questions stay English for now; only the username itself is translated.
+  const t = useT();
   const options: { value: MemberIdentityMode; label: string }[] = [
-    { value: "PERSONAL_CHOSEN", label: identity?.displayUsername ?? "My usual name" },
+    { value: "PERSONAL_CHOSEN", label: identity?.displayUsername ? t(identity.displayUsername) : "My usual name" },
     { value: "PERSONAL_RANDOM", label: "A one-off name" },
   ];
   return (

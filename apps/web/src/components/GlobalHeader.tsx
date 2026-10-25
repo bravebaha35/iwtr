@@ -209,7 +209,7 @@ export function GlobalHeader() {
                   pushing the page wider. Owners always show their real name
                   here (see headerDisplayName). */}
               <span className="hidden max-w-[9rem] truncate text-sm font-medium text-foreground md:inline">
-                {headerDisplayName(onboardingStatus, isCompanyOwner)}
+                {t(headerDisplayName(onboardingStatus, isCompanyOwner))}
               </span>
             </Link>
             )}

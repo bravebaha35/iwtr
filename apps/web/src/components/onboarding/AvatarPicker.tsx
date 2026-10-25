@@ -6,6 +6,7 @@ import { AVATAR_GRADIENTS } from "@/lib/avatarGradients";
 import { Avatar } from "@/components/Avatar";
 import { AvatarEditor } from "@/components/AvatarEditor";
 import { useT } from "@/lib/i18n/client";
+import { useAuth } from "@/lib/auth-context";
 
 export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
@@ -13,6 +14,8 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const t = useT();
+  // Chosen in the previous step (PiiForm); only that gender's avatars are offered.
+  const gender = useAuth().onboardingStatus?.gender ?? "MALE";
 
   async function handleContinue() {
     if (!selectedAvatar) return;
@@ -45,6 +48,7 @@ export function AvatarPicker({ onSubmitted }: { onSubmitted: () => void }) {
           avatarGradient={selectedGradient}
           onChangeAvatarKey={setSelectedAvatar}
           onChangeGradient={setSelectedGradient}
+          gender={gender}
         />
 
         {error && <p className="mb-3 mt-4 text-sm text-red-600 dark:text-red-300">{error}</p>}

@@ -7,6 +7,12 @@ import { memberCertificateSchema, memberReferenceSchema } from "./cv";
 export const userRoleSchema = z.enum(["MEMBER", "ADMIN", "COMPANY_OWNER"]);
 export type UserRole = z.infer<typeof userRoleSchema>;
 
+// Chosen at sign-up (onboarding's personal information step). Decides which
+// set of avatars a member picks from and which "secret" stand-in a randomized
+// review/comment shows (see randomizedIdentityAvatarKey in review.ts).
+export const genderSchema = z.enum(["MALE", "FEMALE"]);
+export type Gender = z.infer<typeof genderSchema>;
+
 export const userStatusSchema = z.enum([
   "PENDING_PHONE",
   "PENDING_PII",
@@ -62,6 +68,8 @@ export const piiOnboardingInputSchema = z.object({
   country: z.string().min(1),
   city: z.string().min(1),
   district: z.string().min(1).optional(),
+  // Stored on User (not in the vault): it only decides which avatars are offered.
+  gender: genderSchema,
 });
 export type PiiOnboardingInput = z.infer<typeof piiOnboardingInputSchema>;
 
@@ -167,6 +175,8 @@ export const onboardingStatusSchema = z.object({
   district: z.string().nullable(),
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
+  // Null for accounts made before gender was asked at sign-up.
+  gender: genderSchema.nullable().default(null),
   // Permanent, self-chosen anonymous handle (see ANONYMOUS_USERNAMES_BY_
   // WORKPLACE_TYPE in review.ts) — auto-assigned once at onboarding (see
   // OnboardingService.submitAvatar) and changeable later on the
@@ -214,6 +224,7 @@ export const myProfileSchema = z.object({
   reviewUsername: z.string().nullable(),
   avatarKey: z.string().nullable(),
   avatarGradient: z.string().nullable(),
+  gender: genderSchema.nullable().default(null),
   country: z.string().nullable(),
   city: z.string().nullable(),
   district: z.string().nullable(),
@@ -255,6 +266,9 @@ export const updateProfileInputSchema = z
     reviewUsername: z.string().min(1).optional(),
     avatarKey: z.string().min(1).optional(),
     avatarGradient: z.string().min(1).optional(),
+    // Changing it also moves the avatar to the same beaver of that gender
+    // (ProfileService.updateProfile).
+    gender: genderSchema.optional(),
     country: z.string().min(1).optional(),
     city: z.string().min(1).optional(),
     district: z.string().min(1).optional(),
@@ -280,6 +294,7 @@ export const updateProfileInputSchema = z
       v.reviewUsername !== undefined ||
       v.avatarKey !== undefined ||
       v.avatarGradient !== undefined ||
+      v.gender !== undefined ||
       v.country !== undefined ||
       v.city !== undefined ||
       v.district !== undefined ||

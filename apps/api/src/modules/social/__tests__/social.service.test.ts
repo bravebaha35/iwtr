@@ -407,7 +407,7 @@ describe("SocialService comments + likes", () => {
     // null authorUserIds are filtered out before the user lookup, not passed as `null`.
     expect((prisma as any).user.findMany).toHaveBeenCalledWith({
       where: { id: { in: ["viewer-1"] } },
-      select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
+      select: { id: true, avatarKey: true, avatarGradient: true, gender: true, reviewUsername: true },
     });
     const orphan = out.find((c) => c.id === "cm1") as any;
     expect(orphan).toMatchObject({

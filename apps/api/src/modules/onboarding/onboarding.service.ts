@@ -33,6 +33,7 @@ export class OnboardingService {
       district: user.district,
       avatarKey: user.avatarKey,
       avatarGradient: user.avatarGradient,
+      gender: user.gender,
       reviewUsername: user.reviewUsername,
       displayName: user.displayName,
       showUsernameInHeader: user.showUsernameInHeader,
@@ -54,6 +55,7 @@ export class OnboardingService {
       district: null,
       avatarKey: null,
       avatarGradient: null,
+      gender: null,
       reviewUsername: null,
       displayName: null,
       showUsernameInHeader: false,
@@ -123,6 +125,7 @@ export class OnboardingService {
         country: input.country,
         city: input.city,
         district: input.district ?? null,
+        gender: input.gender,
       },
     });
   }

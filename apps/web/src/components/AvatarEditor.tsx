@@ -3,30 +3,18 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import type { WorkplaceType } from "@iwtr/shared-types";
-import {
-  AVATAR_WORK_TYPES,
-  avatarChoices,
-  avatarGender,
-  avatarImageUrl,
-  avatarKeyForGender,
-  avatarWorkType,
-  type AvatarGender,
-} from "@/lib/avatars";
+import { AVATAR_WORK_TYPES, avatarChoices, avatarImageUrl, avatarWorkType, type AvatarGender } from "@/lib/avatars";
 import { AVATAR_GRADIENTS, avatarGradientCss, customGradientColor, customGradientKey } from "@/lib/avatarGradients";
 import { collarTileTone } from "@/lib/collarColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { useT } from "@/lib/i18n/client";
 
 /**
- * "Choose your avatar" (a gender, one of the four work types via the dots,
- * then one of 4 beavers) -> "Background" (11 gradients + a native
- * color-picker popup for any exact color). Shared between onboarding's
- * AvatarPicker and the /me page's Customize tab.
- *
- * The gender toggle sits beside the "Choose your avatar" heading unless the
- * caller renders its own (Customize puts it next to the name and passes
- * gender + onChangeGender). Switching gender swaps the picked beaver for the
- * same one of the other gender, so the avatar changes straight away.
+ * "Choose your avatar" (one of the four work types via the dots, then one of
+ * 4 beavers of the member's own gender) -> "Background" (11 gradients + a
+ * native color-picker popup for any exact color). Shared between onboarding's
+ * AvatarPicker and the /me page's Customize tab. Gender is chosen at sign-up
+ * (PiiForm) and changed under Personal Information, never here.
  */
 export function AvatarEditor({
   avatarKey,
@@ -34,8 +22,7 @@ export function AvatarEditor({
   onChangeAvatarKey,
   onChangeGradient,
   workType,
-  gender: controlledGender,
-  onChangeGender,
+  gender,
 }: {
   avatarKey: string | null;
   avatarGradient: string | null;
@@ -44,37 +31,22 @@ export function AvatarEditor({
   // The work-type dot to start on when the current avatar doesn't say
   // (no avatar yet): the member's own work type, if known.
   workType?: WorkplaceType | null;
-  gender?: AvatarGender;
-  onChangeGender?: (gender: AvatarGender) => void;
+  gender: AvatarGender;
 }) {
   const [browsingWorkType, setBrowsingWorkType] = useState<WorkplaceType>(
     avatarWorkType(avatarKey) ?? workType ?? "OFFICE",
   );
-  const [internalGender, setInternalGender] = useState<AvatarGender>(avatarGender(avatarKey) ?? "MALE");
-  const gender = controlledGender ?? internalGender;
   const colorInputRef = useRef<HTMLInputElement>(null);
   const t = useT();
 
   const choices = avatarChoices(browsingWorkType, gender);
   const customColor = customGradientColor(avatarGradient);
 
-  function pickGender(next: AvatarGender) {
-    setInternalGender(next);
-    onChangeGender?.(next);
-    const swapped = avatarKeyForGender(avatarKey, next);
-    if (swapped && swapped !== avatarKey) onChangeAvatarKey(swapped);
-  }
-
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="text-[13px] font-semibold text-foreground">{t("Choose your avatar")}</p>
         <WorkTypeDots value={browsingWorkType} onChange={setBrowsingWorkType} />
-        {controlledGender === undefined && (
-          <div className="ml-auto">
-            <GenderToggle value={gender} onChange={pickGender} />
-          </div>
-        )}
       </div>
       <div className="mb-6 grid grid-cols-4 gap-3">
         {choices.map((v) => {
@@ -153,10 +125,18 @@ export function AvatarEditor({
  * The four work types as small dots in their collar colours; the picked one
  * is larger with a ring, and its name is written after the dots.
  */
-function WorkTypeDots({ value, onChange }: { value: WorkplaceType; onChange: (type: WorkplaceType) => void }) {
+export function WorkTypeDots({
+  value,
+  onChange,
+  label = "Work type of the avatar",
+}: {
+  value: WorkplaceType;
+  onChange: (type: WorkplaceType) => void;
+  label?: string;
+}) {
   const t = useT();
   return (
-    <div role="radiogroup" aria-label={t("Work type of the avatar")} className="flex items-center gap-1">
+    <div role="radiogroup" aria-label={t(label)} className="flex items-center gap-1">
       {AVATAR_WORK_TYPES.map((type) => {
         const picked = type === value;
         return (
@@ -185,15 +165,25 @@ function WorkTypeDots({ value, onChange }: { value: WorkplaceType; onChange: (ty
   );
 }
 
-/** The standard male (blue) and female (pink) symbols; the picked one gets a soft wash of its colour. */
-export function GenderToggle({ value, onChange }: { value: AvatarGender; onChange: (gender: AvatarGender) => void }) {
+/**
+ * Gender, as the standard male (blue) and female (pink) symbols with their
+ * words. Used at sign-up (PiiForm) and under Personal Information; null =
+ * not chosen yet.
+ */
+export function GenderToggle({
+  value,
+  onChange,
+}: {
+  value: AvatarGender | null;
+  onChange: (gender: AvatarGender) => void;
+}) {
   const t = useT();
   const options: { gender: AvatarGender; label: string; tone: string; wash: string }[] = [
     { gender: "MALE", label: "Male", tone: "text-blue-600 dark:text-blue-400", wash: "bg-blue-500/15" },
     { gender: "FEMALE", label: "Female", tone: "text-pink-500 dark:text-pink-400", wash: "bg-pink-500/15" },
   ];
   return (
-    <div role="radiogroup" aria-label={t("Avatar gender")} className="flex items-center gap-1">
+    <div role="radiogroup" aria-label={t("Gender")} className="flex items-center gap-2">
       {options.map((o) => {
         const picked = o.gender === value;
         return (
@@ -202,14 +192,15 @@ export function GenderToggle({ value, onChange }: { value: AvatarGender; onChang
             type="button"
             role="radio"
             aria-checked={picked}
-            aria-label={t(o.label)}
-            title={t(o.label)}
             onClick={() => onChange(o.gender)}
-            className={`flex h-8 w-8 items-center justify-center rounded-full transition ${o.tone} ${
-              picked ? o.wash : "opacity-40 hover:opacity-80"
+            className={`flex items-center gap-1.5 rounded-full py-1.5 pl-2 pr-3.5 text-sm transition ${
+              picked ? `${o.wash} font-semibold text-foreground` : "bg-surface-muted text-muted-foreground hover:text-foreground"
             }`}
           >
-            {o.gender === "MALE" ? <MaleSymbol /> : <FemaleSymbol />}
+            <span className={`${o.tone} ${picked ? "" : "opacity-60"}`}>
+              {o.gender === "MALE" ? <MaleSymbol /> : <FemaleSymbol />}
+            </span>
+            {t(o.label)}
           </button>
         );
       })}

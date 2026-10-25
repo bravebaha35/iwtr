@@ -36,7 +36,7 @@ const THREAD_INCLUDE = {
       isRandomizedIdentity: true,
       displayUsername: true,
       generalThoughts: true,
-      user: { select: { reviewUsername: true, avatarKey: true, avatarGradient: true } },
+      user: { select: { reviewUsername: true, avatarKey: true, avatarGradient: true, gender: true } },
     },
   },
   company: { select: { name: true, slug: true, mainPhotoUrl: true } },

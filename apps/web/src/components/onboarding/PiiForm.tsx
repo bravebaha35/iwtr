@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { piiOnboardingInputSchema } from "@iwtr/shared-types";
+import { piiOnboardingInputSchema, type Gender } from "@iwtr/shared-types";
 import { apiPost, ApiError } from "@/lib/api-client";
 import { formProblem } from "@/lib/validateForm";
 import { DateDropdownPicker } from "@/components/DateDropdownPicker";
 import { LocationPicker, type LocationValue } from "@/components/LocationPicker";
+import { GenderToggle } from "@/components/AvatarEditor";
 import { useT } from "@/lib/i18n/client";
 
 export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
@@ -13,6 +14,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState<string | null>(null);
   const [location, setLocation] = useState<LocationValue>({ country: null, city: null, district: null });
+  const [gender, setGender] = useState<Gender | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const t = useT();
@@ -23,6 +25,10 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
       setError(t("Please fill in your birth date, country, and city."));
       return;
     }
+    if (!gender) {
+      setError(t("Please choose your gender."));
+      return;
+    }
     const body = {
       firstName,
       lastName,
@@ -30,6 +36,7 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
       country: location.country,
       city: location.city,
       district: location.district ?? undefined,
+      gender,
     };
     const problem = formProblem(piiOnboardingInputSchema, body, { birthDate: "birth date" }, t);
     if (problem) {
@@ -82,6 +89,12 @@ export function PiiForm({ onSubmitted }: { onSubmitted: () => void }) {
             <p className="mt-1 text-xs text-muted-foreground">
               {t("Double-check the spelling. Your name and surname can't be changed later except by contacting us.")}
             </p>
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs text-muted-foreground">{t("Gender")}</p>
+            <GenderToggle value={gender} onChange={setGender} />
+            <p className="mt-1 text-xs text-muted-foreground">{t("Decides which avatars you can pick.")}</p>
           </div>
 
           <div>

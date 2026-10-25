@@ -1,11 +1,11 @@
-import { RANDOMIZED_IDENTITY_AVATAR_KEY, type WorkplaceType } from "@iwtr/shared-types";
+import { isRandomizedIdentityAvatarKey, type WorkplaceType } from "@iwtr/shared-types";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
-// Shown only for a review submitted with "randomize my identity" on
-// (RateButton.tsx) - deliberately outside WORK_TYPE_AVATARS below so it can
-// never appear as a choice in the normal avatar picker, only assigned by
-// the server (see ReviewsService.listForCompany).
-const RANDOMIZED_IDENTITY_EMOJI = "🎭";
+// The "secret" beavers (sunglasses, black suit; randomized_identity and
+// randomized_identity_f) show only on a review, comment or answer posted with
+// a one-off random name - deliberately outside WORK_TYPE_AVATARS below so they
+// can never be picked as an account's own avatar; only the server assigns
+// them, by the author's gender (randomizedIdentityAvatarKey in shared-types).
 
 export type AvatarGender = "MALE" | "FEMALE";
 
@@ -65,13 +65,8 @@ export function avatarChoices(workType: WorkplaceType, gender: AvatarGender): Av
 
 /** The picture for an avatar key; "sm" is the 96px copy for small avatars. Null for unknown keys. */
 export function avatarImageUrl(avatarKey: string | null | undefined, size: "sm" | "lg" = "lg"): string | null {
-  if (!findVariant(avatarKey)) return null;
+  if (!findVariant(avatarKey) && !isRandomizedIdentityAvatarKey(avatarKey)) return null;
   return size === "sm" ? `/avatars/sm/${avatarKey}.webp` : `/avatars/${avatarKey}.webp`;
-}
-
-/** Only the "randomize my identity" stand-in is still an emoji. */
-export function avatarEmoji(avatarKey: string | null | undefined): string | null {
-  return avatarKey === RANDOMIZED_IDENTITY_AVATAR_KEY ? RANDOMIZED_IDENTITY_EMOJI : null;
 }
 
 export function avatarGender(avatarKey: string | null | undefined): AvatarGender | null {

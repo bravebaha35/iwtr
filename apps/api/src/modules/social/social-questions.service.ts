@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Inj
 import { Prisma } from "@prisma/client";
 import {
   RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
-  RANDOMIZED_IDENTITY_AVATAR_KEY,
+  randomizedIdentityAvatarKey,
   SOCIAL_QUESTION_PREVIEW_ANSWERS,
   SOCIAL_QUESTIONS_PER_DAY,
   workplaceTypeSchema,
@@ -312,7 +312,7 @@ export class SocialQuestionsService {
   async identity(userId: string): Promise<SocialQuestionIdentity> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { reviewUsername: true, avatarKey: true, avatarGradient: true },
+      select: { reviewUsername: true, avatarKey: true, avatarGradient: true, gender: true },
     });
     return { displayUsername: user.reviewUsername, avatarKey: user.avatarKey, avatarGradient: user.avatarGradient };
   }
@@ -658,7 +658,7 @@ export class SocialQuestionsService {
     const [authors, answerRows, myAnswers] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: authorIds } },
-        select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
+        select: { id: true, avatarKey: true, avatarGradient: true, gender: true, reviewUsername: true },
       }),
       options.allAnswers ? this.allAnswerRows(ids) : this.previewAnswerRows(ids),
       viewer
@@ -707,7 +707,7 @@ export class SocialQuestionsService {
         createdAt: toUtcHour(r.createdAt).toISOString(),
         target,
         displayUsername: random ? r.randomUsername : (author?.reviewUsername ?? null),
-        avatarKey: random ? RANDOMIZED_IDENTITY_AVATAR_KEY : (author?.avatarKey ?? null),
+        avatarKey: random ? randomizedIdentityAvatarKey(author?.gender, author?.avatarKey) : (author?.avatarKey ?? null),
         avatarGradient: random ? RANDOMIZED_IDENTITY_AVATAR_GRADIENT : (author?.avatarGradient ?? null),
         mine,
         answerCount: r._count.answers,
@@ -764,7 +764,7 @@ export class SocialQuestionsService {
     const [authors, profiles, myVotes] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: authorIds } },
-        select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
+        select: { id: true, avatarKey: true, avatarGradient: true, gender: true, reviewUsername: true },
       }),
       ownerIds.length > 0
         ? this.prisma.employerProfile.findMany({
@@ -787,9 +787,10 @@ export class SocialQuestionsService {
         const profile = r.authorUserId !== null ? (profileByUserId.get(r.authorUserId) ?? null) : null;
         identity = { ...ownerDisplayFromProfile(profile), avatarKey: null, avatarGradient: null };
       } else if (r.identityMode === "PERSONAL_RANDOM") {
+        const a = r.authorUserId !== null ? authorById.get(r.authorUserId) : undefined;
         identity = {
           displayUsername: r.randomUsername,
-          avatarKey: RANDOMIZED_IDENTITY_AVATAR_KEY,
+          avatarKey: randomizedIdentityAvatarKey(a?.gender, a?.avatarKey),
           avatarGradient: RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
           avatarPhotoUrl: null,
         };

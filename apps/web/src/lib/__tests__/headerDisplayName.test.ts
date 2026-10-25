@@ -8,6 +8,7 @@ const base: OnboardingStatus = {
   district: "Buca",
   avatarKey: "office-1",
   avatarGradient: "g1",
+  gender: null,
   reviewUsername: "Chief Happiness Officer",
   displayName: null,
   showUsernameInHeader: false,

@@ -3,11 +3,13 @@
 import { useState } from "react";
 import Image from "next/image";
 import { isOwnStaticAsset } from "@/lib/imageSource";
-import { avatarEmoji, avatarImageUrl } from "@/lib/avatars";
+import { avatarImageUrl } from "@/lib/avatars";
 import { avatarGradientCss } from "@/lib/avatarGradients";
 
 const SIZES = {
   sm: "h-8 w-8 text-base",
+  // A review's byline (ReviewsList): a step up from sm so the beaver reads.
+  review: "h-11 w-11 text-xl",
   md: "h-16 w-16 text-3xl",
 } as const;
 
@@ -34,7 +36,7 @@ export function Avatar({
   size?: keyof typeof SIZES;
 }) {
   const [photoFailed, setPhotoFailed] = useState(false);
-  const beaverUrl = avatarImageUrl(avatarKey, size === "sm" ? "sm" : "lg");
+  const beaverUrl = avatarImageUrl(avatarKey, size === "md" ? "lg" : "sm");
 
   if (photoUrl && !photoFailed) {
     return (
@@ -59,7 +61,7 @@ export function Avatar({
         // Already cropped and sized (scripts/crop-avatars.mjs), so served as is.
         <Image src={beaverUrl} alt="" width={128} height={128} unoptimized className="h-full w-full" />
       ) : (
-        (avatarEmoji(avatarKey) ?? "🦫")
+        "🦫"
       )}
     </span>
   );

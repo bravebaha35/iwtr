@@ -5,7 +5,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from "@prisma/client";
 import {
   RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
-  RANDOMIZED_IDENTITY_AVATAR_KEY,
+  randomizedIdentityAvatarKey,
   validateSocialImageUpload,
   workplaceTypeSchema,
   type CommentIdentityMode,
@@ -1213,7 +1213,7 @@ export class SocialService {
     await this.requirePost(postId);
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { role: true, reviewUsername: true, avatarKey: true, avatarGradient: true },
+      select: { role: true, reviewUsername: true, avatarKey: true, avatarGradient: true, gender: true },
     });
 
     if (user.role === "COMPANY_OWNER") {
@@ -1237,7 +1237,7 @@ export class SocialService {
         locked: true,
         identityMode: "PERSONAL_RANDOM",
         displayUsername: lock.randomUsername,
-        avatarKey: RANDOMIZED_IDENTITY_AVATAR_KEY,
+        avatarKey: randomizedIdentityAvatarKey(user.gender, user.avatarKey),
         avatarGradient: RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
         avatarPhotoUrl: null,
       };
@@ -1585,7 +1585,7 @@ export class SocialService {
     const [authors, employerProfiles, helpfulCounts, notHelpfulCounts, myVotes, replyCounts] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: authorIds } },
-        select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
+        select: { id: true, avatarKey: true, avatarGradient: true, gender: true, reviewUsername: true },
       }),
       ownerAuthorIds.length > 0
         ? this.prisma.employerProfile.findMany({ where: { userId: { in: ownerAuthorIds } } })
@@ -1621,9 +1621,10 @@ export class SocialService {
         const { displayUsername, avatarPhotoUrl } = this.resolveOwnerDisplay(profile);
         identity = { displayUsername, avatarKey: null, avatarGradient: null, avatarPhotoUrl };
       } else if (r.identityMode === "PERSONAL_RANDOM") {
+        const a = r.authorUserId !== null ? byId.get(r.authorUserId) : undefined;
         identity = {
           displayUsername: r.randomUsername,
-          avatarKey: RANDOMIZED_IDENTITY_AVATAR_KEY,
+          avatarKey: randomizedIdentityAvatarKey(a?.gender, a?.avatarKey),
           avatarGradient: RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
           avatarPhotoUrl: null,
         };

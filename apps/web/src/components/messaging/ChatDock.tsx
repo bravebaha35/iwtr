@@ -388,7 +388,7 @@ function ChatPanel({
   const title = shown?.companyName ?? "Conversation";
   // A minimised panel is a plain name tab: the company for a reviewer, the
   // review's public name for the company. No picture, no status line.
-  const minimisedTitle = (mode === "company" ? shown?.reviewerName : shown?.companyName) ?? title;
+  const minimisedTitle = (mode === "company" ? shown?.reviewerName && t(shown.reviewerName) : shown?.companyName) ?? title;
   const big = enlarged && !minimised;
 
   return (

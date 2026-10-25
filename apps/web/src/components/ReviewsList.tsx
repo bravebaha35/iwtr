@@ -7,6 +7,7 @@ import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { workplaceTypeLabel, WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { collarBorderClass, collarPillClassName } from "@/lib/collarColors";
 import { Avatar } from "@/components/Avatar";
+import { useT } from "@/lib/i18n/client";
 import { SingleSelectPillTabs } from "@/components/FilterPillGroup";
 import { scoreTextColor } from "@/lib/scoreBandColors";
 
@@ -58,6 +59,8 @@ export function ReviewsList({
   onReplyPosted?: () => void;
 }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  // This list stays English for now; only the anonymous usernames are translated.
+  const t = useT();
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -228,9 +231,9 @@ export function ReviewsList({
                 <path d="M16 3a1 1 0 0 1 .7 1.7L15 6.4V10l3.3 3.3a1 1 0 0 1-.7 1.7H13v6a1 1 0 0 1-2 0v-6H6.4a1 1 0 0 1-.7-1.7L9 10V6.4L7.3 4.7A1 1 0 0 1 8 3h8Z" />
               </svg>
             )}
-            <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="sm" />
+            <Avatar avatarKey={review.avatarKey} avatarGradient={review.avatarGradient} size="review" />
             {review.displayUsername && (
-              <span className="shrink-0 text-base font-semibold text-foreground">{review.displayUsername}</span>
+              <span className="shrink-0 text-base font-semibold text-foreground">{t(review.displayUsername)}</span>
             )}
             <div className="flex flex-wrap items-center gap-2">
               {/* Which of the company's (up to 2) workplaceTypes this review

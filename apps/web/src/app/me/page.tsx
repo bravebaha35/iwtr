@@ -19,7 +19,8 @@ import {
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client";
-import { avatarGender, avatarKeyForGender, avatarLabel, type AvatarGender } from "@/lib/avatars";
+import { avatarLabel } from "@/lib/avatars";
+import { effectiveGender, type Gender } from "@iwtr/shared-types";
 import {
   getCvHiddenSections,
   getCvShowEmail,
@@ -31,7 +32,7 @@ import {
   type CvSectionKey,
 } from "@/lib/cvDisclosurePrefs";
 import { Avatar } from "@/components/Avatar";
-import { AvatarEditor, GenderToggle } from "@/components/AvatarEditor";
+import { AvatarEditor, GenderToggle, WorkTypeDots } from "@/components/AvatarEditor";
 import { WorkTypePicker } from "@/components/WorkTypePicker";
 import { AvatarPhotoUploader } from "@/components/profile/AvatarPhotoUploader";
 import { SkillsPicker } from "@/components/profile/SkillsPicker";
@@ -129,8 +130,8 @@ function ProfilePageContent() {
   const [reviewUsername, setReviewUsername] = useState<string | null>(null);
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarGradient, setAvatarGradient] = useState<string | null>(null);
-  // Which set of beavers the picker shows; read from the saved avatar.
-  const [avatarGenderDraft, setAvatarGenderDraft] = useState<AvatarGender>("MALE");
+  const [genderSaving, setGenderSaving] = useState(false);
+  const [genderError, setGenderError] = useState<string | null>(null);
   // Members only: show the username (not the CV display name) top-right.
   const [showUsernameDraft, setShowUsernameDraft] = useState(false);
   const [languagesError, setLanguagesError] = useState<string | null>(null);
@@ -229,9 +230,20 @@ function ProfilePageContent() {
   // employment history (add or edit) never offer years earlier than this.
   const birthYear = profile?.birthDate ? new Date(profile.birthDate).getFullYear() : undefined;
 
-  const usernameOptions: DropdownOption[] = ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE[workTypeDraft ?? "OFFICE"].map((name) => ({
+  // Which work type's names the username list shows (the dots beside
+  // "Username"); starts on the list the current name comes from. Any of the
+  // 40 names can be saved, whatever the member's own work type.
+  const [usernameWorkTypePick, setUsernameWorkTypePick] = useState<WorkplaceType | null>(null);
+  const usernameWorkType: WorkplaceType =
+    usernameWorkTypePick ??
+    (Object.keys(ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE) as WorkplaceType[]).find((type) =>
+      ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE[type].includes(reviewUsername ?? ""),
+    ) ??
+    workTypeDraft ??
+    "OFFICE";
+  const usernameOptions: DropdownOption[] = ANONYMOUS_USERNAMES_BY_WORKPLACE_TYPE[usernameWorkType].map((name) => ({
     value: name,
-    label: name,
+    label: t(name),
   }));
 
   const load = useCallback(async () => {
@@ -245,7 +257,6 @@ function ProfilePageContent() {
       setEmployment(employmentData);
       setReviewUsername(profileData.reviewUsername);
       setAvatarKey(profileData.avatarKey);
-      setAvatarGenderDraft(avatarGender(profileData.avatarKey) ?? "MALE");
       setAvatarGradient(profileData.avatarGradient);
       setShowUsernameDraft(profileData.showUsernameInHeader);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
@@ -449,6 +460,22 @@ function ProfilePageContent() {
       setCvDownloadError(t("Couldn't make the PDF. Please try again."));
     } finally {
       setCvDownloading(false);
+    }
+  }
+
+  // Saved the moment it's picked. The server also moves the avatar to the same
+  // beaver of the new gender, so the header is refreshed too.
+  async function saveGender(gender: Gender) {
+    setGenderSaving(true);
+    setGenderError(null);
+    try {
+      await apiPatch("/me/profile", { gender });
+      await load();
+      void refreshOnboardingStatus();
+    } catch (err) {
+      setGenderError(err instanceof ApiError ? t(err.message) : t("Couldn't save changes."));
+    } finally {
+      setGenderSaving(false);
     }
   }
 
@@ -752,20 +779,11 @@ function ProfilePageContent() {
                 size="md"
               />
               <div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <p className="text-base font-bold text-foreground">
-                    {profile.firstName} {profile.lastName}
-                  </p>
-                  <GenderToggle
-                    value={avatarGenderDraft}
-                    onChange={(g) => {
-                      setAvatarGenderDraft(g);
-                      setAvatarKey((key) => avatarKeyForGender(key, g) ?? key);
-                    }}
-                  />
-                </div>
+                <p className="text-base font-bold text-foreground">
+                  {profile.firstName} {profile.lastName}
+                </p>
                 <p className="text-sm font-light text-muted-foreground">
-                  {profile.reviewUsername ?? avatarLabel(profile.avatarKey) ?? t("Anonymous")}
+                  {t(profile.reviewUsername ?? avatarLabel(profile.avatarKey) ?? "Anonymous")}
                 </p>
               </div>
             </div>
@@ -776,13 +794,15 @@ function ProfilePageContent() {
               onChangeAvatarKey={setAvatarKey}
               onChangeGradient={setAvatarGradient}
               workType={workTypeDraft}
-              gender={avatarGenderDraft}
-              onChangeGender={setAvatarGenderDraft}
+              gender={effectiveGender(profile.gender, profile.avatarKey)}
             />
 
             {/* One box, in this order: avatar (above), username, and for a
                 company owner their own picture in place of the avatar. */}
-                <p className="mb-1 mt-6 text-[13px] font-semibold text-foreground">{t("Username")}</p>
+                <div className="mb-1 mt-6 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <p className="text-[13px] font-semibold text-foreground">{t("Username")}</p>
+                  <WorkTypeDots value={usernameWorkType} onChange={setUsernameWorkTypePick} label="Work type of the username" />
+                </div>
                 <p className="mb-2 text-xs text-muted-foreground">
                   {role === "COMPANY_OWNER"
                     ? t("Your anonymous name on the site - pick whichever one you like. As a company owner, the top of the site always shows your real name.")
@@ -872,6 +892,20 @@ function ProfilePageContent() {
                 </a>
                 .
               </p>
+            </div>
+
+            <div className={`mt-4 border-t border-border pt-4 ${genderSaving ? "opacity-60" : ""}`}>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("Gender")}</p>
+              <GenderToggle
+                value={profile.gender ?? effectiveGender(null, profile.avatarKey)}
+                onChange={(g) => {
+                  if (!genderSaving && g !== profile.gender) void saveGender(g);
+                }}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("Decides which avatars you can pick. Changing it switches your avatar to the same one for that gender.")}
+              </p>
+              {genderError && <p className="mt-1 text-xs text-red-600 dark:text-red-300">{genderError}</p>}
             </div>
 
             <div className="mt-4 border-t border-border pt-4">

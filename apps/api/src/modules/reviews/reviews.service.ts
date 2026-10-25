@@ -850,7 +850,7 @@ export class ReviewsService {
     // REVIEW.md's red flag #1 warns about.
     const authors = await this.prisma.user.findMany({
       where: { id: { in: authorIds } },
-      select: { id: true, avatarKey: true, avatarGradient: true, reviewUsername: true },
+      select: { id: true, avatarKey: true, avatarGradient: true, gender: true, reviewUsername: true },
     });
     const avatarByAuthor = new Map(
       authors.map((a) => [a.id, { avatarKey: a.avatarKey, avatarGradient: a.avatarGradient, reviewUsername: a.reviewUsername }]),

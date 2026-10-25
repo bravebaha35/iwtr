@@ -10,7 +10,7 @@ import type {
 } from "@iwtr/shared-types";
 import {
   RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
-  RANDOMIZED_IDENTITY_AVATAR_KEY,
+  randomizedIdentityAvatarKey,
   SOCIAL_COMMENT_REPORT_REASONS,
   SOCIAL_COMMENT_REPORT_REASON_LABELS,
 } from "@iwtr/shared-types";
@@ -92,7 +92,7 @@ function composerIdentityPreview(
   }
   if (selectedMode === "PERSONAL_RANDOM") {
     return {
-      avatarKey: RANDOMIZED_IDENTITY_AVATAR_KEY,
+      avatarKey: randomizedIdentityAvatarKey(null, context.chosen.avatarKey),
       avatarGradient: RANDOMIZED_IDENTITY_AVATAR_GRADIENT,
       photoUrl: null,
       label: "a new anonymous name",
@@ -141,7 +141,7 @@ function CommentRow({
       <Avatar avatarKey={c.avatarKey} avatarGradient={c.avatarGradient} photoUrl={c.avatarPhotoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-muted-foreground">
-          {c.displayUsername ?? t("Anonymous")} · {shortRelativeTime(c.createdAt, locale)}
+          {t(c.displayUsername ?? "Anonymous")} · {shortRelativeTime(c.createdAt, locale)}
         </p>
         <p className="whitespace-pre-wrap text-sm text-foreground">{c.body}</p>
 

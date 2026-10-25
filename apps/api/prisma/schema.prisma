@@ -41,6 +41,17 @@ enum UserStatus {
   @@schema("public")
 }
 
+// Chosen at sign-up (Personal information step, 2026-10-25). Decides which
+// set of beaver avatars a member sees and which "secret" stand-in a
+// randomized post shows. Null for accounts made before it was asked: their
+// avatar key ("_f" = female) stands in until they set it.
+enum Gender {
+  MALE
+  FEMALE
+
+  @@schema("public")
+}
+
 enum EduLevel {
   ELEMENTARY
   HIGH_SCHOOL
@@ -225,6 +236,7 @@ model User {
   role                 UserRole       @default(MEMBER)
   status               UserStatus     @default(PENDING_PHONE)
   avatarKey            String?
+  gender               Gender?
   // Key into the client-side gradient palette (apps/web/src/lib/avatarGradients.ts)
   // the user picked as their avatar background — loosely validated like
   // avatarKey (not a Prisma/zod enum) so the palette can grow without a

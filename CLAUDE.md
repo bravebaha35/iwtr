@@ -287,11 +287,22 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `companies/company-visibility.ts`. A new public JobPosting read must use it. Demo seeds once wrote ads onto unclaimed
   companies; those stay hidden.
 - The chat dock's panels can be enlarged (button between minimise and close); an enlarged panel counts as two.
-- **Avatars (2026-10-25)**: the owner's beaver art, 4 per work type per gender (`lib/avatars.ts`). Picked in
-  AvatarEditor: male/female symbols (`GenderToggle`; on Customize beside the name), four collar-coloured work-type dots,
-  then 4 beavers. Keys keep the work-type prefix the API reads: male `office_1` (the old keys, so old accounts stay
-  valid), female `office_f1`. Sources `public/mal*.webp` / `public/fem*.webp`; `node scripts/crop-avatars.mjs` (apps/web)
-  frames each by its head into `public/avatars/<key>.webp` (384px) and `public/avatars/sm/` (96px).
+- **Avatars (2026-10-25)**: the owner's beaver art, 4 per work type per gender (`lib/avatars.ts`). `User.gender`
+  (MALE/FEMALE, nullable) is chosen at sign-up in PiiForm and changed under Edit Profile > Personal Information (the
+  server then moves the avatar to the same beaver of that gender, `avatarKeyForGender`); AvatarEditor shows only that
+  gender's beavers, with four collar-coloured work-type dots. Keys keep the work-type prefix the API reads: male
+  `office_1` (the old keys), female `office_f1`; accounts without a gender fall back to their key (`effectiveGender`).
+  A randomized review/comment/answer shows the "secret" beaver of its author's gender (`randomizedIdentityAvatarKey`:
+  `randomized_identity` / `randomized_identity_f`) - every place that assigns it must select the author's `gender`.
+  Sources `public/mal*.webp` / `public/fem*.webp` (+ `malsecret` / `femsecret`); `node scripts/crop-avatars.mjs`
+  (apps/web) frames each by its head (whole head + shirt, drawing's bottom on the circle's bottom, face centred, glow
+  dropped) into `public/avatars/<key>.webp` (384px) and `public/avatars/sm/` (96px). Review bylines use the larger
+  `size="review"`.
+- The 40 anonymous usernames are stored in English and shown through `t()` (Turkish in `tr/usernames.ts`) everywhere
+  they appear, even in the English-only areas. Customize has work-type dots beside "Username"; any of the 40 can be saved.
+- Notifications panel (`NotificationsMenu`): one line icon per kind on a soft tone tile (`KIND_LOOK`), time on the
+  right, Wood dot for unread, "Today" / "Earlier" groups. A job card's flags pop-up links to the company page's
+  `#vibe-flags` block with the count of mixed signals.
 - Job cards name the Risk Score in one word (`RISK_SCORE_WORDS`): 0 Sensible. / 1 Okay. / 2 Meh. / 3 Caution! (TR Mantıklı.
   / Olur. / Eh. / Dikkat!), same colours. The company page keeps "Risk Score: n/3".
 - Edit Profile and the owner Dashboard share one side menu (`SettingsNav`): plain text rows on a hairline rail, the picked

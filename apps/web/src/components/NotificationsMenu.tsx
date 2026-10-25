@@ -7,7 +7,6 @@ import type { Notification as ApiNotification } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
-import { HeartIcon } from "@/components/icons/HeartIcon";
 import { useT } from "@/lib/i18n/client";
 import type { TFn } from "@/lib/i18n/core";
 
@@ -286,101 +285,198 @@ function byNewestFirst(a: AppNotification, b: AppNotification): number {
 }
 
 // --- Icons ------------------------------------------------------------
+// One line icon per kind of notification, all drawn the same way (24px
+// grid, 1.75 stroke, round ends), each on a soft tile in a tone that says
+// what kind of news it is: good (green), a problem (red), a message or
+// report (blue), jobs and reviews (amber), questions and posts (teal),
+// everything else (stone).
 
-function BellIcon({ className }: { className?: string }) {
+type IconProps = { className?: string };
+
+function Glyph({ className, children }: IconProps & { children: React.ReactNode }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  );
-}
-// Social: a heart (as suggested in the brief) covers votes/replies/"same
-// company" alike — one consistent glyph per category reads faster at a
-// glance than a different icon per kind.
-function SocialHeartIcon({ className }: { className?: string }) {
-  return <HeartIcon className={className} filled />;
-}
-// "Not Helpful" vote: the same heart, cracked down the middle.
-function BrokenHeartIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path
-        d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"
-        fill="currentColor"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path d="m12 5.5-1.5 3 3 2.5-2.5 3 1 2.5" fill="none" className="stroke-surface" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-// Followed-company updates ("See how X doing!", "X just posted a new post !"):
-// an eye, in a quiet greyish white rather than a category colour.
-function EyeIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-// System: a shield — account/review/platform status events.
-function ShieldIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
-      <path d="M12 8v5" />
-      <circle cx="12" cy="16.2" r="0.4" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-// Employer: a briefcase — job-posting and "your company" events, same
-// silhouette the "Hire now!" nav link already uses elsewhere in the header.
-function BriefcaseIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="7" width="20" height="14" rx="2" />
-      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-      <path d="M2 13h20" />
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
     </svg>
   );
 }
 
-const CATEGORY_ICON: Record<NotificationCategory, (props: { className?: string }) => React.JSX.Element> = {
-  SOCIAL: SocialHeartIcon,
-  SYSTEM: ShieldIcon,
-  EMPLOYER: BriefcaseIcon,
+function BellIcon({ className }: IconProps) {
+  return (
+    <Glyph className={className}>
+      <path d="M10.27 21a2 2 0 0 0 3.46 0" />
+      <path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33" />
+    </Glyph>
+  );
+}
+const ThumbUpIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M7 10v12" />
+    <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+  </Glyph>
+);
+const ThumbDownIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M17 14V2" />
+    <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+  </Glyph>
+);
+const ReplyIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="m9 17-5-5 5-5" />
+    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+  </Glyph>
+);
+const ChatIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+  </Glyph>
+);
+const StarIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M11.53 2.3a.53.53 0 0 1 .94 0l2.31 4.68a2.12 2.12 0 0 0 1.6 1.16l5.17.76a.53.53 0 0 1 .29.9l-3.74 3.64a2.12 2.12 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.12 2.12 0 0 0-1.97 0L6.4 21.02a.53.53 0 0 1-.77-.56l.88-5.14a2.12 2.12 0 0 0-.61-1.88L2.16 9.8a.53.53 0 0 1 .29-.9l5.17-.76a2.12 2.12 0 0 0 1.6-1.16Z" />
+  </Glyph>
+);
+const CheckCircleIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m9 12 2 2 4-4" />
+  </Glyph>
+);
+const XCircleIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m15 9-6 6M9 9l6 6" />
+  </Glyph>
+);
+const ShieldCheckIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+    <path d="m9 12 2 2 4-4" />
+  </Glyph>
+);
+const SparkIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M9.94 14.06 4 12l5.94-2.06L12 4l2.06 5.94L20 12l-5.94 2.06L12 20Z" />
+  </Glyph>
+);
+const TrendIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M16 7h6v6" />
+    <path d="m22 7-8.5 8.5-5-5L2 17" />
+  </Glyph>
+);
+const PostIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" />
+  </Glyph>
+);
+const BriefcaseIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    <rect width="20" height="14" x="2" y="6" rx="2" />
+  </Glyph>
+);
+const MegaphoneIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="m3 11 18-5v12L3 14v-3z" />
+    <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+  </Glyph>
+);
+const AlertIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+    <path d="M12 9v4M12 17h.01" />
+  </Glyph>
+);
+const ReportIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    <path d="M12 18v-6M9 15l3 3 3-3" />
+  </Glyph>
+);
+const BadgeCheckIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
+    <path d="m9 12 2 2 4-4" />
+  </Glyph>
+);
+const ApplicantIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M19 8v6M22 11h-6" />
+  </Glyph>
+);
+const QuestionIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
+  </Glyph>
+);
+const ClockAlertIcon = ({ className }: IconProps) => (
+  <Glyph className={className}>
+    <path d="M12 6v6l4 2" />
+    <path d="M16 21.16a10 10 0 1 1 5-6.47" />
+    <path d="M20 17v.01M20 13v1.5" />
+  </Glyph>
+);
+
+type Tone = "good" | "bad" | "info" | "work" | "talk" | "plain";
+const TONE_CLASS: Record<Tone, string> = {
+  good: "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+  bad: "bg-rose-500/12 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
+  info: "bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300",
+  work: "bg-amber-500/15 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300",
+  talk: "bg-teal-500/12 text-teal-700 dark:bg-teal-400/15 dark:text-teal-300",
+  plain: "bg-surface-muted text-muted-foreground",
 };
-// Distinct, high-contrast rings that hold up in both themes — solid hues,
-// no washed-out tints that would fail the "equal parity" requirement.
-const CATEGORY_RING_CLASS: Record<NotificationCategory, string> = {
-  SOCIAL: "border-rose-500 text-rose-600 dark:text-rose-400",
-  SYSTEM: "border-forest-500 text-forest-600 dark:text-forest-300",
-  EMPLOYER: "border-amber-500 text-amber-700 dark:text-amber-400",
+
+const KIND_LOOK: Record<NotificationKind, { Icon: (props: IconProps) => React.JSX.Element; tone: Tone }> = {
+  VOTE_HELPFUL: { Icon: ThumbUpIcon, tone: "good" },
+  VOTE_NOT_HELPFUL: { Icon: ThumbDownIcon, tone: "bad" },
+  COMPANY_REPLY: { Icon: ReplyIcon, tone: "info" },
+  SAME_COMPANY_REVIEWED: { Icon: StarIcon, tone: "work" },
+  REVIEW_PUBLISHED: { Icon: CheckCircleIcon, tone: "good" },
+  REVIEW_NOT_PUBLISHED: { Icon: XCircleIcon, tone: "bad" },
+  VERIFY_ACCOUNT: { Icon: ShieldCheckIcon, tone: "work" },
+  REVIEW_REMOVED: { Icon: XCircleIcon, tone: "bad" },
+  IWT_SOCIAL_UPDATE: { Icon: SparkIcon, tone: "talk" },
+  COMPANY_STATUS_UPDATE: { Icon: TrendIcon, tone: "plain" },
+  COMPANY_NEW_SOCIAL_POST: { Icon: PostIcon, tone: "talk" },
+  COMPANY_HIRING: { Icon: BriefcaseIcon, tone: "work" },
+  JOB_POSTING_PUBLISHED: { Icon: MegaphoneIcon, tone: "good" },
+  COMPANY_REVIEWED: { Icon: StarIcon, tone: "work" },
+  JOB_POSTING_NEEDS_INFO: { Icon: AlertIcon, tone: "work" },
+  BENCHMARK_REPORT_READY: { Icon: ReportIcon, tone: "info" },
+  HR_REPORT_READY: { Icon: ReportIcon, tone: "info" },
+  CONVERSATION_MESSAGE_FROM_COMPANY: { Icon: ChatIcon, tone: "info" },
+  CONVERSATION_MESSAGE_FROM_REVIEWER: { Icon: ChatIcon, tone: "info" },
+  CLAIM_APPROVED: { Icon: BadgeCheckIcon, tone: "good" },
+  CLAIM_REJECTED: { Icon: XCircleIcon, tone: "bad" },
+  JOB_APPLICATION_RECEIVED: { Icon: ApplicantIcon, tone: "talk" },
+  QUESTION_ANSWERED: { Icon: QuestionIcon, tone: "talk" },
+  COMPANY_QUESTION_ASKED: { Icon: QuestionIcon, tone: "talk" },
+  SCHEDULED_POST_FAILED: { Icon: ClockAlertIcon, tone: "bad" },
 };
 
-// A few kinds get their own icon/colour instead of their category's.
-const EYE_RING_CLASS = "border-zinc-300 text-zinc-400 dark:border-zinc-500 dark:text-zinc-200";
-const KIND_ICON_OVERRIDE: Partial<
-  Record<NotificationKind, { Icon: (props: { className?: string }) => React.JSX.Element; ringClass?: string }>
-> = {
-  VOTE_NOT_HELPFUL: { Icon: BrokenHeartIcon },
-  COMPANY_STATUS_UPDATE: { Icon: EyeIcon, ringClass: EYE_RING_CLASS },
-  COMPANY_NEW_SOCIAL_POST: { Icon: EyeIcon, ringClass: EYE_RING_CLASS },
-};
-
-// One row. The whole block is the link (per the brief) — icon, copy, and
-// timestamp all route together. Sized generously (large tap target, plain
-// large text, no secondary micro-actions crowding the row) for a one-glance,
-// one-tap read on a phone with tired hands, not a dense desktop table.
+// One row: the whole row is the link. Icon tile, the message (two lines at
+// most) with the time on the right, and a Wood dot while it is new.
 function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: string) => void }) {
-  const category = CATEGORY_BY_KIND[n.kind];
   const t = useT();
-  const override = KIND_ICON_OVERRIDE[n.kind];
-  const Icon = override?.Icon ?? CATEGORY_ICON[category];
-  const ringClass = override?.ringClass ?? CATEGORY_RING_CLASS[category];
+  const { Icon, tone } = KIND_LOOK[n.kind];
   const isVerifyAccount = n.kind === "VERIFY_ACCOUNT";
   const href = hrefForNotification(n);
   // API routes (the benchmark PDF download) are real file responses, not
@@ -394,39 +490,51 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: (id: strin
         href={href}
         {...(isFile ? { target: "_blank", rel: "noopener noreferrer" } : {})}
         onClick={() => onOpen(n.id)}
-        className={`flex items-start gap-3 rounded-xl px-3 py-3 transition ${
-          isVerifyAccount
-            ? "border border-brand-600 bg-brand-50 hover:bg-brand-100 dark:border-brand-400 dark:bg-brand-950 dark:hover:bg-brand-900"
-            : `hover:bg-surface-muted ${n.unread ? "bg-surface-muted/60" : ""}`
-        }`}
+        className="group flex items-start gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-surface-muted"
       >
-        <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-surface ${ringClass}`}
-          aria-hidden="true"
-        >
-          <Icon className="h-5 w-5" />
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${TONE_CLASS[tone]}`} aria-hidden="true">
+          <Icon className="h-[18px] w-[18px]" />
         </span>
 
-        <span className="min-w-0 flex-1">
-          <span className="flex items-start gap-2">
-            {/* Unread dot — the brief's explicit "colored dot" indicator. */}
-            {n.unread && (
-              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label={t("Unread")} title={t("Unread")} />
-            )}
-            <span className={`text-sm leading-snug text-foreground ${n.unread ? "font-bold" : "font-medium"}`}>
+        <span className="min-w-0 flex-1 pt-0.5">
+          <span className="flex items-baseline gap-3">
+            <span
+              className={`line-clamp-2 min-w-0 flex-1 text-[13.5px] leading-snug ${
+                n.unread ? "text-foreground" : "text-muted-foreground"
+              }`}
+            >
               {describeNotification(n, t)}
-              {isVerifyAccount && (
-                <span className="ml-2 inline-block rounded-full bg-brand-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t("Verify now")}
-                </span>
-              )}
+            </span>
+            <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">
+              {timeAgo(n.createdAt, t, HOUR_PRECISION_KINDS.has(n.kind))}
             </span>
           </span>
-          <span className="mt-1 block text-xs text-muted-foreground">{timeAgo(n.createdAt, t, HOUR_PRECISION_KINDS.has(n.kind))}</span>
+          {isVerifyAccount && (
+            <span className="mt-1.5 inline-block text-xs font-semibold text-brand-600 group-hover:underline dark:text-brand-400">
+              {t("Verify now")}
+            </span>
+          )}
+        </span>
+
+        <span className="flex h-9 w-2 shrink-0 items-center justify-center">
+          {n.unread && <span className="h-2 w-2 rounded-full bg-brand-600" aria-label={t("Unread")} title={t("Unread")} />}
         </span>
       </RowLink>
     </li>
   );
+}
+
+// "Today" first, then everything older under "Earlier" - two quiet groups
+// instead of one long run.
+function splitByDay(list: AppNotification[]): { label: string; items: AppNotification[] }[] {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const today = list.filter((n) => new Date(n.createdAt) >= startOfToday);
+  const earlier = list.filter((n) => new Date(n.createdAt) < startOfToday);
+  return [
+    { label: "Today", items: today },
+    { label: "Earlier", items: earlier },
+  ].filter((g) => g.items.length > 0);
 }
 
 // Saved on the account. If saving fails the next load simply shows them
@@ -610,37 +718,53 @@ export function NotificationsMenu() {
           role="dialog"
           aria-label={t("Notifications")}
           style={{ top: panelPos?.top ?? 72, right: panelPos?.right ?? 12 }}
-          className="fixed z-50 w-96 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-surface p-3 font-sans shadow-xl"
+          className="fixed z-50 w-96 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl bg-surface font-sans shadow-xl ring-1 ring-border"
         >
-          <div className="flex items-center justify-between gap-2 px-1 pb-2">
-            <h2 className="text-base font-bold text-foreground">{t("Notifications")}</h2>
+          <div className="flex items-baseline justify-between gap-3 px-4 pb-2 pt-4">
+            <h2 className="font-grotesk text-[17px] font-semibold text-foreground">{t("Notifications")}</h2>
             <button
               type="button"
               onClick={markAllRead}
               disabled={unreadCount === 0 && freshIds.size === 0}
-              className="rounded-lg border border-border px-3 py-2 text-sm font-bold text-foreground transition hover:border-brand-600 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-foreground dark:hover:border-brand-400 dark:hover:text-brand-400"
+              className="text-[12.5px] font-medium text-muted-foreground transition hover:text-brand-600 disabled:cursor-default disabled:opacity-40 disabled:hover:text-muted-foreground dark:hover:text-brand-400"
             >
               {t("Mark all as read")}
             </button>
           </div>
 
           {visible === null && loadFailed ? (
-            <p className="p-4 text-center text-sm text-muted-foreground">
+            <p className="px-4 pb-6 pt-4 text-center text-sm text-muted-foreground">
               {t("Couldn't load your notifications. Please try again in a moment.")}
             </p>
           ) : visible === null ? (
-            <p className="p-4 text-center text-sm text-muted-foreground">{t("Loading...")}</p>
+            <div className="flex flex-col gap-1 px-2 pb-3" aria-label={t("Loading...")}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-2.5 py-2.5">
+                  <span className="h-9 w-9 shrink-0 animate-pulse rounded-xl bg-surface-muted" />
+                  <span className="h-3 flex-1 animate-pulse rounded-full bg-surface-muted" />
+                </div>
+              ))}
+            </div>
           ) : visible.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 p-6 text-center">
-              <BellIcon className="h-8 w-8 text-muted-foreground" />
-              <p className="text-sm font-medium text-muted-foreground">{t("You have no new notifications.")}</p>
+            <div className="flex flex-col items-center gap-3 px-6 pb-8 pt-5 text-center">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-surface-muted text-muted-foreground">
+                <BellIcon className="h-5 w-5" />
+              </span>
+              <p className="text-sm text-muted-foreground">{t("You have no new notifications.")}</p>
             </div>
           ) : (
-            <ul className="flex max-h-[28rem] flex-col gap-1 overflow-y-auto">
-              {visible.map((n) => (
-                <NotificationRow key={n.id} n={freshIds.has(n.id) ? { ...n, unread: true } : n} onOpen={markOneRead} />
+            <div className="max-h-[28rem] overflow-y-auto px-2 pb-2">
+              {splitByDay(visible).map((group) => (
+                <section key={group.label} className="pb-1">
+                  <p className="px-2.5 pb-1 pt-2 text-[11.5px] font-medium text-muted-foreground">{t(group.label)}</p>
+                  <ul className="flex flex-col">
+                    {group.items.map((n) => (
+                      <NotificationRow key={n.id} n={freshIds.has(n.id) ? { ...n, unread: true } : n} onOpen={markOneRead} />
+                    ))}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
           )}
         </div>,
           document.body,

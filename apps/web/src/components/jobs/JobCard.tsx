@@ -143,7 +143,9 @@ const VIBE_FLAG_ROW_ORDER = ["corporateCulture", "leadership", "infrastructure",
 // Compact popover version of WorkplaceVibeFlags.tsx (that component is a
 // fixed lg:h-[672px] page-section box, far too large for a card's dropdown
 // menu) — pools every work-type's flags into one flat green/red list,
-// deduped by category+cluster, capped so the popover stays small.
+// deduped by category+cluster, capped so the popover stays small. Mixed
+// signals are only counted here; the link under the list opens the company
+// page at its full Vibe Flags block, where they are spelled out.
 function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
   const [data, setData] = useState<CompanyVibeFlags | null | "error">(null);
   const t = useT();
@@ -176,19 +178,34 @@ function VibeFlagsPopover({ companySlug }: { companySlug: string }) {
       pooled.push(flag);
     }
   }
-  if (pooled.length === 0) {
-    return <p className="p-1 text-xs text-muted-foreground">{t("No flags yet.")}</p>;
-  }
+  const mixedCount = data.byWorkplaceType.reduce((n, s) => n + s.yellowFlags.length, 0);
 
   return (
-    <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
-      {pooled.map((f) => (
-        <li key={`${f.category}-${f.cluster}`} className="flex items-center gap-1.5 text-xs">
-          <span aria-hidden="true">{f.color === "GREEN" ? "✅" : "🚩"}</span>
-          <span className="truncate text-foreground">{f.label}</span>
-        </li>
-      ))}
-    </ul>
+    <div>
+      {pooled.length === 0 ? (
+        <p className="p-1 text-xs text-muted-foreground">{t("No flags yet.")}</p>
+      ) : (
+        <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
+          {pooled.map((f) => (
+            <li key={`${f.category}-${f.cluster}`} className="flex items-center gap-1.5 text-xs">
+              <span aria-hidden="true">{f.color === "GREEN" ? "✅" : "🚩"}</span>
+              <span className="truncate text-foreground">{t(f.label)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link
+        href={`/companies/${companySlug}#vibe-flags`}
+        className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+      >
+        <span>
+          {mixedCount > 0
+            ? t(mixedCount === 1 ? "See 1 mixed signal in their profile" : "See {n} mixed signals in their profile", { n: mixedCount })
+            : t("See more in their profile")}
+        </span>
+        <span aria-hidden="true">→</span>
+      </Link>
+    </div>
   );
 }
 
@@ -411,7 +428,7 @@ export function JobCard({
                   i
                 </button>
                 {infoOpen && (
-                  <div className="absolute right-0 top-full z-10 mt-1 w-52 rounded-lg border border-border bg-surface p-2 shadow-lg">
+                  <div className="absolute right-0 top-full z-10 mt-1 w-64 rounded-lg border border-border bg-surface p-2 shadow-lg">
                     <VibeFlagsPopover companySlug={company.slug} />
                   </div>
                 )}

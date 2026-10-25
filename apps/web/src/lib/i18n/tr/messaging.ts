@@ -74,6 +74,8 @@ const messaging: Record<string, string> = {
   "Verify now": "Şimdi doğrula",
   "Notifications": "Bildirimler",
   "Mark all as read": "Tümünü okundu yap",
+  "Today": "Bugün",
+  "Earlier": "Daha önce",
   "Couldn't load your notifications. Please try again in a moment.": "Bildirimlerin yüklenemedi. Lütfen birazdan tekrar dene.",
   "You have no new notifications.": "Yeni bildirimin yok.",
 };

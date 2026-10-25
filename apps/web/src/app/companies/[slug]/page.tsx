@@ -359,7 +359,10 @@ export default async function CompanyPage({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-10 border-t border-border pt-10 lg:grid-cols-2 lg:gap-12">
+              <div
+                id="vibe-flags"
+                className="grid scroll-mt-24 grid-cols-1 gap-10 border-t border-border pt-10 lg:grid-cols-2 lg:gap-12"
+              >
                 <WorkplaceVibeFlags companySlug={slug} />
                 <CompanyDetailsBox company={company} />
               </div>

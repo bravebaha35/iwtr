@@ -18,6 +18,7 @@ import { Avatar } from "@/components/Avatar";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { shortRelativeTime } from "./socialTime";
 import { QuestionIdentityPicker, useQuestionIdentity } from "./QuestionIdentityPicker";
+import { useT } from "@/lib/i18n/client";
 
 type IconProps = { className?: string };
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -363,6 +364,8 @@ export function QuestionCard({
   linkToPage?: boolean;
   readOnly?: boolean;
 }) {
+  // Questions stay English for now; only the anonymous usernames are translated.
+  const t = useT();
   const { isAuthenticated, role, openAuthModal } = useAuth();
   const isMember = isAuthenticated && role === "MEMBER";
   const [answering, setAnswering] = useState(false);
@@ -508,7 +511,7 @@ export function QuestionCard({
         <Avatar avatarKey={q.avatarKey} avatarGradient={q.avatarGradient} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-snug text-muted-foreground">
-            <span className="font-semibold text-foreground">{q.displayUsername ?? "Anonymous"}</span> asked{" "}
+            <span className="font-semibold text-foreground">{q.displayUsername ? t(q.displayUsername) : "Anonymous"}</span> asked{" "}
             {q.target.kind === "company" ? (
               <Link href={`/companies/${q.target.companySlug}?tab=social`} className="font-semibold text-foreground hover:underline">
                 {q.target.companyName}
@@ -589,7 +592,7 @@ export function QuestionCard({
                 <Avatar avatarKey={a.avatarKey} avatarGradient={a.avatarGradient} photoUrl={a.avatarPhotoUrl} size="sm" />
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                    <span className="text-sm font-semibold text-foreground">{a.displayUsername ?? "Anonymous"}</span>
+                    <span className="text-sm font-semibold text-foreground">{a.displayUsername ? t(a.displayUsername) : "Anonymous"}</span>
                     {a.fromCompany && <Badge>{companyName ?? "Company"}</Badge>}
                     {a.workedThere && (
                       <Badge>

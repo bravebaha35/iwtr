@@ -11,6 +11,31 @@ import { compensationInputSchema } from "./benchmark";
 // never be chosen as a real account's own avatar, only assigned by the
 // server for this one purpose.
 export const RANDOMIZED_IDENTITY_AVATAR_KEY = "randomized_identity";
+// The female "secret" beaver (2026-10-25): a randomized post shows the stand-in
+// of its author's gender.
+export const RANDOMIZED_IDENTITY_AVATAR_KEY_FEMALE = "randomized_identity_f";
+
+// Female avatar keys carry an "f" before the number (office_f1); male ones
+// don't (office_1). Stands in for User.gender on accounts made before gender
+// was asked at sign-up.
+export function isFemaleAvatarKey(avatarKey: string | null | undefined): boolean {
+  return /_f[0-9]+$/.test(avatarKey ?? "");
+}
+
+/** The member's gender: what they chose, else what their avatar says. */
+export function effectiveGender(gender: "MALE" | "FEMALE" | null | undefined, avatarKey: string | null | undefined): "MALE" | "FEMALE" {
+  return gender ?? (isFemaleAvatarKey(avatarKey) ? "FEMALE" : "MALE");
+}
+
+/** The "secret" stand-in avatar for a randomized post by this author. */
+export function randomizedIdentityAvatarKey(gender: "MALE" | "FEMALE" | null | undefined, avatarKey: string | null | undefined): string {
+  return effectiveGender(gender, avatarKey) === "FEMALE" ? RANDOMIZED_IDENTITY_AVATAR_KEY_FEMALE : RANDOMIZED_IDENTITY_AVATAR_KEY;
+}
+
+/** True for either "secret" stand-in key. */
+export function isRandomizedIdentityAvatarKey(avatarKey: string | null | undefined): boolean {
+  return avatarKey === RANDOMIZED_IDENTITY_AVATAR_KEY || avatarKey === RANDOMIZED_IDENTITY_AVATAR_KEY_FEMALE;
+}
 export const RANDOMIZED_IDENTITY_AVATAR_GRADIENT = "dusk";
 
 // The full pool of anonymous, humorous handles a user can pick as their

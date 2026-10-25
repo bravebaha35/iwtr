@@ -39,7 +39,7 @@ export function ConversationStatus({ conversation, mode }: { conversation: Conve
   const name =
     mode === "reviewer"
       ? (conversation.ownerName ?? (conversation.companyReplied ? t(OWNER_NAME_FALLBACK) : null))
-      : conversation.reviewerName;
+      : conversation.reviewerName && t(conversation.reviewerName);
   return (
     <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
       <span
