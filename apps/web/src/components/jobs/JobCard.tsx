@@ -418,10 +418,10 @@ export function JobCard({
               {/* Colored by score band — red/orange/amber/lime/green at a
                   glance, not just a number. */}
               <span
-                className={`font-grotesk text-sm font-bold tabular-nums ${company.overallAvg !== null ? scoreTextColor(company.overallAvg) : "text-muted-foreground"}`}
+                className={`font-grotesk text-sm font-bold tabular-nums ${company.overallAvg !== null && company.reviewCount > 0 ? scoreTextColor(company.overallAvg) : "text-muted-foreground"}`}
                 title={t("User rating")}
               >
-                {company.overallAvg !== null ? company.overallAvg.toFixed(1) : "—"}
+                {company.overallAvg !== null && company.reviewCount > 0 ? company.overallAvg.toFixed(1) : "—"}
               </span>
               <div className="relative">
                 <button

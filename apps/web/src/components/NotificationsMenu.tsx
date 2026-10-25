@@ -72,7 +72,10 @@ type NotificationKind =
   | "QUESTION_ANSWERED"
   | "COMPANY_QUESTION_ASKED"
   // Real: a scheduled IWT Social post that could not go out.
-  | "SCHEDULED_POST_FAILED";
+  | "SCHEDULED_POST_FAILED"
+  // Real: a company the member reviewed has clearly risen since; carries
+  // its own href (their review on the company page).
+  | "RATED_COMPANY_IMPROVING";
 
 const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   VOTE_HELPFUL: "SOCIAL",
@@ -100,6 +103,7 @@ const CATEGORY_BY_KIND: Record<NotificationKind, NotificationCategory> = {
   QUESTION_ANSWERED: "SOCIAL",
   COMPANY_QUESTION_ASKED: "EMPLOYER",
   SCHEDULED_POST_FAILED: "EMPLOYER",
+  RATED_COMPANY_IMPROVING: "SOCIAL",
 };
 
 interface AppNotification {
@@ -183,6 +187,8 @@ function describeNotification(n: AppNotification, t: TFn): string {
         : t("Someone asked your company a question.");
     case "SCHEDULED_POST_FAILED":
       return t("A scheduled post for {company} could not go out. See why, then pick a new time or delete it.", { company });
+    case "RATED_COMPANY_IMPROVING":
+      return t("{company}'s rating has gone up since you rated it. Want to update your rating?", { company });
   }
 }
 
@@ -247,6 +253,8 @@ function hrefForNotification(n: AppNotification): string {
       return n.href ?? "/social?tab=questions";
     case "SCHEDULED_POST_FAILED":
       return n.href ?? "/my/companies";
+    case "RATED_COMPANY_IMPROVING":
+      return n.href ?? (n.companySlug ? `/companies/${n.companySlug}` : "/me/reviews");
   }
 }
 
@@ -472,6 +480,7 @@ const KIND_LOOK: Record<NotificationKind, { Icon: (props: IconProps) => React.JS
   QUESTION_ANSWERED: { Icon: QuestionIcon, tone: "talk" },
   COMPANY_QUESTION_ASKED: { Icon: QuestionIcon, tone: "talk" },
   SCHEDULED_POST_FAILED: { Icon: ClockAlertIcon, tone: "bad" },
+  RATED_COMPANY_IMPROVING: { Icon: TrendIcon, tone: "good" },
 };
 
 // One row: the whole row is the link. Icon tile, the message (two lines at

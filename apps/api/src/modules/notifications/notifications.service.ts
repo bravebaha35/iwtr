@@ -10,6 +10,10 @@ const MAX_NOTIFICATIONS = 30;
 // One derived event, before the caller's read state is attached.
 type NotificationEvent = Omit<Notification, "read">;
 const RECENT_WINDOW_MS = 30 * 86_400_000;
+// RATED_COMPANY_IMPROVING (see ratingRiseEvents).
+const RATING_RISE_MAX_REVIEWS = 10;
+const RATING_RISE_MIN_NEWER_REVIEWS = 3;
+const RATING_RISE_MIN = 0.3;
 
 const startOfUtcDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
@@ -42,6 +46,12 @@ export class NotificationsService {
         status: true,
         publishedAt: true,
         createdAt: true,
+        companyId: true,
+        corporateCultureScore: true,
+        leadershipScore: true,
+        infrastructureScore: true,
+        workLifeBalanceScore: true,
+        stabilityScore: true,
         company: { select: { name: true, slug: true } },
       },
     });
@@ -286,6 +296,7 @@ export class NotificationsService {
     events.push(...(await this.reviewClaimAndOwnerEvents(userId, myReviews, ownedCompanyIds)));
     if (socialQuestionsEnabled()) events.push(...(await this.questionEvents(userId, ownedCompanyIds)));
     events.push(...(await this.scheduledPostEvents(ownedCompanyIds)));
+    events.push(...(await this.ratingRiseEvents(myReviews)));
 
     events.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     const latest = events.slice(0, MAX_NOTIFICATIONS);
@@ -390,6 +401,81 @@ export class NotificationsService {
    * company claims, and - for approved owners only - new CV applications and
    * newly published reviews of their companies from the last 30 days.
    */
+  /**
+   * RATED_COMPANY_IMPROVING: for each company the caller reviewed (newest
+   * reviews first, at most 10), compare the company's average back when the
+   * review was published (every published review up to and including it)
+   * with its average now. It fires when at least 3 reviews have come in
+   * since, the average has risen by 0.3 or more, and it is now above the
+   * score the caller gave - so they may want to look again and update their
+   * rating. The id carries the current half-point step (3.5, 4.0, ...), so a
+   * further rise notifies again but the same level never does twice. Dated
+   * to the day, like COMPANY_REVIEWED, so it can't point at one new review.
+   */
+  private async ratingRiseEvents(
+    myReviews: {
+      id: string;
+      status: string;
+      publishedAt: Date | null;
+      companyId: string;
+      corporateCultureScore: number;
+      leadershipScore: number;
+      infrastructureScore: number;
+      workLifeBalanceScore: number;
+      stabilityScore: number;
+      company: { name: string; slug: string };
+    }[],
+  ): Promise<NotificationEvent[]> {
+    const published = myReviews
+      .filter((r): r is typeof r & { publishedAt: Date } => r.status === "PUBLISHED" && r.publishedAt !== null)
+      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+      .slice(0, RATING_RISE_MAX_REVIEWS);
+    if (published.length === 0) return [];
+
+    const aggregates = await this.prisma.companyAggregateScore.findMany({
+      where: { companyId: { in: published.map((r) => r.companyId) }, company: { hiddenAt: null } },
+      select: { companyId: true, overallAvg: true, reviewCount: true, updatedAt: true },
+    });
+    const aggregateByCompany = new Map(aggregates.map((a) => [a.companyId, a]));
+
+    const events: NotificationEvent[] = [];
+    for (const review of published) {
+      const now = aggregateByCompany.get(review.companyId);
+      if (!now || now.reviewCount === 0) continue;
+      const mine =
+        (review.corporateCultureScore + review.leadershipScore + review.infrastructureScore + review.workLifeBalanceScore + review.stabilityScore) / 5;
+      if (now.overallAvg <= mine) continue;
+
+      const then = await this.prisma.review.aggregate({
+        where: { companyId: review.companyId, status: "PUBLISHED", publishedAt: { lte: review.publishedAt } },
+        _avg: {
+          corporateCultureScore: true,
+          leadershipScore: true,
+          infrastructureScore: true,
+          workLifeBalanceScore: true,
+          stabilityScore: true,
+        },
+        _count: { _all: true },
+      });
+      const newer = now.reviewCount - then._count._all;
+      if (newer < RATING_RISE_MIN_NEWER_REVIEWS) continue;
+      const a = then._avg;
+      const thenAvg =
+        ((a.corporateCultureScore ?? 0) + (a.leadershipScore ?? 0) + (a.infrastructureScore ?? 0) + (a.workLifeBalanceScore ?? 0) + (a.stabilityScore ?? 0)) / 5;
+      if (now.overallAvg - thenAvg < RATING_RISE_MIN) continue;
+
+      events.push({
+        id: `rating-up-${review.id}-${Math.floor(now.overallAvg * 2)}`,
+        type: "RATED_COMPANY_IMPROVING" as NotificationType,
+        companyName: review.company.name,
+        companySlug: review.company.slug,
+        createdAt: startOfUtcDay(now.updatedAt).toISOString(),
+        href: reviewHref(review.company.slug, review.id),
+      });
+    }
+    return events;
+  }
+
   private async reviewClaimAndOwnerEvents(
     userId: string,
     myReviews: {

@@ -482,3 +482,58 @@ describe("NotificationsService.list - IWT Social questions", () => {
     }
   });
 });
+
+describe("NotificationsService.list - RATED_COMPANY_IMPROVING", () => {
+  const publishedAt = new Date("2026-06-01T10:00:00Z");
+  // The caller's own review: an overall of 2.0.
+  const myReview = {
+    id: "r1",
+    status: "PUBLISHED",
+    publishedAt,
+    createdAt: publishedAt,
+    companyId: "c9",
+    corporateCultureScore: 2,
+    leadershipScore: 2,
+    infrastructureScore: 2,
+    workLifeBalanceScore: 2,
+    stabilityScore: 2,
+    company: { name: "Rising Co", slug: "rising-co" },
+  };
+
+  function setup(opts: { nowAvg: number; nowCount: number; thenAvg: number; thenCount: number; myScore?: number }) {
+    const score = opts.myScore ?? 2;
+    const avg = { corporateCultureScore: opts.thenAvg, leadershipScore: opts.thenAvg, infrastructureScore: opts.thenAvg, workLifeBalanceScore: opts.thenAvg, stabilityScore: opts.thenAvg };
+    const prisma = basePrisma({
+      review: {
+        findMany: jest.fn().mockResolvedValue([
+          { ...myReview, corporateCultureScore: score, leadershipScore: score, infrastructureScore: score, workLifeBalanceScore: score, stabilityScore: score },
+        ]),
+        aggregate: jest.fn().mockResolvedValue({ _avg: avg, _count: { _all: opts.thenCount } }),
+      },
+      companyAggregateScore: {
+        findMany: jest.fn().mockResolvedValue([
+          { companyId: "c9", overallAvg: opts.nowAvg, reviewCount: opts.nowCount, updatedAt: new Date("2026-10-20T15:30:00Z") },
+        ]),
+      },
+    });
+    return new NotificationsService(prisma).list("u1");
+  }
+
+  it("tells the reviewer when the company has clearly risen since they rated it", async () => {
+    const events = await setup({ nowAvg: 3.6, nowCount: 9, thenAvg: 2.8, thenCount: 4 });
+    const rise = events.find((e) => e.type === "RATED_COMPANY_IMPROVING");
+    expect(rise).toMatchObject({
+      id: "rating-up-r1-7",
+      companyName: "Rising Co",
+      href: "/companies/rising-co?review=r1",
+      // Day precision: it never points at the hour a new review came in.
+      createdAt: "2026-10-20T00:00:00.000Z",
+    });
+  });
+
+  it("stays quiet for a small rise, too few new reviews, or when their own score is already higher", async () => {
+    expect((await setup({ nowAvg: 3.0, nowCount: 9, thenAvg: 2.8, thenCount: 4 })).some((e) => e.type === "RATED_COMPANY_IMPROVING")).toBe(false);
+    expect((await setup({ nowAvg: 3.6, nowCount: 6, thenAvg: 2.8, thenCount: 4 })).some((e) => e.type === "RATED_COMPANY_IMPROVING")).toBe(false);
+    expect((await setup({ nowAvg: 3.6, nowCount: 9, thenAvg: 2.8, thenCount: 4, myScore: 4 })).some((e) => e.type === "RATED_COMPANY_IMPROVING")).toBe(false);
+  });
+});

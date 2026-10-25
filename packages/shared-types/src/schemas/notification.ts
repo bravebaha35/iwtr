@@ -52,6 +52,11 @@ export const notificationTypeSchema = z.enum([
   // Owner-only: a scheduled IWT Social post could not go out when its time
   // came. Carries `href`: the dashboard's IWT Social section, which says why.
   "SCHEDULED_POST_FAILED",
+  // A company the caller reviewed has risen clearly since then (3+ newer
+  // reviews, the average up 0.3+ and now above the caller's own score) -
+  // a nudge to look again and maybe update their rating. Carries `href`:
+  // their review on the company page.
+  "RATED_COMPANY_IMPROVING",
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

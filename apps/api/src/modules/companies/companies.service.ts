@@ -256,7 +256,7 @@ export class CompaniesService {
       // fail any minRating filter here, same as the old client-side
       // `c.overallAvg === null` check did — an inner-join-style relation
       // filter excludes them rather than needing an explicit null check.
-      ...(query.minRating !== undefined ? { aggregate: { is: { overallAvg: { lte: query.minRating } } } } : {}),
+      ...(query.minRating !== undefined ? { aggregate: { is: { overallAvg: { lte: query.minRating }, reviewCount: { gt: 0 } } } } : {}),
       ...(query.maxRiskScore !== undefined ? { riskScore: { lte: query.maxRiskScore } } : {}),
       // Only the /jobs page sends includeJobTitles, and only it should be
       // scoped to isHiring companies — the rating homepage's plain
@@ -298,7 +298,7 @@ export class CompaniesService {
 
     return companies.map((c) => ({
       ...toPublicCompany(c, ownedCompanyIds.has(c.id)),
-      overallAvg: c.aggregate?.overallAvg ?? null,
+      overallAvg: c.aggregate?.reviewCount ? c.aggregate.overallAvg : null,
       reviewCount: c.aggregate?.reviewCount ?? 0,
       jobTitles: jobTitlesByCompanyId.get(c.id) ?? [],
       jobPostings: jobPostingsByCompanyId.get(c.id) ?? [],
@@ -368,7 +368,7 @@ export class CompaniesService {
         id: m.id,
         name: m.name,
         city: m.city,
-        overallAvg: m.aggregate?.overallAvg ?? null,
+        overallAvg: m.aggregate?.reviewCount ? m.aggregate.overallAvg : null,
         reviewCount: m.aggregate?.reviewCount ?? 0,
         riskScore: m.riskScore,
       })),
@@ -497,7 +497,7 @@ export class CompaniesService {
         id: m.id,
         name: m.name,
         city: m.city,
-        overallAvg: m.aggregate?.overallAvg ?? null,
+        overallAvg: m.aggregate?.reviewCount ? m.aggregate.overallAvg : null,
         reviewCount: m.aggregate?.reviewCount ?? 0,
         riskScore: m.riskScore,
       })),
@@ -607,7 +607,7 @@ export class CompaniesService {
       return [
         {
           ...toPublicCompany(c, ownedCompanyIds.has(c.id)),
-          overallAvg: c.aggregate?.overallAvg ?? null,
+          overallAvg: c.aggregate?.reviewCount ? c.aggregate.overallAvg : null,
           reviewCount: c.aggregate?.reviewCount ?? 0,
           jobTitles: jobTitlesByCompanyId.get(c.id) ?? [],
           jobPostings: jobPostingsByCompanyId.get(c.id) ?? [],
@@ -889,7 +889,8 @@ export class CompaniesService {
 
     return {
       company: { ...toPublicCompany(company, company.owners.length > 0), workplaceTypesLocked },
-      aggregate: company.aggregate
+      // A score row left with no reviews behind it is no score at all.
+      aggregate: company.aggregate && company.aggregate.reviewCount > 0
         ? {
             companyId: company.aggregate.companyId,
             overallAvg: company.aggregate.overallAvg,

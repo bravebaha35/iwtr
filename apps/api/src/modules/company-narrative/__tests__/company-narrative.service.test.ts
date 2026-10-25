@@ -25,7 +25,8 @@ function makePrisma(opts: { rows?: unknown[]; overall?: number | null; stored?: 
   };
 }
 
-const storedFor = (band: number) => ({
+const storedFor = (band: number, reviewCountAtGen = 30) => ({
+  reviewCountAtGen,
   description: "Stored English.",
   descriptionTr: "Kayıtlı Türkçe.",
   scoreBand: band,
@@ -71,6 +72,18 @@ describe("CompanyNarrativeService.getNarrative", () => {
     const r = await new CompanyNarrativeService(prisma as any).getNarrative("acme");
     expect(r.description).not.toBe("Stored English.");
     expect(prisma.companyNarrative.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: expect.objectContaining({ scoreBand: 4 }) }));
+  });
+
+  it("writes a new summary once the number of reviews has doubled, even in the same band", async () => {
+    const kept = makePrisma({ rows: reviewRows(11), overall: 3.4, stored: storedFor(3, 6) });
+    await new CompanyNarrativeService(kept as any).getNarrative("acme");
+    expect(kept.companyNarrative.upsert).not.toHaveBeenCalled();
+
+    const doubled = makePrisma({ rows: reviewRows(12), overall: 3.4, stored: storedFor(3, 6) });
+    await new CompanyNarrativeService(doubled as any).getNarrative("acme");
+    expect(doubled.companyNarrative.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ reviewCountAtGen: 12 }) }),
+    );
   });
 
   it("rewrites a summary left by the old pattern engine", async () => {

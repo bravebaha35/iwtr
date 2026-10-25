@@ -26,11 +26,12 @@ type ReviewScoreRow = {
  * once it has 3 published reviews of that type.
  *
  * It is written for the company's score band (the Rating Breakdown's
- * overall average: under 2, 2.x, 3.x, 4+) and then kept as it is: new
- * reviews do not change it until the average crosses into another band
- * (3.7 -> 4.0), which is when it is written again. The owner's decision, so
- * the summary reads as a settled verdict rather than shifting with every
- * review.
+ * overall average: under 2, 2.x, 3.x, 4+) and then kept as it is, so it
+ * reads as a settled verdict rather than shifting with every review. It is
+ * written again when the average crosses into another band (3.7 -> 4.0), or
+ * when the number of reviews has doubled since it was written (3 -> 6,
+ * 20 -> 40): a summary from the first few reviews must not outlive them, and
+ * a company that improves gets a summary that says so. Both owner decisions.
  */
 @Injectable()
 export class CompanyNarrativeService {
@@ -84,6 +85,7 @@ export class CompanyNarrativeService {
       stored.model === SUMMARY_ENGINE_VERSION &&
       stored.promptVersion === SUMMARY_TEXT_VERSION &&
       stored.scoreBand === band &&
+      reviewCount < stored.reviewCountAtGen * 2 &&
       stored.descriptionTr
     ) {
       return { workplaceType, reviewCount, description: stored.description, descriptionTr: stored.descriptionTr };

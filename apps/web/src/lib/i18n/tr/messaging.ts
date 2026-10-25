@@ -82,6 +82,7 @@ const messaging: Record<string, string> = {
   "Your question has a new answer.": "Soruna yeni bir yanıt geldi.",
   "Someone asked {company} a question. Answer it, then choose who sees it.": "Biri {company} şirketine bir soru sordu. Yanıtla, sonra kimlerin göreceğini seç.",
   "Someone asked your company a question.": "Biri şirketine bir soru sordu.",
+  "{company}'s rating has gone up since you rated it. Want to update your rating?": "{company} şirketinin puanı, sen değerlendirdiğinden beri yükseldi. Değerlendirmeni güncellemek ister misin?",
 };
 
 export default messaging;

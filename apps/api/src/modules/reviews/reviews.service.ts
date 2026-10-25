@@ -732,6 +732,16 @@ export class ReviewsService {
     });
 
     const count = published.length;
+
+    // No published reviews left (all removed, demoted or merged away): the
+    // company has no score again, not a score of 0.0. Drop the row and its
+    // summary rather than writing zeros, which every list would show as
+    // "0.0 Unsatisfactory".
+    if (count === 0) {
+      await this.prisma.companyAggregateScore.deleteMany({ where: { companyId } });
+      await this.prisma.companyNarrative.deleteMany({ where: { companyId } });
+      return;
+    }
     const avg = (key: keyof (typeof published)[number]) =>
       count === 0 ? 0 : published.reduce((sum, r) => sum + r[key], 0) / count;
 
@@ -768,13 +778,11 @@ export class ReviewsService {
       },
     });
 
-    // CompanyNarrative's own staleness check (PatternGeneratorService) only
-    // ever fires on an INCREASE of at least 3 reviews since it was
-    // generated — a review count that FALLS (an edit demoting a review out
-    // of PUBLISHED, an account deletion, a merge dropping a colliding
-    // review) never retriggers it on its own, so the cached description
-    // could keep citing a review population that no longer fully backs it.
-    // Force a regen next view whenever the count drops.
+    // The stored Summary is only rewritten on a band change or a doubling of
+    // reviews (CompanyNarrativeService) - a review count that FALLS (an edit
+    // demoting a review out of PUBLISHED, an account deletion, a merge
+    // dropping a colliding review) could leave it citing reviews that no
+    // longer back it. Force a rewrite on the next view whenever the count drops.
     if (previous && count < previous.reviewCount) {
       await this.prisma.companyNarrative.deleteMany({ where: { companyId } });
     }

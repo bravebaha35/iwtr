@@ -299,7 +299,12 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   complaint ("X, followed by Y", from different areas), strongest/weakest area, advice for the weakest area; max 600
   characters each. Every question has a good and a bad noun phrase in `summary-phrases.data.ts` (Turkish always nominative,
   so no suffixes; no legal verdicts - a test checks). Band = floor of the Rating Breakdown overall (1-4, 4.0+ together);
-  the stored text (`CompanyNarrative.scoreBand`) is kept until the band changes (owner's decision), not on new reviews.
+  the stored text (`CompanyNarrative.scoreBand`) is kept until the band changes or the review count doubles since it was
+  written (`reviewCountAtGen`), both owner decisions.
+- A company with no published reviews has NO `CompanyAggregateScore` row: `recomputeAggregate` deletes it (it used to write
+  zeros, shown as "0.0 Unsatisfactory"); reads treat a 0-review row as no score.
+- RATED_COMPANY_IMPROVING (`NotificationsService.ratingRiseEvents`): a company the member reviewed has 3+ newer reviews,
+  its average is up 0.3+ since their review and now above their own score; id per half-point step, dated to the day.
 - Notifications: COMPANY_HIRING opens `/companies/<slug>?tab=jobs`, a new post the company's Social tab; the company page
   keys `CompanyProfileTabs` on slug+tab so such a link works while already on a company page. A job card with no posting
   keeps a bookmark that follows the company (hears when it posts a job).

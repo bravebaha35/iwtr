@@ -119,7 +119,7 @@ export function CompanyWorkCard({
       {/* Wraps onto a second line on narrow cards instead of squeezing the
           words ("Hiring now", "11 reviews") into each other or off the edge. */}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-border/60 pt-2.5">
-        {company.overallAvg !== null ? (
+        {company.overallAvg !== null && company.reviewCount > 0 ? (
           <>
             <div className="flex items-center gap-1.5">
               <span className="font-display text-2xl leading-none tabular-nums text-foreground">{company.overallAvg.toFixed(1)}</span>
