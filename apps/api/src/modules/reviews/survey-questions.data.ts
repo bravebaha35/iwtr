@@ -155,7 +155,7 @@ const SURVEY_QUESTIONS: Record<WorkplaceType, SurveyQuestion[]> = {
     q("MANUAL_LABOUR", "stability", 2, "Does your specific role offer consistent, predictable scheduling and hours throughout the year?", "YES"),
     q("MANUAL_LABOUR", "stability", 3, "Does the company pay for trade training, safety certifications, or skill upgrades?", "YES"),
     q("MANUAL_LABOUR", "stability", 4, "Does the HR or administrative team handle workplace incident reports and safety paperwork promptly?", "YES"),
-    q("MANUAL_LABOUR", "stability", 5, "Do you believe your body can safely sustain working for this company for the next 5 years?", "YES"),
+    q("MANUAL_LABOUR", "stability", 5, "Is this job's workload sustainable for the next 5 years?", "YES"),
   ],
 };
 

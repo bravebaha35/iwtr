@@ -19,7 +19,7 @@ import {
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/api-client";
-import { avatarLabel } from "@/lib/avatars";
+import { avatarGender, avatarKeyForGender, avatarLabel, type AvatarGender } from "@/lib/avatars";
 import {
   getCvHiddenSections,
   getCvShowEmail,
@@ -31,7 +31,7 @@ import {
   type CvSectionKey,
 } from "@/lib/cvDisclosurePrefs";
 import { Avatar } from "@/components/Avatar";
-import { AvatarEditor } from "@/components/AvatarEditor";
+import { AvatarEditor, GenderToggle } from "@/components/AvatarEditor";
 import { WorkTypePicker } from "@/components/WorkTypePicker";
 import { AvatarPhotoUploader } from "@/components/profile/AvatarPhotoUploader";
 import { SkillsPicker } from "@/components/profile/SkillsPicker";
@@ -129,6 +129,8 @@ function ProfilePageContent() {
   const [reviewUsername, setReviewUsername] = useState<string | null>(null);
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarGradient, setAvatarGradient] = useState<string | null>(null);
+  // Which set of beavers the picker shows; read from the saved avatar.
+  const [avatarGenderDraft, setAvatarGenderDraft] = useState<AvatarGender>("MALE");
   // Members only: show the username (not the CV display name) top-right.
   const [showUsernameDraft, setShowUsernameDraft] = useState(false);
   const [languagesError, setLanguagesError] = useState<string | null>(null);
@@ -243,6 +245,7 @@ function ProfilePageContent() {
       setEmployment(employmentData);
       setReviewUsername(profileData.reviewUsername);
       setAvatarKey(profileData.avatarKey);
+      setAvatarGenderDraft(avatarGender(profileData.avatarKey) ?? "MALE");
       setAvatarGradient(profileData.avatarGradient);
       setShowUsernameDraft(profileData.showUsernameInHeader);
       setLocation({ country: profileData.country, city: profileData.city, district: profileData.district });
@@ -740,17 +743,27 @@ function ProfilePageContent() {
           <>
           {/* Avatar, real name + chosen username preview, background, username picker */}
           <div className="rounded-2xl bg-surface shadow-xs p-5">
-            <div className="mb-4 flex items-center gap-3">
+            <div className="mb-5 flex items-center gap-3">
+              {/* Shows the avatar being picked, before it is saved. */}
               <Avatar
-                avatarKey={profile.avatarKey}
-                avatarGradient={profile.avatarGradient}
+                avatarKey={avatarKey}
+                avatarGradient={avatarGradient}
                 photoUrl={role === "COMPANY_OWNER" ? employerProfile?.profilePictureUrl : null}
                 size="md"
               />
               <div>
-                <p className="text-base font-bold text-foreground">
-                  {profile.firstName} {profile.lastName}
-                </p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <p className="text-base font-bold text-foreground">
+                    {profile.firstName} {profile.lastName}
+                  </p>
+                  <GenderToggle
+                    value={avatarGenderDraft}
+                    onChange={(g) => {
+                      setAvatarGenderDraft(g);
+                      setAvatarKey((key) => avatarKeyForGender(key, g) ?? key);
+                    }}
+                  />
+                </div>
                 <p className="text-sm font-light text-muted-foreground">
                   {profile.reviewUsername ?? avatarLabel(profile.avatarKey) ?? t("Anonymous")}
                 </p>
@@ -763,7 +776,8 @@ function ProfilePageContent() {
               onChangeAvatarKey={setAvatarKey}
               onChangeGradient={setAvatarGradient}
               workType={workTypeDraft}
-              showWorkTypePicker={false}
+              gender={avatarGenderDraft}
+              onChangeGender={setAvatarGenderDraft}
             />
 
             {/* One box, in this order: avatar (above), username, and for a

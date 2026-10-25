@@ -287,6 +287,15 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   `companies/company-visibility.ts`. A new public JobPosting read must use it. Demo seeds once wrote ads onto unclaimed
   companies; those stay hidden.
 - The chat dock's panels can be enlarged (button between minimise and close); an enlarged panel counts as two.
+- **Avatars (2026-10-25)**: the owner's beaver art, 4 per work type per gender (`lib/avatars.ts`). Picked in
+  AvatarEditor: male/female symbols (`GenderToggle`; on Customize beside the name), four collar-coloured work-type dots,
+  then 4 beavers. Keys keep the work-type prefix the API reads: male `office_1` (the old keys, so old accounts stay
+  valid), female `office_f1`. Sources `public/mal*.webp` / `public/fem*.webp`; `node scripts/crop-avatars.mjs` (apps/web)
+  frames each by its head into `public/avatars/<key>.webp` (384px) and `public/avatars/sm/` (96px).
+- Job cards name the Risk Score in one word (`RISK_SCORE_WORDS`): 0 Sensible. / 1 Okay. / 2 Meh. / 3 Caution! (TR Mantıklı.
+  / Olur. / Eh. / Dikkat!), same colours. The company page keeps "Risk Score: n/3".
+- Edit Profile and the owner Dashboard share one side menu (`SettingsNav`): plain text rows on a hairline rail, the picked
+  row marked by a sliding Wood bar; a tab row with an underline on phones. No filled pill buttons.
 
 ### Data model (`apps/api/prisma/schema.prisma`)
 
@@ -366,7 +375,7 @@ callers pass English. Plain helpers take a `t: TFn` argument (default `plainT`);
 wording from Turkish job sites (Kariyer.net: "iş ilanı", "başvur", informal "sen"). Left in English on purpose until
 the owner translates them: the Questions feature, everything below Rating Breakdown on the company page except the
 Vibe Flags block (details, reviews list, claim panel), admin pages and the legal pages. The survey questions are Turkish
-since 2026-10-24 (`tr/survey.ts`, the owner's wording, keyed by the English in survey-questions.data.ts), and so are
+since 2026-10-24 (`tr/survey.ts`, the owner's wording, keyed by the English in survey-questions.data.ts; formal "siz", unlike the rest of the site), and so are
 the Vibe Flags (`tr/flags.ts`). User
 content and API-built text (captions, company names, narratives) is never translated. Plan names Starter / Pro /
 Enterprise stay English; Free is "Ücretsiz".

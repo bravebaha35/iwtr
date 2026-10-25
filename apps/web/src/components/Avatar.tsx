@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { isOwnStaticAsset } from "@/lib/imageSource";
-import { avatarEmoji } from "@/lib/avatars";
+import { avatarEmoji, avatarImageUrl } from "@/lib/avatars";
 import { avatarGradientCss } from "@/lib/avatarGradients";
 
 const SIZES = {
@@ -18,8 +18,9 @@ const SIZES = {
  * `photoUrl` (a company owner's real, verified photo — see
  * PublicSocialComment.avatarPhotoUrl) always wins when present, same
  * priority-with-fallback pattern CompanyLogo already uses for a company's
- * own photo; otherwise the anonymous workplace-type icon over the chosen
- * gradient (avatarKey/avatarGradient), unchanged from before.
+ * own photo; otherwise the anonymous beaver (avatarKey, see lib/avatars.ts)
+ * over the chosen gradient (avatarGradient) - the art has a transparent
+ * background, so the gradient shows around it.
  */
 export function Avatar({
   avatarKey,
@@ -33,6 +34,7 @@ export function Avatar({
   size?: keyof typeof SIZES;
 }) {
   const [photoFailed, setPhotoFailed] = useState(false);
+  const beaverUrl = avatarImageUrl(avatarKey, size === "sm" ? "sm" : "lg");
 
   if (photoUrl && !photoFailed) {
     return (
@@ -50,10 +52,15 @@ export function Avatar({
 
   return (
     <span
-      className={`flex ${SIZES[size]} shrink-0 items-center justify-center rounded-full`}
+      className={`flex ${SIZES[size]} shrink-0 items-center justify-center overflow-hidden rounded-full`}
       style={{ background: avatarGradientCss(avatarGradient) }}
     >
-      {avatarEmoji(avatarKey) ?? "🦫"}
+      {beaverUrl ? (
+        // Already cropped and sized (scripts/crop-avatars.mjs), so served as is.
+        <Image src={beaverUrl} alt="" width={128} height={128} unoptimized className="h-full w-full" />
+      ) : (
+        (avatarEmoji(avatarKey) ?? "🦫")
+      )}
     </span>
   );
 }

@@ -8,7 +8,7 @@ const flags: Record<string, string> = {
   " for {type}": " · {type}",
   "Resources": "Kaynaklar",
   "Work-life": "İş-yaşam",
-  "Stability": "Denge",
+  "Stability": "İstikrar",
   "good sign": "olumlu işaret",
   "good signs": "olumlu işaret",
   "warning": "uyarı",

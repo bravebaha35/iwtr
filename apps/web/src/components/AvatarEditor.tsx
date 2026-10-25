@@ -1,99 +1,110 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import type { WorkplaceType } from "@iwtr/shared-types";
-import { WORK_TYPE_AVATARS, avatarWorkType } from "@/lib/avatars";
+import {
+  AVATAR_WORK_TYPES,
+  avatarChoices,
+  avatarGender,
+  avatarImageUrl,
+  avatarKeyForGender,
+  avatarWorkType,
+  type AvatarGender,
+} from "@/lib/avatars";
 import { AVATAR_GRADIENTS, avatarGradientCss, customGradientColor, customGradientKey } from "@/lib/avatarGradients";
+import { collarTileTone } from "@/lib/collarColors";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
-import { WorkTypePicker } from "@/components/WorkTypePicker";
 import { useT } from "@/lib/i18n/client";
 
 /**
- * "What kind of work?" -> "Choose your avatar" (4 variants of that work
- * type) -> "Background" (12 gradients + a native color-picker popup for any
- * exact color). Shared between onboarding's AvatarPicker and the /me page's
- * profile editor — one place to change the flow for both.
+ * "Choose your avatar" (a gender, one of the four work types via the dots,
+ * then one of 4 beavers) -> "Background" (11 gradients + a native
+ * color-picker popup for any exact color). Shared between onboarding's
+ * AvatarPicker and the /me page's Customize tab.
+ *
+ * The gender toggle sits beside the "Choose your avatar" heading unless the
+ * caller renders its own (Customize puts it next to the name and passes
+ * gender + onChangeGender). Switching gender swaps the picked beaver for the
+ * same one of the other gender, so the avatar changes straight away.
  */
 export function AvatarEditor({
   avatarKey,
   avatarGradient,
   onChangeAvatarKey,
   onChangeGradient,
-  onChangeWorkType,
-  workType: controlledWorkType,
-  showWorkTypePicker = true,
+  workType,
+  gender: controlledGender,
+  onChangeGender,
 }: {
   avatarKey: string | null;
   avatarGradient: string | null;
   onChangeAvatarKey: (key: string) => void;
   onChangeGradient: (key: string) => void;
-  // Fired the moment a "what kind of work?" pill is clicked — before the
-  // caller's avatarKey has necessarily changed (picking a new variant below
-  // is a separate step). Optional: onboarding's AvatarPicker has nothing
-  // downstream that needs to react to the category alone, only /me's
-  // username picker does (its options must update as soon as the category
-  // changes, not only once a new avatar variant is actually clicked).
-  onChangeWorkType?: (type: WorkplaceType) => void;
-  // Controlled value — when provided (by /me's Customize tab, which now
-  // sources work-type from the Personal Information tab's own picker
-  // instead), this component stops owning its own work-type state and
-  // showWorkTypePicker defaults callers toward hiding the redundant grid.
-  // Onboarding's AvatarPicker passes neither prop — fully unchanged,
-  // internal-state behavior, own grid rendered, exactly as before.
+  // The work-type dot to start on when the current avatar doesn't say
+  // (no avatar yet): the member's own work type, if known.
   workType?: WorkplaceType | null;
-  showWorkTypePicker?: boolean;
+  gender?: AvatarGender;
+  onChangeGender?: (gender: AvatarGender) => void;
 }) {
-  const [internalWorkType, setInternalWorkType] = useState<WorkplaceType | null>(avatarWorkType(avatarKey));
-  const browsingWorkType = controlledWorkType !== undefined ? controlledWorkType : internalWorkType;
+  const [browsingWorkType, setBrowsingWorkType] = useState<WorkplaceType>(
+    avatarWorkType(avatarKey) ?? workType ?? "OFFICE",
+  );
+  const [internalGender, setInternalGender] = useState<AvatarGender>(avatarGender(avatarKey) ?? "MALE");
+  const gender = controlledGender ?? internalGender;
   const colorInputRef = useRef<HTMLInputElement>(null);
   const t = useT();
 
-  const variants = WORK_TYPE_AVATARS.find((g) => g.workType === browsingWorkType)?.variants ?? [];
+  const choices = avatarChoices(browsingWorkType, gender);
   const customColor = customGradientColor(avatarGradient);
 
-  function pickWorkType(type: WorkplaceType) {
-    setInternalWorkType(type);
-    onChangeWorkType?.(type);
-    // A variant from a different work type no longer applies once the type
-    // changes — the caller keeps whatever avatarKey it had until a new one
-    // is actually picked below, so this alone doesn't clear the selection.
+  function pickGender(next: AvatarGender) {
+    setInternalGender(next);
+    onChangeGender?.(next);
+    const swapped = avatarKeyForGender(avatarKey, next);
+    if (swapped && swapped !== avatarKey) onChangeAvatarKey(swapped);
   }
 
   return (
     <>
-      {showWorkTypePicker && (
-        <>
-          <p className="mb-2 text-[13px] font-semibold text-foreground">{t("What kind of work?")}</p>
-          <div className="mb-4">
-            <WorkTypePicker value={browsingWorkType} onChange={pickWorkType} />
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <p className="text-[13px] font-semibold text-foreground">{t("Choose your avatar")}</p>
+        <WorkTypeDots value={browsingWorkType} onChange={setBrowsingWorkType} />
+        {controlledGender === undefined && (
+          <div className="ml-auto">
+            <GenderToggle value={gender} onChange={pickGender} />
           </div>
-        </>
-      )}
-
-      {browsingWorkType && (
-        <>
-          <p className="mb-2 text-[13px] font-semibold text-foreground">
-            {t("Choose your avatar")}
-          </p>
-          <div className="mb-6 grid grid-cols-4 gap-3">
-            {variants.map((v) => (
-              <button
-                key={v.key}
-                type="button"
-                onClick={() => onChangeAvatarKey(v.key)}
-                title={t(workplaceTypeLabel(browsingWorkType))}
-                className={`flex aspect-square items-center justify-center rounded-full text-3xl transition ${
-                  avatarKey === v.key
-                    ? "ring-2 ring-brand-600 ring-offset-2 ring-offset-surface"
-                    : "bg-surface-muted hover:brightness-95 dark:hover:brightness-110"
-                }`}
-              >
-                {v.emoji}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+        )}
+      </div>
+      <div className="mb-6 grid grid-cols-4 gap-3">
+        {choices.map((v) => {
+          const picked = avatarKey === v.key;
+          return (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => onChangeAvatarKey(v.key)}
+              aria-label={t(workplaceTypeLabel(browsingWorkType))}
+              aria-pressed={picked}
+              className={`relative aspect-square overflow-hidden rounded-full transition ${
+                picked
+                  ? "ring-2 ring-brand-600 ring-offset-2 ring-offset-surface"
+                  : "opacity-90 hover:opacity-100"
+              }`}
+              style={{ background: picked ? avatarGradientCss(avatarGradient) : "var(--color-surface-muted)" }}
+            >
+              <Image
+                src={avatarImageUrl(v.key) ?? ""}
+                alt=""
+                width={192}
+                height={192}
+                unoptimized
+                className="h-full w-full"
+              />
+            </button>
+          );
+        })}
+      </div>
 
       <p className="mb-2 text-[13px] font-semibold text-foreground">{t("Background")}</p>
       <div className="mb-2 grid grid-cols-6 gap-2">
@@ -135,5 +146,92 @@ export function AvatarEditor({
         </button>
       </div>
     </>
+  );
+}
+
+/**
+ * The four work types as small dots in their collar colours; the picked one
+ * is larger with a ring, and its name is written after the dots.
+ */
+function WorkTypeDots({ value, onChange }: { value: WorkplaceType; onChange: (type: WorkplaceType) => void }) {
+  const t = useT();
+  return (
+    <div role="radiogroup" aria-label={t("Work type of the avatar")} className="flex items-center gap-1">
+      {AVATAR_WORK_TYPES.map((type) => {
+        const picked = type === value;
+        return (
+          <button
+            key={type}
+            type="button"
+            role="radio"
+            aria-checked={picked}
+            aria-label={t(workplaceTypeLabel(type))}
+            title={t(workplaceTypeLabel(type))}
+            onClick={() => onChange(type)}
+            className="group flex h-6 w-6 items-center justify-center rounded-full"
+          >
+            <span
+              className={`block rounded-full transition-all duration-150 ${collarTileTone[type].bar} ${
+                picked
+                  ? "h-3 w-3 ring-2 ring-foreground/25 ring-offset-2 ring-offset-surface"
+                  : "h-2 w-2 opacity-45 group-hover:opacity-90"
+              }`}
+            />
+          </button>
+        );
+      })}
+      <span className="ml-1 text-xs text-muted-foreground">{t(workplaceTypeLabel(value))}</span>
+    </div>
+  );
+}
+
+/** The standard male (blue) and female (pink) symbols; the picked one gets a soft wash of its colour. */
+export function GenderToggle({ value, onChange }: { value: AvatarGender; onChange: (gender: AvatarGender) => void }) {
+  const t = useT();
+  const options: { gender: AvatarGender; label: string; tone: string; wash: string }[] = [
+    { gender: "MALE", label: "Male", tone: "text-blue-600 dark:text-blue-400", wash: "bg-blue-500/15" },
+    { gender: "FEMALE", label: "Female", tone: "text-pink-500 dark:text-pink-400", wash: "bg-pink-500/15" },
+  ];
+  return (
+    <div role="radiogroup" aria-label={t("Avatar gender")} className="flex items-center gap-1">
+      {options.map((o) => {
+        const picked = o.gender === value;
+        return (
+          <button
+            key={o.gender}
+            type="button"
+            role="radio"
+            aria-checked={picked}
+            aria-label={t(o.label)}
+            title={t(o.label)}
+            onClick={() => onChange(o.gender)}
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition ${o.tone} ${
+              picked ? o.wash : "opacity-40 hover:opacity-80"
+            }`}
+          >
+            {o.gender === "MALE" ? <MaleSymbol /> : <FemaleSymbol />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// The plain Mars and Venus signs - a circle with an arrow, a circle with a cross.
+function MaleSymbol() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="10" cy="14" r="5.5" />
+      <path d="M14 10 20 4M15 4h5v5" />
+    </svg>
+  );
+}
+
+function FemaleSymbol() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="9" r="5.5" />
+      <path d="M12 14.5V21M9 18h6" />
+    </svg>
   );
 }

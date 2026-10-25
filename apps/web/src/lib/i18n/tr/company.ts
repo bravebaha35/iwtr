@@ -12,7 +12,7 @@ const company: Record<string, string> = {
   "Leadership & Management": "Liderlik ve Yönetim",
   "Infrastructure & Resources": "Altyapı ve Kaynaklar",
   "Work-Life Balance": "İş ve Sosyal Hayat Dengesi",
-  "Organizational Stability": "Organizasyonel Denge",
+  "Organizational Stability": "Kurumsal İstikrar",
   "No reviews yet. Be the first to rate this workplace if it's in your work history.": "Henüz değerlendirme yok. Bu işyeri iş geçmişindeyse ilk puanlayan sen ol.",
   "Report submitted. Thank you.": "Bildirim gönderildi. Teşekkürler.",
   "Couldn't send the report. Please try again.": "Bildirim gönderilemedi. Lütfen tekrar dene.",

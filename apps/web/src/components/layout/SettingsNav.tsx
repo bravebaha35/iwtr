@@ -1,31 +1,39 @@
 "use client";
 
+import { useId } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useT } from "@/lib/i18n/client";
 
 export type SettingsNavItem<K extends string> =
-  // `note`: a short bold line under the label for something the reader
-  // should not miss ("2 free ads left this month").
+  // `note`: a short line under the label for something the reader should not
+  // miss ("2 free ads left this month").
   | { key: K; label: string; note?: string | null }
   // A real route rather than a locally-switched tab (e.g. the owner
   // dashboard's Job Postings page).
   | { key: string; label: string; href: string };
 
-// Fast, sharp settle rather than a soft ease-in-out fade.
-const HOVER_TRANSITION = { duration: 0.12, ease: [0.2, 0.9, 0.1, 1] as const };
-
-// Fixed class strings only — nothing here is ever built from user input.
+// Fixed class strings only - nothing here is ever built from user input.
+// Plain text rows, no filled pills: the selected row is marked by the Wood
+// bar on the rail (the same mark the header uses for the current page).
 const ITEM_BASE =
-  "block w-full whitespace-nowrap rounded-full px-4 py-2.5 text-left text-[15px] font-medium transition-colors sm:whitespace-normal";
-const ITEM_IDLE = `${ITEM_BASE} text-sidebar-foreground/80 hover:bg-black/5 hover:text-sidebar-foreground dark:hover:bg-white/10`;
-const ITEM_ACTIVE = `${ITEM_BASE} bg-brand-600 text-white`;
+  "relative block w-full whitespace-nowrap px-3 py-2.5 text-left text-[14.5px] leading-snug transition-colors duration-150 sm:whitespace-normal sm:py-2 sm:pl-5 sm:pr-2";
+const ITEM_IDLE = `${ITEM_BASE} text-muted-foreground hover:text-foreground`;
+const ITEM_ACTIVE = `${ITEM_BASE} font-semibold text-foreground`;
+
+// The selection bar: under the tab on the mobile strip, on the left rail
+// from sm: up (sitting over the rail's hairline, hence -left-px).
+const BAR =
+  "pointer-events-none absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-brand-600 sm:inset-x-auto sm:-left-px sm:top-1.5 sm:bottom-1.5 sm:h-auto sm:w-0.5";
+
+const BAR_SPRING = { type: "spring", stiffness: 520, damping: 42 } as const;
 
 /**
- * The sidebar panel (light in light mode, dark in dark mode) for the settings-style pages (/me and
- * the /my/companies owner dashboard). Renders its own <aside>, so the page
- * places it as a sibling of the content column instead of inside any card.
- * Horizontal scrolling tab strip on mobile, vertical list from sm: up.
+ * The side menu for the settings-style pages (/me and the /my/companies
+ * owner dashboard) - both use this one component so they always match.
+ * Renders its own <aside>, so the page places it as a sibling of the
+ * content column instead of inside any card. A tab strip with an underline
+ * on mobile, a vertical list on a hairline rail from sm: up.
  */
 export function SettingsNav<K extends string>(props: {
   label: string;
@@ -41,9 +49,8 @@ export function SettingsNav<K extends string>(props: {
 }
 
 /**
- * Just the panel, without the <aside> - for a sidebar made of more than one
- * panel (the owner dashboard: standard sections, then Premium Features).
- * `active` null = nothing in this panel is selected.
+ * Just the list, without the <aside> - for a page that builds its own aside
+ * around it (the owner dashboard). `active` null = nothing here is selected.
  */
 export function SettingsNavList<K extends string>({
   label,
@@ -58,36 +65,44 @@ export function SettingsNavList<K extends string>({
 }) {
   const reduceMotion = useReducedMotion();
   const t = useT();
-  const hover = reduceMotion ? undefined : { x: 4 };
+  // One bar per list, so two lists on a page never swap bars.
+  const barId = useId();
 
   return (
     <nav
       aria-label={t(label)}
-      className="flex flex-row gap-1 overflow-x-auto sm:flex-col sm:overflow-visible"
+      className="flex flex-row overflow-x-auto border-b border-border sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-l"
     >
       {items.map((item) => {
         if ("href" in item) {
           return (
-            <motion.div key={item.key} whileHover={hover} transition={HOVER_TRANSITION}>
-              <Link href={item.href} className={ITEM_IDLE}>
-                {t(item.label)}
-              </Link>
-            </motion.div>
+            <Link key={item.key} href={item.href} className={ITEM_IDLE}>
+              {t(item.label)}
+            </Link>
           );
         }
         const isActive = item.key === active;
         return (
-          <motion.div key={item.key} whileHover={hover} transition={HOVER_TRANSITION}>
-            <button
-              type="button"
-              onClick={() => onChange(item.key)}
-              aria-current={isActive ? "page" : undefined}
-              className={isActive ? ITEM_ACTIVE : ITEM_IDLE}
-            >
-              {t(item.label)}
-              {item.note && <span className={`mt-0.5 block text-xs font-bold ${isActive ? "" : "text-sidebar-foreground"}`}>{t(item.note)}</span>}
-            </button>
-          </motion.div>
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onChange(item.key)}
+            aria-current={isActive ? "page" : undefined}
+            className={isActive ? ITEM_ACTIVE : ITEM_IDLE}
+          >
+            {isActive && (
+              <motion.span
+                layoutId={`settings-nav-bar-${barId}`}
+                transition={reduceMotion ? { duration: 0 } : BAR_SPRING}
+                className={BAR}
+                aria-hidden="true"
+              />
+            )}
+            {t(item.label)}
+            {item.note && (
+              <span className="mt-0.5 block text-xs font-bold text-foreground/80">{t(item.note)}</span>
+            )}
+          </button>
         );
       })}
     </nav>

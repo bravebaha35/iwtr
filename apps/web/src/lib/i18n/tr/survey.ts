@@ -1,11 +1,13 @@
 // Turkish for the rating survey's 100 questions (question set v2,
 // 2026-10-24), from the owner's own Turkish, proofread: typos fixed,
-// "üst terfi" (promotion) written as "yönetici", one "sen" voice like the rest
-// of the site, and either/or questions turned into yes/no ones. Keyed by the
-// English text in apps/api's survey-questions.data.ts - change both together.
+// "üst terfi" (promotion) written as "yönetici", and either/or questions
+// turned into yes/no ones. The survey speaks to the reviewer formally ("siz",
+// the owner's choice on 2026-10-25), unlike the informal "sen" of the rest of
+// the site. Keyed by the English text in apps/api's survey-questions.data.ts -
+// change both together.
 const survey: Record<string, string> = {
   "Is staying late or sitting at your desk past official hours rewarded over actual work output?":
-    "Geç saatlere kadar kalman veya mesai saatleri dışında masanda oturman, gerçek iş verimliliğinden daha mı değerli görülüyor?",
+    "Geç saatlere kadar kalmanız veya mesai saatleri dışında masanızda oturmanız, gerçek iş verimliliğinden daha mı değerli görülüyor?",
   "Have you personally witnessed office politics or favoritism dictate promotions over merit?":
     "Terfiler liyakat yerine ofis siyaseti veya kayırmacılıkla mı belirleniyor?",
   "Can employees openly criticize company decisions in meetings without fear of retaliation?":
@@ -15,7 +17,7 @@ const survey: Record<string, string> = {
   "Is team collaboration supportive and is individual work appropriately recognized?":
     "Ekipler destekleyici bir iş birliği içinde çalışıyor ve bireysel emeğe gereken değer veriliyor mu?",
   "Does middle management actively micromanage your daily tasks?":
-    "Bir üst yöneticin, günlük işlerini inciğine cıncığına kadar denetliyor mu?",
+    "Bir üst yöneticiniz, günlük işlerinizi inciğine cıncığına kadar denetliyor mu?",
   "When a project fails, do leaders take responsibility instead of blaming subordinates?":
     "Bir proje başarısız olduğunda yöneticiler, ekiptekileri suçlamak yerine sorumluluğu üstleniyor mu?",
   "Do managers provide actionable, constructive feedback rather than vague performance reviews?":
@@ -23,29 +25,29 @@ const survey: Record<string, string> = {
   "Are major leadership decisions communicated transparently before taking effect?":
     "Önemli yönetim kararları, uygulamaya girmeden önce çalışanlara açıkça iletiliyor mu?",
   "Does your direct manager protect you from unreasonable workload spikes from executives?":
-    "Doğrudan yöneticin, üst yönetimden gelen ani iş yüklerini sana paslamak yerine kendisi göğüslüyor mu?",
+    "Doğrudan yöneticiniz, üst yönetimden gelen ani iş yüklerini size paslamak yerine kendisi göğüslüyor mu?",
   "Is your daily work frequently delayed by outdated computer hardware or slow software?":
-    "İşin, eski bilgisayarlar veya yavaş yazılımlar yüzünden sık sık aksıyor mu?",
+    "İşiniz, eski bilgisayarlar veya yavaş yazılımlar yüzünden sık sık aksıyor mu?",
   "Is the physical office environment quiet and comfortable enough for deep focus?":
-    "Çalıştığın ofis, odaklanabilmen için yeterince sessiz ve rahat mı?",
+    "Çalıştığınız ofis, odaklanabilmeniz için yeterince sessiz ve rahat mı?",
   "Are basic office supplies and meeting room equipment consistently maintained?":
     "Temel ofis malzemeleri ve toplantı odası ekipmanlarının bakımı düzenli olarak yapılıyor mu?",
   "Does a clear, centralized internal wiki or knowledge base exist for your team's processes?":
-    "Ekibinin süreçleri için açık ve merkezi bir iç bilgi kaynağı (wiki vb.) var mı?",
+    "Ekibinizin süreçleri için açık ve merkezi bir iç bilgi kaynağı (wiki vb.) var mı?",
   "Does IT support resolve critical, work-blocking technical issues in a timely manner?":
-    "IT desteği, işini engelleyen kritik sorunları zamanında çözüyor mu?",
+    "IT desteği, işinizi engelleyen kritik sorunları zamanında çözüyor mu?",
   "Are you expected to read or respond to work messages outside of official working hours?":
-    "Mesai saatleri dışında iş mesajlarına ve aramalarına yanıt vermen bekleniyor mu?",
+    "Mesai saatleri dışında iş mesajlarına ve aramalarına yanıt vermeniz bekleniyor mu?",
   "Is uncompensated overtime regularly expected in your role?":
-    "Ücreti ödenmeyen fazla mesai yapman düzenli olarak bekleniyor mu?",
+    "Ücreti ödenmeyen fazla mesai yapmanız düzenli olarak bekleniyor mu?",
   "Can you take fully approved PTO without being contacted about work tasks?":
-    "Onaylanmış izin günlerinde, iş konularıyla ilgili aranmadan iznini kullanabiliyor musun?",
+    "Onaylanmış izin günlerinizde, iş konularıyla ilgili aranmadan izninizi kullanabiliyor musunuz?",
   "Does management allow flexibility for personal or medical appointments during the day?":
-    "Yönetim, gün içindeki özel veya sağlık randevuların için esneklik tanıyor mu?",
+    "Yönetim, gün içindeki özel veya sağlık randevularınız için esneklik tanıyor mu?",
   "Does management track physical seat time or online status icons over actual deliverables?":
-    "Yönetim, ortaya koyduğun işe değil de masada oturduğun süreye veya çevrimiçi görünmene mi bakıyor?",
+    "Yönetim, ortaya koyduğunuz işe değil de masada oturduğunuz süreye veya çevrimiçi görünmenize mi bakıyor?",
   "Has your department maintained clear transparency regarding team retention and organizational changes over the past 12 months?":
-    "Departmanın, son 12 ayda ekipten ayrılmalar ve kurumsal değişiklikler konusunda açık ve şeffaf davrandı mı?",
+    "Departmanınız, son 12 ayda ekipten ayrılmalar ve kurumsal değişiklikler konusunda açık ve şeffaf davrandı mı?",
   "Does the company frequently change its strategic direction?":
     "Şirket, stratejik yönünü sık sık değiştiriyor mu?",
   "Are salary reviews and compensation adjustments conducted on a predictable schedule?":
@@ -53,45 +55,45 @@ const survey: Record<string, string> = {
   "Does the company actively fund career growth or internal job promotions?":
     "Şirket, çalışanlarının kariyer gelişimini ve şirket içi terfilerini destekliyor mu?",
   "Do you feel confident your job will still exist at this company 12 months from now?":
-    "Bir yıl sonra bu şirketteki işinin hâlâ var olacağına inanıyor musun?",
+    "Bir yıl sonra bu şirketteki işinizin hâlâ var olacağına inanıyor musunuz?",
   "Does management trust remote employees without using digital tracking or surveillance software?":
     "Yönetim, uzaktan çalışanlara izleme veya takip yazılımları kullanmadan güvenebiliyor mu?",
   "Do in-office employees receive preferential treatment or faster promotions over remote staff?":
     "Ofiste çalışanlar, uzaktan çalışanlara göre ayrıcalıklı tutulup daha hızlı terfi alıyor mu?",
   "Does the company respect asynchronous communication, allowing time to reply without pressure?":
-    "Şirket, mesajlara anında yanıt beklemek yerine sana yanıt vermen için zaman tanıyor mu?",
+    "Şirket, mesajlara anında yanıt beklemek yerine size yanıt vermeniz için zaman tanıyor mu?",
   "Does management respect your local timezone boundaries when scheduling calls or assigning tasks?":
-    "Yönetim, toplantı planlarken veya görev dağıtırken bulunduğun saat dilimine saygı gösteriyor mu?",
+    "Yönetim, toplantı planlarken veya görev dağıtırken bulunduğunuz saat dilimine saygı gösteriyor mu?",
   "Is remote socialization purely optional without social penalties for non-attendance?":
     "Uzaktan yapılan sosyal etkinlikler, katılmayanlara herhangi bir yaptırım uygulanmadan tamamen isteğe bağlı mı?",
   "Does leadership evaluate your performance strictly by work outcomes rather than online activity dots?":
-    "Şirket, performansını \"çevrimiçi\" süren yerine ortaya koyduğun işe göre mi değerlendiriyor?",
+    "Şirket, performansınızı \"çevrimiçi\" sürenize göre değil, ortaya koyduğunuz işe göre mi değerlendiriyor?",
   "Are virtual team meetings run with clear agendas and kept within set time limits?":
     "Uzaktan toplantılar net bir gündemle ve belirlenen süre içinde mi yürütülüyor?",
   "Does your manager respond to messages and support requests within a reasonable timeframe?":
-    "Yöneticin, mesajlarına ve destek taleplerine makul bir sürede dönüyor mu?",
+    "Yöneticiniz, mesajlarınıza ve destek taleplerinize makul bir sürede dönüyor mu?",
   "Does leadership actively step in when a remote employee shows clear signs of burnout?":
     "Uzaktan çalışan birinde belirgin tükenmişlik belirtileri görüldüğünde yönetim harekete geçiyor mu?",
   "Is company leadership honest and transparent during virtual meetings and written updates?":
     "Şirket yönetimi, uzaktan toplantılarda ve yazılı duyurularda dürüst ve şeffaf mı?",
   "Did the company provide a proper stipend or high-quality hardware for your remote setup?":
-    "Şirket, uzaktan çalışma düzenin için yeterli bir ödenek veya kaliteli donanım sağladı mı?",
+    "Şirket, uzaktan çalışma düzeniniz için yeterli bir ödenek veya kaliteli donanım sağladı mı?",
   "Are cloud tools, VPNs, and internal software reliable and fast to access?":
     "Bulut araçlarına, VPN'e ve şirket içi yazılımlara erişim güvenilir ve hızlı mı?",
   "Is internal company documentation clear enough for you to solve problems independently?":
-    "Şirket içi belgeler, sorunları kendi başına çözebileceğin kadar açık ve ulaşılabilir mi?",
+    "Şirket içi belgeler, sorunları kendi başınıza çözebileceğiniz kadar açık ve ulaşılabilir mi?",
   "Can remote IT support fix account access or device issues without long delays?":
     "Uzaktan IT desteği, hesap erişimi veya cihaz sorunlarını uzun gecikmeler olmadan çözebiliyor mu?",
   "Are digital collaboration tools (Slack, Teams, Jira) structured logically rather than chaotic?":
     "Ortak kullanılan dijital araçlar (Slack, Teams, Jira vb.) dağınık değil de düzenli mi?",
   "Do the lines between your personal life and workday frequently blur into unpaid work hours?":
-    "Özel hayatınla iş günün arasındaki sınır, sık sık ücretsiz mesaiye dönüşecek kadar bulanıklaşıyor mu?",
+    "Özel hayatınızla iş gününüz arasındaki sınır, sık sık ücretsiz mesaiye dönüşecek kadar bulanıklaşıyor mu?",
   "Can you step away from your computer during the day without feeling anxious about your status icon?":
-    "Gün içinde çevrimiçi durumun hakkında kaygılanmadan bilgisayarının başından kalkabiliyor musun?",
+    "Gün içinde çevrimiçi durumunuz hakkında kaygılanmadan bilgisayarınızın başından kalkabiliyor musunuz?",
   "Does the company enforce a genuine \"right to disconnect\" after your working day ends?":
-    "Şirket, mesain bittikten sonra sana gerçek anlamda \"bağlantıyı kesme\" hakkı tanıyor mu?",
+    "Şirket, mesainiz bittikten sonra size gerçek anlamda \"bağlantıyı kesme\" hakkı tanıyor mu?",
   "Is your assigned workload realistically manageable within a standard work week?":
-    "Sana verilen iş yükü, normal bir çalışma haftası içinde gerçekçi biçimde bitirilebilir mi?",
+    "Size verilen iş yükü, normal bir çalışma haftası içinde gerçekçi biçimde bitirilebilir mi?",
   "Are hybrid employees forced into mandatory in-office days that serve no practical purpose?":
     "Hibrit çalışanlar, hiçbir pratik amacı olmayan zorunlu ofis günlerine gelmeye zorlanıyor mu?",
   "Is there constant management talk or threats of forced Return-to-Office mandates?":
@@ -103,13 +105,13 @@ const survey: Record<string, string> = {
   "Are high-level departmental goals and performance expectations communicated clearly to remote staff?":
     "Departmanın hedefleri ve performans beklentileri uzaktan çalışanlara net bir şekilde iletiliyor mu?",
   "Are you worried your remote role might be offshored or eliminated without warning?":
-    "Uzaktan işinin haber verilmeden yurt dışına kaydırılmasından veya tamamen kaldırılmasından endişe ediyor musun?",
+    "Uzaktan yaptığınız işin haber verilmeden yurt dışına kaydırılmasından veya tamamen kaldırılmasından endişe ediyor musunuz?",
   "Does management take the worker's side when dealing with abusive or aggressive customers?":
     "Yönetim, saldırgan veya kötü davranan müşterilere karşı çalışanının yanında duruyor mu?",
   "Is the working environment on the floor supportive rather than competitive or toxic?":
     "Çalışma ortamı, rekabetçi veya yıpratıcı olmaktan çok destekleyici mi?",
   "Are service speed targets set at realistic levels that don't force dangerous shortcuts?":
-    "Hizmet hızı hedefleri, seni tehlikeli kestirmelere zorlamayacak kadar gerçekçi mi?",
+    "Hizmet hızı hedefleri, sizi tehlikeli kestirmelere zorlamayacak kadar gerçekçi mi?",
   "Are shift assignments and weekend duties distributed fairly without supervisor bias?":
     "Vardiyalar ve hafta sonu görevleri, amirlerin kayırmacılığı olmadan adil şekilde dağıtılıyor mu?",
   "Does management publicly acknowledge and reward hard work on the floor?":
@@ -137,13 +139,13 @@ const survey: Record<string, string> = {
   "Are work schedules posted at least two weeks in advance?":
     "Çalışma programları en az iki hafta önceden ilan ediliyor mu?",
   "Are you repeatedly pressured to cover shifts on your scheduled days off?":
-    "Planlanmış izin günlerinde başkasının vardiyasını üstlenmen için sık sık baskı görüyor musun?",
+    "Planlanmış izin günlerinizde başkasının vardiyasını üstlenmeniz için sık sık baskı görüyor musunuz?",
   "Does management avoid scheduling \"clopening\" shifts (closing late and opening early next morning)?":
     "Yönetim, \"kapanış-açılış\" vardiyaları (gece geç kapatıp ertesi sabah erken açmak) planlamaktan kaçınıyor mu?",
   "Is overtime strictly voluntary rather than forced on short notice under threat of penalties?":
     "Fazla mesai, kısa süre önce ve yaptırım tehdidiyle dayatılmak yerine tamamen gönüllülük esasına mı dayanıyor?",
   "Does management respect your personal schedule commitments outside of work?":
-    "Yönetim, iş dışındaki kişisel planlarına saygı gösteriyor mu?",
+    "Yönetim, iş dışındaki kişisel planlarınıza saygı gösteriyor mu?",
   "Are compensation, overtime, and tip payouts calculated transparently and communicated clearly?":
     "Maaş, fazla mesai ve bahşiş ödemeleri şeffaf bir şekilde hesaplanıp açıkça bildiriliyor mu?",
   "Are tips, commissions, or bonuses paid out accurately and transparently?":
@@ -153,7 +155,7 @@ const survey: Record<string, string> = {
   "Is there a clear, realistic path to advance from floor staff to supervisor roles?":
     "Saha çalışanlığından amirliğe yükselmek için net ve gerçekçi bir yol var mı?",
   "Do you feel confident about your long-term job security at this specific business location?":
-    "Bu iş yerindeki uzun vadeli iş güvencen konusunda kendini güvende hissediyor musun?",
+    "Bu iş yerindeki uzun vadeli iş güvenceniz konusunda kendinizi güvende hissediyor musunuz?",
   "Is physical health and safety genuinely prioritized over production speed or deadlines?":
     "Fiziksel sağlık ve iş güvenliği, üretim hızından veya teslim tarihlerinden gerçekten daha öncelikli mi?",
   "Is the job site free from hazing and harassment?":
@@ -181,29 +183,29 @@ const survey: Record<string, string> = {
   "Are clean drinking water, shade/shelter, and functional toilets provided on site?":
     "Sahada temiz içme suyu, gölgelik veya barınak ve çalışır durumda tuvaletler var mı?",
   "Are raw materials delivered on time so you aren't forced to improvise dangerously?":
-    "Hammadde sevkiyatları, seni tehlikeli biçimde idare etmeye zorlamayacak şekilde zamanında yapılıyor mu?",
+    "Hammadde sevkiyatları, sizi tehlikeli biçimde idare etmeye zorlamayacak şekilde zamanında yapılıyor mu?",
   "Are emergency first aid kits and safety equipment fully stocked and accessible on site?":
     "İlk yardım çantaları ve acil durum güvenlik ekipmanları sahada eksiksiz ve kolayca ulaşılabilir durumda mı?",
   "Are shift lengths reasonable enough to prevent severe, accident-causing physical exhaustion?":
     "Vardiya süreleri, kazaya yol açabilecek ağır bir yorgunluğa neden olmayacak kadar makul mü?",
   "Can you decline mandatory overtime without threat of termination or disciplinary action?":
-    "Zorunlu tutulan fazla mesaiyi, işten çıkarılma veya disiplin cezası korkusu olmadan reddedebiliyor musun?",
+    "Zorunlu tutulan fazla mesaiyi, işten çıkarılma veya disiplin cezası korkusu olmadan reddedebiliyor musunuz?",
   "Are mandatory hydration and rest breaks strictly enforced throughout the shift?":
     "Vardiya boyunca su içme ve dinlenme molaları sıkı bir şekilde uygulanıyor mu?",
   "Is travel time to distant job sites or temporary locations properly compensated?":
     "Uzak şantiyelere veya geçici çalışma yerlerine gidip gelirken geçen süre usulüne uygun şekilde ödeniyor mu?",
   "Does your workplace allow your body sufficient recovery time between shifts?":
-    "Vardiyalar arasındaki dinlenme süresi, vücudunun yeterince toparlanmasına izin veriyor mu?",
+    "Vardiyalar arasındaki dinlenme süresi, vücudunuzun yeterince toparlanmasına izin veriyor mu?",
   "Is your paycheck always 100% accurate, paid on time, and fully accounting for overtime/hazard pay?":
-    "Maaşın her zaman eksiksiz, zamanında ve fazla mesai ile tehlike primleri dahil doğru ödeniyor mu?",
+    "Maaşınız her zaman eksiksiz, zamanında ve fazla mesai ile tehlike primleri dahil doğru ödeniyor mu?",
   "Does your specific role offer consistent, predictable scheduling and hours throughout the year?":
-    "Rolün, yıl boyunca tutarlı ve öngörülebilir bir çalışma programı ve çalışma saatleri sunuyor mu?",
+    "Rolünüz, yıl boyunca tutarlı ve öngörülebilir bir çalışma programı ve çalışma saatleri sunuyor mu?",
   "Does the company pay for trade training, safety certifications, or skill upgrades?":
     "Şirket; mesleki eğitimler, güvenlik sertifikaları veya beceri geliştirme için ödeme yapıyor mu?",
   "Does the HR or administrative team handle workplace incident reports and safety paperwork promptly?":
     "İnsan kaynakları veya idari ekip, iş kazası bildirimlerini ve güvenlik evraklarını zamanında işleme alıyor mu?",
-  "Do you believe your body can safely sustain working for this company for the next 5 years?":
-    "Vücudunun, önümüzdeki 5 yıl boyunca bu şirkette çalışmaya sağlıklı bir şekilde dayanabileceğine inanıyor musun?",
+  "Is this job's workload sustainable for the next 5 years?":
+    "Bu işin iş yükü, önümüzdeki 5 yıl boyunca sürdürülebilir mi?",
 };
 
 export default survey;

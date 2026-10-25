@@ -15,6 +15,15 @@ export const RISK_SCORE_NOTES: Record<number, string> = {
   3: "Maximum Risk Score — this company has repeatedly reposted identical roles after marking them filled.",
 };
 
+// The one-word name a job card shows for each score (owner's words,
+// 2026-10-25; Turkish: Mantıklı. / Olur. / Eh. / Dikkat!).
+export const RISK_SCORE_WORDS: Record<number, string> = {
+  0: "Sensible.",
+  1: "Okay.",
+  2: "Meh.",
+  3: "Caution!",
+};
+
 export const NO_OPEN_POSTING_NOTE =
   "This company hasn't posted a job opening yet, so there's no repost history to show.";
 
@@ -47,7 +56,7 @@ export function RiskTriangleIcon({ className }: { className?: string }) {
   );
 }
 
-// "short" is the job-card form: just "RS 2/3" in the score's colour, no
+// "short" is the job-card form: just the score's word ("Meh.") in its colour, no
 // warning icons. Screen readers still hear the full "Risk Score 2 of 3".
 export function RiskScoreBadge({
   riskScore,
@@ -67,7 +76,7 @@ export function RiskScoreBadge({
         title={note}
       >
         <span aria-hidden="true" className={riskScore === null ? "text-muted-foreground" : riskScoreColorClass(riskScore)}>
-          {t("RS")} {riskScore === null ? "-" : `${riskScore}/3`}
+          {riskScore === null ? `${t("RS")} -` : t(RISK_SCORE_WORDS[riskScore])}
         </span>
         <span className="sr-only">
           {riskScore === null ? t("Risk Score not available yet") : t("Risk Score {n} of 3", { n: riskScore })}

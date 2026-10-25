@@ -2,14 +2,16 @@ import { RANDOMIZED_IDENTITY_AVATAR_KEY, type WorkplaceType } from "@iwtr/shared
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 
 // Shown only for a review submitted with "randomize my identity" on
-// (RateButton.tsx) — deliberately outside WORK_TYPE_AVATARS below so it can
+// (RateButton.tsx) - deliberately outside WORK_TYPE_AVATARS below so it can
 // never appear as a choice in the normal avatar picker, only assigned by
 // the server (see ReviewsService.listForCompany).
 const RANDOMIZED_IDENTITY_EMOJI = "🎭";
 
+export type AvatarGender = "MALE" | "FEMALE";
+
 export interface AvatarVariant {
   key: string;
-  emoji: string;
+  gender: AvatarGender;
 }
 
 export interface WorkTypeAvatars {
@@ -17,49 +19,35 @@ export interface WorkTypeAvatars {
   variants: AvatarVariant[];
 }
 
-// Avatar picking is two steps: pick a work type, then pick one of 4 variants
-// within it (real illustrated art — e.g. four different "Beaver" looks per
-// work type — is coming later; these emoji are placeholders). Swap any
-// `emoji` value here for real artwork without touching anything else —
-// `key` is the stable storage identifier (User.avatarKey).
-export const WORK_TYPE_AVATARS: WorkTypeAvatars[] = [
-  {
-    workType: "OFFICE",
-    variants: [
-      { key: "office_1", emoji: "🏢" },
-      { key: "office_2", emoji: "💼" },
-      { key: "office_3", emoji: "🧑‍💻" },
-      { key: "office_4", emoji: "📊" },
-    ],
-  },
-  {
-    workType: "HYBRID_REMOTE",
-    variants: [
-      { key: "remote_1", emoji: "💻" },
-      { key: "remote_2", emoji: "🏠" },
-      { key: "remote_3", emoji: "🛋️" },
-      { key: "remote_4", emoji: "☕" },
-    ],
-  },
-  {
-    workType: "SERVICE",
-    variants: [
-      { key: "service_1", emoji: "🛎️" },
-      { key: "service_2", emoji: "🍽️" },
-      { key: "service_3", emoji: "🧑‍🍳" },
-      { key: "service_4", emoji: "💇" },
-    ],
-  },
-  {
-    workType: "MANUAL_LABOUR",
-    variants: [
-      { key: "manual_1", emoji: "🛠️" },
-      { key: "manual_2", emoji: "👷" },
-      { key: "manual_3", emoji: "🚜" },
-      { key: "manual_4", emoji: "🔧" },
-    ],
-  },
-];
+// Avatar picking: a gender (the male / female symbols), a work type (the four
+// dots), then one of 4 beavers. The art is the owner's own (public/mal*.webp,
+// public/fem*.webp), cropped to circles by scripts/crop-avatars.mjs into
+// public/avatars/<key>.webp. `key` is the stored value (User.avatarKey) and
+// must keep its work-type prefix ("office_", "remote_", "service_",
+// "manual_"): the API reads the work type from it. Male keys are the
+// original ones (office_1), so every existing account keeps a valid avatar;
+// female keys add an "f" (office_f1).
+const WORK_TYPE_KEY_PREFIX: Record<WorkplaceType, string> = {
+  OFFICE: "office",
+  HYBRID_REMOTE: "remote",
+  SERVICE: "service",
+  MANUAL_LABOUR: "manual",
+};
+
+export const AVATAR_WORK_TYPES: WorkplaceType[] = ["OFFICE", "HYBRID_REMOTE", "SERVICE", "MANUAL_LABOUR"];
+
+function variantsFor(workType: WorkplaceType): AvatarVariant[] {
+  const prefix = WORK_TYPE_KEY_PREFIX[workType];
+  return [
+    ...[1, 2, 3, 4].map((n) => ({ key: `${prefix}_${n}`, gender: "MALE" as const })),
+    ...[1, 2, 3, 4].map((n) => ({ key: `${prefix}_f${n}`, gender: "FEMALE" as const })),
+  ];
+}
+
+export const WORK_TYPE_AVATARS: WorkTypeAvatars[] = AVATAR_WORK_TYPES.map((workType) => ({
+  workType,
+  variants: variantsFor(workType),
+}));
 
 function findVariant(avatarKey: string | null | undefined): { group: WorkTypeAvatars; variant: AvatarVariant } | null {
   if (!avatarKey) return null;
@@ -70,14 +58,42 @@ function findVariant(avatarKey: string | null | undefined): { group: WorkTypeAva
   return null;
 }
 
-export function avatarEmoji(avatarKey: string | null | undefined): string | null {
-  if (avatarKey === RANDOMIZED_IDENTITY_AVATAR_KEY) return RANDOMIZED_IDENTITY_EMOJI;
-  return findVariant(avatarKey)?.variant.emoji ?? null;
+/** The 4 beavers of one work type and gender, in picker order. */
+export function avatarChoices(workType: WorkplaceType, gender: AvatarGender): AvatarVariant[] {
+  return WORK_TYPE_AVATARS.find((g) => g.workType === workType)?.variants.filter((v) => v.gender === gender) ?? [];
 }
 
-// The work type an avatarKey belongs to — drives which 4 variants are shown
-// as already-selected when re-opening the picker, and the header's fallback
-// pseudo-name when no display name is set.
+/** The picture for an avatar key; "sm" is the 96px copy for small avatars. Null for unknown keys. */
+export function avatarImageUrl(avatarKey: string | null | undefined, size: "sm" | "lg" = "lg"): string | null {
+  if (!findVariant(avatarKey)) return null;
+  return size === "sm" ? `/avatars/sm/${avatarKey}.webp` : `/avatars/${avatarKey}.webp`;
+}
+
+/** Only the "randomize my identity" stand-in is still an emoji. */
+export function avatarEmoji(avatarKey: string | null | undefined): string | null {
+  return avatarKey === RANDOMIZED_IDENTITY_AVATAR_KEY ? RANDOMIZED_IDENTITY_EMOJI : null;
+}
+
+export function avatarGender(avatarKey: string | null | undefined): AvatarGender | null {
+  return findVariant(avatarKey)?.variant.gender ?? null;
+}
+
+/**
+ * The same beaver number for the other gender (office_2 -> office_f2), so
+ * switching gender changes the avatar straight away instead of leaving the
+ * old pick in place.
+ */
+export function avatarKeyForGender(avatarKey: string | null | undefined, gender: AvatarGender): string | null {
+  const found = findVariant(avatarKey);
+  if (!found) return null;
+  const n = found.variant.key.slice(-1);
+  const prefix = WORK_TYPE_KEY_PREFIX[found.group.workType];
+  return gender === "FEMALE" ? `${prefix}_f${n}` : `${prefix}_${n}`;
+}
+
+// The work type an avatarKey belongs to - drives which work-type dot is
+// picked when re-opening the picker, and the header's fallback pseudo-name
+// when no display name is set.
 export function avatarWorkType(avatarKey: string | null | undefined): WorkplaceType | null {
   return findVariant(avatarKey)?.group.workType ?? null;
 }

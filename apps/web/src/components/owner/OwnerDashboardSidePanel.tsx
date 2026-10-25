@@ -69,7 +69,7 @@ export function OwnerDashboardSidePanel({
     .filter((s) => SOCIAL_QUESTIONS_ENABLED || s.key !== "questions")
     .map((s) => ({ ...s, note: notes[s.key] ?? null }));
   return (
-    <aside className="flex shrink-0 flex-col gap-3 sm:w-56">
+    <aside className="shrink-0 sm:w-56">
       <SettingsNavList label="Company dashboard sections" items={items} active={active} onChange={onChange} />
     </aside>
   );

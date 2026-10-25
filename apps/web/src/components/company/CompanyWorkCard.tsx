@@ -42,7 +42,7 @@ export interface CompanyWorkCardData {
  * pre-extraction card) — sizing comes entirely from whatever renders it: a
  * browse-grid cell, or a fixed-width wrapper around the dashboard preview.
  */
-// riskScore: pass it (a number, or null for "-") to show the short "RS n/3"
+// riskScore: pass it (a number, or null for "-") to show the short Risk Score word
 // badge on the right, level with the logo; leave it out (the owner
 // dashboard's live preview) to show no badge.
 export function CompanyWorkCard({
