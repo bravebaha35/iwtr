@@ -9,6 +9,7 @@ import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
 import { ConversationThreadView } from "./ConversationThreadView";
 import { ConversationStatus, CounterpartPicture } from "./conversationIdentity";
 import { useT } from "@/lib/i18n/client";
+import { pageZoom } from "@/lib/pageZoom";
 
 // The private-messages dock, docked to the bottom right of every page
 // except Edit Profile and the Dashboard (GlobalChatDock in layout.tsx
@@ -57,7 +58,7 @@ function maxPanelsFor(width: number): number {
 function useMaxPanels(): number {
   const [max, setMax] = useState(3);
   useEffect(() => {
-    const update = () => setMax(maxPanelsFor(window.innerWidth));
+    const update = () => setMax(maxPanelsFor(window.innerWidth / pageZoom()));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);

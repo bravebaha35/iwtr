@@ -454,6 +454,13 @@ alone keeps DM Serif Display (`.cv-document`).
 - Quick Select (Firms, Supermarket, ...; `CategoryGroupFilter` in lib/categoryGroups.tsx) is a tab strip on the
   homepage and Jobs: icon + word, one hairline under the row, the picked one in orange with an orange bar. Account Options >
   Language is two underlined words (English / Türkçe), like the sort words.
+- **4K screens (2026-10-29)**: from 3200px wide, globals.css sets `zoom: 1.5` on the page (`--zoom`), so a 3840 screen
+  behaves like a 2560 one; the homepage grid gets a 5th column there (`min-[200rem]:`, rem so it sorts after `xl`). Nothing
+  changes below 3200px. Under zoom, viewport units grow too: every vh/dvh/svh size is divided by `--zoom` (the override
+  list at the end of globals.css, or `calc(Xvh / var(--zoom, 1))` inline), and code that turns a measurement
+  (getBoundingClientRect, clientX, innerWidth, scrollY) into a position or size divides by `pageZoom()` (lib/pageZoom.ts).
+- The header's brand corner is `BrandLockup` (components/layout): beaver rising out of a soft orange tile, "I Worked
+  There" with "There" in orange, the tagline stacked under the name from xl. Shared by both headers.
 - Header is one 64px line; the current page is marked by orange text and an orange bar (`components/layout/navItem.ts`). The
   notifications bell is a symbol with no label beside the theme switch, with a red counter that clears (and is
   saved as read) the moment its panel is opened. The sort controls (RS / A-Z / Rating) are plain words with a

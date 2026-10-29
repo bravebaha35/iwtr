@@ -162,7 +162,7 @@ export function SocialPostModal({
         onClick={(e) => e.stopPropagation()}
         // The whole view is sized as photo side + the 380px panel, then capped
         // to the screen; the photo side gives way first, the panel never does.
-        style={{ "--dialog-w": `min(calc(min(88vh, 820px) * ${stageRatio} + 380px), 94vw)` } as React.CSSProperties}
+        style={{ "--dialog-w": `min(calc(min(calc(88vh / var(--zoom, 1)), 820px) * ${stageRatio} + 380px), calc(94vw / var(--zoom, 1)))` } as React.CSSProperties}
         className="flex h-full w-full flex-col overflow-hidden bg-surface shadow-2xl outline-none md:h-[min(88vh,820px)] md:w-[var(--dialog-w)] md:flex-row md:rounded-2xl"
       >
         <div

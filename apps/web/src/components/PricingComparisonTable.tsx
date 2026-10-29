@@ -151,7 +151,7 @@ export function PricingComparisonTable({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="overflow-auto" style={{ maxHeight: "calc(90vh - 88px)" }}>
+        <div className="overflow-auto" style={{ maxHeight: "calc(90vh / var(--zoom, 1) - 88px)" }}>
           <table className="w-full table-fixed border-collapse text-sm">
             <colgroup>
               <col style={{ width: "22%" }} />

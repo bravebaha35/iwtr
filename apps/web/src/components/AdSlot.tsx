@@ -77,7 +77,6 @@ export function AdSlot({
               size is picked by the browser, so only one file is fetched. */}
           <picture>
             <source media="(min-width: 640px)" srcSet={ad.src} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={ad.mobileSrc} alt={ad.alt} width={320} height={50} className="block h-full w-full" />
           </picture>
           <AdLabel />

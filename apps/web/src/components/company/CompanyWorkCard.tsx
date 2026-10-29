@@ -79,7 +79,7 @@ export function CompanyWorkCard({
             src={bannerUrl}
             alt=""
             fill
-            sizes="(min-width: 1280px) 320px, (min-width: 640px) 50vw, 100vw"
+            sizes="(min-width: 3200px) 480px, (min-width: 1280px) 320px, (min-width: 640px) 50vw, 100vw"
             unoptimized={!isOwnStaticAsset(bannerUrl)}
             className={`h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04] motion-reduce:transition-none ${bannerIsGreyscale ? "grayscale" : ""}`}
           />

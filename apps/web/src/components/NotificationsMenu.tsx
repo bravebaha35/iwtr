@@ -9,6 +9,7 @@ import { apiGet, apiPost } from "@/lib/api-client";
 import { NOTIFICATIONS_STALE_EVENT } from "@/lib/notification-events";
 import { useT } from "@/lib/i18n/client";
 import type { TFn } from "@/lib/i18n/core";
+import { pageZoom } from "@/lib/pageZoom";
 
 // ---------------------------------------------------------------------------
 // Notification model
@@ -593,7 +594,9 @@ export function NotificationsMenu() {
   const placePanel = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setPanelPos({ top: Math.round(rect.bottom + 8), right: Math.max(12, Math.round(window.innerWidth - rect.right)) });
+    // Measured in screen pixels; written back as CSS pixels (see pageZoom).
+    const z = pageZoom();
+    setPanelPos({ top: Math.round(rect.bottom / z + 8), right: Math.max(12, Math.round((window.innerWidth - rect.right) / z)) });
   }, []);
 
   // Saves every new notification this account can see as read and returns

@@ -492,7 +492,8 @@ export function WorkplaceBrowser() {
 
       {/* min-w-0: without it the grid's own width pushed the right-hand ad
           off the screen on windows around 1600px wide. */}
-      <div className="w-full min-w-0 max-w-[1600px]">
+      {/* 4K (globals.css zoom): wider, for a 5th card column at the same card width. */}
+      <div className="w-full min-w-0 max-w-[1600px] min-[200rem]:max-w-[1880px]">
         <SidebarContentRow>
           <SidebarShell>
             <div>
@@ -665,7 +666,7 @@ export function WorkplaceBrowser() {
                 company name instead of truncating it. */}
             <div
               aria-busy={loading}
-              className={`grid grid-cols-1 gap-5 transition-opacity compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              className={`grid grid-cols-1 gap-5 transition-opacity compact:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[200rem]:grid-cols-5 ${
                 loading && pageCompanies !== null ? "opacity-60" : ""
               }`}
             >

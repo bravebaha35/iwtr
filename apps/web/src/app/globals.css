@@ -374,3 +374,56 @@ progress {
     animation: none;
   }
 }
+
+/* 4K screens (2026-10-29). On a 3840px-wide window at 100% the site was laid
+   out for a 1920 screen and looked tiny, so from 3200px wide the whole page
+   is drawn 1.5x (CSS zoom: text, cards, spacing and images keep their
+   proportions; the page then behaves like a 2560px-wide window, and the
+   homepage uses the extra room for a 5th card column). Nothing below 3200px
+   changes: --zoom stays 1 there.
+   Under zoom, viewport units grow with it (100vh would be 1.5 windows tall),
+   so every vh/dvh/svh size is divided by --zoom here, in one place. A new
+   class or inline style with a viewport unit must do the same, and code that
+   turns a measurement into a position must divide by lib/pageZoom.ts. */
+:root {
+  --zoom: 1;
+}
+@media (min-width: 3200px) {
+  :root {
+    --zoom: 1.5;
+    zoom: 1.5;
+  }
+  .min-h-screen {
+    min-height: calc(100vh / var(--zoom));
+  }
+  .min-h-\[100svh\] {
+    min-height: calc(100svh / var(--zoom));
+  }
+  .min-h-\[50vh\] {
+    min-height: calc(50vh / var(--zoom));
+  }
+  .max-h-\[90vh\] {
+    max-height: calc(90vh / var(--zoom));
+  }
+  .max-h-\[85vh\] {
+    max-height: calc(85vh / var(--zoom));
+  }
+  .max-h-\[55vh\] {
+    max-height: calc(55vh / var(--zoom));
+  }
+  .h-\[52vh\] {
+    height: calc(52vh / var(--zoom));
+  }
+  .md\:h-\[min\(88vh\,820px\)\] {
+    height: min(calc(88vh / var(--zoom)), 820px);
+  }
+  .max-h-\[min\(28rem\,calc\(100dvh-8rem\)\)\] {
+    max-height: min(28rem, calc(100dvh / var(--zoom) - 8rem));
+  }
+  .h-\[min\(42rem\,calc\(100dvh-6rem\)\)\] {
+    height: min(42rem, calc(100dvh / var(--zoom) - 6rem));
+  }
+  .h-\[min\(30rem\,calc\(100dvh-8rem\)\)\] {
+    height: min(30rem, calc(100dvh / var(--zoom) - 8rem));
+  }
+}

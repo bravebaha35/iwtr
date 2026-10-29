@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { Logo } from "@/components/Logo";
+import { BrandLockup } from "@/components/layout/BrandLockup";
 import { Avatar } from "@/components/Avatar";
 import { headerDisplayName } from "@/lib/headerDisplayName";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -82,15 +82,7 @@ export function GlobalHeader() {
       <div
         className={`flex shrink-0 items-center gap-4 ${pathname === "/" ? "pl-3 sm:pl-8" : "pl-14 sm:pl-20"}`}
       >
-        <Link href="/" className="flex items-center gap-2.5">
-          <Logo size="md" />
-          {/* Logo only on the narrowest phones, so the header never forces the
-              page wider than the screen. */}
-          <span className="hidden font-display text-xl text-foreground min-[420px]:inline">I Worked There</span>
-        </Link>
-        <span className="hidden border-l border-border pl-4 text-sm text-muted-foreground xl:inline">
-          {t("Hear it straight from real references !")}
-        </span>
+        <BrandLockup />
       </div>
 
       {/* min-w-0 lets this row shrink below its content's natural width
@@ -247,13 +239,7 @@ function LoggedOutHeader({ onOpenAuth, home }: { onOpenAuth: (mode: "login" | "r
           home ? "mx-auto w-full max-w-[1400px] px-4 sm:px-8" : "pl-14 pr-3 sm:pl-20 sm:pr-8"
         }`}
       >
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <Logo size="md" />
-          <span className="hidden font-display text-xl text-foreground min-[420px]:inline">I Worked There</span>
-        </Link>
-        <span className="hidden border-l border-border pl-4 text-sm text-muted-foreground xl:inline">
-          {t("Hear it straight from real references !")}
-        </span>
+        <BrandLockup />
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <div className="mr-1 sm:mr-2">
             <ThemeToggle />

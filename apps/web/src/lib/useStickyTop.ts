@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { pageZoom } from "@/lib/pageZoom";
 
 // Space kept under the 64px sticky header, and under a column that is
 // taller than the window.
@@ -22,7 +23,13 @@ export function useStickyTop<T extends HTMLElement>() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const measure = () => setTop(Math.min(HEADER_GAP_PX, window.innerHeight - el.offsetHeight - BOTTOM_GAP_PX));
+    // In CSS pixels: the window height is measured in screen pixels (see pageZoom).
+    const measure = () => {
+      const z = pageZoom();
+      // At zoom 1 this is exactly the original offsetHeight sum.
+      const height = z === 1 ? el.offsetHeight : el.getBoundingClientRect().height / z;
+      setTop(Math.min(HEADER_GAP_PX, window.innerHeight / z - height - BOTTOM_GAP_PX));
+    };
     measure();
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     observer?.observe(el);

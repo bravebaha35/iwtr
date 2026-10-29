@@ -28,6 +28,7 @@ import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
 import { useFollowedCompanies } from "@/lib/useFollowedCompanies";
 import { RichText } from "@/components/RichText";
 import { useT } from "@/lib/i18n/client";
+import { pageZoom } from "@/lib/pageZoom";
 
 // The standard job card, shared by the /jobs browse grid (JobsBrowser) and
 // a company's own "Job Postings" profile tab (CompanyJobPostings). One card
@@ -298,9 +299,12 @@ export function JobCard({
   const placeExpanded = useCallback(() => {
     const rect = cardRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const width = Math.min(Math.max(rect.width, EXPANDED_MIN_WIDTH), window.innerWidth - 32);
-    const left = Math.min(Math.max(rect.left, 16), window.innerWidth - width - 16) + window.scrollX;
-    setExpandedAt({ top: rect.top + window.scrollY, left, width });
+    // Measured in screen pixels; written back as CSS pixels (see pageZoom).
+    const z = pageZoom();
+    const winWidth = window.innerWidth / z;
+    const width = Math.min(Math.max(rect.width / z, EXPANDED_MIN_WIDTH), winWidth - 32);
+    const left = Math.min(Math.max(rect.left / z, 16), winWidth - width - 16) + window.scrollX / z;
+    setExpandedAt({ top: (rect.top + window.scrollY) / z, left, width });
   }, []);
 
   const closeExpanded = useCallback(() => {
@@ -358,7 +362,7 @@ export function JobCard({
             src={bannerUrl}
             alt=""
             fill
-            sizes="(min-width: 1280px) 320px, (min-width: 640px) 50vw, 100vw"
+            sizes="(min-width: 3200px) 480px, (min-width: 1280px) 320px, (min-width: 640px) 50vw, 100vw"
             unoptimized={!isOwnStaticAsset(bannerUrl)}
             className={`h-full w-full object-cover ${bannerIsGreyscale ? "grayscale" : ""}`}
           />

@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useStickyTop } from "@/lib/useStickyTop";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 import { useT } from "@/lib/i18n/client";
+import { pageZoom } from "@/lib/pageZoom";
 
 // The consolidated company-profile hub. Sits directly under the page's
 // logo/banner header (rendered by the Server Component in
@@ -149,7 +150,8 @@ export function CompanyProfileTabs({
   const scrollToTabs = useCallback(() => {
     const el = tabsRef.current;
     if (!el) return;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 88, behavior: "smooth" });
+    // Scroll offsets are screen pixels, so the 88px header gap is scaled too (see pageZoom).
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 88 * pageZoom(), behavior: "smooth" });
   }, []);
 
   const openSocialView = useCallback(

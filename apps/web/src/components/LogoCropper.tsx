@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { LOGO_RECOMMENDED_DIMENSION_PX } from "@iwtr/shared-types";
 import { baseScaleFor, clampOffset, recenterOffsetOnZoom, sourceRectFor } from "@/lib/cropMath";
 import { useT } from "@/lib/i18n/client";
+import { pageZoom } from "@/lib/pageZoom";
 
 const VIEWPORT_PX = 280;
 
@@ -89,9 +90,11 @@ export function LogoCropper({
   function onPointerMove(e: React.PointerEvent) {
     const drag = dragRef.current;
     if (!drag) return;
+    // Pointer moves are screen pixels; the offset is CSS pixels (see pageZoom).
+    const z = pageZoom();
     const next = {
-      x: drag.startOffset.x + (e.clientX - drag.startX),
-      y: drag.startOffset.y + (e.clientY - drag.startY),
+      x: drag.startOffset.x + (e.clientX - drag.startX) / z,
+      y: drag.startOffset.y + (e.clientY - drag.startY) / z,
     };
     setOffset(clampToBounds(next, scale));
   }
