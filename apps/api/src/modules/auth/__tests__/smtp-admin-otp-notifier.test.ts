@@ -11,11 +11,13 @@ const ENV_KEYS = [
   "ADMIN_OTP_SMTP_USER",
   "ADMIN_OTP_SMTP_PASSWORD",
   "ADMIN_OTP_SENDER_EMAIL",
-  "RIVAL_ANALYTICS_SMTP_HOST",
-  "RIVAL_ANALYTICS_SMTP_PORT",
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_USER",
+  "SMTP_PASSWORD",
+  "MAIL_FROM",
   "RIVAL_ANALYTICS_SMTP_USER",
   "RIVAL_ANALYTICS_SMTP_PASSWORD",
-  "RIVAL_ANALYTICS_SENDER_EMAIL",
 ];
 const saved: Record<string, string | undefined> = {};
 
@@ -45,13 +47,20 @@ describe("createAdminOtpNotifier", () => {
     expect(createAdminOtpNotifier()).toBeInstanceOf(SmtpAdminOtpNotifier);
   });
 
-  it("reuses the Rival Analytics SMTP account when only that one is configured", () => {
-    process.env.RIVAL_ANALYTICS_SMTP_USER = "reports@example.com";
-    process.env.RIVAL_ANALYTICS_SMTP_PASSWORD = "secret";
+  it("reuses the site's shared SMTP account when only that one is configured", () => {
+    process.env.SMTP_USER = "mail@example.com";
+    process.env.SMTP_PASSWORD = "secret";
+    process.env.MAIL_FROM = "no-reply@example.com";
     expect(createAdminOtpNotifier()).toBeInstanceOf(SmtpAdminOtpNotifier);
     expect(createTransport).toHaveBeenCalledWith(
-      expect.objectContaining({ auth: { user: "reports@example.com", pass: "secret" } }),
+      expect.objectContaining({ auth: { user: "mail@example.com", pass: "secret" } }),
     );
+  });
+
+  it("no longer reads the old RIVAL_ANALYTICS_* names", () => {
+    process.env.RIVAL_ANALYTICS_SMTP_USER = "reports@example.com";
+    process.env.RIVAL_ANALYTICS_SMTP_PASSWORD = "secret";
+    expect(createAdminOtpNotifier()).toBeInstanceOf(ConsoleAdminOtpNotifier);
   });
 });
 

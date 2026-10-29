@@ -159,6 +159,11 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   representative". Every owner must give a legal name when claiming (one approved owner per company).
   Phone numbers are allowed in messages (skipped via `skipViolationTypes`) and flagged `sharesPhoneNumber` so
   both sides see a warning note; reviews and IWT Social still block them.
+- **IWT Social is members-only at the API too (2026-10-29)**: every Social read route (feed, rail, posts, comments,
+  replies, questions, a company's summary/rail/posts) uses `RegisteredReaderGuard`: no or invalid token = 401
+  "Register or log in to see IWT Social." A company login may read but is never set as `request.user` (same as
+  OptionalJwtAuthGuard). A new Social read route must use it too. The company page's Social tab shows
+  `SocialRegisterPrompt` to logged-out visitors.
 - IWT Social post/comment times go out to members and companies rounded to the hour (`toUtcHour`); the DB keeps
   the exact moment, which only the admin endpoints return (legal record).
 - IWT Social is being rebuilt in four phases (`docs/superpowers/specs/2026-10-13-iwt-social-redesign-design.md`);
@@ -312,7 +317,8 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   keys `CompanyProfileTabs` on slug+tab so such a link works while already on a company page. A job card with no posting
   keeps a bookmark that follows the company (hears when it posts a job).
 - Ad slots (`components/AdSlot.tsx`) use standard ad-network (IAB) sizes so a real ad drops in uncropped: side rails
-  160x600 "Wide Skyscraper", in-feed (between IWT Social posts) 300x250 "Medium Rectangle". The employer ad beside the
+  160x600 "Wide Skyscraper", in-feed (between IWT Social posts) a 468x60 "Full Banner" (320x50 on phones; the owner wants
+  it short and wide, and a 728x90 does not fit the 36rem feed). The employer ad beside the
   search bar is our own native job ad, not a network size. Test creatives in `public/test-ads/`.
 - The chat dock's panels can be enlarged (button between minimise and close); an enlarged panel counts as two.
 - **Avatars (2026-10-25)**: the owner's beaver art, 4 per work type per gender (`lib/avatars.ts`). `User.gender`
@@ -428,7 +434,8 @@ All colour, type, radius and shadow tokens live in `apps/web/src/app/globals.css
 colour in a component. Stone/lichen neutrals with a green lean, deep pine text, Hard-hat Orange (`brand-600`
 #B34F00, 2026-10-29; replaced Wood #8B5A2B) as the one accent and the one "selected" colour: every picked filter,
 tab, tile, sort word, nav item and page number uses it (orange text `brand-700`/dark `brand-300` + an orange bar, or
-an orange fill + white). No other colour marks a selection - not the collar colours, not red/green. Headings are Bricolage Grotesque, body Google Sans Flex; the CV document
+an orange fill + white). The only exceptions are the owner's own colours below (work-type collar colours on the
+Work-Type tiles, review work-type pills and work-type switcher; red/green Rating and RS sort words). Headings are Bricolage Grotesque, body Google Sans Flex; the CV document
 alone keeps DM Serif Display (`.cv-document`).
 
 - **No outlined boxes for content.** Reviews and company page sections sit straight on the page, separated by
@@ -436,8 +443,8 @@ alone keeps DM Serif Display (`.cv-document`).
   `rounded-xl bg-surface shadow-xs`, banner flush at the top, no border. Settings panels and owner dashboard
   sections are the same kind of tonal panel (`rounded-2xl bg-surface shadow-xs`). Only form inputs keep a
   1px border. Chips and secondary buttons are tonal (`bg-surface-muted`), not outlined.
-- **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`; they name a
-  work type, they never mark a selection), score-band colours and tier ticks. A featured job card
+- **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`, also when a
+  work type is picked), the red/green Rating and RS sort states (`SortButtons.tsx`), score-band colours and tier ticks. A featured job card
   (`.boosted-card`; the gold and green outlines and the corner star badge were all rejected) has a solid 1.5px orange
   outline, an orange-tinted shadow and a slow sheen over the banner. The footer band is
   `#0d2b1f`. Rounded corners are squircles (`corner-shape: squircle` in globals.css; `rounded-full` stays round).
@@ -460,7 +467,7 @@ alone keeps DM Serif Display (`.cv-document`).
   keeps one.
 - Work-Type is four tiles (`WorkTypeTiles`): the name, and an object for that work in the bottom corner (the
   owner's own art in `public/`: "Office QS" pencil, "Hybrid QS" headset, "Service QS" hands, "Manual-Labour QS"
-  hammer) - grey at rest; picked, the tile takes the brand orange as a soft wash plus a short bar.
+  hammer) - grey at rest; picked, the tile takes its collar colour as a soft wash plus a short bar (`collarTileTone`).
   The default banners are the owner's too ("Office Banner" etc., `DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE`); these
   files keep the owner's names, so code writes the space as `%20`.
   Same tiles for "What kind of work?" on Edit Profile. Multi-choice lists (Position) are tick rows that turn orange

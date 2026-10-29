@@ -9,9 +9,10 @@ import { useT } from "@/lib/i18n/client";
 // every call site picks it up automatically. Square corners, by request.
 //
 // Sizes are the standard ad-network (IAB) sizes, so a real ad drops in without
-// cropping: the side rails are a 160x600 "Wide Skyscraper", the ads between
-// IWT Social posts a 300x250 "Medium Rectangle" (the usual in-feed size; the
-// feed column is narrower than a 728x90 leaderboard).
+// cropping: the side rails are a 160x600 "Wide Skyscraper"; the ads between
+// IWT Social posts are a short wide banner, the 468x60 "Full Banner" (the
+// widest standard banner that fits the 36rem feed column - a 728x90
+// leaderboard does not), and the 320x50 "Mobile Leaderboard" on phones.
 
 type TestAd = { src: string; alt: string };
 
@@ -21,10 +22,10 @@ const RAIL_ADS: Record<"left" | "right", TestAd> = {
   right: { src: "/test-ads/dam-good-desks-tall.svg", alt: "Test ad: Dam Good Desks, 30% off this week" },
 };
 
-// 300x250 in-feed ads, alternating.
-const BANNER_ADS: TestAd[] = [
-  { src: "/test-ads/lodge-roast-rect.svg", alt: "Test ad: Lodge Roast coffee, 2-for-1 lattes" },
-  { src: "/test-ads/pathfinder-courses-rect.svg", alt: "Test ad: Pathfinder Courses, Excel in 30 days" },
+// In-feed banners, alternating: 468x60, with a 320x50 version for phones.
+const BANNER_ADS: (TestAd & { mobileSrc: string })[] = [
+  { src: "/test-ads/lodge-roast-banner.svg", mobileSrc: "/test-ads/lodge-roast-mobile.svg", alt: "Test ad: Lodge Roast coffee, 2-for-1 lattes" },
+  { src: "/test-ads/pathfinder-courses-banner.svg", mobileSrc: "/test-ads/pathfinder-courses-mobile.svg", alt: "Test ad: Pathfinder Courses, Excel in 30 days" },
 ];
 
 export function AdLabel() {
@@ -65,16 +66,20 @@ export function AdSlot({
 }) {
   // "vertical": narrow tall rail, hidden below `xl` since there's no spare
   // width for it on smaller screens — used for the left/right page rails.
-  // "horizontal": a 300x250 box centred in the column, shown at every
-  // breakpoint — used between feed posts.
+  // "horizontal": a 468x60 banner centred in the column (320x50 on phones),
+  // shown at every breakpoint — used between feed posts.
   if (orientation === "horizontal") {
     const ad = BANNER_ADS[Math.abs(variant) % BANNER_ADS.length];
     return (
       <div className="flex w-full justify-center">
-        <div data-testid="ad-slot" className="relative h-[250px] w-[300px] shrink-0 overflow-hidden ring-1 ring-border">
-          {/* Static SVG from public/ - a plain img keeps it crisp. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={ad.src} alt={ad.alt} width={300} height={250} className="block h-full w-full" />
+        <div data-testid="ad-slot" className="relative h-[50px] w-[320px] shrink-0 overflow-hidden ring-1 ring-border sm:h-[60px] sm:w-[468px]">
+          {/* Static SVG from public/ - a plain img keeps it crisp. The phone
+              size is picked by the browser, so only one file is fetched. */}
+          <picture>
+            <source media="(min-width: 640px)" srcSet={ad.src} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={ad.mobileSrc} alt={ad.alt} width={320} height={50} className="block h-full w-full" />
+          </picture>
           <AdLabel />
         </div>
       </div>

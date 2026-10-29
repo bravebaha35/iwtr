@@ -2,12 +2,13 @@ import nodemailer, { type Transporter } from "nodemailer";
 import type { IAdminOtpNotifier } from "./admin-otp-notifier.interface";
 import { ConsoleAdminOtpNotifier } from "./console-admin-otp-notifier";
 
-// Each setting reads ADMIN_OTP_* first and falls back to the Rival Analytics
-// mailbox (RIVAL_ANALYTICS_*), so a site with one outgoing SMTP account only
-// has to configure it once. Kept as its own small provider rather than
+// Each setting reads ADMIN_OTP_* first and falls back to the site's shared
+// outgoing mail account (plain SMTP_* / MAIL_FROM), so a site with one SMTP
+// account only has to configure it once. (Until 2026-10-29 the shared account
+// was named RIVAL_ANALYTICS_*, after a report that has since been removed.) Kept as its own small provider rather than
 // reusing SmtpEmailProvider — see admin-otp-notifier.interface.ts for why.
 function smtpSetting(name: "SMTP_HOST" | "SMTP_PORT" | "SMTP_USER" | "SMTP_PASSWORD"): string | undefined {
-  return process.env[`ADMIN_OTP_${name}`] || process.env[`RIVAL_ANALYTICS_${name}`] || undefined;
+  return process.env[`ADMIN_OTP_${name}`] || process.env[name] || undefined;
 }
 
 export function isAdminOtpSmtpConfigured(): boolean {
@@ -27,7 +28,7 @@ export class SmtpAdminOtpNotifier implements IAdminOtpNotifier {
     });
     this.fromAddress =
       process.env.ADMIN_OTP_SENDER_EMAIL ||
-      process.env.RIVAL_ANALYTICS_SENDER_EMAIL ||
+      process.env.MAIL_FROM ||
       smtpSetting("SMTP_USER") ||
       "";
   }

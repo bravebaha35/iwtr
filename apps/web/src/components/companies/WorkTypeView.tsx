@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
+import { collarTileTone } from "@/lib/collarColors";
 import { useT } from "@/lib/i18n/client";
 
 // Which of a company's work types the Ratings tab is showing. A company can
@@ -87,7 +88,7 @@ export function WorkTypeSwitcher({ className = "" }: { className?: string }) {
           {types.map((t) => (
             <span
               key={t}
-              className={`h-[3px] rounded-full transition-all duration-300 ${t === active ? "w-5 bg-brand-600 dark:bg-brand-400" : "w-2 bg-border"}`}
+              className={`h-[3px] rounded-full transition-all duration-300 ${t === active ? `w-5 ${collarTileTone[t].bar}` : "w-2 bg-border"}`}
             />
           ))}
         </span>

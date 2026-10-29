@@ -4,9 +4,14 @@ import { CompanyProfileTabs } from "../CompanyProfileTabs";
 import * as apiClient from "@/lib/api-client";
 
 jest.mock("@/lib/api-client");
+let mockAuthenticated = false;
 jest.mock("@/lib/auth-context", () => ({
-  useAuth: () => ({ isAuthenticated: false, isLoading: false, openAuthModal: jest.fn() }),
+  useAuth: () => ({ isAuthenticated: mockAuthenticated, isLoading: false, openAuthModal: jest.fn() }),
 }));
+beforeEach(() => {
+  mockAuthenticated = false;
+  (apiClient.apiGet as jest.Mock).mockClear();
+});
 
 const company = {
   id: "c1", slug: "acme", name: "Acme", category: "Software", workplaceTypes: ["OFFICE"],
@@ -55,6 +60,7 @@ describe("CompanyProfileTabs", () => {
   });
 
   it("mounts the Social feed only after that tab is clicked", async () => {
+    mockAuthenticated = true;
     const user = userEvent.setup();
     setup();
 
@@ -63,6 +69,17 @@ describe("CompanyProfileTabs", () => {
     await waitFor(() =>
       expect(apiClient.apiGet).toHaveBeenCalledWith(expect.stringContaining("/social/companies/acme/posts")),
     );
+  });
+
+  it("shows a logged-out visitor a register prompt on the Social tab and fetches nothing from IWT Social", async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.click(screen.getByRole("tab", { name: "Social" }));
+
+    expect(await screen.findByText("See what Acme shares on IWT Social")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Register" })).toBeInTheDocument();
+    expect(apiClient.apiGet).not.toHaveBeenCalledWith(expect.stringContaining("/social/"));
   });
 
   it("opens directly on the tab named by initialTab (deep link)", async () => {

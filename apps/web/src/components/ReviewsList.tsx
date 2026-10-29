@@ -5,7 +5,7 @@ import type { CompanyReply, PublicReview, VoteValue, WorkplaceType } from "@iwtr
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
 import { workplaceTypeLabel, WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-import { collarBorderClass } from "@/lib/collarColors";
+import { collarBorderClass, collarPillClassName } from "@/lib/collarColors";
 import { Avatar } from "@/components/Avatar";
 import { useT } from "@/lib/i18n/client";
 import { SingleSelectPillTabs } from "@/components/FilterPillGroup";
@@ -198,6 +198,7 @@ export function ReviewsList({
           options={collarOptions}
           selected={activeCollar}
           onSelect={setActiveCollar}
+          pillColorClassName={collarPillClassName}
         />
       )}
 

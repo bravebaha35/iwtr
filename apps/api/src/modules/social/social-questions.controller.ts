@@ -15,7 +15,7 @@ import {
   type SocialQuestionFilter,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
-import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guard";
+import { RegisteredReaderGuard } from "../../common/guards/registered-reader.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -47,10 +47,10 @@ function parseCompanyFilter(raw: string | undefined): CompanyQuestionFilter {
 export class SocialQuestionsController {
   constructor(private readonly questions: SocialQuestionsService) {}
 
-  // Newest first, cursor-paginated. Same optional-auth rule and the same
+  // Newest first, cursor-paginated. Same registered-readers rule and the same
   // sidebar filters as the post feed; `company` is one company's questions.
   @Get("questions")
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(RegisteredReaderGuard)
   list(
     @OptionalCurrentUser() user: AuthenticatedUser | undefined,
     @Query("cursor") cursor?: string,
@@ -80,7 +80,7 @@ export class SocialQuestionsController {
   }
 
   @Get("questions/:id")
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(RegisteredReaderGuard)
   get(@OptionalCurrentUser() user: AuthenticatedUser | undefined, @Param("id", new ParseUUIDPipe()) id: string) {
     return this.questions.get(user?.id, id);
   }

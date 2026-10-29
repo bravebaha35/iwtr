@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="50" viewBox="0 0 320 50">
+  <rect width="320" height="50" fill="#0f766e"/>
+  <circle cx="300" cy="2" r="40" fill="#14b8a6" opacity="0.35"/>
+  <text x="12" y="19" font-family="Arial, sans-serif" font-size="7.5" font-weight="700" fill="#ccfbf1" letter-spacing="1.2">PATHFINDER COURSES</text>
+  <text x="12" y="37" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#ffffff">Excel in 30 days.</text>
+  <rect x="214" y="12" width="96" height="26" rx="4" fill="#fbbf24"/>
+  <text x="262" y="29" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#134e4a">First lesson free</text>
+  <text x="314" y="47" text-anchor="end" font-family="Arial, sans-serif" font-size="5" fill="#99f6e4">TEST AD</text>
+</svg>

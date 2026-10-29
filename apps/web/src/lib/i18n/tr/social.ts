@@ -194,6 +194,8 @@ const social: Record<string, string> = {
   "IWT Social": "IWT Sosyal",
   "Photo {n} of {total}": "Fotoğraf {n} / {total}",
   "No comments yet. Be the first to say something.": "Henüz yorum yok. İlk yorumu sen yaz.",
+  "See what {company} shares on IWT Social": "{company}: IWT Sosyal'deki paylaşımları gör",
+  "Posts, photos and questions are for members. Registering is free, and companies never see who you are.": "Gönderiler, fotoğraflar ve sorular üyelere özel. Üyelik ücretsiz ve şirketler kim olduğunu asla görmez.",
 };
 
 export default social;

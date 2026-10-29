@@ -9,6 +9,8 @@ import { CompanySocialHeader, type CompanySocialView } from "@/components/social
 import { QuestionsFeed } from "@/components/social/QuestionsFeed";
 import { CompanyPhotoGrid } from "@/components/social/CompanyPhotoGrid";
 import { CompanySocialRail } from "@/components/social/CompanySocialRail";
+import { SocialRegisterPrompt } from "@/components/social/SocialRegisterPrompt";
+import { useAuth } from "@/lib/auth-context";
 import { useStickyTop } from "@/lib/useStickyTop";
 import { CompanyJobPostings } from "./CompanyJobPostings";
 import { useT } from "@/lib/i18n/client";
@@ -61,6 +63,9 @@ export function CompanyProfileTabs({
   aggregate: CompanyAggregateScore | null;
 }) {
   const [active, setActive] = useState<TabKey>(isTabKey(initialTab) ? initialTab : "ratings");
+  // IWT Social is members-only (the API refuses logged-out reads), so a
+  // logged-out visitor's Social tab is a register prompt instead.
+  const { isLoading: authLoading, isAuthenticated } = useAuth();
   // Which panels have been shown at least once — gates the mount of the
   // Social/Jobs panels (and therefore their network calls).
   const [visited, setVisited] = useState<Set<TabKey>>(() => new Set<TabKey>([active]));
@@ -235,7 +240,8 @@ export function CompanyProfileTabs({
           aria-labelledby={tabId.social}
           hidden={active !== "social"}
         >
-          {visited.has("social") && (
+          {visited.has("social") && !authLoading && !isAuthenticated && <SocialRegisterPrompt companyName={company.name} />}
+          {visited.has("social") && isAuthenticated && (
             // Same shape as the root /social page's SocialShell: 1fr, the
             // feed, 1fr from `lg` up, so the posts and questions sit in the
             // middle of the page here too. Left: the Sort sidebar; right:

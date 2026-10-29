@@ -37,7 +37,7 @@ import {
   type WorkplaceType,
 } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
-import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guard";
+import { RegisteredReaderGuard } from "../../common/guards/registered-reader.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -105,15 +105,15 @@ export class SocialController {
     return this.social.createPost(user.id, body, files);
   }
 
-  // Public global feed, newest-first, cursor-paginated. Optional auth: a
-  // signed-in caller gets real likedByMe/savedByMe booleans, an anonymous
-  // one gets null for both. `q` filters by company name (case-insensitive
+  // Global feed, newest-first, cursor-paginated. Registered readers only
+  // (RegisteredReaderGuard): a member gets real likedByMe/savedByMe
+  // booleans, a company login (read as anonymous) gets null for both. `q` filters by company name (case-insensitive
   // substring); `workplaceTypes` ("Job Category") is comma-separated, same
   // convention as CompaniesService.search's own filter params;
   // `categoryGroup` ("Quick Select" / "Industry Tags") is the single
   // Firms/Supermarket/.../Oil & Energy bucket, same as the rating/jobs pages.
   @Get("feed")
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(RegisteredReaderGuard)
   feed(
     @OptionalCurrentUser() user: AuthenticatedUser | undefined,
     @Query("cursor") cursor?: string,
@@ -134,14 +134,14 @@ export class SocialController {
 
   // The two lists beside the feed: companies to follow and fresh job ads.
   @Get("rail")
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(RegisteredReaderGuard)
   rail(@OptionalCurrentUser() user: AuthenticatedUser | undefined) {
     return this.social.rail(user?.id);
   }
 
   // One post, for its own page (share links). Same optional-auth rule.
   @Get("posts/:id")
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(RegisteredReaderGuard)
   getPost(@OptionalCurrentUser() user: AuthenticatedUser | undefined, @Param("id", new ParseUUIDPipe()) postId: string) {
     return this.social.getPost(user?.id, postId);
   }
@@ -173,6 +173,7 @@ export class SocialController {
 
   // Follower and post counts for the company Social tab - counts only.
   @Get("companies/:slug/summary")
+  @UseGuards(RegisteredReaderGuard)
   companySummary(@Param("slug") slug: string) {
     return this.social.companySummary(slug);
   }
@@ -181,6 +182,7 @@ export class SocialController {
   // photos, open job ads and unanswered questions. Public and the same for
   // everyone, like the summary above.
   @Get("companies/:slug/rail")
+  @UseGuards(RegisteredReaderGuard)
   companyRail(@Param("slug") slug: string) {
     return this.social.companyRail(slug);
   }
@@ -189,7 +191,7 @@ export class SocialController {
   // `sort` defaults to "newest" (today's only behavior) when omitted or
   // unrecognized.
   @Get("companies/:slug/posts")
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(RegisteredReaderGuard)
   companyPosts(
     @OptionalCurrentUser() user: AuthenticatedUser | undefined,
     @Param("slug") slug: string,
@@ -216,7 +218,7 @@ export class SocialController {
   // gets mine: true on their own comments and their own helpful/not-helpful
   // vote, an anonymous one gets mine: false and myVote: null throughout.
   @Get("posts/:id/comments")
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(RegisteredReaderGuard)
   listComments(
     @OptionalCurrentUser() user: AuthenticatedUser | undefined,
     @Param("id") postId: string,
@@ -241,7 +243,7 @@ export class SocialController {
   // A specific comment's replies, oldest-first - same optional-auth shape
   // as listComments.
   @Get("comments/:id/replies")
-  @UseGuards(OptionalJwtAuthGuard)
+  @UseGuards(RegisteredReaderGuard)
   listReplies(
     @OptionalCurrentUser() user: AuthenticatedUser | undefined,
     @Param("id") commentId: string,
