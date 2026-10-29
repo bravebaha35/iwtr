@@ -3,8 +3,10 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 import { Prisma } from "@prisma/client";
 import {
   findDistrictInProvince,
@@ -83,6 +85,8 @@ export const MONTHLY_REPLY_LIMITS: Record<OwnerTier, number | null> = {
 
 @Injectable()
 export class ReviewsService {
+  private readonly logger = new Logger(ReviewsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly moderation: ModerationService,
@@ -406,8 +410,7 @@ export class ReviewsService {
           await this.piiVault.purgeTcKimlikNoIfPresent(userId);
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(`[reviews] Post-publish follow-up failed for review ${review.id}:`, err);
+        logAndReport(this.logger, `Post-publish follow-up failed for review ${review.id}`, err);
       }
     }
 
@@ -699,8 +702,7 @@ export class ReviewsService {
         await this.piiVault.purgeTcKimlikNoIfPresent(userId);
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`[reviews] Post-update follow-up failed for review ${reviewId}:`, err);
+      logAndReport(this.logger, `Post-update follow-up failed for review ${reviewId}`, err);
     }
 
     return {

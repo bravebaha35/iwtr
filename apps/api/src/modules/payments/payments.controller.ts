@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Logger, Param, Post, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import { plusCheckoutInputSchema, type PlusCheckoutInput } from "@iwtr/shared-types";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
@@ -6,9 +6,12 @@ import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { PaymentsService } from "./payments.service";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 
 @Controller()
 export class PaymentsController {
+  private readonly logger = new Logger(PaymentsController.name);
+
   constructor(private readonly payments: PaymentsService) {}
 
   // A membership (plan) is bought from the owner's own account only: this
@@ -37,8 +40,7 @@ export class PaymentsController {
         // Best-effort: still send the user back into the app either way —
         // a failed status lookup shouldn't strand them on a blank response.
         // Still logged so a genuine DB/API error here isn't invisible.
-        // eslint-disable-next-line no-console
-        console.error(`[payments] callback handleCheckoutCallback failed for token=${body.token}:`, err);
+        logAndReport(this.logger, `Callback handleCheckoutCallback failed for token=${body.token as string}`, err);
       });
     }
     const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";

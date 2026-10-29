@@ -490,7 +490,9 @@ export function WorkplaceBrowser() {
     <div className="flex w-full items-start justify-center gap-6 px-4 py-8">
       <AdSlot />
 
-      <div className="w-full max-w-[1600px]">
+      {/* min-w-0: without it the grid's own width pushed the right-hand ad
+          off the screen on windows around 1600px wide. */}
+      <div className="w-full min-w-0 max-w-[1600px]">
         <SidebarContentRow>
           <SidebarShell>
             <div>

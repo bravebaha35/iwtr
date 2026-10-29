@@ -16,23 +16,9 @@ export const collarColorMap: Record<WorkplaceType, { text: string; border: strin
   SERVICE: { text: "text-[#450011]", border: "border-[#450011]", borderLeft: "border-l-[#450011]" },
 };
 
-// Inactive collar pills are neutral/greyed-out by design — every type looks
-// the same (same treatment as the app's plain default pill) until clicked,
-// at which point its own color takes over. Showing every option in full
-// color at once (the original spec) read as too busy in practice; the color
-// is meant to be the *result* of picking a type, not a hint shown up front.
-const inactiveCollarPillClassName = "border border-transparent bg-surface-muted text-muted-foreground hover:text-foreground";
-
-// Active pills used to be a solid color fill (bg + white/dark text), then a
-// colored outline + colored label — per explicit user request, only the
-// outline (border) carries the color now; the label stays plain foreground
-// text like every other pill, and the inside stays the plain surface
-// background.
-export function collarPillClassName(type: WorkplaceType, active: boolean): string {
-  if (!active) return inactiveCollarPillClassName;
-  const { border } = collarColorMap[type];
-  return `border ${border} text-foreground bg-surface`;
-}
+// The review filter's work-type pills used to take these colours when picked;
+// since 2026-10-29 every picked pill uses the one brand selected colour
+// (FilterPillGroup's pillClass), so the colours here only mark review cards.
 
 // Used for the review card's left accent border only (border-l-2 in
 // ReviewsList.tsx) — deliberately the per-side `border-l-*` utility, not the
@@ -48,9 +34,10 @@ export function collarBorderClass(type: WorkplaceType): string {
   return collarColorMap[type].borderLeft;
 }
 
-// A picked Work-Type tile (WorkTypeTiles): the work type's own hue as a
-// soft wash over the tile, and the same hue at full strength for the short
-// bar under its name. Hues unchanged (Office slate, Hybrid/Remote teal,
+// Each work type's own hue, as a soft wash and as a full-strength bar - for
+// marks that NAME a work type (the avatar picker's dots, a job's work-type
+// bar). Not for showing what is picked: a picked tile or tab uses the one
+// brand selected colour (2026-10-29). Hues unchanged (Office slate, Hybrid/Remote teal,
 // Service orange, Manual-Labour blue), one step lighter in dark mode so
 // they stay readable on the dark page.
 export const collarTileTone: Record<WorkplaceType, { wash: string; bar: string }> = {

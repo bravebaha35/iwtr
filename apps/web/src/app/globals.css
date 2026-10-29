@@ -50,17 +50,22 @@ body *::-webkit-scrollbar,
 
 /* "Riverbank" (2026-10-12) - the beaver's habitat, read as a place rather
    than as cream paper: stone and lichen neutrals with a green lean, deep
-   pine text, and Wood as the single accent. Named anchors:
+   pine text, and Hard-hat Orange as the single accent. Named anchors:
      Lichen     #F1F2EC  light page background
      Night Pine #1B211D  dark page background
      Pine Ink   #1C2620  light-mode text
-     Wood       #8B5A2B  primary buttons AND the one "selected" colour
-                         (brand-600 fill + white text, as in the city picker)
+     Hard-hat   #B34F00  (2026-10-29, replaced the duller Wood #8B5A2B)
+     Orange              the beaver's hard-hat orange: primary buttons AND
+                         the one "selected" colour for every picked thing -
+                         filters, tabs, sort words, tiles (brand-600 fill +
+                         white text, or brand-700 text + brand-600 bar).
+                         Orange is the opposite of the green-leaning
+                         neutrals, so a selection always stands out.
      Forest     #3D6B3F  positive accents (forest-600); the footer is a
                          deeper pine
-   Text pairs are checked against WCAG AA (4.5) in both themes. Wood and
-   Forest themselves are too dark on Night Pine, so dark mode reads their
-   300/400 shades.
+   Text pairs are checked against WCAG AA (4.5) in both themes. Hard-hat
+   Orange and Forest themselves are too dark on Night Pine, so dark mode
+   reads their 300/400 shades (brand-400 #FF9A3C = 6.9 on the dark surface).
    Structure rule: content is separated by tone, space and hairlines, not by
    outlined boxes. --border is a quiet hairline; only form inputs rely on it
    as an edge. */
@@ -124,22 +129,22 @@ body *::-webkit-scrollbar,
   --color-footer-foreground: var(--footer-foreground);
 
   /* Brand accent — a single place to retune the whole site's color later.
-     Anchored on Wood #8B5A2B (brand-600, the resting color of every filled
-     CTA). Named brand-* so nothing that references it needs to change if
-     the hue is ever swapped. 300/400 are pulled lighter than an even ramp
-     on purpose: they're the dark-mode text shades (dark:text-brand-400),
-     and must clear 4.5:1 on the dark surfaces (400 = 5.2, 300 = 6.4). */
-  --color-brand-50: #f8f5f2;
-  --color-brand-100: #f0eae3;
-  --color-brand-200: #e3d7cc;
-  --color-brand-300: #d5c4b3;
-  --color-brand-400: #c7b099;
-  --color-brand-500: #a88360;
-  --color-brand-600: #8b5a2b;
-  --color-brand-700: #724a23;
-  --color-brand-800: #5d3c1d;
-  --color-brand-900: #482f16;
-  --color-brand-950: #31200f;
+     Anchored on Hard-hat Orange #B34F00 (brand-600: every filled CTA and
+     every selected state; white text on it = 5.2, as text on Lichen = 4.6).
+     brand-700 #9A4300 is the light-mode selected TEXT (5.9 on Lichen).
+     300/400 are the dark-mode text and bar shades (dark:text-brand-400) and
+     clear 4.5:1 on the dark surfaces (400 = 6.9, 300 = 8.2). */
+  --color-brand-50: #fff6ed;
+  --color-brand-100: #ffead3;
+  --color-brand-200: #ffd0a3;
+  --color-brand-300: #ffb36b;
+  --color-brand-400: #ff9a3c;
+  --color-brand-500: #e86f0c;
+  --color-brand-600: #b34f00;
+  --color-brand-700: #9a4300;
+  --color-brand-800: #7c3705;
+  --color-brand-900: #632d0a;
+  --color-brand-950: #3a1904;
 
   /* Forest #3D6B3F (forest-600) — footer band, positive/"done" accents.
      Dark mode reads forest-300 (7.0 on Den). */
@@ -179,7 +184,7 @@ body *::-webkit-scrollbar,
 }
 
 /* Phones flash a blue box over whatever you tap — turn that off; pressed
-   and selected states use Wood instead (see below). */
+   and selected states use the brand accent instead (see below). */
 html {
   -webkit-tap-highlight-color: transparent;
 }
@@ -252,15 +257,15 @@ select,
    homepage's search box / category-button row plays once when a footer
    link (Submit a Review, Job Categories, Claim Profile) routes here with
    ?highlight=... appended, so the visitor's eye lands on the right control
-   instead of a bare navigation with no explanation. Wood glow (the one
+   instead of a bare navigation with no explanation. Orange glow (the one
    "selected" colour), identical in both themes. */
 @keyframes highlight-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(139, 90, 43, 0.5);
+    box-shadow: 0 0 0 0 rgba(179, 79, 0, 0.5);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(139, 90, 43, 0);
+    box-shadow: 0 0 0 10px rgba(179, 79, 0, 0);
   }
 }
 .highlight-pulse {
@@ -279,7 +284,7 @@ button:disabled,
 }
 
 /* Native checkboxes/radios/range sliders and the keyboard focus outline
-   otherwise fall back to the browser's own blue — Wood instead, the same
+   otherwise fall back to the browser's own blue — Hard-hat Orange instead, the same
    single "selected" colour used everywhere else. */
 input[type="checkbox"],
 input[type="radio"],
@@ -301,7 +306,7 @@ progress {
 }
 
 /* Boosted ("featured") job cards on the Jobs page (2026-10-24, Taste pass):
-   a clear solid Wood outline (no glow, no corner badge), a soft Wood-tinted
+   a clear solid orange outline (no glow, no corner badge), a soft orange-tinted
    shadow that lifts the card a little, and a slow sheen of light across the
    banner every 7 seconds - the one motion, there to draw the eye to paid
    ads. Still under reduced motion. */
@@ -309,8 +314,8 @@ progress {
   border-width: 1.5px;
   border-color: var(--color-brand-500);
   box-shadow:
-    0 1px 2px rgba(72, 47, 22, 0.08),
-    0 14px 32px -16px rgba(139, 90, 43, 0.45);
+    0 1px 2px rgba(99, 45, 10, 0.08),
+    0 14px 32px -16px rgba(179, 79, 0, 0.45);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .dark .boosted-card {
@@ -319,8 +324,8 @@ progress {
 .boosted-card:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 1px 2px rgba(72, 47, 22, 0.1),
-    0 22px 40px -18px rgba(139, 90, 43, 0.55);
+    0 1px 2px rgba(99, 45, 10, 0.1),
+    0 22px 40px -18px rgba(179, 79, 0, 0.55);
 }
 .boosted-banner::after {
   content: "";

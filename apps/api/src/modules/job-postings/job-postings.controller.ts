@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Logger, Param, ParseUUIDPipe, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 import type { Response } from "express";
 import {
   createJobPostingInputSchema,
@@ -18,6 +19,8 @@ import { JobPostingsService } from "./job-postings.service";
 
 @Controller()
 export class JobPostingsController {
+  private readonly logger = new Logger(JobPostingsController.name);
+
   constructor(private readonly jobPostings: JobPostingsService) {}
 
   @Get("my-companies/:companyId/job-postings/boost-status")
@@ -82,8 +85,7 @@ export class JobPostingsController {
       await this.jobPostings.completeCheckout(body.token).catch((err) => {
         // Best-effort: still send the user back into the app either way.
         // Still logged so a genuine DB/API error here isn't invisible.
-        // eslint-disable-next-line no-console
-        console.error(`[job-postings] boost callback completeCheckout failed for token=${body.token}:`, err);
+        logAndReport(this.logger, `Boost callback completeCheckout failed for token=${body.token as string}`, err);
       });
     }
     const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";

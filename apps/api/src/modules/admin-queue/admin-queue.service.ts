@@ -1,12 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { AdminQueueItem, QueueStatus } from "@iwtr/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ReviewsService } from "../reviews/reviews.service";
 import { PiiVaultService } from "../pii-vault/pii-vault.service";
 import { toUtcDay } from "../../common/time/day-precision.util";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 
 @Injectable()
 export class AdminQueueService {
+  private readonly logger = new Logger(AdminQueueService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly reviews: ReviewsService,
@@ -71,8 +74,7 @@ export class AdminQueueService {
         await this.piiVault.purgeTcKimlikNoIfPresent(item.review.userId);
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`[admin-queue] Post-approval follow-up failed for review ${item.reviewId}:`, err);
+      logAndReport(this.logger, `Post-approval follow-up failed for review ${item.reviewId}`, err);
     }
   }
 

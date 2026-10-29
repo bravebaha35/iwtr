@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, NotImplementedException } from "@nestjs/common";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 import type {
   AdminJobPosting,
   CreateJobPostingInput,
@@ -83,6 +84,8 @@ function toPublic(posting: {
 
 @Injectable()
 export class JobPostingsService {
+  private readonly logger = new Logger(JobPostingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly moderation: ModerationService,
@@ -343,8 +346,9 @@ export class JobPostingsService {
         token: checkout.token,
       };
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`[job-postings] boost checkout could not start for posting=${posting.id}:`, err);
+      // "iyzico not configured" is expected until payment keys are set - not an error to report.
+      if (err instanceof NotImplementedException) this.logger.warn(`Boost checkout unavailable: ${err.message}`);
+      else logAndReport(this.logger, `Boost checkout could not start for posting=${posting.id}`, err);
       await this.prisma.jobPosting.update({
         where: { id: posting.id },
         data: { boostDurationDays: null, boostAdSpace: false, boostPaymentStatus: null },
@@ -491,8 +495,7 @@ export class JobPostingsService {
     const status = await this.payments.retrieveOneTimeCheckoutStatus(token).catch((err) => {
       // A transient iyzico API error is otherwise indistinguishable from
       // "genuinely not paid" — log it so it's visible in server logs.
-      // eslint-disable-next-line no-console
-      console.error(`[job-postings] retrieveOneTimeCheckoutStatus failed for token=${token}:`, err);
+      logAndReport(this.logger, `retrieveOneTimeCheckoutStatus failed for token=${token}`, err);
       return null;
     });
     if (!status?.paid || !status.conversationId) return;

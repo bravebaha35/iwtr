@@ -201,7 +201,7 @@ export function CompanyProfileTabs({
               onClick={() => selectTab(tab.key)}
               className={`-mb-px flex min-h-12 shrink-0 items-baseline gap-2 border-b-[3px] px-0.5 pb-3 pt-3 font-display text-lg leading-none sm:text-xl transition-colors focus-visible:outline-offset-[-4px] ${
                 selected
-                  ? "border-brand-600 text-foreground dark:border-brand-400"
+                  ? "border-brand-600 text-brand-700 dark:text-brand-300 dark:border-brand-400"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >

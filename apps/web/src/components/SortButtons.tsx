@@ -82,18 +82,15 @@ export function sortCompaniesBy<T extends { name: string; overallAvg: number | n
 
 // Each sort is a plain underlined word, as tall as the search field it sits
 // beside (SearchSortBox): a thin quiet underline at rest, so it reads as
-// something to press, and a thick underline in the sort's colour once in use.
+// something to press, and a thick underline in the site's one selected colour
+// once in use (2026-10-29: Rating / RS no longer turn red or green - the
+// arrow alone says which way they run).
 const TOGGLE_BASE =
   "flex h-12 items-center gap-1 px-3 text-sm font-semibold underline underline-offset-[6px] transition-[color,text-decoration-color]";
 const TOGGLE_OFF =
   "text-muted-foreground decoration-1 decoration-muted-foreground/40 hover:text-foreground hover:decoration-foreground/60";
-// A-Z in use: Wood, the site's one "selected" colour.
+// Any sort in use: the site's one "selected" colour.
 const TOGGLE_ON = "text-brand-700 decoration-2 decoration-brand-600 dark:text-brand-300 dark:decoration-brand-400";
-
-// Red for the "bad end first" state, green for the "good end first" state -
-// shared by Rating and RS.
-const TOGGLE_RED = "text-red-700 decoration-2 decoration-red-500 dark:text-red-400";
-const TOGGLE_GREEN = "text-emerald-700 decoration-2 decoration-emerald-500 dark:text-emerald-400";
 
 // Which way a Rating / RS sort runs: up = lowest first, down = highest first.
 function DirectionArrow({ up }: { up: boolean }) {
@@ -148,7 +145,7 @@ export function SortButtons({
                 ? t("Showing lowest Risk Score first")
                 : t("Sort by Risk Score")
           }
-          className={`${base} ${value === "riskDesc" ? TOGGLE_RED : value === "riskAsc" ? TOGGLE_GREEN : TOGGLE_OFF}`}
+          className={`${base} ${value === "riskDesc" || value === "riskAsc" ? TOGGLE_ON : TOGGLE_OFF}`}
         >
           {t("RS")}
           {value === "riskDesc" && <DirectionArrow up={false} />}
@@ -171,7 +168,7 @@ export function SortButtons({
         title={
           value === "ratingAsc" ? t("Showing least-rated first") : value === "ratingDesc" ? t("Showing best-rated first") : t("Sort by rating")
         }
-        className={`${base} ${value === "ratingAsc" ? TOGGLE_RED : value === "ratingDesc" ? TOGGLE_GREEN : TOGGLE_OFF}`}
+        className={`${base} ${value === "ratingAsc" || value === "ratingDesc" ? TOGGLE_ON : TOGGLE_OFF}`}
       >
         {t("Rating")}
         {value === "ratingAsc" && <DirectionArrow up />}

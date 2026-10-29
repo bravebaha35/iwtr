@@ -50,7 +50,7 @@ export function WordTabs<T extends string>({
             onClick={() => onChange(tab.value)}
             className={`-mb-px min-h-11 shrink-0 border-b-[3px] px-0.5 pb-2.5 pt-2 text-[15px] font-semibold leading-none transition-colors ${
               selected
-                ? "border-brand-600 text-foreground dark:border-brand-400"
+                ? "border-brand-600 text-brand-700 dark:text-brand-300 dark:border-brand-400"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >

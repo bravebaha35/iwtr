@@ -24,7 +24,7 @@ export default async function OpenGraphImage() {
           gap: 56,
           padding: "0 88px",
           background: "#fbfaf5",
-          borderBottom: "24px solid #8b5a2b",
+          borderBottom: "24px solid #b34f00",
           fontFamily: "serif",
         }}
       >
@@ -32,10 +32,10 @@ export default async function OpenGraphImage() {
         <img src={markSrc} width={300} height={300} alt="" style={{ borderRadius: 64 }} />
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ fontSize: 88, color: "#4a3018", lineHeight: 1 }}>I Worked There</div>
-          <div style={{ fontSize: 40, color: "#8b5a2b", lineHeight: 1.25, maxWidth: 680 }}>
+          <div style={{ fontSize: 40, color: "#b34f00", lineHeight: 1.25, maxWidth: 680 }}>
             No names. No HR. Just what it&apos;s really like to work there.
           </div>
-          <div style={{ fontSize: 28, color: "#8b5a2b", marginTop: 8 }}>iworkedthere.com</div>
+          <div style={{ fontSize: 28, color: "#b34f00", marginTop: 8 }}>iworkedthere.com</div>
         </div>
       </div>
     ),

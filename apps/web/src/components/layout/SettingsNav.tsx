@@ -14,12 +14,12 @@ export type SettingsNavItem<K extends string> =
   | { key: string; label: string; href: string };
 
 // Fixed class strings only - nothing here is ever built from user input.
-// Plain text rows, no filled pills: the selected row is marked by the Wood
-// bar on the rail (the same mark the header uses for the current page).
+// Plain text rows, no filled pills: the selected row is marked by the brand
+// selected colour (orange text + bar on the rail) (the same mark the header uses for the current page).
 const ITEM_BASE =
   "relative block w-full whitespace-nowrap px-3 py-2.5 text-left text-[14.5px] leading-snug transition-colors duration-150 sm:whitespace-normal sm:py-2 sm:pl-5 sm:pr-2";
 const ITEM_IDLE = `${ITEM_BASE} text-muted-foreground hover:text-foreground`;
-const ITEM_ACTIVE = `${ITEM_BASE} font-semibold text-foreground`;
+const ITEM_ACTIVE = `${ITEM_BASE} font-semibold text-brand-700 dark:text-brand-300`;
 
 // The selection bar: under the tab on the mobile strip, on the left rail
 // from sm: up (sitting over the rail's hairline, hence -left-px).

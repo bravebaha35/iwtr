@@ -3,7 +3,6 @@
 import Image from "next/image";
 import type { WorkplaceType } from "@iwtr/shared-types";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
-import { collarTileTone } from "@/lib/collarColors";
 import { useT } from "@/lib/i18n/client";
 
 // One object per kind of work, drawn for these tiles: a pencil, a headset,
@@ -52,7 +51,6 @@ export function WorkTypeTiles({
     <div className={`grid gap-1.5 ${columns === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
       {WORKPLACE_TYPES.map((t) => {
         const on = selected.includes(t.value);
-        const collar = collarTileTone[t.value];
         const art = WORK_TYPE_ART[t.value];
         return (
           <button
@@ -62,12 +60,12 @@ export function WorkTypeTiles({
             disabled={disabled}
             onClick={() => onToggle(t.value)}
             className={`group relative flex h-[5.25rem] flex-col items-start overflow-hidden rounded-xl text-left transition duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
-              on ? collar.wash : tone === "surface" ? "bg-surface shadow-xs hover:bg-surface-muted/40" : "bg-surface-muted/70 hover:bg-surface-muted"
+              on ? "bg-brand-600/12 dark:bg-brand-400/15" : tone === "surface" ? "bg-surface shadow-xs hover:bg-surface-muted/40" : "bg-surface-muted/70 hover:bg-surface-muted"
             }`}
           >
             <span
               className={`relative z-10 block whitespace-nowrap px-2.5 pt-2 text-xs leading-tight transition-colors ${
-                on ? "font-bold text-foreground" : "font-medium text-muted-foreground group-hover:text-foreground"
+                on ? "font-bold text-brand-700 dark:text-brand-300" : "font-medium text-muted-foreground group-hover:text-foreground"
               }`}
             >
               {tr(t.label)}
@@ -75,7 +73,7 @@ export function WorkTypeTiles({
             <span
               aria-hidden="true"
               className={`ml-2.5 mt-1.5 block h-[3px] w-5 shrink-0 rounded-full transition-all duration-200 ${
-                on ? collar.bar : "w-0 bg-transparent"
+                on ? "bg-brand-600 dark:bg-brand-400" : "w-0 bg-transparent"
               }`}
             />
             <Image

@@ -4,9 +4,12 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
+  NotImplementedException,
   ServiceUnavailableException,
 } from "@nestjs/common";
+import { logAndReport } from "../../common/monitoring/log-and-report";
 import { Prisma, type CompanyOwner, type HrAnalyticsReportJob as HrReportJobRow } from "@prisma/client";
 import {
   HR_REPORT_PRICE_LABEL,
@@ -68,6 +71,8 @@ function isUniqueViolation(err: unknown): boolean {
  */
 @Injectable()
 export class HrAnalyticsReportService {
+  private readonly logger = new Logger(HrAnalyticsReportService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly data: HrAnalyticsReportDataService,
@@ -165,8 +170,8 @@ export class HrAnalyticsReportService {
     } catch (err) {
       // iyzico not configured yet, or unreachable: nothing was charged, so
       // the placeholder row goes too.
-      // eslint-disable-next-line no-console
-      console.error(`[hr-analytics-report] checkout could not start for job=${job.id}:`, err);
+      if (err instanceof NotImplementedException) this.logger.warn(`HR report checkout unavailable: ${err.message}`);
+      else logAndReport(this.logger, `HR report checkout could not start for job=${job.id}`, err);
       await this.prisma.hrAnalyticsReportJob.delete({ where: { id: job.id } });
       throw new ServiceUnavailableException("Online payment isn't available right now, so the report couldn't be bought. You weren't charged.");
     }
@@ -192,8 +197,7 @@ export class HrAnalyticsReportService {
    */
   async completeCheckout(token: string): Promise<string | null> {
     const status = await this.payments.retrieveOneTimeCheckoutStatus(token).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(`[hr-analytics-report] retrieveOneTimeCheckoutStatus failed for token=${token}:`, err);
+      logAndReport(this.logger, `retrieveOneTimeCheckoutStatus failed for token=${token}`, err);
       return null;
     });
     if (!status?.conversationId) return null;

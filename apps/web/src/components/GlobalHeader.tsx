@@ -11,7 +11,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
 import { IwtSocialIcon } from "@/components/icons/IwtSocialIcon";
 import { useIsCompanyOwner } from "@/lib/useIsCompanyOwner";
-import { navItemActiveClass, navItemClass, navItemLabelClass } from "@/components/layout/navItem";
+import { navItemActiveClass, navItemClass, navItemIdleClass, navItemLabelClass } from "@/components/layout/navItem";
 import { useT } from "@/lib/i18n/client";
 
 // Icon + label nav item, the shape every slot in the header's main nav group
@@ -35,7 +35,7 @@ function NavIconLink({
   children: ReactNode;
 }) {
   const t = useT();
-  const className = `${navItemClass} ${active ? navItemActiveClass : ""}`;
+  const className = `${navItemClass} ${active ? navItemActiveClass : navItemIdleClass}`;
   const inner = (
     <>
       <span className="flex h-5 w-5 items-center justify-center">{children}</span>

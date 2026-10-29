@@ -153,7 +153,7 @@ export function WorkTypeDots({
             <span
               className={`block rounded-full transition-all duration-150 ${collarTileTone[type].bar} ${
                 picked
-                  ? "h-3 w-3 ring-2 ring-foreground/25 ring-offset-2 ring-offset-surface"
+                  ? "h-3 w-3 ring-2 ring-brand-600 ring-offset-2 ring-offset-surface dark:ring-brand-400"
                   : "h-2 w-2 opacity-45 group-hover:opacity-90"
               }`}
             />

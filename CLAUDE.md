@@ -73,7 +73,9 @@ the error only: `dataCollection` all off, `scrubEvent` (api `src/instrument.ts`,
 request headers/body/query and breadcrumbs. Browser reports go through our own `app/api/monitoring` route (forwards
 only to our own project, so Sentry never sees a visitor IP and CSP needs no outside origin); the browser SDK is loaded
 only when a DSN is set. API: `ErrorReportingFilter` is the one global filter (Prisma errors still answered by
-`PrismaExceptionFilter` inside it); only 5xx-type faults are reported. Background jobs use `logAndReport`.
+`PrismaExceptionFilter` inside it); only 5xx-type faults are reported. Background jobs, and any error a request
+handler catches and swallows (payment callbacks, post-publish follow-ups), use `logAndReport` - never a bare
+`console.error`, which Sentry never sees.
 Never add session replay, tracing or breadcrumbs - reviewer anonymity.
 
 ## Architecture
@@ -99,7 +101,8 @@ sometimes a small `.util.ts`). `src/common/` holds cross-cutting pieces used by 
 single `@Body()`/`@Param()` argument against a zod schema — see the gotcha below on scoping it correctly).
 
 - `auth/` — email+password registration/login, JWT access tokens (15 min, HS256) + rotating opaque refresh
-  tokens (30 days, stored as a SHA-256 hash in `RefreshToken`, rotated on every use). Google/Apple sign-in
+  tokens (30 days, stored as a SHA-256 hash in `RefreshToken`, rotated on every use; `RefreshTokenPurgeWorker`
+  deletes rows a day past expiry - revoked-but-unexpired rows stay, they are the stolen-token replay tripwire). Google/Apple sign-in
   endpoints exist but throw `NotImplementedException` until `GOOGLE_CLIENT_ID` / `APPLE_*` env vars are set.
   **Company login** (`CompanyLogin`, replaces per-person HR seats): one shared email + password per company,
   set up by its approved owner (dashboard > Company Login). `POST auth/company-login` issues a token acting as
@@ -308,6 +311,9 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - Notifications: COMPANY_HIRING opens `/companies/<slug>?tab=jobs`, a new post the company's Social tab; the company page
   keys `CompanyProfileTabs` on slug+tab so such a link works while already on a company page. A job card with no posting
   keeps a bookmark that follows the company (hears when it posts a job).
+- Ad slots (`components/AdSlot.tsx`) use standard ad-network (IAB) sizes so a real ad drops in uncropped: side rails
+  160x600 "Wide Skyscraper", in-feed (between IWT Social posts) 300x250 "Medium Rectangle". The employer ad beside the
+  search bar is our own native job ad, not a network size. Test creatives in `public/test-ads/`.
 - The chat dock's panels can be enlarged (button between minimise and close); an enlarged panel counts as two.
 - **Avatars (2026-10-25)**: the owner's beaver art, 4 per work type per gender (`lib/avatars.ts`). `User.gender`
   (MALE/FEMALE, nullable) is chosen at sign-up in PiiForm and then locked (2026-10-25): `updateProfile` refuses a
@@ -324,13 +330,13 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - The 40 anonymous usernames are stored in English and shown through `t()` (Turkish in `tr/usernames.ts`) everywhere
   they appear, even in the English-only areas. Customize has work-type dots beside "Username"; any of the 40 can be saved.
 - Notifications panel (`NotificationsMenu`): one line icon per kind on a soft tone tile (`KIND_LOOK`), time on the
-  right, Wood dot for unread, "Today" / "Earlier" groups. A job card's flags pop-up links to the company page's
+  right, orange dot for unread, "Today" / "Earlier" groups. A job card's flags pop-up links to the company page's
   `#vibe-flags` block with the count of mixed signals.
 - Job cards name the Risk Score in one word (`RISK_SCORE_WORDS`): 0 Reasonable. / 1 Okay. / 2 Meh. / 3 Caution! (TR Mantıklı.
   / Olur. / Eh. / Dikkat!), same colours. A card with no score (no real posting) shows nothing, the save button takes its
   place; the company page keeps "Risk Score: n/3" / "-". In Turkish "IWT Social" is "IWT Sosyal" (`t("IWT Social")`).
 - Edit Profile and the owner Dashboard share one side menu (`SettingsNav`): plain text rows on a hairline rail, the picked
-  row marked by a sliding Wood bar; a tab row with an underline on phones. No filled pill buttons.
+  row marked by orange text and a sliding orange bar; a tab row with an underline on phones. No filled pill buttons.
 
 ### Data model (`apps/api/prisma/schema.prisma`)
 
@@ -419,8 +425,10 @@ Enterprise stay English; Free is "Ücretsiz".
 ### Visual design ("Riverbank", 2026-10-12)
 
 All colour, type, radius and shadow tokens live in `apps/web/src/app/globals.css`; never hard-code a brand
-colour in a component. Stone/lichen neutrals with a green lean, deep pine text, Wood (`brand-600`) as the one
-accent and the one "selected" colour. Headings are Bricolage Grotesque, body Google Sans Flex; the CV document
+colour in a component. Stone/lichen neutrals with a green lean, deep pine text, Hard-hat Orange (`brand-600`
+#B34F00, 2026-10-29; replaced Wood #8B5A2B) as the one accent and the one "selected" colour: every picked filter,
+tab, tile, sort word, nav item and page number uses it (orange text `brand-700`/dark `brand-300` + an orange bar, or
+an orange fill + white). No other colour marks a selection - not the collar colours, not red/green. Headings are Bricolage Grotesque, body Google Sans Flex; the CV document
 alone keeps DM Serif Display (`.cv-document`).
 
 - **No outlined boxes for content.** Reviews and company page sections sit straight on the page, separated by
@@ -428,34 +436,34 @@ alone keeps DM Serif Display (`.cv-document`).
   `rounded-xl bg-surface shadow-xs`, banner flush at the top, no border. Settings panels and owner dashboard
   sections are the same kind of tonal panel (`rounded-2xl bg-surface shadow-xs`). Only form inputs keep a
   1px border. Chips and secondary buttons are tonal (`bg-surface-muted`), not outlined.
-- **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`), the red/green
-  Rating and RS sort states (`SortButtons.tsx`), score-band colours and tier ticks. A featured job card
-  (`.boosted-card`; the gold and green outlines and the corner star badge were all rejected) has a solid 1.5px Wood
-  outline, a Wood-tinted shadow and a slow sheen over the banner. The footer band is
+- **Colours the owner chose stay as they are:** the work-type collar colours (`lib/collarColors.ts`; they name a
+  work type, they never mark a selection), score-band colours and tier ticks. A featured job card
+  (`.boosted-card`; the gold and green outlines and the corner star badge were all rejected) has a solid 1.5px orange
+  outline, an orange-tinted shadow and a slow sheen over the banner. The footer band is
   `#0d2b1f`. Rounded corners are squircles (`corner-shape: squircle` in globals.css; `rounded-full` stays round).
-- Logged out (`LoggedOutHeader` in GlobalHeader.tsx): logo, tagline, theme switch, "Log in" (text) and "Register" (Wood),
+- Logged out (`LoggedOutHeader` in GlobalHeader.tsx): logo, tagline, theme switch, "Log in" (text) and "Register" (orange),
   no page links and no hairline, aligned to the intro page column. The tagline everywhere is "Hear it straight from real
   references !" (TR "Gerçek referanslardan, doğrudan !"). Logging out does a full load of `/`.
 - Quick Select (Firms, Supermarket, ...; `CategoryGroupFilter` in lib/categoryGroups.tsx) is a tab strip on the
-  homepage and Jobs: icon + word, one hairline under the row, the picked one in Wood with a Wood bar. Account Options >
+  homepage and Jobs: icon + word, one hairline under the row, the picked one in orange with an orange bar. Account Options >
   Language is two underlined words (English / Türkçe), like the sort words.
-- Header is one 64px line; the current page is marked by a Wood bar (`components/layout/navItem.ts`). The
+- Header is one 64px line; the current page is marked by orange text and an orange bar (`components/layout/navItem.ts`). The
   notifications bell is a symbol with no label beside the theme switch, with a red counter that clears (and is
   saved as read) the moment its panel is opened. The sort controls (RS / A-Z / Rating) are plain words with a
   coloured bar under the one in use, right next to the search field (`SearchSortBox`); no "Sort" label.
   Sidebar width and gaps are locked by tests (`SidebarShell`); its order is (Jobs: Create !) Work-Type (+ Sector),
   (Jobs: Position dropdown right under Sector, no header of its own), Rating, Risk Score, Location. Location
   (`CityDistrictPicker`) is country, then one city, then a Districts dropdown (always shown, greyed out until a city is
-  picked) whose panel holds that city's districts as side-by-side chips with one "All" button. On Jobs, Following (one row of logo + name, no boxes, Wood
+  picked) whose panel holds that city's districts as side-by-side chips with one "All" button. On Jobs, Following (one row of logo + name, no boxes, orange
   underline when picked, arrows and edge fades) and Saved Posts (a bookmark button) sit beside the page title. The sort
   words are underlined: thin at rest, thick in the sort's colour when in use. Every inner scroll area hides its scrollbar (globals.css `body *`); only the page
   keeps one.
 - Work-Type is four tiles (`WorkTypeTiles`): the name, and an object for that work in the bottom corner (the
   owner's own art in `public/`: "Office QS" pencil, "Hybrid QS" headset, "Service QS" hands, "Manual-Labour QS"
-  hammer) - grey at rest; picked, the tile takes its collar colour as a soft wash plus a short bar (`collarTileTone`).
+  hammer) - grey at rest; picked, the tile takes the brand orange as a soft wash plus a short bar.
   The default banners are the owner's too ("Office Banner" etc., `DEFAULT_BANNER_URL_BY_WORKPLACE_TYPE`); these
   files keep the owner's names, so code writes the space as `%20`.
-  Same tiles for "What kind of work?" on Edit Profile. Multi-choice lists (Position) are tick rows that turn Wood
+  Same tiles for "What kind of work?" on Edit Profile. Multi-choice lists (Position) are tick rows that turn orange
   when ticked (`PositionPicker`), inside a soft panel in the sidebar.
 - A logged-out visitor sees `AnonGate`'s hero; the homepage adds `LandingSections` under it.
 

@@ -4,6 +4,7 @@ import { CompanyLoginController } from "./company-login.controller";
 import { CompanyLoginService } from "./company-login.service";
 import { AuthService } from "./auth.service";
 import { TokenService } from "./token.service";
+import { RefreshTokenPurgeWorker } from "./refresh-token-purge.worker";
 import { AdminLoginOtpService } from "./admin-login-otp.service";
 import { ADMIN_OTP_NOTIFIER } from "./admin-otp-notifier.interface";
 import { createAdminOtpNotifier } from "./smtp-admin-otp-notifier";
@@ -16,6 +17,7 @@ import { OptionalJwtAuthGuard } from "../../common/guards/optional-jwt-auth.guar
     AuthService,
     CompanyLoginService,
     TokenService,
+    RefreshTokenPurgeWorker,
     AdminLoginOtpService,
     { provide: ADMIN_OTP_NOTIFIER, useFactory: createAdminOtpNotifier },
     JwtAuthGuard,

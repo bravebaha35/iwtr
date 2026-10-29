@@ -316,7 +316,7 @@ function FollowingFilterList({
                   <span
                     className={`max-w-[11rem] truncate text-sm underline-offset-[6px] transition-colors ${
                       on
-                        ? "font-semibold text-foreground underline decoration-2 decoration-brand-600"
+                        ? "font-semibold text-brand-700 dark:text-brand-300 underline decoration-2 decoration-brand-600 dark:decoration-brand-400"
                         : "font-medium text-foreground/70 group-hover:text-foreground"
                     }`}
                   >
