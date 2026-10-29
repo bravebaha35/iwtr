@@ -30,6 +30,14 @@ export class JobPostingsController {
     return this.jobPostings.getBoostStatus(user.id, companyId);
   }
 
+  // Salary Information: the sector's average monthly ₺ salary from other job ads.
+  @Get("my-companies/:companyId/job-postings/salary-average")
+  @CompanyAccountAllowed()
+  @UseGuards(JwtAuthGuard)
+  salaryAverage(@CurrentUser() user: AuthenticatedUser, @Param("companyId", new ParseUUIDPipe()) companyId: string) {
+    return this.jobPostings.sectorSalaryAverage(user.id, companyId);
+  }
+
   @Post("my-companies/:companyId/job-postings")
   @CompanyAccountAllowed()
   @UseGuards(JwtAuthGuard)

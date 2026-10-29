@@ -43,6 +43,7 @@ const company: Company = {
   hasApprovedOwner: false,
   featuredReviewId: null,
   riskScore: 0,
+  perks: [],
 };
 
 const aggregate = null;

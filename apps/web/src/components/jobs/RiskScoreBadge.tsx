@@ -16,14 +16,25 @@ export const RISK_SCORE_NOTES: Record<number, string> = {
 };
 
 // The one-word name a job card shows for each score (owner's words,
-// 2026-10-25; Turkish: Mantıklı. / Olur. / Eh. / Dikkat!).
+// 2026-10-25; no full stop or "!" since 2026-10-29. Turkish: Mantıklı / Olur /
+// Eh / Dikkat).
 // A card for a company with no real posting shows no Risk Score at all
 // (the save button takes its place); the company page still says "-".
 export const RISK_SCORE_WORDS: Record<number, string> = {
-  0: "Reasonable.",
-  1: "Okay.",
-  2: "Meh.",
-  3: "Caution!",
+  0: "Reasonable",
+  1: "Okay",
+  2: "Meh",
+  3: "Caution",
+};
+
+// What a Risk Score badge says when the pointer rests on it: one short line
+// (the owner asked for "You can safely apply here !" style, 2026-10-29). The
+// longer RISK_SCORE_NOTES stay for the Risk Score filter's explanation.
+export const RISK_SCORE_SHORT_NOTES: Record<number, string> = {
+  0: "You can safely apply here !",
+  1: "Fine, one role was reopened once.",
+  2: "Think twice, roles keep reopening.",
+  3: "Be careful before applying !",
 };
 
 export const NO_OPEN_POSTING_NOTE =
@@ -58,7 +69,7 @@ export function RiskTriangleIcon({ className }: { className?: string }) {
   );
 }
 
-// "short" is the job-card form: just the score's word ("Meh.") in its colour, no
+// "short" is the job-card form: just the score's word ("Meh") in its colour, no
 // warning icons. Screen readers still hear the full "Risk Score 2 of 3".
 // Renders nothing when there is no score yet.
 export function RiskScoreBadge({
@@ -71,7 +82,7 @@ export function RiskScoreBadge({
   short?: boolean;
 }) {
   const t = useT();
-  const note = riskScore === null ? t(NO_OPEN_POSTING_NOTE) : t(RISK_SCORE_NOTES[riskScore]);
+  const note = riskScore === null ? t(NO_OPEN_POSTING_NOTE) : t(RISK_SCORE_SHORT_NOTES[riskScore]);
   if (short) {
     if (riskScore === null) return null;
     return (

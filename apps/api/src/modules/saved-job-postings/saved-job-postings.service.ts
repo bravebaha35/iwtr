@@ -1,3 +1,4 @@
+import { toJobSalary } from "../job-postings/job-salary.util";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import type { SavedJobPosting, SavedJobPostingToggleResult } from "@iwtr/shared-types";
@@ -101,6 +102,7 @@ export class SavedJobPostingsService {
           description: posting.description,
           workType: posting.workType,
           positions: posting.positions ?? [],
+          salary: toJobSalary(posting),
         },
         expired: posting.status !== "PUBLISHED" || daysRemaining(effective) === 0,
       });

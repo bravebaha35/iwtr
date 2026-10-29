@@ -6,6 +6,7 @@ import { imageSize } from "image-size";
 import {
   validateLogoFile,
   defaultBannerUrlForWorkplaceType,
+  normalizePerks,
   type AdminCompanySummary,
   type AdminUpdateCompanyInput,
   type Company,
@@ -54,6 +55,7 @@ const PUBLIC_COMPANY_SELECT = {
   linkedinUrl: true,
   youtubeUrl: true,
   glassdoorUrl: true,
+  perks: true,
   bannerImageUrl: true,
   featuredReviewId: true,
   riskScore: true,
@@ -180,6 +182,7 @@ export class AdminCompaniesService {
     });
     return {
       ...company,
+      perks: normalizePerks(company.perks),
       defaultBannerUrl: defaultBannerUrlForWorkplaceType(company.workplaceTypes[0]),
       hasApprovedOwner: approvedOwner !== null,
     };

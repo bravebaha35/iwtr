@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { turkeyRegionKeySchema } from "../geo/turkeyRegions";
 import { publicJobPostingSchema, classifiedJobTitleSchema } from "./jobPosting";
+import { perkKeySchema } from "./perks";
 import {
   workplaceTypeSchema,
   companyWorkplaceTypesSchema,
@@ -106,6 +107,9 @@ export const companySchema = z.object({
   // unowned one is rendered greyscale. Computed, never stored.
   hasApprovedOwner: z.boolean(),
   featuredReviewId: z.string().uuid().nullable(),
+  // Perks ("Yan Haklar") the owner picked from PERK_CATALOG, catalogue order.
+  // Any tier may set them. Shown in Company Details and on the job cards.
+  perks: z.array(perkKeySchema).default([]),
   // 0-3. Increments when this company reposts a title+workType that matches
   // an earlier posting of theirs already marked FILLED — see
   // JobPostingsService.create. Visible to every worker, by design (the

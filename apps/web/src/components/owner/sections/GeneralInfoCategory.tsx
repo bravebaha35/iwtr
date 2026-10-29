@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { defaultBannerUrlForWorkplaceType, type CompanyDetail, type MyCompanyClaim, type WorkplaceType } from "@iwtr/shared-types";
+import { defaultBannerUrlForWorkplaceType, type CompanyDetail, type MyCompanyClaim, type PerkKey, type WorkplaceType } from "@iwtr/shared-types";
+import { PerksPicker } from "@/components/perks/PerksPicker";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { WORKPLACE_TYPES } from "@/lib/workplaceTypes";
 import { CompanyLogoUploader } from "@/components/CompanyLogoUploader";
@@ -47,6 +48,9 @@ export interface GeneralInfoCategoryProps {
   setIsHiring: (v: boolean) => void;
   description: string;
   setDescription: (v: string) => void;
+  // Perks ("Yan Haklar"): any tier, picked from the catalogue only.
+  perks: PerkKey[];
+  setPerks: (v: PerkKey[]) => void;
   website: string;
   setWebsite: (v: string) => void;
   bannerImageUrl: string;
@@ -267,6 +271,16 @@ export function GeneralInfoCategory(props: GeneralInfoCategoryProps) {
               </div>
             </div>
           )}
+
+          {/* Perks: right under About / Description, open to every plan -
+              they help job seekers, so no tier gate. Shown in Company Details
+              and on the company's job cards. */}
+          <div className="mt-2">
+            <p className="text-xs font-medium text-muted-foreground">{t("Perks")}</p>
+            <div className="mt-1">
+              <PerksPicker value={props.perks} onChange={props.setPerks} />
+            </div>
+          </div>
 
           {/* Stays in General Information per the task's own instruction
               (everything else Premium moved to its own sidebar category) —

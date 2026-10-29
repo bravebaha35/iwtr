@@ -73,7 +73,7 @@ export function CompanyWorkCard({
           below the banner for the half of the logo that hangs past it, so
           the name row below never collides with it. 4:1 keeps the strip
           short relative to the rest of the card. */}
-      <div className="relative -mx-4 -mt-4 mb-6 w-[calc(100%+2rem)]">
+      <div className="relative -mx-4 -mt-4 mb-9 w-[calc(100%+2rem)]">
         <div className="relative aspect-[4/1] w-full overflow-hidden rounded-t-xl bg-surface-muted">
           <Image
             src={bannerUrl}
@@ -92,6 +92,8 @@ export function CompanyWorkCard({
             <RiskScoreBadge riskScore={riskScore} short />
           </div>
         )}
+        {/* The base line under the logo and the Risk Score word. */}
+        <div aria-hidden="true" className="absolute inset-x-4 top-[calc(100%+1.75rem)] h-px bg-border" />
       </div>
 
       {/* The logo already sits above, overlapping the banner's bottom-left

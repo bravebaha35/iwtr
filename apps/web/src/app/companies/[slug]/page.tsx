@@ -302,10 +302,17 @@ export default async function CompanyPage({
                 id="vibe-flags"
                 className="grid scroll-mt-24 grid-cols-1 gap-10 border-t border-border pt-10 lg:grid-cols-2 lg:gap-12"
               >
-                <WorkplaceVibeFlags companySlug={slug} />
+                {/* Side by side, both blocks are one fixed height (owner's
+                    request, 2026-10-29): 54rem, just over the tallest Vibe
+                    Flags can get (all five areas with two flags each plus three
+                    mixed signals, Turkish text, at the narrowest two-column
+                    width: 851px). Anything longer scrolls inside its block. */}
+                <div className="lg:h-[54rem] lg:overflow-y-auto">
+                  <WorkplaceVibeFlags companySlug={slug} />
+                </div>
                 {/* The same hairline that splits the rating row above: across
                     the top on phones, down the left side beside the flags. */}
-                <div className="border-t border-border pt-10 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">
+                <div className="border-t border-border pt-10 lg:h-[54rem] lg:overflow-y-auto lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">
                   <CompanyDetails company={company} t={t} />
                 </div>
               </div>

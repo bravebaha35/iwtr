@@ -1,3 +1,4 @@
+import { toJobSalary } from "../job-postings/job-salary.util";
 import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import {
   COMPANY_BROWSE_PAGE_SIZE,
@@ -701,6 +702,9 @@ export class CompaniesService {
         autoReshareEnabled: true,
         workType: true,
         positions: true,
+        salaryAmount: true,
+        salaryCurrency: true,
+        salaryAtInterview: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -727,6 +731,7 @@ export class CompaniesService {
         description: row.description,
         workType: row.workType,
         positions: row.positions ?? [],
+        salary: toJobSalary(row),
       });
       byCompany.set(row.companyId, list);
     }

@@ -47,6 +47,7 @@ describe("JobPostingsService.create — competitor names", () => {
       description: "Apply with your CV through I Worked There.",
       workType: "SERVICE",
       positions: ["SPECIALIST"],
+      salary: { atInterview: true },
       autoReshareEnabled: false,
       boost: null,
     });
@@ -66,6 +67,7 @@ describe("JobPostingsService.create — workType validation", () => {
         description: "d",
         workType: "MANUAL_LABOUR",
         positions: ["SPECIALIST"],
+        salary: { atInterview: true },
         autoReshareEnabled: false,
         boost: null,
       }),
@@ -79,6 +81,7 @@ describe("JobPostingsService.create — workType validation", () => {
       description: "d",
       workType: "SERVICE",
       positions: ["SPECIALIST"],
+      salary: { atInterview: true },
       autoReshareEnabled: false,
       boost: null,
     });
@@ -93,6 +96,7 @@ describe("JobPostingsService.create — workType validation", () => {
         description: "d",
         workType: "SERVICE",
         positions: ["SPECIALIST"],
+        salary: { atInterview: true },
         autoReshareEnabled: false,
         boost: null,
       }),
@@ -108,6 +112,7 @@ describe("JobPostingsService.create — Risk Score", () => {
       description: "d",
       workType: "SERVICE",
       positions: ["SPECIALIST"],
+      salary: { atInterview: true },
       autoReshareEnabled: false,
       boost: null,
     });
@@ -126,6 +131,7 @@ describe("JobPostingsService.create — Risk Score", () => {
       description: "d",
       workType: "SERVICE",
       positions: ["SPECIALIST"],
+      salary: { atInterview: true },
       autoReshareEnabled: false,
       boost: null,
     });
@@ -178,6 +184,7 @@ describe("JobPostingsService.create — Risk Score", () => {
       description: "d",
       workType: "SERVICE",
       positions: ["SPECIALIST"],
+      salary: { atInterview: true },
       autoReshareEnabled: false,
       boost: null,
     });
@@ -327,6 +334,7 @@ describe("JobPostingsService.create — paid boost failure paths", () => {
         description: "d",
         workType: "SERVICE",
         positions: ["SPECIALIST"],
+        salary: { atInterview: true },
         autoReshareEnabled: false,
         boost: { option: "FEATURED_14" },
       }),
@@ -345,6 +353,7 @@ describe("JobPostingsService.create — paid boost failure paths", () => {
       description: "d",
       workType: "SERVICE",
       positions: ["SPECIALIST"],
+      salary: { atInterview: true },
       autoReshareEnabled: false,
       boost: { option: "FEATURED_14", billing },
     });

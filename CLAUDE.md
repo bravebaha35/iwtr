@@ -320,6 +320,19 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
   160x600 "Wide Skyscraper", in-feed (between IWT Social posts) a 468x60 "Full Banner" (320x50 on phones; the owner wants
   it short and wide, and a 728x90 does not fit the 36rem feed). The employer ad beside the
   search bar is our own native job ad, not a network size. Test creatives in `public/test-ads/`.
+- **Perks / Yan Haklar (2026-10-29)**: `Company.perks` holds keys from shared-types `PERK_CATALOG` (about 60 Turkish job-site
+  perks, English + Turkish name each; the Turkish dictionary entries are generated from it, so components just `t(p.en)`).
+  Owners never type a perk: `PerksPicker` (dashboard General Information, under About, every plan) suggests from the
+  catalogue in either language (`searchPerks`, Turkish letters folded). Symbols are Phosphor line icons in hairline circles
+  (`lib/perkIcons.tsx`, no colour). Shown in Company Details (under Contact) and on opened job cards.
+- **Salary Information / Maaş Bilgisi (2026-10-29)**: a job posting has `salaryAmount` + `salaryCurrency` (TRY/USD/EUR, never
+  converted) or `salaryAtInterview`; one of the two is required for a new posting (`jobSalaryInputSchema`), editable in Edit.
+  `SalaryField` sits under Position and shows the sector's average monthly ₺ salary (`GET my-companies/:id/job-postings/
+  salary-average`, open to the company login): other job ads in the same `category`, last 12 months, ₺ only, each company
+  counted once, hidden until 3 companies are behind it. Reviewers' `SalarySubmission` is never used for it.
+- Opened job cards (`JobCardFacts`: the expanded Jobs card, the company page's Job Postings cards) end with a thin line, then
+  Salary > Perks > Risk Score word (no Risk Score on the company page). Workplace Vibe Flags and Company Details are both a
+  fixed `lg:h-[54rem]` (the tallest Vibe Flags measured 851px: all areas full, three mixed signals, Turkish, 1024px wide).
 - The chat dock's panels can be enlarged (button between minimise and close); an enlarged panel counts as two.
 - **Avatars (2026-10-25)**: the owner's beaver art, 4 per work type per gender (`lib/avatars.ts`). `User.gender`
   (MALE/FEMALE, nullable) is chosen at sign-up in PiiForm and then locked (2026-10-25): `updateProfile` refuses a
@@ -338,8 +351,9 @@ single `@Body()`/`@Param()` argument against a zod schema — see the gotcha bel
 - Notifications panel (`NotificationsMenu`): one line icon per kind on a soft tone tile (`KIND_LOOK`), time on the
   right, orange dot for unread, "Today" / "Earlier" groups. A job card's flags pop-up links to the company page's
   `#vibe-flags` block with the count of mixed signals.
-- Job cards name the Risk Score in one word (`RISK_SCORE_WORDS`): 0 Reasonable. / 1 Okay. / 2 Meh. / 3 Caution! (TR Mantıklı.
-  / Olur. / Eh. / Dikkat!), same colours. A card with no score (no real posting) shows nothing, the save button takes its
+- Job cards name the Risk Score in one word (`RISK_SCORE_WORDS`): 0 Reasonable / 1 Okay / 2 Meh / 3 Caution (no full stop or "!"
+  since 2026-10-29; TR Mantıklı / Olur / Eh / Dikkat), same colours; hovering shows one short line (`RISK_SCORE_SHORT_NOTES`,
+  e.g. "You can safely apply here !"). The company page's own Job Postings cards show no Risk Score. A card with no score (no real posting) shows nothing, the save button takes its
   place; the company page keeps "Risk Score: n/3" / "-". In Turkish "IWT Social" is "IWT Sosyal" (`t("IWT Social")`).
 - Edit Profile and the owner Dashboard share one side menu (`SettingsNav`): plain text rows on a hairline rail, the picked
   row marked by orange text and a sliding orange bar; a tab row with an underline on phones. No filled pill buttons.

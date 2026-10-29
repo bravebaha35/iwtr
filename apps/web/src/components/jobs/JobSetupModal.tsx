@@ -13,6 +13,9 @@ import { apiGet } from "@/lib/api-client";
 import { SingleSelectDropdown } from "@/components/Dropdown";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { PositionPicker } from "@/components/jobs/PositionPicker";
+import { SalaryField } from "@/components/jobs/SalaryField";
+import { EMPTY_SALARY_DRAFT, salaryDraftComplete, salaryInputFromDraft, type SalaryDraft } from "@/lib/salary";
+import type { JobSalaryInput } from "@iwtr/shared-types";
 import { workplaceTypeLabel } from "@/lib/workplaceTypes";
 import { useT } from "@/lib/i18n/client";
 
@@ -21,6 +24,7 @@ export interface JobSetupData {
   description: string;
   workType: WorkplaceType;
   positions: JobPosition[];
+  salary: JobSalaryInput;
 }
 
 function CloseButton({ onClose }: { onClose: () => void }) {
@@ -78,6 +82,7 @@ export function JobSetupModal({
   const [description, setDescription] = useState("");
   const [workType, setWorkType] = useState<WorkplaceType | null>(null);
   const [positions, setPositions] = useState<JobPosition[]>([]);
+  const [salary, setSalary] = useState<SalaryDraft>(EMPTY_SALARY_DRAFT);
   const [detailError, setDetailError] = useState(false);
   // Turned on by the first Continue press with something missing.
   const [showMissing, setShowMissing] = useState(false);
@@ -120,19 +125,20 @@ export function JobSetupModal({
     jobTitle: !jobTitle,
     workType: workType === null,
     positions: positions.length === 0,
+    salary: !salaryDraftComplete(salary),
     description: text.length === 0,
   };
   const anyMissing = Object.values(missing).some(Boolean);
   // Something has been filled in: a stray click on the dark area mustn't
   // throw it away.
-  const dirty = Boolean(jobTitle) || positions.length > 0 || text.length > 0;
+  const dirty = Boolean(jobTitle) || positions.length > 0 || text.length > 0 || salary.amount.length > 0 || salary.atInterview;
 
   function submit() {
     if (anyMissing || !jobTitle || !workType) {
       setShowMissing(true);
       return;
     }
-    onContinue({ jobTitle, description: text, workType, positions });
+    onContinue({ jobTitle, description: text, workType, positions, salary: salaryInputFromDraft(salary) });
   }
 
   return (
@@ -216,6 +222,8 @@ export function JobSetupModal({
               </p>
               {showMissing && missing.positions && <Missing>{t("Tick at least one position.")}</Missing>}
             </div>
+
+            <SalaryField companyId={company.companyId} value={salary} onChange={setSalary} showMissing={showMissing} />
           </div>
 
           {/* Right: the description, and nothing else. */}

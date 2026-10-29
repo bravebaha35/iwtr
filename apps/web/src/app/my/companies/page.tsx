@@ -11,6 +11,7 @@ import {
   type PaidOwnerTier,
   type PlusCheckoutResult,
   type WorkplaceType,
+  type PerkKey,
 } from "@iwtr/shared-types";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPatch, apiPost, ApiError } from "@/lib/api-client";
@@ -250,6 +251,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
   const [category, setCategory] = useState<string | null>(null);
   const [mainPhotoUrl, setMainPhotoUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [perks, setPerks] = useState<PerkKey[]>([]);
   const [website, setWebsite] = useState("");
   const [city, setCity] = useState<string | null>(null);
   const [district, setDistrict] = useState<string | null>(null);
@@ -324,6 +326,7 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
           setCategory(c.category);
           setMainPhotoUrl(c.mainPhotoUrl ?? "");
           setDescription(c.description ?? "");
+          setPerks(c.perks ?? []);
           setWebsite(c.website ?? "");
           setCity(c.city);
           setDistrict(c.district);
@@ -405,6 +408,11 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
       }
       if (hasActivePaidTier && website.trim() && website.trim() !== detail?.company.website) {
         body.website = website.trim();
+      }
+      // Perks: any tier. Compared as a set, since the order is the catalogue's.
+      const savedPerks = detail?.company.perks ?? [];
+      if (perks.length !== savedPerks.length || perks.some((k) => !savedPerks.includes(k))) {
+        body.perks = perks;
       }
       if (isHiring !== (detail?.company.isHiring ?? false)) {
         body.isHiring = isHiring;
@@ -602,6 +610,8 @@ function OwnedCompanyCard({ claim }: { claim: MyCompanyClaim }) {
                 setIsHiring={setIsHiring}
                 description={description}
                 setDescription={setDescription}
+                perks={perks}
+                setPerks={setPerks}
                 website={website}
                 setWebsite={setWebsite}
                 bannerImageUrl={bannerImageUrl}

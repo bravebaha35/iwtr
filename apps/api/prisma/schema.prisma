@@ -638,6 +638,10 @@ model Company {
   // the one it already has.
   bannerImageUrl   String?
   featuredReviewId String?
+  // Perks ("Yan Haklar") picked from shared-types PERK_CATALOG, as its keys.
+  // Plain strings, not an enum, so the catalogue can grow without a migration;
+  // the API validates on write and drops unknown keys on read.
+  perks            String[]  @default([])
 
   // Set by an ADMIN via PATCH /admin/companies/:id/visibility. A hidden company
   // vanishes from every public surface (search, detail, filters, job browse,
@@ -729,6 +733,14 @@ model CompanyOwner {
 // createdAt >= start of month). Only a 7-day boost can ever be free (see
 // decideBoostAccess.ts); a 14/21-day boost always goes through
 // boostPaymentStatus PENDING -> PAID via the iyzico one-time-checkout flow.
+enum SalaryCurrency {
+  TRY
+  USD
+  EUR
+
+  @@schema("public")
+}
+
 model JobPosting {
   id                 String                        @id @default(uuid())
   companyId          String
@@ -771,6 +783,12 @@ model JobPosting {
   // Rating and Jobs pages (CompaniesService.employerAd), on top of the
   // Featured row.
   boostAdSpace       Boolean                       @default(false)
+  // Salary Information (2026-10-29): monthly net amount in the picked
+  // currency, never converted. Both null when salaryAtInterview is true, and
+  // all three empty for postings made before salaries existed.
+  salaryAmount       Int?
+  salaryCurrency     SalaryCurrency?
+  salaryAtInterview  Boolean                       @default(false)
   createdAt          DateTime                      @default(now())
   savedBy            SavedJobPosting[]
   socialPosts        SocialPost[]

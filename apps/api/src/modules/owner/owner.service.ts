@@ -1,3 +1,4 @@
+import { normalizePerks } from "@iwtr/shared-types";
 import { randomUUID } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
@@ -223,6 +224,8 @@ export class OwnerService {
         linkedinUrl: input.linkedinUrl,
         youtubeUrl: input.youtubeUrl,
         glassdoorUrl: input.glassdoorUrl,
+        // Any tier. Stored in catalogue order.
+        perks: input.perks ? normalizePerks(input.perks) : undefined,
         isHiring: input.isHiring,
         bannerImageUrl: input.bannerImageUrl,
         featuredReviewId: input.featuredReviewId,

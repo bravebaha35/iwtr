@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import type { Company } from "@iwtr/shared-types";
 import type { TFn } from "@/lib/i18n/core";
+import { PerkChips } from "@/components/perks/PerkChips";
 
 // The company page's "Company Details" column, beside Workplace Vibe Flags:
-// what the company wrote about itself, where it is, its sector and how to
-// reach it. Label / value rows on hairlines (no boxes), contacts as small
+// what the company wrote about itself, where it is, its sector, how to
+// reach it and its perks ("Yan Haklar"). Label / value rows on hairlines (no boxes), contacts as small
 // tonal chips. Every field comes down with the page's CompanyDetail, so
 // there is no fetch here. Translated like the Vibe Flags beside it (the
 // company's own text, name and sector key aside, which come as they are).
@@ -51,7 +52,12 @@ function Glyph({ children, className = ICON }: { children: ReactNode; className?
   );
 }
 
-const ROW_ICONS: Record<"about" | "location" | "sector" | "contact", ReactNode> = {
+const ROW_ICONS: Record<"about" | "location" | "sector" | "contact" | "perks", ReactNode> = {
+  perks: (
+    <Glyph>
+      <path d="M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7ZM12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7Z" />
+    </Glyph>
+  ),
   about: (
     <Glyph>
       <path d="M4 5h16M4 10h16M4 15h10M4 20h7" />
@@ -196,6 +202,10 @@ export function CompanyDetails({ company, t }: { company: Company; t: TFn }) {
           ) : (
             <Empty>{t("Not provided yet.")}</Empty>
           )}
+        </Row>
+
+        <Row icon={ROW_ICONS.perks} label={t("Perks")}>
+          <PerkChips perks={company.perks ?? []} />
         </Row>
       </dl>
     </section>

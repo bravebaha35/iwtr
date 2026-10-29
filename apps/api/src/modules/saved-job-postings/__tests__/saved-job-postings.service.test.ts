@@ -122,7 +122,7 @@ describe("SavedJobPostingsService.list", () => {
     const result = await new SavedJobPostingsService(prisma as any).list("u1");
     expect(result).toHaveLength(1);
     expect(result[0].expired).toBe(false);
-    expect(result[0].posting).toEqual({ id: "jp1", jobTitle: "Cashier", description: "d", positions: [] });
+    expect(result[0].posting).toEqual({ id: "jp1", jobTitle: "Cashier", description: "d", positions: [], salary: null });
     expect(result[0].company).toMatchObject({
       id: "c1",
       slug: "acme",

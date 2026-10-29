@@ -16,6 +16,8 @@ import { PricingComparisonTable } from "@/components/PricingComparisonTable";
 import { BoostPicker, boostInput, boostNeedsBilling, emptyBilling, useBoostStatus } from "@/components/jobs/BoostPicker";
 import { CloseButton } from "@/components/jobs/JobBoostModal";
 import { PositionPicker } from "@/components/jobs/PositionPicker";
+import { SalaryField } from "@/components/jobs/SalaryField";
+import { draftFromSalary, salaryDraftComplete, salaryInputFromDraft, type SalaryDraft } from "@/lib/salary";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { useI18n } from "@/lib/i18n/client";
 import { intlLocale } from "@/lib/i18n/core";
@@ -48,6 +50,8 @@ export function EditJobPostingModal({
   const status = useBoostStatus(companyId);
   const [description, setDescription] = useState(posting.description);
   const [positions, setPositions] = useState<JobPosition[]>(posting.positions);
+  const initialSalary = draftFromSalary(posting.salary ?? null);
+  const [salary, setSalary] = useState<SalaryDraft>(initialSalary);
   const [selected, setSelected] = useState<BoostOption | null>(null);
   const [billing, setBilling] = useState(emptyBilling);
   const [showPricing, setShowPricing] = useState(false);
@@ -62,12 +66,19 @@ export function EditJobPostingModal({
   // A posting from before positions existed has none; it can still be saved
   // as long as they're left alone.
   const positionsMissing = positionsChanged && positions.length === 0;
+  // A posting from before salaries existed has none; same rule: only a
+  // salary the owner touched must be complete.
+  const salaryChanged =
+    salary.atInterview !== initialSalary.atInterview ||
+    (!salary.atInterview && (salary.amount !== initialSalary.amount || salary.currency !== initialSalary.currency));
+  const salaryMissing = salaryChanged && !salaryDraftComplete(salary);
   const needsBilling = boostNeedsBilling(selected, status);
   const canSave =
     !submitting &&
     description.trim().length > 0 &&
     !positionsMissing &&
-    (descriptionChanged || positionsChanged || selected !== null);
+    !salaryMissing &&
+    (descriptionChanged || positionsChanged || salaryChanged || selected !== null);
 
   function togglePosition(value: JobPosition) {
     setPositions((prev) => {
@@ -83,6 +94,7 @@ export function EditJobPostingModal({
       const body: UpdateJobPostingInput = {
         ...(descriptionChanged ? { description: description.trim() } : {}),
         ...(positionsChanged ? { positions } : {}),
+        ...(salaryChanged ? { salary: salaryInputFromDraft(salary) } : {}),
         ...(selected ? { boost: boostInput(selected, needsBilling, billing) } : {}),
       };
       const data = await apiPatch<UpdateJobPostingResult>(`/my-companies/${companyId}/job-postings/${posting.id}`, body);
@@ -169,6 +181,10 @@ export function EditJobPostingModal({
             </div>
             <PositionPicker selected={positions} onToggle={togglePosition} max={MAX_JOB_POSITIONS} columns={2} />
             {positionsMissing && <p className="mt-1.5 text-xs text-red-600 dark:text-red-300">{t("Tick at least one position.")}</p>}
+
+            <div className="mt-4">
+              <SalaryField companyId={companyId} value={salary} onChange={setSalary} showMissing={salaryMissing} />
+            </div>
 
             <label htmlFor="edit-job-description" className="mb-1 mt-4 block text-[13px] font-semibold text-foreground">
               {t("Description")}

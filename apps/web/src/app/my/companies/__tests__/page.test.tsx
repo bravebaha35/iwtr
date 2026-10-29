@@ -71,6 +71,7 @@ const detail: CompanyDetail = {
     hasApprovedOwner: true,
     featuredReviewId: null,
     riskScore: 0,
+    perks: [],
   },
   aggregate: null,
 };

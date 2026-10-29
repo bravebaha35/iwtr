@@ -20,6 +20,7 @@ export * from "./schemas/companyBanner";
 export * from "./schemas/notification";
 export * from "./schemas/jobApplication";
 export * from "./schemas/jobPosting";
+export * from "./schemas/perks";
 export * from "./schemas/savedJobPosting";
 export * from "./schemas/social";
 export * from "./schemas/follow";

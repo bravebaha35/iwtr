@@ -18,7 +18,7 @@ import { RichText } from "@/components/RichText";
 import { ContactButton } from "@/components/jobs/JobCard";
 import { ApplyButton } from "@/components/jobs/ApplyButton";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
-import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
+import { JobCardFacts } from "@/components/jobs/JobCardFacts";
 import { useT } from "@/lib/i18n/client";
 
 // The "Job Postings" tab on a company's profile page. Its own fetch against
@@ -83,7 +83,7 @@ function RoleRow({ company, posting }: { company: Company; posting: PublicJobPos
           <ContactButton icon="phone" label="Call" value={company.contactPhone} />
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+        <div className="mt-auto flex items-center gap-2 pt-1">
           <button
             type="button"
             onClick={() => canSave && toggleSave(posting.id)}
@@ -95,7 +95,6 @@ function RoleRow({ company, posting }: { company: Company; posting: PublicJobPos
             <BookmarkIcon className="h-4 w-4" filled={isSaved} />
             {isSaved ? t("Saved") : t("Save")}
           </button>
-          <RiskScoreBadge riskScore={company.riskScore > 0 ? company.riskScore : 0} short />
         </div>
       </div>
 
@@ -125,6 +124,10 @@ function RoleRow({ company, posting }: { company: Company; posting: PublicJobPos
             {open ? t("Show less") : t("Read the full posting")}
           </button>
         )}
+        {/* A thin line at the bottom, then Salary and Perks (no Risk Score here). */}
+        <div className="mt-auto pt-4">
+          <JobCardFacts salary={posting.salary} perks={company.perks} />
+        </div>
       </div>
     </article>
   );

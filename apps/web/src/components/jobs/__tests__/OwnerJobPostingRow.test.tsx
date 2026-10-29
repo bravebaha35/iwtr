@@ -25,6 +25,7 @@ const posting = (over: Partial<OwnerJobPosting>): OwnerJobPosting => ({
   boostDurationDays: null,
   boostExpiresAt: null,
   boostAdSpace: false,
+  salary: null,
   createdAt: new Date().toISOString(),
   daysRemaining: 20,
   ...over,

@@ -252,7 +252,7 @@ describe("CompaniesService.jobPostingsForSlug — the company profile 'Job Posti
     const result = await service.jobPostingsForSlug("co");
 
     expect(result.jobPostings).toEqual([
-      { jobTitle: "Forklift Operatörü", description: "Depo vardiyası", workType: "MANUAL_LABOUR", positions: [] },
+      { jobTitle: "Forklift Operatörü", description: "Depo vardiyası", workType: "MANUAL_LABOUR", positions: [], salary: null },
     ]);
     // Gibberish that classifyJobRole can't place is dropped, same as /jobs.
     expect(result.jobTitles).toEqual([{ title: "Muhasebe", workType: "OFFICE" }]);
@@ -419,7 +419,7 @@ describe("CompaniesService — public job postings lifecycle", () => {
 
     const results = await service.search({ includeJobTitles: true } as any);
 
-    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d", positions: [] }]);
+    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d", positions: [], salary: null }]);
   });
 
   it("drops a stale posting that isn't set to auto-reshare", async () => {
@@ -486,7 +486,7 @@ describe("CompaniesService — public job postings lifecycle", () => {
       where: { id: { in: ["jp1"] } },
       data: { lastResharedAt: expect.any(Date) },
     });
-    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d", positions: [] }]);
+    expect(results[0].jobPostings).toEqual([{ id: "jp1", jobTitle: "Cashier", description: "d", positions: [], salary: null }]);
   });
 });
 

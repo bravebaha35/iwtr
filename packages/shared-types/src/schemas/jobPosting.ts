@@ -38,6 +38,51 @@ export const MAX_JOB_POSITIONS = 3;
 // "Tell us more": plain text, bullet lines included.
 export const JOB_DESCRIPTION_MAX_LENGTH = 4000;
 
+// Salary Information (2026-10-29): a monthly net amount in the currency the
+// owner picked. Never converted - a posting in $ stays in $. Or, instead of
+// an amount, "shared at the interview".
+export const SALARY_CURRENCIES = ["TRY", "USD", "EUR"] as const;
+export const salaryCurrencySchema = z.enum(SALARY_CURRENCIES);
+export type SalaryCurrency = z.infer<typeof salaryCurrencySchema>;
+export const SALARY_CURRENCY_SYMBOL: Record<SalaryCurrency, string> = { TRY: "₺", USD: "$", EUR: "€" };
+export const MAX_MONTHLY_SALARY = 10_000_000;
+
+// What a posting says about pay. A whole posting's `salary` is null when it
+// was created before this existed.
+export const jobSalarySchema = z.object({
+  amount: z.number().int().positive().nullable(),
+  currency: salaryCurrencySchema.nullable(),
+  atInterview: z.boolean(),
+});
+export type JobSalary = z.infer<typeof jobSalarySchema>;
+
+// The owner's choice: an amount and a currency, or the "shared at the
+// interview" tick (then amount and currency are ignored).
+export const jobSalaryInputSchema = z
+  .object({
+    amount: z.number().int().min(1, "Enter the monthly salary").max(MAX_MONTHLY_SALARY).nullable().optional(),
+    currency: salaryCurrencySchema.nullable().optional(),
+    atInterview: z.boolean(),
+  })
+  .refine((v) => v.atInterview || (v.amount != null && v.currency != null), {
+    message: "Enter the monthly salary, or tick that it will be shared at the interview",
+    path: ["amount"],
+  });
+export type JobSalaryInput = z.input<typeof jobSalaryInputSchema>;
+
+// The sector's average monthly salary shown under Salary Information while
+// posting a job: from other job ads in the same sector that gave an amount in
+// ₺ (other currencies are never converted, so they are left out). Only shown
+// once ads from at least SECTOR_SALARY_MIN_COMPANIES different companies are
+// behind it, so it never gives one company's pay away.
+export const SECTOR_SALARY_MIN_COMPANIES = 3;
+export const sectorSalaryAverageSchema = z.object({
+  sector: z.string(),
+  averageMonthlyTry: z.number().int().nullable(),
+  postingCount: z.number().int(),
+});
+export type SectorSalaryAverage = z.infer<typeof sectorSalaryAverageSchema>;
+
 // Mirrors PricingTierKey in apps/web/src/lib/pricingTiers.ts — kept as a
 // separate shared-types enum since apps/api needs it too (to compute
 // freeBoostsRemaining), not just the web app.
@@ -58,6 +103,7 @@ export const jobPostingSchema = z.object({
   boostExpiresAt: z.string().datetime().nullable(),
   // The boost includes the employer ad space (AD_SPACE_14).
   boostAdSpace: z.boolean().default(false),
+  salary: jobSalarySchema.nullable().default(null),
   createdAt: z.string().datetime(),
 });
 export type JobPosting = z.infer<typeof jobPostingSchema>;
@@ -73,6 +119,7 @@ export const publicJobPostingSchema = z.object({
   description: z.string(),
   workType: workplaceTypeSchema.nullable().default(null),
   positions: z.array(jobPositionSchema).default([]),
+  salary: jobSalarySchema.nullable().default(null),
 });
 export type PublicJobPosting = z.infer<typeof publicJobPostingSchema>;
 
@@ -112,6 +159,7 @@ export const createJobPostingInputSchema = z.object({
     .min(1, "Pick at least one position")
     .max(MAX_JOB_POSITIONS, "Pick at most 3 positions")
     .refine((v) => new Set(v).size === v.length, "Each position can be picked once"),
+  salary: jobSalaryInputSchema,
   autoReshareEnabled: z.boolean().optional().default(false),
   boost: z
     .object({
@@ -182,11 +230,16 @@ export const updateJobPostingInputSchema = z
   .object({
     description: z.string().min(1).max(JOB_DESCRIPTION_MAX_LENGTH).optional(),
     positions: createJobPostingInputSchema.shape.positions.optional(),
+    salary: jobSalaryInputSchema.optional(),
     boost: createJobPostingInputSchema.shape.boost.optional(),
   })
   .refine(
-    (v) => v.description !== undefined || v.positions !== undefined || (v.boost !== undefined && v.boost !== null),
-    { message: "Change the description or the positions, or pick a boost" },
+    (v) =>
+      v.description !== undefined ||
+      v.positions !== undefined ||
+      v.salary !== undefined ||
+      (v.boost !== undefined && v.boost !== null),
+    { message: "Change the description, the positions or the salary, or pick a boost" },
   );
 export type UpdateJobPostingInput = z.input<typeof updateJobPostingInputSchema>;
 

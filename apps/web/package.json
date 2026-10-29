@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@iwtr/shared-types": "workspace:*",
+    "@phosphor-icons/react": "2.1.7",
     "@sentry/nextjs": "11.7.0",
     "flag-icons": "^7.5.0",
     "framer-motion": "^13.3.0",

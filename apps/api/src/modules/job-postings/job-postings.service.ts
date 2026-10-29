@@ -9,6 +9,7 @@ import type {
   JobPostingBoostStatus,
   JobPostingStatus,
   BoostOption,
+  SectorSalaryAverage,
   BoostPricingOption,
   UpdateJobPostingInput,
   UpdateJobPostingResult,
@@ -21,6 +22,7 @@ import { PaymentsService } from "../payments/payments.service";
 import { decideBoostAccess, freeBoostsRemaining, tierKeyFromOwnerTier } from "./decideBoostAccess";
 import type { OwnerJobPosting } from "@iwtr/shared-types";
 import { shouldLazyReshare, isWithinSavedGraceWindow, daysRemaining } from "./job-postings.util";
+import { salaryColumns, sameSalary, sectorAverage, toJobSalary, type SalaryColumns } from "./job-salary.util";
 
 // A job ad is the employer's own text, like its IWT Social caption: a job
 // title such as "Kredi Analisti" reads as a first name + surname to the
@@ -65,6 +67,9 @@ function toPublic(posting: {
   boostDurationDays: number | null;
   boostExpiresAt: Date | null;
   boostAdSpace?: boolean;
+  salaryAmount?: number | null;
+  salaryCurrency?: SalaryColumns["salaryCurrency"];
+  salaryAtInterview?: boolean;
   createdAt: Date;
 }): JobPostingView {
   return {
@@ -78,6 +83,7 @@ function toPublic(posting: {
     boostDurationDays: posting.boostDurationDays ?? null,
     boostExpiresAt: posting.boostExpiresAt ? posting.boostExpiresAt.toISOString() : null,
     boostAdSpace: posting.boostAdSpace ?? false,
+    salary: toJobSalary(posting),
     createdAt: posting.createdAt.toISOString(),
   };
 }
@@ -200,6 +206,7 @@ export class JobPostingsService {
           description: input.description,
           workType,
           positions: input.positions,
+          ...salaryColumns(input.salary),
           autoReshareEnabled: input.autoReshareEnabled,
           status,
         },
@@ -370,6 +377,33 @@ export class JobPostingsService {
    * so changing only them needs no check. A boost can only be added while
    * the posting isn't already boosted.
    */
+  /**
+   * The sector's average monthly ₺ salary for the Salary Information step of
+   * posting a job: job ads from the last 12 months, in this company's own
+   * sector, that gave an amount in ₺ (other currencies are never converted,
+   * so they are left out). Null until ads from enough different companies are
+   * behind it - see sectorAverage.
+   */
+  async sectorSalaryAverage(userId: string, companyId: string): Promise<SectorSalaryAverage> {
+    await this.requireApprovedOwnership(userId, companyId);
+    const company = await this.prisma.company.findUnique({ where: { id: companyId }, select: { category: true } });
+    if (!company) throw new NotFoundException("Company not found");
+    const since = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.jobPosting.findMany({
+      where: {
+        salaryCurrency: "TRY",
+        salaryAmount: { not: null },
+        salaryAtInterview: false,
+        status: { in: ["PUBLISHED", "FILLED"] },
+        createdAt: { gte: since },
+        company: { category: company.category, hiddenAt: null },
+      },
+      select: { companyId: true, salaryAmount: true },
+      take: 5000,
+    });
+    return { sector: company.category, ...sectorAverage(rows) };
+  }
+
   async update(
     userId: string,
     companyId: string,
@@ -397,8 +431,14 @@ export class JobPostingsService {
     const positionsChanged =
       input.positions !== undefined &&
       (input.positions.length !== oldPositions.length || input.positions.some((p) => !oldPositions.includes(p)));
-    if (descriptionChanged || positionsChanged) {
-      const data: { description?: string; status?: "PUBLISHED" | "PENDING_ADMIN"; positions?: JobPosition[] } = {};
+    const newSalary = input.salary ? salaryColumns(input.salary) : null;
+    const salaryChanged = newSalary !== null && !sameSalary(newSalary, existing);
+    if (descriptionChanged || positionsChanged || salaryChanged) {
+      const data: {
+        description?: string;
+        status?: "PUBLISHED" | "PENDING_ADMIN";
+        positions?: JobPosition[];
+      } & Partial<SalaryColumns> = {};
       if (descriptionChanged) {
         const description = input.description!;
         const contentCheck = this.moderation.checkContent([existing.jobTitle, description], JOB_AD_SKIPPED_CHECKS);
@@ -408,6 +448,7 @@ export class JobPostingsService {
         data.status = savedStatus;
       }
       if (positionsChanged) data.positions = input.positions;
+      if (salaryChanged) Object.assign(data, newSalary);
       posting = await this.prisma.jobPosting.update({ where: { id: jobPostingId }, data });
     }
 

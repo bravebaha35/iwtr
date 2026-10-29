@@ -13,6 +13,7 @@ import {
   type VibeFlag,
   type WorkplaceType,
   primaryWorkplaceType,
+  type JobSalary,
 } from "@iwtr/shared-types";
 import { apiGet } from "@/lib/api-client";
 import { scoreTextColor } from "@/lib/scoreBandColors";
@@ -22,6 +23,7 @@ import { canUseBanner } from "@/lib/pricingTiers";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CompanyVerificationTick } from "@/components/CompanyVerificationTick";
 import { RiskScoreBadge } from "@/components/jobs/RiskScoreBadge";
+import { JobCardFacts } from "@/components/jobs/JobCardFacts";
 import { BookmarkIcon } from "@/components/jobs/BookmarkIcon";
 import { ApplyButton } from "@/components/jobs/ApplyButton";
 import { useSavedJobPostings } from "@/lib/useSavedJobPostings";
@@ -224,6 +226,8 @@ export type CardPosting =
       // The level(s) the owner ticked; empty for inferred titles and for
       // postings older than the Position field.
       positions?: JobPosition[];
+      // Salary Information; null for inferred titles and older postings.
+      salary?: JobSalary | null;
     }
   | null;
 
@@ -235,6 +239,7 @@ export function postingsForCard(company: CompanyListItem): CardPosting[] {
       description: p.description,
       workType: p.workType,
       positions: p.positions,
+      salary: p.salary ?? null,
     }));
   }
   if (company.jobTitles.length > 0) {
@@ -522,6 +527,15 @@ export function JobCard({
               </p>
             )
           )}
+          {/* The opened card: a thin line, then Salary, Perks, Risk Score. */}
+          {expandedView && posting?.id && (
+            <JobCardFacts
+              salary={posting.salary}
+              perks={company.perks}
+              riskScore={company.riskScore > 0 ? company.riskScore : 0}
+              className="mt-4"
+            />
+          )}
         </div>
       </div>
 
@@ -585,10 +599,13 @@ export function JobCard({
               <BookmarkIcon className="h-4 w-4" filled={isFollowed} />
             </button>
           )}
-          <RiskScoreBadge
-            riskScore={company.riskScore > 0 ? company.riskScore : posting?.id ? 0 : null}
-            short
-          />
+          {/* On the opened card the Risk Score sits with Salary and Perks above. */}
+          {!(expandedView && posting?.id) && (
+            <RiskScoreBadge
+              riskScore={company.riskScore > 0 ? company.riskScore : posting?.id ? 0 : null}
+              short
+            />
+          )}
         </div>
       </div>
 

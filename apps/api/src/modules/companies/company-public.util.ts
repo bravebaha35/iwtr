@@ -1,5 +1,6 @@
 import {
   defaultBannerUrlForWorkplaceType,
+  normalizePerks,
   type Company,
   type StructureType,
   type TurkeyRegionKey,
@@ -41,6 +42,7 @@ export interface PublicCompanyFields {
   glassdoorUrl: string | null;
   bannerImageUrl: string | null;
   featuredReviewId: string | null;
+  perks?: string[];
   riskScore: number;
 }
 
@@ -77,6 +79,7 @@ export function toPublicCompany(c: PublicCompanyFields, hasApprovedOwner: boolea
     bannerImageUrl: c.bannerImageUrl,
     defaultBannerUrl: defaultBannerUrlForWorkplaceType(c.workplaceTypes[0]),
     featuredReviewId: c.featuredReviewId,
+    perks: normalizePerks(c.perks ?? []),
     riskScore: c.riskScore,
     hasApprovedOwner,
   };

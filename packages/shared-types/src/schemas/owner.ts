@@ -2,6 +2,7 @@ import { z } from "zod";
 import { companyWorkplaceTypesSchema, httpUrlSchema, ownerTierSchema, planStatusSchema } from "./company";
 import { companyContactPhoneSchema } from "./turkishPhone";
 import { checkoutBillingInputSchema } from "./payment";
+import { companyPerksSchema } from "./perks";
 
 export const ownerClaimStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export type OwnerClaimStatus = z.infer<typeof ownerClaimStatusSchema>;
@@ -124,6 +125,8 @@ export const updateCompanyInputSchema = z
     linkedinUrl: httpUrlSchema.optional(),
     youtubeUrl: httpUrlSchema.optional(),
     glassdoorUrl: httpUrlSchema.optional(),
+    // Perks, from PERK_CATALOG only (any tier; [] clears them).
+    perks: companyPerksSchema.optional(),
     // Paid-tier only (any tier above FREE):
     description: z.string().max(2000).optional(),
     website: httpUrlSchema.optional(),
